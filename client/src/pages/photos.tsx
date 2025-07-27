@@ -1,0 +1,343 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Upload, Camera, Trash2, Download, Search } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertPhotoSchema } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import PhotoGallery from "@/components/photos/photo-gallery";
+import type { Photo, Project } from "@shared/schema";
+
+interface PhotoUploadData {
+  projectId: string;
+  description: string;
+  tags: string[];
+}
+
+export default function Photos() {
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProject, setSelectedProject] = useState("all");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: photos = [], isLoading: photosLoading } = useQuery<Photo[]>({
+    queryKey: ["/api/photos"],
+  });
+
+  const { data: projects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
+
+  const uploadPhotoMutation = useMutation({
+    mutationFn: async (data: { formData: FormData }) => {
+      const response = await fetch("/api/photos", {
+        method: "POST",
+        body: data.formData,
+      });
+      if (!response.ok) throw new Error("Upload failed");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      setIsUploadDialogOpen(false);
+      setSelectedFiles(null);
+      form.reset();
+      toast({
+        title: "Success",
+        description: "Photos uploaded successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to upload photos",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletePhotoMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/photos/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+      toast({
+        title: "Success",
+        description: "Photo deleted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete photo",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const form = useForm<PhotoUploadData>({
+    resolver: zodResolver(insertPhotoSchema.pick({ projectId: true, description: true, tags: true })),
+    defaultValues: {
+      projectId: "",
+      description: "",
+      tags: [],
+    },
+  });
+
+  const onSubmit = (data: PhotoUploadData) => {
+    if (!selectedFiles || selectedFiles.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one photo",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    Array.from(selectedFiles).forEach((file) => {
+      const formData = new FormData();
+      formData.append("photo", file);
+      formData.append("projectId", data.projectId);
+      formData.append("userId", "sample-user-id"); // In a real app, this would come from auth
+      formData.append("description", data.description);
+      formData.append("tags", JSON.stringify(data.tags));
+
+      uploadPhotoMutation.mutate({ formData });
+    });
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedFiles(event.target.files);
+  };
+
+  const handleDragDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const files = event.dataTransfer.files;
+    setSelectedFiles(files);
+  };
+
+  const getProjectName = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    return project?.name || "Unknown Project";
+  };
+
+  const filteredPhotos = photos.filter(photo => {
+    const matchesSearch = photo.originalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         photo.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesProject = selectedProject === "all" || photo.projectId === selectedProject;
+    return matchesSearch && matchesProject;
+  });
+
+  const photosByProject = projects.map(project => ({
+    project,
+    photos: filteredPhotos.filter(photo => photo.projectId === project.id)
+  })).filter(group => group.photos.length > 0);
+
+  if (photosLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">Photos</h1>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="aspect-square bg-gray-200 rounded-lg animate-pulse"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold construction-secondary">Project Photos</h1>
+        <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="construction-primary text-white">
+              <Camera size={16} className="mr-2" />
+              Upload Photos
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Upload Photos</DialogTitle>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="projectId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select project" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {projects.map(project => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
+                  onDrop={handleDragDrop}
+                  onDragOver={(e) => e.preventDefault()}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <p className="text-lg font-medium text-gray-600">
+                    {selectedFiles && selectedFiles.length > 0
+                      ? `${selectedFiles.length} file(s) selected`
+                      : "Drop photos here or click to browse"
+                    }
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Supports JPG, PNG, GIF up to 10MB
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Add a description for these photos..." 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="tags"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tags (comma-separated)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., foundation, electrical, progress"
+                          onChange={(e) => {
+                            const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
+                            field.onChange(tags);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsUploadDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={uploadPhotoMutation.isPending}
+                    className="construction-primary text-white"
+                  >
+                    {uploadPhotoMutation.isPending ? "Uploading..." : "Upload Photos"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="flex gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+          <Input
+            placeholder="Search photos..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select value={selectedProject} onValueChange={setSelectedProject}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by project" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Projects</SelectItem>
+            {projects.map(project => (
+              <SelectItem key={project.id} value={project.id}>
+                {project.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-8">
+        {photosByProject.length === 0 ? (
+          <div className="text-center py-12">
+            <Camera className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+            <p className="text-gray-500 text-lg">No photos found</p>
+            <p className="text-gray-400">Upload photos to get started</p>
+          </div>
+        ) : (
+          photosByProject.map(({ project, photos }) => (
+            <Card key={project.id}>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="construction-secondary">{project.name}</CardTitle>
+                  <Badge variant="outline">{photos.length} photos</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <PhotoGallery 
+                  photos={photos} 
+                  onDelete={(id) => deletePhotoMutation.mutate(id)}
+                />
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
