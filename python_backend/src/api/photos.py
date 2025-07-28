@@ -69,9 +69,9 @@ async def upload_photo(
         
         # Create photo record
         photo_create = PhotoCreate(
-            project_id=project_id,
+            projectId=project_id,
             description=description,
-            uploaded_by=uploaded_by
+            uploadedBy=uploaded_by
         )
         
         return await photo_repo.create(
