@@ -592,7 +592,7 @@ export default function Schedule() {
                             {new Date(task.dueDate!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </div>
                           <div className="text-xs text-blue-600 mt-1">
-                            Click to request schedule change
+                            Click to update schedule
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -611,32 +611,28 @@ export default function Schedule() {
             {/* Schedule Change Requests */}
             <Card>
               <CardHeader>
-                <CardTitle className="construction-secondary">Schedule Change Requests</CardTitle>
+                <CardTitle className="construction-secondary">Recent Schedule Updates</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {scheduleChanges.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
-                      No schedule change requests
+                      No recent schedule updates
                     </div>
                   ) : (
                     scheduleChanges.map((change) => (
                       <div 
                         key={change.id} 
-                        className="border rounded-lg p-4 space-y-3 cursor-pointer hover:bg-gray-50 transition-colors"
-                        onClick={() => handleScheduleChangeClick(change)}
+                        className="border rounded-lg p-4 space-y-3"
                       >
                         <div className="flex items-start justify-between">
                           <div>
                             <h4 className="font-medium construction-secondary">{getTaskName(change.taskId)}</h4>
                             <p className="text-sm text-blue-600">{getProjectName(change.taskId)}</p>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            {getStatusIcon(change.status)}
-                            <Badge className={getStatusColor(change.status)}>
-                              {change.status.charAt(0).toUpperCase() + change.status.slice(1)}
-                            </Badge>
-                          </div>
+                          <Badge className="bg-green-100 text-green-800">
+                            Updated
+                          </Badge>
                         </div>
                         
                         <p className="text-sm text-gray-600">{change.reason}</p>
@@ -647,45 +643,15 @@ export default function Schedule() {
                             <p className="font-medium">{new Date(change.originalDate).toLocaleDateString()}</p>
                           </div>
                           <div>
-                            <span className="text-gray-500">Requested Date:</span>
-                            <p className="font-medium">{new Date(change.newDate).toLocaleDateString()}</p>
+                            <span className="text-gray-500">Updated Date:</span>
+                            <p className="font-medium text-green-600">{new Date(change.newDate).toLocaleDateString()}</p>
                           </div>
                         </div>
                         
-                        {change.status === "pending" && (
-                          <div className="flex space-x-2">
-                            <Button
-                              size="sm"
-                              className="bg-green-600 text-white hover:bg-green-700"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                updateScheduleChangeMutation.mutate({
-                                  id: change.id,
-                                  updates: { status: "approved" }
-                                });
-                              }}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-red-600 text-red-600 hover:bg-red-50"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                updateScheduleChangeMutation.mutate({
-                                  id: change.id,
-                                  updates: { status: "rejected" }
-                                });
-                              }}
-                            >
-                              Reject
-                            </Button>
-                          </div>
-                        )}
+
                         
-                        <div className="text-xs text-gray-400">
-                          Requested {new Date(change.createdAt).toLocaleString()}
+                        <div className="text-xs text-gray-500">
+                          Updated {new Date(change.createdAt).toLocaleDateString()} at {new Date(change.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
                     ))
@@ -764,7 +730,7 @@ export default function Schedule() {
                                     }
                                   </div>
                                   <div className="text-xs text-blue-600 mt-1">
-                                    Click to request schedule change
+                                    Click to update schedule
                                   </div>
                                 </div>
                               </div>
@@ -841,7 +807,7 @@ export default function Schedule() {
                                   {item.project && (
                                     <div className="text-xs text-blue-600 truncate">{item.project.name}</div>
                                   )}
-                                  <div className="text-xs text-gray-500">Click to request schedule change</div>
+                                  <div className="text-xs text-gray-500">Click to update schedule</div>
                                 </div>
                               </div>
                             </div>
