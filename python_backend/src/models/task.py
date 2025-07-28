@@ -11,7 +11,7 @@ class TaskBase(BaseModel):
     """Base task model."""
     title: str
     description: str = ""
-    status: TaskStatus = TaskStatus.todo
+    status: TaskStatus = TaskStatus.pending
     priority: TaskPriority = TaskPriority.medium
     category: TaskCategory = TaskCategory.general
     project_id: Optional[str] = Field(default=None, alias="projectId")
