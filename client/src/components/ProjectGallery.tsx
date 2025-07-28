@@ -43,11 +43,17 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async ({ file, description }: { file: File; description: string }) => {
+      console.log("Starting upload mutation with:", { fileName: file.name, projectId, description });
       const formData = new FormData();
       formData.append("file", file);
       formData.append("projectId", projectId);
       formData.append("description", description);
       formData.append("userId", "sample-user-id"); // TODO: Get from auth context
+      
+      console.log("FormData entries:");
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}:`, value);
+      }
 
       const response = await fetch("/api/photos", {
         method: "POST",
@@ -57,7 +63,9 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
       if (!response.ok) {
         const errorData = await response.text();
         console.error("Upload error:", errorData);
-        throw new Error("Failed to upload photo");
+        console.error("Response status:", response.status);
+        console.error("Response headers:", response.headers);
+        throw new Error(`Failed to upload photo: ${response.status} - ${errorData}`);
       }
       
       return response.json();
@@ -260,18 +268,22 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
               {selectedFiles && selectedFiles.length > 0 && (
                 <div className="mt-4 space-y-3">
                   <p className="text-sm font-medium text-gray-700">
-                    Selected Photo Preview:
+                    Selected Photo Preview: ({selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''})
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Preview URLs: {previewUrls.length > 0 ? previewUrls.join(', ') : 'None generated'}
                   </p>
                   <div className="flex flex-wrap gap-4">
-                    {previewUrls.map((url, index) => (
-                      <div key={index} className="relative bg-gray-50 p-2 rounded-lg">
-                        <div className="w-32 h-32 border border-gray-200 rounded-lg overflow-hidden">
+                    {previewUrls.length > 0 ? previewUrls.map((url, index) => (
+                      <div key={index} className="relative bg-gray-50 p-2 rounded-lg border-2 border-dashed border-gray-300">
+                        <div className="w-32 h-32 border border-gray-200 rounded-lg overflow-hidden bg-white">
                           <img
                             src={url}
                             alt={`Preview ${index + 1}`}
                             className="w-full h-full object-cover"
+                            onLoad={() => console.log('Preview image loaded successfully:', url)}
                             onError={(e) => {
-                              console.error('Image preview failed to load:', e);
+                              console.error('Image preview failed to load:', e, 'URL:', url);
                             }}
                           />
                         </div>
@@ -281,7 +293,11 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                           </Badge>
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                      <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
+                        <p className="text-xs text-gray-500 text-center">No preview<br/>generated</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
