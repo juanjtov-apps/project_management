@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { Project, InsertProject, InsertTask, Task } from "@shared/schema";
 import { TaskAssignmentDropdown } from "@/components/TaskAssignmentDropdown";
+import { ProjectGallery } from "@/components/ProjectGallery";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -417,6 +418,14 @@ export default function Projects() {
                                   </div>
                                 )}
                               </div>
+                              
+                              {/* Gallery Button */}
+                              <div className="mt-3 pt-3 border-t">
+                                <ProjectGallery 
+                                  projectId={project.id} 
+                                  projectName={project.name}
+                                />
+                              </div>
                             </div>
                             
                             <DropdownMenu>
@@ -438,6 +447,12 @@ export default function Projects() {
                                 <DropdownMenuItem onClick={() => handleAddTask(project)}>
                                   <Plus size={14} className="mr-2" />
                                   Add Task
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => e.preventDefault()}>
+                                  <ProjectGallery 
+                                    projectId={project.id} 
+                                    projectName={project.name}
+                                  />
                                 </DropdownMenuItem>
                                 <DropdownMenuItem 
                                   onClick={() => handleDeleteProject(project)}
@@ -577,6 +592,14 @@ export default function Projects() {
                                   <span>{projectTasks.length} tasks</span>
                                 </div>
                               </div>
+                              
+                              {/* Gallery Button */}
+                              <div className="mt-3 pt-3 border-t">
+                                <ProjectGallery 
+                                  projectId={project.id} 
+                                  projectName={project.name}
+                                />
+                              </div>
                             </div>
                           </div>
                         </CardContent>
@@ -630,6 +653,12 @@ export default function Projects() {
                           <DropdownMenuItem onClick={() => handleAddTask(project)}>
                             <Plus size={14} className="mr-2" />
                             Add Task
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => e.preventDefault()}>
+                            <ProjectGallery 
+                              projectId={project.id} 
+                              projectName={project.name}
+                            />
                           </DropdownMenuItem>
                           <DropdownMenuItem 
                             onClick={() => handleDeleteProject(project)}
