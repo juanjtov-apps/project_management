@@ -22,9 +22,16 @@ async def get_schedule_changes(taskId: Optional[str] = None):
 
 @router.post("", response_model=ScheduleChange, status_code=201)
 async def create_schedule_change(change: ScheduleChangeCreate):
-    """Create a new schedule change"""
+    """Create a new schedule change and immediately update the task"""
     try:
+        # Create the schedule change record
         new_change = await schedule_repo.create(change)
+        
+        # Immediately update the task's due date
+        from ..database.repositories import TaskRepository
+        task_repo = TaskRepository()
+        await task_repo.update_due_date(change.task_id, change.new_date)
+        
         return new_change
     except Exception as e:
         print(f"Create schedule change error: {e}")
@@ -32,11 +39,18 @@ async def create_schedule_change(change: ScheduleChangeCreate):
 
 @router.patch("/{change_id}", response_model=ScheduleChange)
 async def update_schedule_change(change_id: str, updates: ScheduleChangeUpdate):
-    """Update a schedule change"""
+    """Update a schedule change and immediately update the task"""
     try:
         updated_change = await schedule_repo.update(change_id, updates)
         if not updated_change:
             raise HTTPException(status_code=404, detail="Schedule change not found")
+        
+        # If the new date was updated, update the task as well
+        if updates.new_date:
+            from ..database.repositories import TaskRepository
+            task_repo = TaskRepository()
+            await task_repo.update_due_date(updated_change.task_id, updates.new_date)
+        
         return updated_change
     except HTTPException:
         raise

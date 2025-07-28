@@ -218,6 +218,16 @@ class TaskRepository(BaseRepository):
             return Task(**self._convert_to_camel_case(dict(row)))
         return None
     
+    async def update_due_date(self, task_id: str, new_due_date: datetime) -> bool:
+        """Update the due date of a task."""
+        # Convert timezone-aware due_date to timezone-naive UTC if needed
+        if hasattr(new_due_date, 'tzinfo') and new_due_date.tzinfo is not None:
+            new_due_date = new_due_date.replace(tzinfo=None)
+        
+        query = f"UPDATE {self.table_name} SET due_date = $1 WHERE id = $2"
+        result = await db_manager.execute_command(query, new_due_date, task_id)
+        return "UPDATE 1" in result
+    
     async def delete(self, task_id: str) -> bool:
         """Delete a task."""
         query = f"DELETE FROM {self.table_name} WHERE id = $1"

@@ -160,6 +160,18 @@ Preferred communication style: Simple, everyday language.
 - Fixed React component import issues and JSX rendering errors
 - List view provides alternative to canvas view for users preferring linear task organization
 
+### July 2025 - Direct Task Update System Implementation
+- Removed approval workflow for schedule changes - changes now immediately update task due dates
+- Modified schedule change API to directly update task information when changes are saved
+- Added `update_due_date` method to TaskRepository for immediate task due date updates
+- Changed "Submit Request" to "Save Changes" throughout schedule interface to reflect immediate updates
+- Updated dialog titles from "Request Schedule Change" to "Update Task Schedule"
+- Team members can now directly update task and project information without approval delays
+- Frontend automatically refreshes task data when schedule changes are saved
+- Database foreign key constraint error resolved by adding sample user to users table
+- All task cards redirect to schedule page for seamless editing experience
+- Schedule changes now create audit trail while immediately applying updates to tasks
+
 ### July 2025 - Express Proxy Fix for Task Creation
 - Successfully resolved "Create task is not working" functionality issue
 - Fixed Express proxy middleware to properly forward /api requests to Python FastAPI backend
