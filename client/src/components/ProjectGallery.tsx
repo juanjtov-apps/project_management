@@ -55,10 +55,12 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
         console.log(`${key}:`, value);
       }
 
+      console.log("Sending request to /api/photos");
       const response = await fetch("/api/photos", {
         method: "POST",
         body: formData,
       });
+      console.log("Response received:", response.status, response.statusText);
       
       if (!response.ok) {
         const errorData = await response.text();

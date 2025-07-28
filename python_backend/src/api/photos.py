@@ -4,7 +4,7 @@ Photo API endpoints.
 import os
 import uuid
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form, Query
+from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form, Query, Request
 from fastapi.responses import FileResponse
 from src.models import Photo, PhotoCreate
 from pydantic import ValidationError
@@ -31,12 +31,31 @@ async def get_photos(
         )
 
 
-@router.post("", response_model=Photo, status_code=status.HTTP_201_CREATED)
+@router.post("/debug", status_code=200)
+async def debug_upload(request: Request):
+    """Debug endpoint to see raw request data."""
+    print("=== DEBUG UPLOAD REQUEST ===")
+    print(f"Method: {request.method}")
+    print(f"URL: {request.url}")
+    print(f"Headers: {dict(request.headers)}")
+    
+    try:
+        form = await request.form()
+        print(f"Form data: {dict(form)}")
+        for key, value in form.items():
+            print(f"  {key}: {value} (type: {type(value)})")
+    except Exception as e:
+        print(f"Error reading form: {e}")
+    
+    return {"status": "debug", "received": "ok"}
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
 async def upload_photo(
     file: UploadFile = File(...),
-    projectId: str = Form(...),  # Use exact field name from frontend
+    projectId: str = Form(None),  # Make optional to debug
     description: str = Form(""),
-    userId: str = Form(...)  # Use exact field name from frontend
+    userId: str = Form(None)  # Make optional to debug
 ):
     """Upload a photo."""
     print("=" * 50)
