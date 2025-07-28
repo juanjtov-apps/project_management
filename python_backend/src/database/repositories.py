@@ -135,7 +135,7 @@ class TaskRepository(BaseRepository):
             param_count += 1
         
         if assigned_to:
-            query += f" AND assigned_to = ${param_count}"
+            query += f" AND assignee_id = ${param_count}"
             params.append(assigned_to)
             param_count += 1
         
@@ -162,7 +162,7 @@ class TaskRepository(BaseRepository):
         query = f"""
             INSERT INTO {self.table_name} 
             (id, title, description, status, priority, category, project_id, 
-             assigned_to, due_date, created_at)
+             assignee_id, due_date, created_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
         """
@@ -170,7 +170,7 @@ class TaskRepository(BaseRepository):
         row = await db_manager.execute_one(
             query, task_id, data.get('title'), data.get('description'),
             data.get('status'), data.get('priority'), data.get('category'),
-            data.get('project_id'), data.get('assigned_to'), data.get('due_date'), now
+            data.get('project_id'), data.get('assignee_id'), data.get('due_date'), now
         )
         return Task(**self._convert_to_camel_case(dict(row)))
     

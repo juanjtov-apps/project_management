@@ -10,12 +10,12 @@ from .base import BaseEntity, TaskStatus, TaskPriority, TaskCategory
 class TaskBase(BaseModel):
     """Base task model."""
     title: str
-    description: str = ""
+    description: Optional[str] = None
     status: TaskStatus = TaskStatus.pending
     priority: TaskPriority = TaskPriority.medium
     category: TaskCategory = TaskCategory.general
     project_id: Optional[str] = Field(default=None, alias="projectId")
-    assigned_to: Optional[str] = Field(default=None, alias="assignedTo")
+    assignee_id: Optional[str] = Field(default=None, alias="assigneeId")
     due_date: Optional[datetime] = Field(default=None, alias="dueDate")
 
 
@@ -32,7 +32,7 @@ class TaskUpdate(BaseModel):
     priority: Optional[TaskPriority] = None
     category: Optional[TaskCategory] = None
     project_id: Optional[str] = Field(default=None, alias="projectId")
-    assigned_to: Optional[str] = Field(default=None, alias="assignedTo")
+    assignee_id: Optional[str] = Field(default=None, alias="assigneeId")
     due_date: Optional[datetime] = Field(default=None, alias="dueDate")
 
 
