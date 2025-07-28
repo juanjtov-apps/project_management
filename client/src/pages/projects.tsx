@@ -64,6 +64,7 @@ export default function Projects() {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isTaskEditDialogOpen, setIsTaskEditDialogOpen] = useState(false);
+  const [expandedProjectEdit, setExpandedProjectEdit] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
@@ -197,6 +198,7 @@ export default function Projects() {
 
   const handleEditProject = (project: Project) => {
     setEditingProject(project);
+    setExpandedProjectEdit(project.id);
     editForm.reset({
       name: project.name,
       description: project.description || "",
@@ -676,6 +678,251 @@ export default function Projects() {
           </DialogContent>
         </Dialog>
 
+        {/* Expandable Project Edit Modal */}
+        {expandedProjectEdit && editingProject && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+                <h2 className="text-xl font-semibold">Edit Project: {editingProject.name}</h2>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    setExpandedProjectEdit(null);
+                    setEditingProject(null);
+                    setIsEditDialogOpen(false);
+                  }}
+                >
+                  ✕
+                </Button>
+              </div>
+              
+              <div className="p-6">
+                <Form {...editForm}>
+                  <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={editForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Project Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter project name" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={editForm.control}
+                        name="location"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Location</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter project location" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={editForm.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Enter project description" 
+                              rows={4}
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField
+                        control={editForm.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Status</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                                <SelectItem value="delayed">Delayed</SelectItem>
+                                <SelectItem value="on-hold">On Hold</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={editForm.control}
+                        name="progress"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Progress (%)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="0" 
+                                max="100" 
+                                placeholder="0" 
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={editForm.control}
+                        name="dueDate"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>Due Date</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                      "w-full pl-3 text-left font-normal",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                  >
+                                    {field.value ? (
+                                      format(field.value, "PPP")
+                                    ) : (
+                                      <span>Pick a date</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={field.value}
+                                  onSelect={field.onChange}
+                                  disabled={(date) =>
+                                    date < new Date()
+                                  }
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {/* Project Tasks Section */}
+                    <div className="border-t pt-6">
+                      <h3 className="text-lg font-medium mb-4">Project Tasks</h3>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {getProjectTasks(editingProject.id).length === 0 ? (
+                          <p className="text-gray-500 text-center py-4">No tasks assigned to this project</p>
+                        ) : (
+                          getProjectTasks(editingProject.id).map((task) => (
+                            <div key={task.id} className="bg-gray-50 rounded p-3 flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-medium">{task.title}</span>
+                                  <Badge className={getStatusColor(task.status)} variant="outline">
+                                    {task.status === "in-progress" ? "In Progress" : task.status}
+                                  </Badge>
+                                  <Badge className={getPriorityColor(task.priority)} variant="outline">
+                                    {task.priority}
+                                  </Badge>
+                                </div>
+                                {task.dueDate && (
+                                  <div className="text-sm text-gray-500">
+                                    Due: {new Date(task.dueDate).toLocaleDateString()}
+                                  </div>
+                                )}
+                              </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <MoreHorizontal size={16} />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleEditTask(task)}>
+                                    <Edit size={14} className="mr-2" />
+                                    Edit Task
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleDeleteTask(task)} className="text-red-600">
+                                    <Trash2 size={14} className="mr-2" />
+                                    Delete Task
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => handleAddTask(editingProject)}
+                        className="mt-3 w-full"
+                      >
+                        <Plus size={16} className="mr-2" />
+                        Add New Task
+                      </Button>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => {
+                          setExpandedProjectEdit(null);
+                          setEditingProject(null);
+                          setIsEditDialogOpen(false);
+                        }}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        disabled={updateProjectMutation.isPending} 
+                        className="flex-1"
+                      >
+                        {updateProjectMutation.isPending ? "Updating..." : "Update Project"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Add Task Dialog */}
         <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
           <DialogContent className="sm:max-w-[600px]">
@@ -866,7 +1113,11 @@ export default function Projects() {
             const isExpanded = expandedProject === project.id;
             
             return (
-              <Card key={project.id} className="hover:shadow-lg transition-shadow">
+              <Card 
+                key={project.id} 
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => handleEditProject(project)}
+              >
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <CardTitle className="text-lg construction-secondary">{project.name}</CardTitle>
@@ -876,7 +1127,11 @@ export default function Projects() {
                       </Badge>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <MoreHorizontal size={16} />
                           </Button>
                         </DropdownMenuTrigger>
@@ -934,7 +1189,10 @@ export default function Projects() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => toggleProjectExpansion(project.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleProjectExpansion(project.id);
+                        }}
                         className="w-full justify-between p-2 h-auto"
                       >
                         <div className="flex items-center text-sm">
@@ -1028,7 +1286,11 @@ export default function Projects() {
                     const projectTasks = getProjectTasks(project.id);
                     
                     return (
-                      <Card key={project.id} className="hover:shadow-md transition-shadow">
+                      <Card 
+                        key={project.id} 
+                        className="hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={() => handleEditProject(project)}
+                      >
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
