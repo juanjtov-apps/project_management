@@ -23,18 +23,46 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
   // Wait for Python server to start
   await new Promise(resolve => setTimeout(resolve, 3000));
 
-  // Simple proxy using http-proxy-middleware
-  const { createProxyMiddleware } = await import('http-proxy-middleware');
+  // Manual proxy to Python backend with proper body handling
+  app.use('/api', express.raw({ type: 'application/json', limit: '10mb' }));
   
-  app.use('/api', createProxyMiddleware({
-    target: 'http://localhost:8000/api',
-    changeOrigin: true,
-    logLevel: 'debug',
-    onError: (err, req, res) => {
-      console.error('Proxy error:', err);
+  app.use('/api', async (req, res) => {
+    try {
+      const url = `http://localhost:8000${req.originalUrl}`;
+      console.log(`Proxying ${req.method} ${req.originalUrl} -> ${url}`);
+      console.log('Body type:', typeof req.body, 'Is Buffer:', Buffer.isBuffer(req.body));
+      
+      // Remove problematic headers
+      const { 'content-length': _, 'host': __, ...cleanHeaders } = req.headers;
+      
+      const fetchOptions: RequestInit = {
+        method: req.method,
+        headers: cleanHeaders
+      };
+      
+      // For non-GET requests with body, handle properly
+      if (req.method !== 'GET' && req.body) {
+        if (Buffer.isBuffer(req.body)) {
+          fetchOptions.body = req.body;
+          fetchOptions.headers = {
+            ...cleanHeaders,
+            'Content-Type': 'application/json',
+            'Content-Length': req.body.length.toString()
+          };
+        }
+      }
+      
+      const response = await fetch(url, fetchOptions);
+      const data = await response.text();
+      
+      res.status(response.status);
+      res.set(Object.fromEntries(response.headers.entries()));
+      res.send(data);
+    } catch (error) {
+      console.error('Proxy error:', error);
       res.status(500).json({ message: 'Proxy error' });
     }
-  }));
+  });
 
   const httpServer = createServer(app);
   return httpServer;
