@@ -36,6 +36,7 @@ class TaskCategory(str, Enum):
     project = "project"
     administrative = "administrative"
     general = "general"
+    subcontractor = "subcontractor"
 
 
 class UserRole(str, Enum):
@@ -43,6 +44,7 @@ class UserRole(str, Enum):
     crew = "crew"
     manager = "manager"
     admin = "admin"
+    subcontractor = "subcontractor"
 
 
 class NotificationType(str, Enum):

@@ -501,3 +501,101 @@ class UserRepository(BaseRepository):
         if row:
             return User(**self._convert_to_camel_case(dict(row)))
         return None
+
+
+class SubcontractorAssignmentRepository(BaseRepository):
+    """Repository for subcontractor assignment operations."""
+    
+    def __init__(self):
+        super().__init__("subcontractor_assignments")
+    
+    async def get_all(self) -> List:
+        """Get all subcontractor assignments."""
+        from ..models.subcontractor_assignment import SubcontractorAssignment
+        query = f"SELECT * FROM {self.table_name} ORDER BY created_at DESC"
+        rows = await db_manager.execute_query(query)
+        return [SubcontractorAssignment(**self._convert_to_camel_case(dict(row))) for row in rows]
+    
+    async def get_by_id(self, assignment_id: str) -> Optional:
+        """Get subcontractor assignment by ID."""
+        from ..models.subcontractor_assignment import SubcontractorAssignment
+        query = f"SELECT * FROM {self.table_name} WHERE id = $1"
+        row = await db_manager.execute_one(query, assignment_id)
+        if row:
+            return SubcontractorAssignment(**self._convert_to_camel_case(dict(row)))
+        return None
+    
+    async def create(self, assignment_data: Dict[str, Any]) -> Optional:
+        """Create a new subcontractor assignment."""
+        from ..models.subcontractor_assignment import SubcontractorAssignment
+        assignment_id = str(uuid.uuid4())
+        now = datetime.utcnow()
+        
+        data = self._convert_from_camel_case(assignment_data)
+        
+        query = f"""
+            INSERT INTO {self.table_name} 
+            (id, subcontractor_id, project_id, assigned_by, start_date, end_date, specialization, status, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING *
+        """
+        
+        row = await db_manager.execute_one(
+            query, assignment_id, data.get('subcontractor_id'), data.get('project_id'),
+            data.get('assigned_by'), data.get('start_date'), data.get('end_date'),
+            data.get('specialization'), data.get('status', 'active'), now
+        )
+        if row:
+            return SubcontractorAssignment(**self._convert_to_camel_case(dict(row)))
+        return None
+    
+    async def update(self, assignment_id: str, assignment_data: Dict[str, Any]) -> Optional:
+        """Update an existing subcontractor assignment."""
+        from ..models.subcontractor_assignment import SubcontractorAssignment
+        data = self._convert_from_camel_case(assignment_data)
+        
+        if not data:
+            return await self.get_by_id(assignment_id)
+        
+        set_clauses = []
+        values = []
+        param_count = 1
+        
+        for key, value in data.items():
+            set_clauses.append(f"{key} = ${param_count}")
+            values.append(value)
+            param_count += 1
+        
+        values.append(assignment_id)
+        
+        query = f"""
+            UPDATE {self.table_name} 
+            SET {', '.join(set_clauses)}
+            WHERE id = ${param_count}
+            RETURNING *
+        """
+        
+        row = await db_manager.execute_one(query, *values)
+        if row:
+            return SubcontractorAssignment(**self._convert_to_camel_case(dict(row)))
+        return None
+    
+    async def delete(self, assignment_id: str) -> bool:
+        """Delete a subcontractor assignment."""
+        query = f"DELETE FROM {self.table_name} WHERE id = $1"
+        result = await db_manager.execute_command(query, assignment_id)
+        return "DELETE 1" in result
+    
+    async def get_by_subcontractor(self, subcontractor_id: str) -> List:
+        """Get all assignments for a specific subcontractor."""
+        from ..models.subcontractor_assignment import SubcontractorAssignment
+        query = f"SELECT * FROM {self.table_name} WHERE subcontractor_id = $1 ORDER BY created_at DESC"
+        rows = await db_manager.execute_query(query, subcontractor_id)
+        return [SubcontractorAssignment(**self._convert_to_camel_case(dict(row))) for row in rows]
+    
+    async def get_by_project(self, project_id: str) -> List:
+        """Get all assignments for a specific project."""
+        from ..models.subcontractor_assignment import SubcontractorAssignment
+        query = f"SELECT * FROM {self.table_name} WHERE project_id = $1 ORDER BY created_at DESC"
+        rows = await db_manager.execute_query(query, project_id)
+        return [SubcontractorAssignment(**self._convert_to_camel_case(dict(row))) for row in rows]
