@@ -260,9 +260,7 @@ export default function Tasks() {
     updateTaskMutation.mutate({ 
       id: task.id, 
       data: { 
-        ...task, 
-        status: newStatus,
-        completedAt: newStatus === "completed" ? new Date() : undefined
+        status: newStatus
       }
     });
   };
