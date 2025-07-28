@@ -17,9 +17,10 @@ class ProjectStatus(str, Enum):
 
 class TaskStatus(str, Enum):
     """Task status enumeration."""
-    todo = "todo"
-    in_progress = "in_progress"
-    done = "done"
+    pending = "pending"
+    in_progress = "in-progress"
+    completed = "completed"
+    blocked = "blocked"
 
 
 class TaskPriority(str, Enum):
@@ -27,7 +28,7 @@ class TaskPriority(str, Enum):
     low = "low"
     medium = "medium"
     high = "high"
-    urgent = "urgent"
+    critical = "critical"
 
 
 class TaskCategory(str, Enum):
