@@ -85,7 +85,9 @@ export const notifications = pgTable("notifications", {
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true });
-export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, completedAt: true });
+export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, completedAt: true }).extend({
+  dueDate: z.union([z.date(), z.string(), z.null()]).optional().nullable(),
+});
 export const insertProjectLogSchema = createInsertSchema(projectLogs).omit({ id: true, createdAt: true });
 export const insertPhotoSchema = createInsertSchema(photos).omit({ id: true, createdAt: true });
 export const insertScheduleChangeSchema = createInsertSchema(scheduleChanges).omit({ id: true, createdAt: true });

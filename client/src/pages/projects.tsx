@@ -187,13 +187,13 @@ export default function Projects() {
   const onTaskSubmit = (data: InsertTask) => {
     console.log("Form data before mutation:", data);
     
-    // Ensure projectId is properly set for project tasks
+    // Ensure projectId is properly set for project tasks and prepare data for API
     const taskData = {
       ...data,
       projectId: selectedProject?.id || data.projectId,
-      // Convert empty strings to null for optional fields
       description: data.description?.trim() || null,
-      dueDate: data.dueDate || null,
+      // Send dueDate as ISO string - server will handle conversion
+      dueDate: data.dueDate ? data.dueDate.toISOString() : null,
     };
     
     console.log("Task data being sent to API:", taskData);

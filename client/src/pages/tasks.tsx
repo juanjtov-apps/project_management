@@ -227,7 +227,17 @@ export default function Tasks() {
   });
 
   const onSubmit = (data: InsertTask) => {
-    createTaskMutation.mutate(data);
+    console.log("Tasks page form data:", data);
+    
+    // Prepare data for API - send dates as ISO strings
+    const taskData = {
+      ...data,
+      description: data.description?.trim() || null,
+      dueDate: data.dueDate ? data.dueDate.toISOString() : null,
+    };
+    
+    console.log("Tasks page data being sent to API:", taskData);
+    createTaskMutation.mutate(taskData);
   };
 
   const onEditSubmit = (data: InsertTask) => {

@@ -120,9 +120,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/tasks", async (req, res) => {
     try {
       console.log("Received task data:", req.body);
-      const validatedData = insertTaskSchema.parse(req.body);
-      console.log("Validated task data:", validatedData);
-      const task = await storage.createTask(validatedData);
+      
+      // Pre-process the data to handle date conversion
+      const processedData = {
+        ...req.body,
+        dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null,
+        description: req.body.description?.trim() || null,
+      };
+      
+      // Remove dueDate from validation if it causes issues
+      const { dueDate, ...dataWithoutDate } = processedData;
+      const validatedData = insertTaskSchema.omit({ dueDate: true }).parse(dataWithoutDate);
+      
+      // Add back the processed dueDate
+      const finalData = {
+        ...validatedData,
+        dueDate: dueDate,
+      };
+      
+      console.log("Final processed task data:", finalData);
+      const task = await storage.createTask(finalData);
       res.status(201).json(task);
     } catch (error) {
       console.error("Task creation error:", error);
