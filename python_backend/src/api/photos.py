@@ -38,6 +38,8 @@ async def upload_photo(
     user_id: str = Form(..., alias="userId")
 ):
     """Upload a photo."""
+    print(f"Upload request received - project_id: {project_id}, user_id: {user_id}, description: {description}")
+    print(f"File: {file.filename if file else 'None'}, Content-Type: {file.content_type if file else 'None'}")
     try:
         if not file:
             raise HTTPException(
@@ -82,9 +84,12 @@ async def upload_photo(
         raise
     except Exception as e:
         print(f"Error uploading photo: {e}")
+        print(f"Error type: {type(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to upload photo"
+            detail=f"Failed to upload photo: {str(e)}"
         )
 
 
@@ -106,10 +111,14 @@ async def get_photo_file(photo_id: str):
                 detail="Photo file not found"
             )
         
+        # Determine media type from file extension
+        import mimetypes
+        media_type = mimetypes.guess_type(file_path)[0] or "image/jpeg"
+        
         return FileResponse(
             path=file_path,
-            media_type=photo.mime_type,
-            filename=photo.filename
+            media_type=media_type,
+            filename=photo.original_name
         )
         
     except HTTPException:

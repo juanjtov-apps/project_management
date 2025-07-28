@@ -102,17 +102,21 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
+    console.log("Files selected:", files);
     setSelectedFiles(files);
     
     // Create preview URLs
-    if (files) {
+    if (files && files.length > 0) {
       // Clean up previous preview URLs
       previewUrls.forEach(url => URL.revokeObjectURL(url));
       
-      const newPreviewUrls = Array.from(files).map(file => 
-        URL.createObjectURL(file)
-      );
+      const newPreviewUrls = Array.from(files).map(file => {
+        const url = URL.createObjectURL(file);
+        console.log("Created preview URL:", url, "for file:", file.name);
+        return url;
+      });
       setPreviewUrls(newPreviewUrls);
+      console.log("Preview URLs set:", newPreviewUrls);
     } else {
       setPreviewUrls([]);
     }
