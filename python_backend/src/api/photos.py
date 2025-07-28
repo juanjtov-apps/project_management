@@ -32,15 +32,13 @@ async def get_photos(
 
 @router.post("", response_model=Photo, status_code=status.HTTP_201_CREATED)
 async def upload_photo(
-    files: List[UploadFile] = File(...),
+    file: UploadFile = File(...),
     project_id: str = Form(..., alias="projectId"),
-    description: str = Form(default=""),
+    description: str = Form(""),
     uploaded_by: str = Form(..., alias="uploadedBy")
 ):
-    """Upload one or more photos."""
+    """Upload a photo."""
     try:
-        # For simplicity, handle only the first file in this endpoint
-        file = files[0] if files else None
         if not file:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

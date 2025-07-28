@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -25,6 +25,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [description, setDescription] = useState("");
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -41,11 +42,9 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
 
   // Upload mutation
   const uploadMutation = useMutation({
-    mutationFn: async ({ files, description }: { files: FileList; description: string }) => {
+    mutationFn: async ({ file, description }: { file: File; description: string }) => {
       const formData = new FormData();
-      for (let i = 0; i < files.length; i++) {
-        formData.append("files", files[i]);
-      }
+      formData.append("file", file);
       formData.append("projectId", projectId);
       formData.append("description", description);
       formData.append("uploadedBy", "sample-user-id"); // TODO: Get from auth context
@@ -56,6 +55,8 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
       });
       
       if (!response.ok) {
+        const errorData = await response.text();
+        console.error("Upload error:", errorData);
         throw new Error("Failed to upload photo");
       }
       
@@ -64,6 +65,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/photos", projectId] });
       setSelectedFiles(null);
+      setPreviewUrls([]);
       setDescription("");
       setView("grid");
       toast({
@@ -99,7 +101,21 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
   });
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFiles(event.target.files);
+    const files = event.target.files;
+    setSelectedFiles(files);
+    
+    // Create preview URLs
+    if (files) {
+      // Clean up previous preview URLs
+      previewUrls.forEach(url => URL.revokeObjectURL(url));
+      
+      const newPreviewUrls = Array.from(files).map(file => 
+        URL.createObjectURL(file)
+      );
+      setPreviewUrls(newPreviewUrls);
+    } else {
+      setPreviewUrls([]);
+    }
   };
 
   const handleUpload = () => {
@@ -112,12 +128,21 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
       return;
     }
 
-    uploadMutation.mutate({ files: selectedFiles, description });
+    // Upload the first file for now (can be extended for multiple uploads)
+    const file = selectedFiles[0];
+    uploadMutation.mutate({ file, description });
   };
 
   const getPhotoUrl = (photo: Photo) => {
     return `/api/photos/${photo.id}/file`;
   };
+
+  // Clean up preview URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [previewUrls]);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -220,25 +245,33 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
         ) : (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="photo-upload">Select Photos</Label>
+              <Label htmlFor="photo-upload">Select Photo</Label>
               <Input
                 id="photo-upload"
                 type="file"
-                multiple
                 accept="image/*"
                 onChange={handleFileSelect}
                 className="mt-1"
               />
-              {selectedFiles && (
-                <div className="mt-2">
-                  <p className="text-sm text-gray-600">
-                    {selectedFiles.length} file(s) selected
+              {selectedFiles && selectedFiles.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Preview:
                   </p>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {Array.from(selectedFiles).map((file, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        {file.name}
-                      </Badge>
+                  <div className="flex flex-wrap gap-4">
+                    {previewUrls.map((url, index) => (
+                      <div key={index} className="relative">
+                        <img
+                          src={url}
+                          alt={`Preview ${index + 1}`}
+                          className="w-24 h-24 object-cover rounded-lg border"
+                        />
+                        <div className="mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            {selectedFiles[index]?.name}
+                          </Badge>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
