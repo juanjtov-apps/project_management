@@ -9,7 +9,7 @@ app.use(express.urlencoded({ extended: false }));
 
 async function setupPythonBackend(app: express.Express): Promise<Server> {
   // Start Python backend on port 8000
-  const pythonProcess = spawn("python", ["main.py"], {
+  const pythonProcess = spawn("python", ["python_backend/main.py"], {
     cwd: process.cwd(),
     stdio: "inherit",
     env: { ...process.env, PORT: "8000" }
