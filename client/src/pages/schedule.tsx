@@ -49,7 +49,7 @@ const getStatusIcon = (status: string) => {
 export default function Schedule() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState("");
-  const [currentView, setCurrentView] = useState<"overview" | "timeline" | "calendar">("overview");
+  const [currentView, setCurrentView] = useState<"overview" | "timeline" | "gantt" | "calendar">("overview");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const queryClient = useQueryClient();
 
@@ -345,7 +345,7 @@ export default function Schedule() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 bg-gray-100">
+        <TabsList className="grid w-full grid-cols-4 bg-gray-100">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <List size={16} />
             Overview
@@ -353,6 +353,10 @@ export default function Schedule() {
           <TabsTrigger value="timeline" className="flex items-center gap-2">
             <Clock size={16} />
             Timeline
+          </TabsTrigger>
+          <TabsTrigger value="gantt" className="flex items-center gap-2">
+            <CalendarIcon size={16} />
+            Gantt Chart
           </TabsTrigger>
           <TabsTrigger value="calendar" className="flex items-center gap-2">
             <CalendarDays size={16} />
@@ -477,77 +481,188 @@ export default function Schedule() {
           </div>
         </TabsContent>
 
-        {/* Timeline View */}
+        {/* Horizontal Timeline View */}
         <TabsContent value="timeline" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="construction-secondary">Project Timeline</CardTitle>
-              <p className="text-sm text-gray-600">Visual timeline of all tasks and project deadlines</p>
+              <CardTitle className="construction-secondary">Horizontal Timeline</CardTitle>
+              <p className="text-sm text-gray-600">Chronological progression of all tasks and project deadlines</p>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
+              <div className="overflow-x-auto pb-4">
                 {timelineData.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     No scheduled tasks or project deadlines
                   </div>
                 ) : (
-                  <div className="relative">
-                    {/* Timeline line */}
-                    <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                  <div className="relative min-w-[800px]">
+                    {/* Horizontal timeline line */}
+                    <div className="absolute top-12 left-8 right-8 h-0.5 bg-gray-300"></div>
                     
-                    {timelineData.map((item, index) => (
-                      <div key={item.id} className="relative flex items-start space-x-4 pb-6">
-                        {/* Timeline dot */}
-                        <div className={`relative z-10 w-8 h-8 rounded-full border-4 border-white ${getPriorityColor(item.priority)} flex items-center justify-center`}>
-                          <div className="w-2 h-2 bg-white rounded-full"></div>
-                        </div>
-                        
-                        {/* Timeline content */}
-                        <div className="flex-1 min-w-0">
-                          <div className="bg-white border rounded-lg p-4 shadow-sm">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h4 className="font-medium construction-secondary">{item.title}</h4>
-                                {item.project && (
-                                  <p className="text-sm text-blue-600 mt-1">{item.project.name}</p>
-                                )}
-                                <div className="flex items-center gap-4 mt-2">
-                                  <div className="flex items-center text-sm text-gray-500">
-                                    <Clock size={14} className="mr-1" />
-                                    {format(new Date(item.dueDate!), "MMM d, yyyy 'at' h:mm a")}
+                    <div className="flex items-start justify-between px-8 pt-4">
+                      {timelineData.map((item, index) => {
+                        const percentage = (index / (timelineData.length - 1)) * 100;
+                        return (
+                          <div key={item.id} className="relative flex-shrink-0" style={{ left: `${percentage}%`, position: index === 0 ? 'relative' : 'absolute', transform: index === 0 ? 'none' : 'translateX(-50%)' }}>
+                            {/* Timeline dot */}
+                            <div className={`relative z-10 w-6 h-6 rounded-full border-2 border-white ${getPriorityColor(item.priority)} flex items-center justify-center mx-auto`}>
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                            </div>
+                            
+                            {/* Timeline content card */}
+                            <div className="w-64 mt-4">
+                              <div className="bg-white border rounded-lg p-3 shadow-sm">
+                                <div className="space-y-2">
+                                  <h4 className="font-medium construction-secondary text-sm leading-tight">{item.title}</h4>
+                                  {item.project && (
+                                    <p className="text-xs text-blue-600">{item.project.name}</p>
+                                  )}
+                                  <div className="flex items-center text-xs text-gray-500">
+                                    <Clock size={12} className="mr-1" />
+                                    {format(new Date(item.dueDate!), "MMM d, yyyy")}
                                   </div>
-                                  <div className={`px-2 py-1 rounded text-xs font-medium text-white ${getCategoryColor(item.category)}`}>
-                                    {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
+                                  <div className="flex items-center justify-between">
+                                    <div className={`px-2 py-1 rounded text-xs font-medium text-white ${getCategoryColor(item.category)}`}>
+                                      {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <div className={`w-2 h-2 rounded-full ${getPriorityColor(item.priority)}`}></div>
+                                      <Badge className={`text-xs ${item.status === "completed" ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"}`}>
+                                        {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {item.daysFromNow < 0 
+                                      ? <span className="text-red-500 font-medium">{Math.abs(item.daysFromNow)} days overdue</span>
+                                      : item.daysFromNow === 0 
+                                      ? <span className="text-orange-500 font-medium">Due today</span>
+                                      : `${item.daysFromNow} days remaining`
+                                    }
                                   </div>
                                 </div>
-                                {item.description && (
-                                  <p className="text-sm text-gray-600 mt-2">{item.description}</p>
-                                )}
                               </div>
-                              <div className="flex items-center gap-2 ml-4">
-                                <div className={`w-3 h-3 rounded-full ${getPriorityColor(item.priority)}`} title={`${item.priority} priority`}></div>
-                                <Badge className={item.status === "completed" ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"}>
-                                  {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                                </Badge>
-                              </div>
-                            </div>
-                            <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                              <span>
-                                {item.daysFromNow < 0 
-                                  ? `${Math.abs(item.daysFromNow)} days overdue` 
-                                  : item.daysFromNow === 0 
-                                  ? "Due today" 
-                                  : `${item.daysFromNow} days remaining`
-                                }
-                              </span>
-                              {item.daysFromNow < 0 && (
-                                <span className="text-red-500 font-medium">OVERDUE</span>
-                              )}
                             </div>
                           </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Gantt Chart View */}
+        <TabsContent value="gantt" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="construction-secondary">Gantt Chart</CardTitle>
+              <p className="text-sm text-gray-600">Project timeline with task durations and dependencies</p>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                {timelineData.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No scheduled tasks or project deadlines
+                  </div>
+                ) : (
+                  <div className="min-w-[1000px]">
+                    {/* Gantt header with date labels */}
+                    <div className="flex border-b border-gray-200 pb-2 mb-4">
+                      <div className="w-64 flex-shrink-0 font-medium text-sm text-gray-700">Tasks</div>
+                      <div className="flex-1 grid grid-cols-7 gap-1 text-xs text-gray-500">
+                        {Array.from({ length: 7 }, (_, i) => {
+                          const date = new Date();
+                          date.setDate(date.getDate() + i);
+                          return (
+                            <div key={i} className="text-center p-1">
+                              {format(date, "MMM d")}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Gantt rows */}
+                    <div className="space-y-2">
+                      {timelineData.map((item) => {
+                        // Calculate position based on due date
+                        const dueDate = new Date(item.dueDate!);
+                        const today = new Date();
+                        const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                        const startPosition = Math.max(0, Math.min(6, daysDiff));
+                        const duration = Math.max(1, Math.min(3, 2)); // Default 2-day duration, max 3 days
+                        
+                        return (
+                          <div key={item.id} className="flex items-center">
+                            {/* Task name column */}
+                            <div className="w-64 flex-shrink-0 pr-4">
+                              <div className="flex items-center space-x-2">
+                                <div className={`w-3 h-3 rounded-full ${getPriorityColor(item.priority)}`}></div>
+                                <div>
+                                  <div className="font-medium text-sm construction-secondary truncate">{item.title}</div>
+                                  {item.project && (
+                                    <div className="text-xs text-blue-600 truncate">{item.project.name}</div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Gantt bar area */}
+                            <div className="flex-1 relative h-8">
+                              <div className="grid grid-cols-7 gap-1 h-full">
+                                {Array.from({ length: 7 }, (_, colIndex) => (
+                                  <div key={colIndex} className="border-r border-gray-100 last:border-r-0"></div>
+                                ))}
+                              </div>
+                              
+                              {/* Task bar */}
+                              <div 
+                                className={`absolute top-1 h-6 rounded ${
+                                  item.status === "completed" 
+                                    ? "bg-green-500" 
+                                    : item.daysFromNow < 0 
+                                    ? "bg-red-500" 
+                                    : getPriorityColor(item.priority).replace('bg-', 'bg-opacity-80 bg-')
+                                } flex items-center px-2`}
+                                style={{
+                                  left: `${(startPosition / 7) * 100}%`,
+                                  width: `${(duration / 7) * 100}%`,
+                                }}
+                              >
+                                <span className="text-white text-xs font-medium truncate">
+                                  {item.status === "completed" ? "✓" : format(new Date(item.dueDate!), "MMM d")}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Legend */}
+                    <div className="mt-6 pt-4 border-t border-gray-200">
+                      <div className="flex items-center space-x-6 text-xs text-gray-600">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-red-500 rounded"></div>
+                          <span>High Priority</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-yellow-500 rounded"></div>
+                          <span>Medium Priority</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-green-500 rounded"></div>
+                          <span>Low Priority / Completed</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 bg-red-500 rounded"></div>
+                          <span>Overdue</span>
                         </div>
                       </div>
-                    ))}
+                    </div>
                   </div>
                 )}
               </div>
