@@ -28,6 +28,7 @@ export default function Photos() {
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProject, setSelectedProject] = useState("all");
+  const [selectedTag, setSelectedTag] = useState("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -124,9 +125,9 @@ export default function Photos() {
       formData.append("tags", JSON.stringify(data.tags));
       
       console.log("Photo upload - FormData entries:");
-      for (let [key, value] of formData.entries()) {
+      Array.from(formData.entries()).forEach(([key, value]) => {
         console.log(`${key}:`, value);
-      }
+      });
 
       uploadPhotoMutation.mutate({ formData });
     });
@@ -147,11 +148,34 @@ export default function Photos() {
     return project?.name || "Unknown Project";
   };
 
+  // Extract all unique tags from photos
+  const allTags = Array.from(new Set(
+    photos.flatMap(photo => {
+      try {
+        return typeof photo.tags === 'string' ? JSON.parse(photo.tags) : photo.tags || [];
+      } catch {
+        return [];
+      }
+    })
+  )).sort();
+
   const filteredPhotos = photos.filter(photo => {
     const matchesSearch = photo.originalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          photo.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesProject = selectedProject === "all" || photo.projectId === selectedProject;
-    return matchesSearch && matchesProject;
+    
+    // Tag filtering
+    let matchesTag = true;
+    if (selectedTag !== "all") {
+      try {
+        const photoTags = typeof photo.tags === 'string' ? JSON.parse(photo.tags) : photo.tags || [];
+        matchesTag = photoTags.includes(selectedTag);
+      } catch {
+        matchesTag = false;
+      }
+    }
+    
+    return matchesSearch && matchesProject && matchesTag;
   });
 
   const photosByProject = projects.map(project => ({
@@ -306,7 +330,7 @@ export default function Photos() {
         </Dialog>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
           <Input
@@ -325,6 +349,19 @@ export default function Photos() {
             {projects.map(project => (
               <SelectItem key={project.id} value={project.id}>
                 {project.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={selectedTag} onValueChange={setSelectedTag}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by tag" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Tags</SelectItem>
+            {allTags.map(tag => (
+              <SelectItem key={tag} value={tag}>
+                {tag}
               </SelectItem>
             ))}
           </SelectContent>
