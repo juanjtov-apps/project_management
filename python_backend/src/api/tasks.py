@@ -58,12 +58,18 @@ async def get_task(task_id: str):
 async def create_task(task: TaskCreate):
     """Create a new task."""
     try:
+        print(f"Received task data: {task}")
+        print(f"Task dict: {task.dict()}")
+        print(f"Task dict with alias: {task.dict(by_alias=True)}")
         return await task_repo.create(task)
     except Exception as e:
         print(f"Error creating task: {e}")
+        print(f"Exception type: {type(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create task"
+            detail=f"Failed to create task: {str(e)}"
         )
 
 
