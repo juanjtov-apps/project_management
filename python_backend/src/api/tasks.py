@@ -101,6 +101,41 @@ async def update_task(task_id: str, task_update: TaskUpdate):
         )
 
 
+from pydantic import BaseModel
+from typing import Optional
+
+class TaskAssignmentRequest(BaseModel):
+    assignee_id: Optional[str] = None
+
+@router.patch("/{task_id}/assign")
+async def assign_task(task_id: str, request: TaskAssignmentRequest):
+    """Assign a task to a user."""
+    try:
+        success = await task_repo.update_assignee(task_id, request.assignee_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Task not found"
+            )
+        
+        # Return the updated task
+        task = await task_repo.get_by_id(task_id)
+        if not task:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Task not found"
+            )
+        return task
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error assigning task {task_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to assign task"
+        )
+
+
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task(task_id: str):
     """Delete a task."""

@@ -38,8 +38,6 @@ __all__ = [
     "User",
     "UserCreate",
     "UserUpdate",
-    "UserLogin",
-    "UserStats",
     
     # Photo models
     "Photo",

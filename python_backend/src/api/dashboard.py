@@ -2,7 +2,7 @@
 Dashboard API endpoints.
 """
 from fastapi import APIRouter, HTTPException, status
-from src.models import ProjectStats, TaskStats, PhotoStats, UserStats
+from src.models import ProjectStats, TaskStats, PhotoStats
 from src.database.repositories import DashboardRepository
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])

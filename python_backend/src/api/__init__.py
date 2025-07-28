@@ -8,6 +8,7 @@ from .photos import router as photos_router
 from .dashboard import router as dashboard_router
 from .notifications import router as notifications_router
 from .schedule import router as schedule_router
+from .users import router as users_router
 
 # Import other routers as they are created
 # from .logs import router as logs_router
@@ -23,6 +24,7 @@ def create_api_router() -> APIRouter:
     api_router.include_router(dashboard_router)
     api_router.include_router(notifications_router)
     api_router.include_router(schedule_router)
+    api_router.include_router(users_router)
     
     # Include additional routers as they are implemented
     # api_router.include_router(logs_router)
