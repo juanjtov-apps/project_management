@@ -43,11 +43,11 @@ export default function Subs() {
 
   // Fetch data
   const { data: tasks = [], isLoading: isLoadingTasks } = useQuery<Task[]>({
-    queryKey: ["/api/tasks/"],
+    queryKey: ["/api/tasks"],
   });
 
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
-    queryKey: ["/api/projects/"],
+    queryKey: ["/api/projects"],
   });
 
   const { data: usersResponse = [], isLoading: isLoadingUsers } = useQuery<User[]>({
@@ -95,6 +95,7 @@ export default function Subs() {
         ...data,
         category: "subcontractor",
         assigneeId: data.assigneeId === "unassigned" ? null : data.assigneeId || null, // Convert "unassigned" to null
+        projectId: data.projectId === "none" || data.projectId === "" ? null : data.projectId || null, // Convert "none" and empty string to null
         dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
       };
       const response = await fetch("/api/tasks", {
@@ -110,7 +111,7 @@ export default function Subs() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setIsAddTaskOpen(false);
       toast({ title: "Task created successfully" });
     },
@@ -129,13 +130,12 @@ export default function Subs() {
     defaultValues: {
       title: "",
       description: "",
-      projectId: "",
-      assigneeId: "",
+      projectId: "none",
+      assigneeId: "unassigned",
       priority: "medium",
       category: "subcontractor",
       status: "pending",
       isMilestone: false,
-
     },
   });
 
@@ -304,6 +304,7 @@ export default function Subs() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                          <SelectItem value="none">No Project</SelectItem>
                           {projects.map((project) => (
                             <SelectItem key={project.id} value={project.id}>
                               {project.name}
