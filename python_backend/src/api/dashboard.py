@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from src.models import ProjectStats, TaskStats, PhotoStats, UserStats
 from src.database.repositories import DashboardRepository
 
-router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
+router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 dashboard_repo = DashboardRepository()
 
 

@@ -5,7 +5,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, status, Query
 from src.models import Notification, NotificationCreate, NotificationUpdate
 
-router = APIRouter(prefix="/api/notifications", tags=["notifications"])
+router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 # For now, return empty list to fix frontend error
 @router.get("", response_model=List[Notification])

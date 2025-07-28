@@ -10,11 +10,10 @@ interface HeaderProps {
 
 export default function Header({ onToggleMobileMenu, onToggleNotifications }: HeaderProps) {
   const { data: notifications = [] } = useQuery<Notification[]>({
-    queryKey: ["/api/notifications"],
-    queryFn: () => fetch("/api/notifications?userId=sample-user-id").then(res => res.json()),
+    queryKey: ["/api/notifications", "sample-user-id"],
   });
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0;
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">

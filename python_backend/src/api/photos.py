@@ -10,7 +10,7 @@ from src.models import Photo, PhotoCreate
 from src.database.repositories import PhotoRepository
 from src.core.config import settings
 
-router = APIRouter(prefix="/api/photos", tags=["photos"])
+router = APIRouter(prefix="/photos", tags=["photos"])
 photo_repo = PhotoRepository()
 
 

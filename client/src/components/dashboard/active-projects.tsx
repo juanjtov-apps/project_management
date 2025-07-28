@@ -41,7 +41,7 @@ export default function ActiveProjects() {
     queryKey: ["/api/projects"],
   });
 
-  const activeProjects = projects.slice(0, 3); // Show only first 3 for dashboard
+  const activeProjects = Array.isArray(projects) ? projects.slice(0, 3) : []; // Show only first 3 for dashboard
 
   if (isLoading) {
     return (
