@@ -30,13 +30,15 @@ const subcontractorTaskSchema = z.object({
   priority: z.string().default("medium"),
   dueDate: z.union([z.date(), z.string()]).optional().nullable(),
   isMilestone: z.boolean().default(false),
-  estimatedHours: z.number().optional(),
+
 });
 
 type SubcontractorTaskForm = z.infer<typeof subcontractorTaskSchema>;
 
 export default function Subs() {
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const { toast } = useToast();
 
   // Fetch data
@@ -133,12 +135,83 @@ export default function Subs() {
       category: "subcontractor",
       status: "pending",
       isMilestone: false,
-      estimatedHours: undefined,
+
     },
   });
 
   const onSubmitTask = (data: SubcontractorTaskForm) => {
     createTaskMutation.mutate(data);
+  };
+
+  // Task update mutation
+  const updateTaskMutation = useMutation({
+    mutationFn: async (data: { id: string; updates: Partial<SubcontractorTaskForm> }) => {
+      const formattedData = {
+        ...data.updates,
+        assigneeId: data.updates.assigneeId === "unassigned" ? null : data.updates.assigneeId || null,
+        dueDate: data.updates.dueDate ? new Date(data.updates.dueDate).toISOString() : null,
+      };
+      const response = await fetch(`/api/tasks/${data.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formattedData),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update task');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      setIsEditTaskOpen(false);
+      setEditingTask(null);
+      toast({ title: "Task updated successfully" });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Error updating task", 
+        description: error.message,
+        variant: "destructive"
+      });
+    },
+  });
+
+  const handleTaskClick = (task: Task) => {
+    setEditingTask(task);
+    editForm.reset({
+      title: task.title,
+      description: task.description || "",
+      projectId: task.projectId || "",
+      assigneeId: task.assigneeId || "unassigned",
+      priority: task.priority,
+      status: task.status,
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 16) : "",
+      isMilestone: task.isMilestone || false,
+    });
+    setIsEditTaskOpen(true);
+  };
+
+  // Edit form setup
+  const editForm = useForm<SubcontractorTaskForm>({
+    resolver: zodResolver(subcontractorTaskSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      projectId: "",
+      assigneeId: "",
+      priority: "medium",
+      category: "subcontractor",
+      status: "pending",
+      isMilestone: false,
+    },
+  });
+
+  const onSubmitEditTask = (data: SubcontractorTaskForm) => {
+    if (editingTask) {
+      updateTaskMutation.mutate({ id: editingTask.id, updates: data });
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -311,24 +384,7 @@ export default function Subs() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="estimatedHours"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Estimated Hours</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="Enter estimated hours"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
 
                 <div className="flex justify-end space-x-2">
                   <Button 
@@ -344,6 +400,183 @@ export default function Subs() {
                     className="construction-primary"
                   >
                     {createTaskMutation.isPending ? "Creating..." : "Create Task"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Task Dialog */}
+        <Dialog open={isEditTaskOpen} onOpenChange={setIsEditTaskOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Subcontractor Task</DialogTitle>
+              <DialogDescription>
+                Update task details and assignment
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(onSubmitEditTask)} className="space-y-4">
+                <FormField
+                  control={editForm.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Task Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter task title" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Enter task description" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="projectId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select project" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {projects.map((project) => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="assigneeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Assign to Subcontractor</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select subcontractor" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="unassigned">Unassigned</SelectItem>
+                          {subcontractors.map((sub) => (
+                            <SelectItem key={sub.id} value={sub.id}>
+                              {sub.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="in-progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="blocked">Blocked</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Priority</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="critical">Critical</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="dueDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Due Date</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="datetime-local" 
+                          {...field} 
+                          value={field.value ? new Date(field.value).toISOString().slice(0, 16) : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end space-x-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setIsEditTaskOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={updateTaskMutation.isPending}
+                    className="construction-primary"
+                  >
+                    {updateTaskMutation.isPending ? "Updating..." : "Update Task"}
                   </Button>
                 </div>
               </form>
@@ -418,13 +651,17 @@ export default function Subs() {
                 const project = projects.find(p => p.id === task.projectId);
                 
                 return (
-                  <div key={task.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div 
+                    key={task.id} 
+                    className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => handleTaskClick(task)}
+                  >
                     <div className="flex items-center space-x-4">
                       <div className={cn("w-3 h-3 rounded-full", getPriorityColor(task.priority))} />
                       <div>
                         <p className="font-medium">{task.title}</p>
                         <p className="text-sm text-gray-600">
-                          {assignee?.name} • {project?.name || "General Task"}
+                          {assignee?.name || "Unassigned"} • {project?.name || "General Task"}
                         </p>
                       </div>
                     </div>
@@ -460,14 +697,14 @@ export default function Subs() {
                   const project = projects.find(p => p.id === task.projectId);
                   
                   return (
-                    <Card key={task.id}>
+                    <Card key={task.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleTaskClick(task)}>
                       <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-sm">{task.title}</CardTitle>
                           <div className={cn("w-3 h-3 rounded-full", getPriorityColor(task.priority))} />
                         </div>
                         <CardDescription>
-                          {assignee?.name} • {project?.name || "General"}
+                          {assignee?.name || "Unassigned"} • {project?.name || "General"}
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="pt-2">
@@ -476,10 +713,11 @@ export default function Subs() {
                           <Badge className={getStatusColor(task.status)}>
                             {task.status}
                           </Badge>
-                          {task.estimatedHours && (
-                            <span className="text-xs text-gray-500">
-                              {task.estimatedHours}h estimated
-                            </span>
+                          {task.isMilestone && (
+                            <Badge variant="outline" className="text-blue-600">
+                              <Target className="w-3 h-3 mr-1" />
+                              Milestone
+                            </Badge>
                           )}
                         </div>
                       </CardContent>
@@ -508,14 +746,14 @@ export default function Subs() {
                   const dueDate = task.dueDate ? new Date(task.dueDate) : null;
                   
                   return (
-                    <Card key={task.id}>
+                    <Card key={task.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleTaskClick(task)}>
                       <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-sm">{task.title}</CardTitle>
                           <div className={cn("w-3 h-3 rounded-full", getPriorityColor(task.priority))} />
                         </div>
                         <CardDescription>
-                          {assignee?.name} • {project?.name || "General"}
+                          {assignee?.name || "Unassigned"} • {project?.name || "General"}
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="pt-2">
