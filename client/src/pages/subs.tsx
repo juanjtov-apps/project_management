@@ -21,16 +21,15 @@ import type { Task, Project, User, SubcontractorAssignment } from "@shared/schem
 
 // Extend the task schema for subcontractor tasks
 const subcontractorTaskSchema = z.object({
+  projectId: z.string().min(1, "Project selection is required").refine(val => val !== "none", "Please select a project"),
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
-  projectId: z.string().optional(),
   assigneeId: z.string().optional(),
   category: z.string().default("subcontractor"),
   status: z.string().default("pending"),
   priority: z.string().default("medium"),
   dueDate: z.union([z.date(), z.string()]).optional().nullable(),
   isMilestone: z.boolean().default(false),
-
 });
 
 type SubcontractorTaskForm = z.infer<typeof subcontractorTaskSchema>;
@@ -95,7 +94,7 @@ export default function Subs() {
         ...data,
         category: "subcontractor",
         assigneeId: data.assigneeId === "unassigned" ? null : data.assigneeId || null, // Convert "unassigned" to null
-        projectId: data.projectId === "none" || data.projectId === "" ? null : data.projectId || null, // Convert "none" and empty string to null
+        projectId: data.projectId, // Project is now mandatory
         dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
       };
       const response = await fetch("/api/tasks", {
@@ -128,9 +127,9 @@ export default function Subs() {
   const form = useForm<SubcontractorTaskForm>({
     resolver: zodResolver(subcontractorTaskSchema),
     defaultValues: {
+      projectId: "",
       title: "",
       description: "",
-      projectId: "none",
       assigneeId: "unassigned",
       priority: "medium",
       category: "subcontractor",
@@ -197,9 +196,9 @@ export default function Subs() {
   const editForm = useForm<SubcontractorTaskForm>({
     resolver: zodResolver(subcontractorTaskSchema),
     defaultValues: {
+      projectId: "",
       title: "",
       description: "",
-      projectId: "",
       assigneeId: "",
       priority: "medium",
       category: "subcontractor",
@@ -265,10 +264,35 @@ export default function Subs() {
               <form onSubmit={form.handleSubmit(onSubmitTask)} className="space-y-4">
                 <FormField
                   control={form.control}
+                  name="projectId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select project" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {projects.map((project) => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Task Title</FormLabel>
+                      <FormLabel>Task Title *</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter task title" {...field} />
                       </FormControl>
@@ -286,32 +310,6 @@ export default function Subs() {
                       <FormControl>
                         <Textarea placeholder="Enter task description" {...field} />
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="projectId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Project</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select project" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">No Project</SelectItem>
-                          {projects.map((project) => (
-                            <SelectItem key={project.id} value={project.id}>
-                              {project.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -587,7 +585,7 @@ export default function Subs() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 bg-gray-100">
+        <TabsList className="grid w-full grid-cols-6 bg-gray-100">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <Users size={16} />
             Overview
@@ -600,9 +598,17 @@ export default function Subs() {
             <Calendar size={16} />
             Weekly View
           </TabsTrigger>
-          <TabsTrigger value="projects" className="flex items-center gap-2">
+          <TabsTrigger value="by-projects" className="flex items-center gap-2">
             <Building2 size={16} />
-            Projects
+            By Projects
+          </TabsTrigger>
+          <TabsTrigger value="by-subs" className="flex items-center gap-2">
+            <Users size={16} />
+            By Subcontractors
+          </TabsTrigger>
+          <TabsTrigger value="projects" className="flex items-center gap-2">
+            <Target size={16} />
+            Milestones
           </TabsTrigger>
         </TabsList>
 
@@ -784,50 +790,235 @@ export default function Subs() {
           </div>
         </TabsContent>
 
+        <TabsContent value="by-projects">
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold">Tasks Organized by Projects</h3>
+            {projects.map((project) => {
+              const projectTasks = subcontractorTasks.filter(t => t.projectId === project.id);
+              
+              if (projectTasks.length === 0) return null;
+              
+              return (
+                <Card key={project.id}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>{project.name}</span>
+                      <Badge variant="outline">{projectTasks.length} tasks</Badge>
+                    </CardTitle>
+                    <CardDescription>{project.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {projectTasks.map((task) => {
+                        const assignee = users.find(u => u.id === task.assigneeId);
+                        const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+                        
+                        return (
+                          <div 
+                            key={task.id}
+                            className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                            onClick={() => handleTaskClick(task)}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className={cn("w-3 h-3 rounded-full", getPriorityColor(task.priority))} />
+                              <div>
+                                <p className="font-medium">{task.title}</p>
+                                <p className="text-sm text-gray-600">
+                                  Assigned to: {assignee?.name || "Unassigned"}
+                                  {dueDate && ` • Due: ${dueDate.toLocaleDateString()}`}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge className={getStatusColor(task.status)}>
+                                {task.status}
+                              </Badge>
+                              {task.isMilestone && (
+                                <Badge variant="outline" className="text-blue-600">
+                                  <Target className="w-3 h-3 mr-1" />
+                                  Milestone
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="by-subs">
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold">Tasks Organized by Subcontractors</h3>
+            {subcontractors.map((subcontractor) => {
+              const subTasks = subcontractorTasks.filter(t => t.assigneeId === subcontractor.id);
+              
+              return (
+                <Card key={subcontractor.id}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>{subcontractor.name}</span>
+                      <Badge variant="outline">{subTasks.length} tasks</Badge>
+                    </CardTitle>
+                    <CardDescription>{subcontractor.email}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {subTasks.length === 0 ? (
+                      <p className="text-gray-500 text-center py-4">No tasks assigned</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {subTasks.map((task) => {
+                          const project = projects.find(p => p.id === task.projectId);
+                          const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+                          
+                          return (
+                            <div 
+                              key={task.id}
+                              className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                              onClick={() => handleTaskClick(task)}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <div className={cn("w-3 h-3 rounded-full", getPriorityColor(task.priority))} />
+                                <div>
+                                  <p className="font-medium">{task.title}</p>
+                                  <p className="text-sm text-gray-600">
+                                    Project: {project?.name || "General Task"}
+                                    {dueDate && ` • Due: ${dueDate.toLocaleDateString()}`}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Badge className={getStatusColor(task.status)}>
+                                  {task.status}
+                                </Badge>
+                                {task.isMilestone && (
+                                  <Badge variant="outline" className="text-blue-600">
+                                    <Target className="w-3 h-3 mr-1" />
+                                    Milestone
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+            
+            {/* Unassigned tasks */}
+            {(() => {
+              const unassignedTasks = subcontractorTasks.filter(t => !t.assigneeId);
+              if (unassignedTasks.length === 0) return null;
+              
+              return (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>Unassigned Tasks</span>
+                      <Badge variant="outline">{unassignedTasks.length} tasks</Badge>
+                    </CardTitle>
+                    <CardDescription>Tasks that need subcontractor assignment</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {unassignedTasks.map((task) => {
+                        const project = projects.find(p => p.id === task.projectId);
+                        const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+                        
+                        return (
+                          <div 
+                            key={task.id}
+                            className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                            onClick={() => handleTaskClick(task)}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className={cn("w-3 h-3 rounded-full", getPriorityColor(task.priority))} />
+                              <div>
+                                <p className="font-medium">{task.title}</p>
+                                <p className="text-sm text-gray-600">
+                                  Project: {project?.name || "General Task"}
+                                  {dueDate && ` • Due: ${dueDate.toLocaleDateString()}`}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge className={getStatusColor(task.status)}>
+                                {task.status}
+                              </Badge>
+                              {task.isMilestone && (
+                                <Badge variant="outline" className="text-blue-600">
+                                  <Target className="w-3 h-3 mr-1" />
+                                  Milestone
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+          </div>
+        </TabsContent>
+
         <TabsContent value="projects">
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Projects with Subcontractor Assignments</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {projects.map((project) => {
-                const projectTasks = subcontractorTasks.filter(t => t.projectId === project.id);
-                const activeTasks = projectTasks.filter(t => t.status !== "completed").length;
-                const completedTasks = projectTasks.filter(t => t.status === "completed").length;
-                
-                return (
-                  <Card key={project.id}>
-                    <CardHeader>
-                      <CardTitle className="text-lg">{project.name}</CardTitle>
-                      <CardDescription>{project.location}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Active Tasks:</span>
-                          <span className="font-medium">{activeTasks}</span>
+            <h3 className="text-lg font-semibold">Milestone Tasks</h3>
+            {subcontractorTasks.filter(task => task.isMilestone).length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No milestone tasks found</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {subcontractorTasks.filter(task => task.isMilestone).map((task) => {
+                  const assignee = users.find(u => u.id === task.assigneeId);
+                  const project = projects.find(p => p.id === task.projectId);
+                  const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+                  
+                  return (
+                    <Card key={task.id} className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-blue-500" onClick={() => handleTaskClick(task)}>
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm flex items-center">
+                            <Target className="w-4 h-4 mr-2 text-blue-600" />
+                            {task.title}
+                          </CardTitle>
+                          <div className={cn("w-3 h-3 rounded-full", getPriorityColor(task.priority))} />
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Completed:</span>
-                          <span className="font-medium">{completedTasks}</span>
+                        <CardDescription>
+                          {assignee?.name || "Unassigned"} • {project?.name || "General"}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-2">
+                        <p className="text-sm text-gray-600 mb-2">{task.description}</p>
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge className={getStatusColor(task.status)}>
+                            {task.status}
+                          </Badge>
+                          <Badge variant="outline" className="text-blue-600">
+                            Milestone
+                          </Badge>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Progress:</span>
-                          <span className="font-medium">{project.progress}%</span>
-                        </div>
-                      </div>
-                      <div className="mt-4">
-                        <Badge className={
-                          project.status === "completed" ? "bg-green-100 text-green-800" :
-                          project.status === "active" ? "bg-blue-100 text-blue-800" :
-                          "bg-gray-100 text-gray-800"
-                        }>
-                          {project.status}
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                        {dueDate && (
+                          <p className="text-xs text-gray-500">
+                            Due: {dueDate.toLocaleDateString()} at {dueDate.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>
