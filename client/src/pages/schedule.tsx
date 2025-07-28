@@ -72,6 +72,7 @@ export default function Schedule() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/schedule-changes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] }); // Refresh task data to show updated due dates
       setIsCreateDialogOpen(false);
       form.reset();
     },
@@ -82,6 +83,7 @@ export default function Schedule() {
       apiRequest("PATCH", `/api/schedule-changes/${id}`, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/schedule-changes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] }); // Refresh task data to show updated due dates
     },
   });
 

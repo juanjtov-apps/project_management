@@ -29,6 +29,11 @@ class ScheduleChangeCreate(BaseModel):
 
 class ScheduleChangeUpdate(BaseModel):
     """Schedule change update model."""
+    task_id: Optional[str] = Field(default=None, alias="taskId")
+    user_id: Optional[str] = Field(default=None, alias="userId")
+    reason: Optional[str] = None
+    original_date: Optional[datetime] = Field(default=None, alias="originalDate")
+    new_date: Optional[datetime] = Field(default=None, alias="newDate")
     status: Optional[ScheduleChangeStatus] = None
     approved_by: Optional[str] = Field(default=None, alias="approvedBy")
     notes: Optional[str] = None
