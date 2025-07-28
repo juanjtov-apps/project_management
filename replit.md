@@ -19,11 +19,11 @@ Preferred communication style: Simple, everyday language.
 - **Build Tool**: Vite for development and production builds
 
 ### Backend Architecture
-- **Runtime**: Node.js with Express.js framework
-- **Language**: TypeScript with ES modules
-- **API Design**: RESTful API architecture
-- **File Uploads**: Multer middleware for handling photo uploads
-- **Error Handling**: Centralized error handling middleware
+- **Primary Backend**: Python FastAPI (port 8000) - handles all API logic and database operations
+- **Proxy Layer**: Node.js Express.js server (port 5000) - serves frontend and proxies API requests
+- **Language**: Python with Pydantic models and async/await
+- **API Design**: RESTful API architecture with automatic OpenAPI documentation
+- **Database Operations**: Direct PostgreSQL queries with asyncpg and repository pattern
 
 ### Database Architecture
 - **Database**: PostgreSQL with Neon serverless database
@@ -51,19 +51,20 @@ Preferred communication style: Simple, everyday language.
 - **Notification System**: Real-time updates with read/unread status
 
 ### Backend Services
-- **Storage Layer**: Abstracted storage interface for data operations
-- **File Handling**: Photo upload and retrieval with file system storage
-- **API Routes**: RESTful endpoints for all major entities
+- **Python FastAPI Backend**: Complete API implementation with all CRUD operations
+- **Repository Pattern**: Clean data access layer with async database operations
+- **Express Proxy Server**: Request forwarding and frontend serving
+- **File Handling**: Photo upload capabilities (ready for implementation)
 - **Session Management**: User session handling (infrastructure prepared)
 
 ## Data Flow
 
 ### Client-Server Communication
 1. Frontend makes API requests through TanStack Query
-2. Express.js routes handle HTTP requests with validation
-3. Storage layer abstracts database operations
-4. Drizzle ORM provides type-safe database queries
-5. Response data flows back through the same chain
+2. Express.js proxy forwards requests to Python FastAPI backend
+3. Python FastAPI handles validation, business logic, and database operations
+4. Repository pattern with asyncpg provides database access
+5. Response data flows back through the proxy to frontend
 
 ### Photo Upload Flow
 1. Client selects images through file input
@@ -112,12 +113,12 @@ Preferred communication style: Simple, everyday language.
 
 ### File Structure
 ```
-├── client/          # React frontend application
-├── server/          # Express.js backend
-├── shared/          # Shared TypeScript types and schemas
-├── uploads/         # File storage for uploaded photos
-├── migrations/      # Database migration files
-└── dist/           # Production build output
+├── client/              # React frontend application
+├── server/              # Express.js proxy server (index.ts, vite.ts)
+├── python_backend/      # Python FastAPI backend with all API logic
+├── shared/              # Shared TypeScript types and schemas
+├── uploads/             # File storage for uploaded photos
+└── dist/               # Production build output
 ```
 
 ### Scaling Considerations
@@ -127,6 +128,24 @@ Preferred communication style: Simple, everyday language.
 - Component architecture supports feature expansion
 
 ## Recent Changes
+
+### January 2025 - Collapsible Task List Functionality and Backend Cleanup
+- Successfully implemented collapsible dropdown sections for task lists in both Canvas and List views
+- Added chevron icons with expand/collapse functionality for Project Tasks, Administrative Tasks, and General Tasks sections
+- Individual projects within Project Tasks can also be collapsed independently
+- Task counts displayed in badges next to section headers for easy reference
+- Smooth hover effects and proper indentation for nested collapsible sections
+- Cleaned up unused TypeScript backend files (routes.ts, storage.ts, db.ts) that were replaced by Python FastAPI
+- Updated architecture documentation to reflect current Python-primary backend with Express proxy layer
+- Confirmed all task list functionality working with improved organization and user control
+
+### January 2025 - Task List View Implementation
+- Successfully added view toggle buttons (Canvas/List) for different task organization preferences
+- Created compact TaskListItem component with inline status updates and quick actions
+- Implemented organized list view with tasks grouped by categories (Projects, Administrative, General)
+- Added proper icon handling and color coding for different task categories
+- Fixed React component import issues and JSX rendering errors
+- List view provides alternative to canvas view for users preferring linear task organization
 
 ### July 2025 - Express Proxy Fix for Task Creation
 - Successfully resolved "Create task is not working" functionality issue
