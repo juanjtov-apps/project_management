@@ -1092,6 +1092,70 @@ export default function Projects() {
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
+                          
+                          {/* Tasks Section */}
+                          <div className="border-t pt-3 mt-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleProjectExpansion(project.id)}
+                              className="w-full justify-between p-2 h-auto"
+                            >
+                              <div className="flex items-center text-sm">
+                                <span className="font-medium">Tasks ({projectTasks.length})</span>
+                              </div>
+                              {expandedProject === project.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            </Button>
+                            
+                            {expandedProject === project.id && (
+                              <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                                {projectTasks.length === 0 ? (
+                                  <p className="text-xs text-gray-500 text-center py-2">No tasks yet</p>
+                                ) : (
+                                  projectTasks.map((task) => (
+                                    <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="font-medium truncate flex-1">{task.title}</span>
+                                        <div className="flex items-center gap-1">
+                                          <Badge className={getStatusColor(task.status)} variant="outline">
+                                            {task.status === "in-progress" ? "In Progress" : task.status}
+                                          </Badge>
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
+                                                <MoreHorizontal size={12} />
+                                              </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                              <DropdownMenuItem onClick={() => handleEditTask(task)}>
+                                                <Edit size={12} className="mr-2" />
+                                                Edit
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem onClick={() => handleDeleteTask(task)} className="text-red-600">
+                                                <Trash2 size={12} className="mr-2" />
+                                                Delete
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center justify-between text-gray-500">
+                                        <Badge className={getPriorityColor(task.priority)} variant="outline">
+                                          {task.priority}
+                                        </Badge>
+                                        {task.dueDate && (
+                                          <div className="flex items-center">
+                                            <Clock size={10} className="mr-1" />
+                                            <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     );
@@ -1186,6 +1250,70 @@ export default function Projects() {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
+                          </div>
+                          
+                          {/* Tasks Section */}
+                          <div className="border-t pt-3 mt-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleProjectExpansion(project.id)}
+                              className="w-full justify-between p-2 h-auto"
+                            >
+                              <div className="flex items-center text-sm">
+                                <span className="font-medium">Tasks ({projectTasks.length})</span>
+                              </div>
+                              {expandedProject === project.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            </Button>
+                            
+                            {expandedProject === project.id && (
+                              <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                                {projectTasks.length === 0 ? (
+                                  <p className="text-xs text-gray-500 text-center py-2">No tasks yet</p>
+                                ) : (
+                                  projectTasks.map((task) => (
+                                    <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="font-medium truncate flex-1">{task.title}</span>
+                                        <div className="flex items-center gap-1">
+                                          <Badge className={getStatusColor(task.status)} variant="outline">
+                                            {task.status === "in-progress" ? "In Progress" : task.status}
+                                          </Badge>
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
+                                                <MoreHorizontal size={12} />
+                                              </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                              <DropdownMenuItem onClick={() => handleEditTask(task)}>
+                                                <Edit size={12} className="mr-2" />
+                                                Edit
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem onClick={() => handleDeleteTask(task)} className="text-red-600">
+                                                <Trash2 size={12} className="mr-2" />
+                                                Delete
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center justify-between text-gray-500">
+                                        <Badge className={getPriorityColor(task.priority)} variant="outline">
+                                          {task.priority}
+                                        </Badge>
+                                        {task.dueDate && (
+                                          <div className="flex items-center">
+                                            <Clock size={10} className="mr-1" />
+                                            <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -1282,6 +1410,70 @@ export default function Projects() {
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
+                          
+                          {/* Tasks Section */}
+                          <div className="border-t pt-3 mt-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleProjectExpansion(project.id)}
+                              className="w-full justify-between p-2 h-auto"
+                            >
+                              <div className="flex items-center text-sm">
+                                <span className="font-medium">Tasks ({projectTasks.length})</span>
+                              </div>
+                              {expandedProject === project.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            </Button>
+                            
+                            {expandedProject === project.id && (
+                              <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                                {projectTasks.length === 0 ? (
+                                  <p className="text-xs text-gray-500 text-center py-2">No tasks yet</p>
+                                ) : (
+                                  projectTasks.map((task) => (
+                                    <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="font-medium truncate flex-1">{task.title}</span>
+                                        <div className="flex items-center gap-1">
+                                          <Badge className={getStatusColor(task.status)} variant="outline">
+                                            {task.status === "in-progress" ? "In Progress" : task.status}
+                                          </Badge>
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
+                                                <MoreHorizontal size={12} />
+                                              </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                              <DropdownMenuItem onClick={() => handleEditTask(task)}>
+                                                <Edit size={12} className="mr-2" />
+                                                Edit
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem onClick={() => handleDeleteTask(task)} className="text-red-600">
+                                                <Trash2 size={12} className="mr-2" />
+                                                Delete
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center justify-between text-gray-500">
+                                        <Badge className={getPriorityColor(task.priority)} variant="outline">
+                                          {task.priority}
+                                        </Badge>
+                                        {task.dueDate && (
+                                          <div className="flex items-center">
+                                            <Clock size={10} className="mr-1" />
+                                            <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     );
@@ -1376,6 +1568,70 @@ export default function Projects() {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
+                          </div>
+                          
+                          {/* Tasks Section */}
+                          <div className="border-t pt-3 mt-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleProjectExpansion(project.id)}
+                              className="w-full justify-between p-2 h-auto"
+                            >
+                              <div className="flex items-center text-sm">
+                                <span className="font-medium">Tasks ({projectTasks.length})</span>
+                              </div>
+                              {expandedProject === project.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            </Button>
+                            
+                            {expandedProject === project.id && (
+                              <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                                {projectTasks.length === 0 ? (
+                                  <p className="text-xs text-gray-500 text-center py-2">No tasks yet</p>
+                                ) : (
+                                  projectTasks.map((task) => (
+                                    <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="font-medium truncate flex-1">{task.title}</span>
+                                        <div className="flex items-center gap-1">
+                                          <Badge className={getStatusColor(task.status)} variant="outline">
+                                            {task.status === "in-progress" ? "In Progress" : task.status}
+                                          </Badge>
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
+                                                <MoreHorizontal size={12} />
+                                              </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                              <DropdownMenuItem onClick={() => handleEditTask(task)}>
+                                                <Edit size={12} className="mr-2" />
+                                                Edit
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem onClick={() => handleDeleteTask(task)} className="text-red-600">
+                                                <Trash2 size={12} className="mr-2" />
+                                                Delete
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center justify-between text-gray-500">
+                                        <Badge className={getPriorityColor(task.priority)} variant="outline">
+                                          {task.priority}
+                                        </Badge>
+                                        {task.dueDate && (
+                                          <div className="flex items-center">
+                                            <Clock size={10} className="mr-1" />
+                                            <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
