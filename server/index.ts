@@ -21,29 +21,29 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
   // Wait for Python server to start
   await new Promise(resolve => setTimeout(resolve, 3000));
 
-  // Use http-proxy-middleware with router configuration for specific API endpoints  
+  // Use http-proxy-middleware for API routes only
   const { createProxyMiddleware } = await import('http-proxy-middleware');
   
   const proxy = createProxyMiddleware({
     target: 'http://localhost:8000',
     changeOrigin: true,
-    ws: true,
-    router: (req) => 'http://localhost:8000',
+    ws: false,
+    logLevel: 'silent',
+    // Don't rewrite the path at all - by default express strips /api when mounting at /api
+    // So we need to add it back
     pathRewrite: (path, req) => {
-      console.log(`Original path: ${path}`);
-      // For /api/something requests, keep the full path with /api prefix
-      const newPath = path.startsWith('/api') ? path : `/api${path}`;
-      console.log(`Rewritten path: ${newPath}`);
-      return newPath;
+      const fullPath = `/api${path}`;
+      console.log(`Path rewrite: ${path} -> ${fullPath}`);
+      return fullPath;
     },
     onError: (err, req, res) => {
-      console.error('Proxy error:', err.message);
+      console.error('API Proxy error:', err.message);
       if (!res.headersSent) {
         res.status(500).json({ message: 'Proxy error' });
       }
     },
     onProxyReq: (proxyReq, req, res) => {
-      console.log(`Final proxy request: ${req.method} ${proxyReq.path}`);
+      console.log(`API Proxy: ${req.method} ${req.originalUrl} -> ${proxyReq.path}`);
     }
   });
   
