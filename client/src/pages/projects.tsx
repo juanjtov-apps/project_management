@@ -111,7 +111,7 @@ export default function Projects() {
   const handleDeleteProject = async (project: Project) => {
     if (confirm(`Delete project "${project.name}"?`)) {
       try {
-        await apiRequest(`/api/projects/${project.id}`, { method: "DELETE" });
+        await apiRequest("DELETE", `/api/projects/${project.id}`);
         queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       } catch (error) {
         console.error("Error deleting project:", error);
@@ -126,7 +126,7 @@ export default function Projects() {
   const handleDeleteTask = async (task: Task) => {
     if (confirm(`Delete task "${task.title}"?`)) {
       try {
-        await apiRequest(`/api/tasks/${task.id}`, { method: "DELETE" });
+        await apiRequest("DELETE", `/api/tasks/${task.id}`);
         queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       } catch (error) {
         console.error("Error deleting task:", error);
@@ -561,17 +561,14 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
   const queryClient = useQueryClient();
   
   const form = useForm({
-    resolver: zodResolver(insertTaskSchema.extend({
-      dueDate: insertTaskSchema.shape.dueDate.optional(),
-    })),
     defaultValues: {
-      title: task.title,
-      description: task.description || "",
-      status: task.status,
-      priority: task.priority,
-      category: task.category,
-      projectId: task.projectId || "",
-      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+      title: task?.title || "",
+      description: task?.description || "",
+      status: task?.status || "pending",
+      priority: task?.priority || "medium",
+      category: task?.category || "project",
+      projectId: task?.projectId || "",
+      dueDate: task?.dueDate ? new Date(task.dueDate) : undefined,
     },
   });
 
