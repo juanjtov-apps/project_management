@@ -54,13 +54,13 @@ const getStatusColor = (status: string) => {
 const getCategoryIcon = (category: string) => {
   switch (category) {
     case "project":
-      return <Building size={16} className="text-blue-600" />;
+      return Building;
     case "administrative":
-      return <Settings size={16} className="text-purple-600" />;
+      return Settings;
     case "general":
-      return <CheckCircle size={16} className="text-green-600" />;
+      return CheckCircle;
     default:
-      return <CheckCircle size={16} className="text-gray-600" />;
+      return CheckCircle;
   }
 };
 
@@ -78,7 +78,14 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange }: TaskCardP
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div className="flex items-start space-x-2">
-            {getCategoryIcon(task.category || "general")}
+            <div className="flex items-center">
+              {(() => {
+                const IconComponent = getCategoryIcon(task.category || "general");
+                const iconClass = task.category === "project" ? "text-blue-600" : 
+                                 task.category === "administrative" ? "text-purple-600" : "text-green-600";
+                return <IconComponent size={16} className={iconClass} />;
+              })()}
+            </div>
             <div className="flex-1">
               <CardTitle className="text-sm font-medium construction-secondary">
                 {task.title}
@@ -164,13 +171,15 @@ interface TaskListItemProps {
 
 function TaskListItem({ task, projectName, onEdit, onDelete, onStatusChange }: TaskListItemProps) {
   const CategoryIcon = getCategoryIcon(task.category || "general");
+  const iconClass = task.category === "project" ? "text-blue-600" : 
+                   task.category === "administrative" ? "text-purple-600" : "text-green-600";
   
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3 flex-1">
-            <CategoryIcon size={16} className="text-gray-500 flex-shrink-0" />
+            <CategoryIcon size={16} className={`${iconClass} flex-shrink-0`} />
             
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2 mb-1">
