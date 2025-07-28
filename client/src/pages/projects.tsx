@@ -50,6 +50,8 @@ const getProgressColor = (status: string) => {
   }
 };
 
+
+
 export default function Projects() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -59,6 +61,7 @@ export default function Projects() {
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isTaskEditDialogOpen, setIsTaskEditDialogOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -300,10 +303,23 @@ export default function Projects() {
     }
   };
 
+  const toggleSection = (sectionId: string) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  };
+
   const filteredProjects = projects.filter(project =>
     project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     project.location.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Group projects by status
+  const activeProjects = filteredProjects.filter(project => project.status === "active");
+  const completedProjects = filteredProjects.filter(project => project.status === "completed");
+  const delayedProjects = filteredProjects.filter(project => project.status === "delayed");
+  const onHoldProjects = filteredProjects.filter(project => project.status === "on-hold");
 
   if (isLoading) {
     return (
@@ -984,130 +1000,391 @@ export default function Projects() {
         </div>
       )}
 
-      {/* List View */}
+      {/* List View - Collapsible Sections by Status */}
       {viewMode === "list" && (
         <div className="space-y-6">
-          {filteredProjects.map((project) => {
-            const projectTasks = getProjectTasks(project.id);
-            
-            return (
-              <Card key={project.id} className="w-full">
-                <CardHeader className="pb-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4 mb-2">
-                        <CardTitle className="text-xl construction-secondary">{project.name}</CardTitle>
-                        <Badge className={getStatusColor(project.status)}>
-                          {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                        </Badge>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <MapPin size={14} className="mr-1" />
-                          {project.location}
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-3">{project.description}</p>
-                      <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">Progress:</span>
-                          <div className="w-32 bg-gray-200 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full ${getProgressColor(project.status)}`}
-                              style={{ width: `${project.progress}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-medium">{project.progress}%</span>
-                        </div>
-                        {project.dueDate && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-500">Due:</span>
-                            <span className="text-sm font-medium">{new Date(project.dueDate).toLocaleDateString()}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal size={16} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditProject(project)}>
-                          <Edit size={16} className="mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleAddTask(project)}>
-                          <Plus size={16} className="mr-2" />
-                          Add Task
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleDeleteProject(project)}
-                          className="text-red-600"
-                        >
-                          <Trash2 size={16} className="mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="border-t pt-4">
-                    <h4 className="font-medium text-lg mb-3 construction-secondary">Tasks ({projectTasks.length})</h4>
-                    {projectTasks.length === 0 ? (
-                      <p className="text-gray-500 text-center py-4">No tasks assigned to this project yet</p>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {projectTasks.map((task) => (
-                          <div key={task.id} className="bg-gray-50 rounded-lg p-3 border group hover:bg-gray-100 transition-colors">
-                            <div className="flex items-center justify-between mb-2">
-                              <h5 className="font-medium text-sm truncate flex-1">{task.title}</h5>
-                              <div className="flex items-center gap-1">
-                                <Badge className={getStatusColor(task.status)} variant="outline">
-                                  {task.status === "in-progress" ? "In Progress" : task.status}
+          {/* Active Projects Section */}
+          {activeProjects.length > 0 && (
+            <div className="space-y-4">
+              <Button
+                variant="ghost"
+                onClick={() => toggleSection('active')}
+                className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
+              >
+                {collapsedSections['active'] ? 
+                  <ChevronRight size={20} className="text-orange-600" /> : 
+                  <ChevronDown size={20} className="text-orange-600" />
+                }
+                <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                <h2 className="text-lg font-semibold text-orange-600">Active Projects</h2>
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {activeProjects.length} projects
+                </Badge>
+              </Button>
+              
+              {!collapsedSections['active'] && (
+                <div className="space-y-3 ml-8">
+                  {activeProjects.map((project) => {
+                    const projectTasks = getProjectTasks(project.id);
+                    
+                    return (
+                      <Card key={project.id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3 mb-2">
+                                <h3 className="font-medium text-lg construction-secondary">{project.name}</h3>
+                                <Badge className={getStatusColor(project.status)}>
+                                  {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
                                 </Badge>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100">
-                                      <MoreHorizontal size={12} />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleEditTask(task)}>
-                                      <Edit size={12} className="mr-2" />
-                                      Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleDeleteTask(task)} className="text-red-600">
-                                      <Trash2 size={12} className="mr-2" />
-                                      Delete
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
+                                <div className="flex items-center text-sm text-gray-500">
+                                  <MapPin size={14} className="mr-1" />
+                                  {project.location}
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-2">{project.description}</p>
+                              <div className="flex items-center gap-4 text-sm">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-gray-500">Progress:</span>
+                                  <span className="font-medium">{project.progress}%</span>
+                                  <div className="w-16 bg-gray-200 rounded-full h-2">
+                                    <div
+                                      className={`h-2 rounded-full ${getProgressColor(project.status)}`}
+                                      style={{ width: `${project.progress}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 text-gray-500">
+                                  <Users size={14} />
+                                  <span>{projectTasks.length} tasks</span>
+                                </div>
+                                {project.dueDate && (
+                                  <div className="flex items-center gap-1 text-gray-500">
+                                    <CalendarIcon size={14} />
+                                    <span>Due: {new Date(project.dueDate).toLocaleDateString()}</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
-                            {task.description && (
-                              <p className="text-xs text-gray-600 mb-2 line-clamp-2">{task.description}</p>
-                            )}
-                            <div className="flex items-center justify-between text-xs">
-                              <Badge className={getPriorityColor(task.priority)} variant="outline">
-                                {task.priority}
-                              </Badge>
-                              {task.dueDate && (
-                                <div className="flex items-center text-gray-500">
-                                  <Clock size={12} className="mr-1" />
-                                  <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                                </div>
-                              )}
-                            </div>
+                            
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreHorizontal size={16} />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEditProject(project)}>
+                                  <Edit size={14} className="mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleAddTask(project)}>
+                                  <Plus size={14} className="mr-2" />
+                                  Add Task
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleDeleteProject(project)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 size={14} className="mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Completed Projects Section */}
+          {completedProjects.length > 0 && (
+            <div className="space-y-4">
+              <Button
+                variant="ghost"
+                onClick={() => toggleSection('completed')}
+                className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
+              >
+                {collapsedSections['completed'] ? 
+                  <ChevronRight size={20} className="text-green-600" /> : 
+                  <ChevronDown size={20} className="text-green-600" />
+                }
+                <CheckCircle size={16} className="text-green-600" />
+                <h2 className="text-lg font-semibold text-green-600">Completed Projects</h2>
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {completedProjects.length} projects
+                </Badge>
+              </Button>
+              
+              {!collapsedSections['completed'] && (
+                <div className="space-y-3 ml-8">
+                  {completedProjects.map((project) => {
+                    const projectTasks = getProjectTasks(project.id);
+                    
+                    return (
+                      <Card key={project.id} className="hover:shadow-md transition-shadow border-green-200">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3 mb-2">
+                                <h3 className="font-medium text-lg construction-secondary">{project.name}</h3>
+                                <Badge className={getStatusColor(project.status)}>
+                                  {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                                </Badge>
+                                <div className="flex items-center text-sm text-gray-500">
+                                  <MapPin size={14} className="mr-1" />
+                                  {project.location}
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-2">{project.description}</p>
+                              <div className="flex items-center gap-4 text-sm">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-gray-500">Progress:</span>
+                                  <span className="font-medium text-green-600">{project.progress}%</span>
+                                  <div className="w-16 bg-gray-200 rounded-full h-2">
+                                    <div className="h-2 rounded-full bg-green-500" style={{ width: `${project.progress}%` }}></div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 text-gray-500">
+                                  <Users size={14} />
+                                  <span>{projectTasks.length} tasks</span>
+                                </div>
+                                {project.dueDate && (
+                                  <div className="flex items-center gap-1 text-gray-500">
+                                    <CalendarIcon size={14} />
+                                    <span>Completed: {new Date(project.dueDate).toLocaleDateString()}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreHorizontal size={16} />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEditProject(project)}>
+                                  <Edit size={14} className="mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleAddTask(project)}>
+                                  <Plus size={14} className="mr-2" />
+                                  Add Task
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleDeleteProject(project)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 size={14} className="mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Delayed Projects Section */}
+          {delayedProjects.length > 0 && (
+            <div className="space-y-4">
+              <Button
+                variant="ghost"
+                onClick={() => toggleSection('delayed')}
+                className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
+              >
+                {collapsedSections['delayed'] ? 
+                  <ChevronRight size={20} className="text-red-600" /> : 
+                  <ChevronDown size={20} className="text-red-600" />
+                }
+                <Clock size={16} className="text-red-600" />
+                <h2 className="text-lg font-semibold text-red-600">Delayed Projects</h2>
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {delayedProjects.length} projects
+                </Badge>
+              </Button>
+              
+              {!collapsedSections['delayed'] && (
+                <div className="space-y-3 ml-8">
+                  {delayedProjects.map((project) => {
+                    const projectTasks = getProjectTasks(project.id);
+                    
+                    return (
+                      <Card key={project.id} className="hover:shadow-md transition-shadow border-red-200">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3 mb-2">
+                                <h3 className="font-medium text-lg construction-secondary">{project.name}</h3>
+                                <Badge className={getStatusColor(project.status)}>
+                                  {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                                </Badge>
+                                <div className="flex items-center text-sm text-gray-500">
+                                  <MapPin size={14} className="mr-1" />
+                                  {project.location}
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-2">{project.description}</p>
+                              <div className="flex items-center gap-4 text-sm">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-gray-500">Progress:</span>
+                                  <span className="font-medium text-red-600">{project.progress}%</span>
+                                  <div className="w-16 bg-gray-200 rounded-full h-2">
+                                    <div className="h-2 rounded-full bg-red-500" style={{ width: `${project.progress}%` }}></div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 text-gray-500">
+                                  <Users size={14} />
+                                  <span>{projectTasks.length} tasks</span>
+                                </div>
+                                {project.dueDate && (
+                                  <div className="flex items-center gap-1 text-red-500">
+                                    <CalendarIcon size={14} />
+                                    <span>Due: {new Date(project.dueDate).toLocaleDateString()}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreHorizontal size={16} />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEditProject(project)}>
+                                  <Edit size={14} className="mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleAddTask(project)}>
+                                  <Plus size={14} className="mr-2" />
+                                  Add Task
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleDeleteProject(project)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 size={14} className="mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* On Hold Projects Section */}
+          {onHoldProjects.length > 0 && (
+            <div className="space-y-4">
+              <Button
+                variant="ghost"
+                onClick={() => toggleSection('on-hold')}
+                className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
+              >
+                {collapsedSections['on-hold'] ? 
+                  <ChevronRight size={20} className="text-gray-600" /> : 
+                  <ChevronDown size={20} className="text-gray-600" />
+                }
+                <div className="w-3 h-3 rounded-full bg-gray-500"></div>
+                <h2 className="text-lg font-semibold text-gray-600">On Hold Projects</h2>
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {onHoldProjects.length} projects
+                </Badge>
+              </Button>
+              
+              {!collapsedSections['on-hold'] && (
+                <div className="space-y-3 ml-8">
+                  {onHoldProjects.map((project) => {
+                    const projectTasks = getProjectTasks(project.id);
+                    
+                    return (
+                      <Card key={project.id} className="hover:shadow-md transition-shadow border-gray-200">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3 mb-2">
+                                <h3 className="font-medium text-lg construction-secondary">{project.name}</h3>
+                                <Badge className={getStatusColor(project.status)}>
+                                  {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                                </Badge>
+                                <div className="flex items-center text-sm text-gray-500">
+                                  <MapPin size={14} className="mr-1" />
+                                  {project.location}
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-2">{project.description}</p>
+                              <div className="flex items-center gap-4 text-sm">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-gray-500">Progress:</span>
+                                  <span className="font-medium">{project.progress}%</span>
+                                  <div className="w-16 bg-gray-200 rounded-full h-2">
+                                    <div className="h-2 rounded-full bg-gray-500" style={{ width: `${project.progress}%` }}></div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 text-gray-500">
+                                  <Users size={14} />
+                                  <span>{projectTasks.length} tasks</span>
+                                </div>
+                                {project.dueDate && (
+                                  <div className="flex items-center gap-1 text-gray-500">
+                                    <CalendarIcon size={14} />
+                                    <span>Due: {new Date(project.dueDate).toLocaleDateString()}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreHorizontal size={16} />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEditProject(project)}>
+                                  <Edit size={14} className="mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleAddTask(project)}>
+                                  <Plus size={14} className="mr-2" />
+                                  Add Task
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleDeleteProject(project)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 size={14} className="mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
