@@ -51,21 +51,42 @@ async def debug_upload(request: Request):
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def upload_photo(
-    file: UploadFile = File(...),
-    projectId: str = Form(...),  # Required parameter
-    description: str = Form(""),
-    userId: str = Form(...)  # Required parameter
-):
+async def upload_photo(request: Request):
     """Upload a photo."""
     print("=" * 50)
     print("PHOTO UPLOAD REQUEST RECEIVED")
-    print(f"projectId: '{projectId}' (type: {type(projectId)})")
-    print(f"userId: '{userId}' (type: {type(userId)})")
-    print(f"description: '{description}' (type: {type(description)})")
-    print(f"file.filename: '{file.filename if file else None}' (type: {type(file.filename) if file else None})")
-    print(f"file.content_type: '{file.content_type if file else None}'")
-    print(f"file.size: {getattr(file, 'size', 'Unknown')}")
+    print(f"Method: {request.method}")
+    print(f"URL: {request.url}")
+    print(f"Headers: {dict(request.headers)}")
+    print(f"Content-Type: {request.headers.get('content-type', 'None')}")
+    
+    try:
+        form = await request.form()
+        print(f"Form data received: {dict(form)}")
+        
+        # Extract form fields manually
+        file = form.get("file")
+        projectId = form.get("projectId")
+        userId = form.get("userId")  
+        description = form.get("description", "")
+        
+        print(f"file: {file} (type: {type(file)})")
+        print(f"projectId: '{projectId}' (type: {type(projectId)})")
+        print(f"userId: '{userId}' (type: {type(userId)})")
+        print(f"description: '{description}' (type: {type(description)})")
+        
+        if file and hasattr(file, 'filename'):
+            print(f"file.filename: '{file.filename}'")
+            print(f"file.content_type: '{file.content_type}'")
+            print(f"file.size: {getattr(file, 'size', 'Unknown')}")
+        
+    except Exception as e:
+        print(f"Error reading form: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to parse form data: {str(e)}"
+        )
+    
     print("=" * 50)
     
     try:
