@@ -58,6 +58,9 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
       console.log("Sending request to /api/photos");
       const response = await fetch("/api/photos", {
         method: "POST",
+        headers: {
+          'Accept': 'application/json',
+        },
         body: formData,
       });
       console.log("Response received:", response.status, response.statusText);
