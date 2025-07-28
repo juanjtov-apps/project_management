@@ -59,6 +59,8 @@ export default function Projects() {
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isTaskEditDialogOpen, setIsTaskEditDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
@@ -102,6 +104,26 @@ export default function Projects() {
     },
   });
 
+  const updateTaskMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<InsertTask> }) => 
+      apiRequest("PATCH", `/api/tasks/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      setIsTaskEditDialogOpen(false);
+      setEditingTask(null);
+      taskEditForm.reset();
+    },
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/tasks/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+    },
+  });
+
   const deleteProjectMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/projects/${id}`),
     onSuccess: () => {
@@ -135,6 +157,19 @@ export default function Projects() {
   });
 
   const taskForm = useForm<InsertTask>({
+    resolver: zodResolver(insertTaskSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      projectId: null,
+      category: "project",
+      status: "pending",
+      priority: "medium",
+      dueDate: undefined,
+    },
+  });
+
+  const taskEditForm = useForm<InsertTask>({
     resolver: zodResolver(insertTaskSchema),
     defaultValues: {
       title: "",
@@ -231,6 +266,37 @@ export default function Projects() {
       case "high": return "bg-orange-100 text-orange-800";
       case "critical": return "bg-red-100 text-red-800";
       default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    taskEditForm.reset({
+      title: task.title,
+      description: task.description || "",
+      projectId: task.projectId,
+      category: task.category || "project",
+      status: task.status,
+      priority: task.priority,
+      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+    });
+    setIsTaskEditDialogOpen(true);
+  };
+
+  const handleDeleteTask = (task: Task) => {
+    if (window.confirm(`Are you sure you want to delete "${task.title}"?`)) {
+      deleteTaskMutation.mutate(task.id);
+    }
+  };
+
+  const onTaskEditSubmit = (data: InsertTask) => {
+    if (editingTask) {
+      const taskData = {
+        ...data,
+        description: data.description?.trim() || null,
+        dueDate: data.dueDate ? data.dueDate.toISOString() : null,
+      };
+      updateTaskMutation.mutate({ id: editingTask.id, data: taskData });
     }
   };
 
@@ -867,12 +933,31 @@ export default function Projects() {
                             <p className="text-xs text-gray-500 text-center py-2">No tasks yet</p>
                           ) : (
                             projectTasks.map((task) => (
-                              <div key={task.id} className="bg-gray-50 rounded p-2 text-xs">
+                              <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors">
                                 <div className="flex items-center justify-between mb-1">
                                   <span className="font-medium truncate flex-1">{task.title}</span>
-                                  <Badge className={getStatusColor(task.status)} variant="outline">
-                                    {task.status === "in-progress" ? "In Progress" : task.status}
-                                  </Badge>
+                                  <div className="flex items-center gap-1">
+                                    <Badge className={getStatusColor(task.status)} variant="outline">
+                                      {task.status === "in-progress" ? "In Progress" : task.status}
+                                    </Badge>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
+                                          <MoreHorizontal size={12} />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => handleEditTask(task)}>
+                                          <Edit size={12} className="mr-2" />
+                                          Edit
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleDeleteTask(task)} className="text-red-600">
+                                          <Trash2 size={12} className="mr-2" />
+                                          Delete
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
                                 </div>
                                 <div className="flex items-center justify-between text-gray-500">
                                   <Badge className={getPriorityColor(task.priority)} variant="outline">
@@ -974,12 +1059,31 @@ export default function Projects() {
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {projectTasks.map((task) => (
-                          <div key={task.id} className="bg-gray-50 rounded-lg p-3 border">
+                          <div key={task.id} className="bg-gray-50 rounded-lg p-3 border group hover:bg-gray-100 transition-colors">
                             <div className="flex items-center justify-between mb-2">
                               <h5 className="font-medium text-sm truncate flex-1">{task.title}</h5>
-                              <Badge className={getStatusColor(task.status)} variant="outline">
-                                {task.status === "in-progress" ? "In Progress" : task.status}
-                              </Badge>
+                              <div className="flex items-center gap-1">
+                                <Badge className={getStatusColor(task.status)} variant="outline">
+                                  {task.status === "in-progress" ? "In Progress" : task.status}
+                                </Badge>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100">
+                                      <MoreHorizontal size={12} />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleEditTask(task)}>
+                                      <Edit size={12} className="mr-2" />
+                                      Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDeleteTask(task)} className="text-red-600">
+                                      <Trash2 size={12} className="mr-2" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </div>
                             {task.description && (
                               <p className="text-xs text-gray-600 mb-2 line-clamp-2">{task.description}</p>
@@ -1013,6 +1117,155 @@ export default function Projects() {
           <p className="text-gray-400">Create your first project to get started</p>
         </div>
       )}
+
+      {/* Task Edit Dialog */}
+      <Dialog open={isTaskEditDialogOpen} onOpenChange={setIsTaskEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+          </DialogHeader>
+          <Form {...taskEditForm}>
+            <form onSubmit={taskEditForm.handleSubmit(onTaskEditSubmit)} className="space-y-4">
+              <FormField
+                control={taskEditForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Task Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter task title" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={taskEditForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Enter task description" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={taskEditForm.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="in-progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="blocked">Blocked</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={taskEditForm.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Priority</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="critical">Critical</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={taskEditForm.control}
+                name="dueDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Due Date</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date < new Date(new Date().setHours(0, 0, 0, 0))
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsTaskEditDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateTaskMutation.isPending}
+                  className="construction-primary text-white"
+                >
+                  {updateTaskMutation.isPending ? "Updating..." : "Update Task"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
