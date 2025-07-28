@@ -228,6 +228,12 @@ class TaskRepository(BaseRepository):
         result = await db_manager.execute_command(query, new_due_date, task_id)
         return "UPDATE 1" in result
     
+    async def update_assignee(self, task_id: str, assignee_id: Optional[str]) -> bool:
+        """Update the assignee of a task."""
+        query = f"UPDATE {self.table_name} SET assignee_id = $1 WHERE id = $2"
+        result = await db_manager.execute_command(query, assignee_id, task_id)
+        return "UPDATE 1" in result
+    
     async def delete(self, task_id: str) -> bool:
         """Delete a task."""
         query = f"DELETE FROM {self.table_name} WHERE id = $1"
@@ -465,3 +471,33 @@ class ScheduleChangeRepository(BaseRepository):
         query = f"DELETE FROM {self.table_name} WHERE id = $1"
         result = await db_manager.execute_command(query, change_id)
         return "DELETE 1" in result
+
+
+class UserRepository(BaseRepository):
+    """Repository for user operations."""
+    
+    def __init__(self):
+        super().__init__("users")
+    
+    async def get_all(self) -> List:
+        """Get all users."""
+        from ..models.user import User
+        query = f"SELECT id, username, name, email, role FROM {self.table_name} ORDER BY name"
+        rows = await db_manager.execute_query(query)
+        return [User(**self._convert_to_camel_case(dict(row))) for row in rows]
+    
+    async def get_by_role(self, role: str) -> List:
+        """Get users by role."""
+        from ..models.user import User
+        query = f"SELECT id, username, name, email, role FROM {self.table_name} WHERE role = $1 ORDER BY name"
+        rows = await db_manager.execute_query(query, role)
+        return [User(**self._convert_to_camel_case(dict(row))) for row in rows]
+    
+    async def get_by_id(self, user_id: str) -> Optional:
+        """Get user by ID."""
+        from ..models.user import User
+        query = f"SELECT id, username, name, email, role FROM {self.table_name} WHERE id = $1"
+        row = await db_manager.execute_one(query, user_id)
+        if row:
+            return User(**self._convert_to_camel_case(dict(row)))
+        return None
