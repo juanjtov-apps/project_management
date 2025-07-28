@@ -185,7 +185,19 @@ export default function Projects() {
   };
 
   const onTaskSubmit = (data: InsertTask) => {
-    createTaskMutation.mutate(data);
+    console.log("Form data before mutation:", data);
+    
+    // Ensure projectId is properly set for project tasks
+    const taskData = {
+      ...data,
+      projectId: selectedProject?.id || data.projectId,
+      // Convert empty strings to null for optional fields
+      description: data.description?.trim() || null,
+      dueDate: data.dueDate || null,
+    };
+    
+    console.log("Task data being sent to API:", taskData);
+    createTaskMutation.mutate(taskData);
   };
 
   const filteredProjects = projects.filter(project =>
@@ -577,7 +589,12 @@ export default function Projects() {
                     <FormItem>
                       <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Enter task description" {...field} value={field.value || ""} />
+                        <Textarea 
+                          placeholder="Enter task description" 
+                          {...field} 
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value || null)}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

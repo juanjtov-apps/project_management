@@ -119,11 +119,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/tasks", async (req, res) => {
     try {
+      console.log("Received task data:", req.body);
       const validatedData = insertTaskSchema.parse(req.body);
+      console.log("Validated task data:", validatedData);
       const task = await storage.createTask(validatedData);
       res.status(201).json(task);
     } catch (error) {
-      res.status(400).json({ message: "Invalid task data" });
+      console.error("Task creation error:", error);
+      if (error instanceof Error) {
+        res.status(400).json({ message: "Invalid task data", error: error.message });
+      } else {
+        res.status(400).json({ message: "Invalid task data" });
+      }
     }
   });
 
