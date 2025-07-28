@@ -129,6 +129,19 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 2025 - Timeline and Calendar Views for Schedule Management
+- Successfully implemented comprehensive schedule visualization with three distinct views:
+  - Overview: Traditional list view of upcoming tasks and schedule change requests
+  - Timeline: Visual chronological timeline showing all tasks with priority indicators and due date calculations
+  - Calendar: Monthly calendar grid displaying tasks and project deadlines with color-coded priority dots
+- Added advanced date processing with days-from-now calculations and overdue indicators
+- Enhanced task visualization with priority color coding (red/yellow/green) and category badges
+- Implemented month navigation for calendar view with previous/next controls
+- Added project deadline visualization alongside task deadlines in calendar view
+- Timeline view shows detailed task information including project association and time remaining
+- Calendar view groups multiple tasks per day with overflow indicators (+X more)
+- All views maintain consistent construction-themed styling and responsive design
+
 ### January 2025 - Collapsible Task List Functionality and Backend Cleanup
 - Successfully implemented collapsible dropdown sections for task lists in both Canvas and List views
 - Added chevron icons with expand/collapse functionality for Project Tasks, Administrative Tasks, and General Tasks sections
