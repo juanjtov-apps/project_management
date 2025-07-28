@@ -7,6 +7,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form, Query
 from fastapi.responses import FileResponse
 from src.models import Photo, PhotoCreate
+from pydantic import ValidationError
 from src.database.repositories import PhotoRepository
 from src.core.config import settings
 
@@ -38,8 +39,14 @@ async def upload_photo(
     user_id: str = Form(..., alias="userId")
 ):
     """Upload a photo."""
-    print(f"Upload request received - project_id: {project_id}, user_id: {user_id}, description: {description}")
-    print(f"File: {file.filename if file else 'None'}, Content-Type: {file.content_type if file else 'None'}")
+    print(f"=== PHOTO UPLOAD REQUEST ===")
+    print(f"project_id: {project_id}")
+    print(f"user_id: {user_id}")
+    print(f"description: {description}")
+    print(f"file.filename: {file.filename if file else 'None'}")
+    print(f"file.content_type: {file.content_type if file else 'None'}")
+    print(f"file.size: {file.size if hasattr(file, 'size') else 'Unknown'}")
+    
     try:
         if not file:
             raise HTTPException(
@@ -80,6 +87,12 @@ async def upload_photo(
             original_name=file.filename or "unknown.jpg"
         )
         
+    except ValidationError as e:
+        print(f"Validation error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Validation error: {e}"
+        )
     except HTTPException:
         raise
     except Exception as e:
