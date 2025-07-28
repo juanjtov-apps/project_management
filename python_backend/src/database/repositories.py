@@ -344,3 +344,92 @@ class DashboardRepository(BaseRepository):
             "photos": self._convert_to_camel_case(dict(photo_row)) if photo_row else {},
             "users": self._convert_to_camel_case(dict(user_row)) if user_row else {}
         }
+
+
+class ScheduleChangeRepository(BaseRepository):
+    """Repository for schedule change operations."""
+    
+    def __init__(self):
+        super().__init__("schedule_changes")
+    
+    async def get_all(self, task_id: Optional[str] = None) -> List[ScheduleChange]:
+        """Get all schedule changes, optionally filtered by task."""
+        query = f"SELECT * FROM {self.table_name} WHERE 1=1"
+        params = []
+        param_count = 1
+        
+        if task_id:
+            query += f" AND task_id = ${param_count}"
+            params.append(task_id)
+            param_count += 1
+        
+        query += " ORDER BY created_at DESC"
+        rows = await db_manager.execute_query(query, *params)
+        return [ScheduleChange(**self._convert_to_camel_case(dict(row))) for row in rows]
+    
+    async def get_by_id(self, change_id: str) -> Optional[ScheduleChange]:
+        """Get schedule change by ID."""
+        query = f"SELECT * FROM {self.table_name} WHERE id = $1"
+        row = await db_manager.execute_one(query, change_id)
+        if row:
+            return ScheduleChange(**self._convert_to_camel_case(dict(row)))
+        return None
+    
+    async def create(self, change: ScheduleChangeCreate) -> ScheduleChange:
+        """Create a new schedule change."""
+        change_id = str(uuid.uuid4())
+        now = datetime.utcnow()
+        
+        data = change.dict(by_alias=True)
+        data = self._convert_from_camel_case(data)
+        
+        query = f"""
+            INSERT INTO {self.table_name} 
+            (id, task_id, user_id, reason, original_date, new_date, status, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING *
+        """
+        
+        row = await db_manager.execute_one(
+            query, change_id, data.get('task_id'), data.get('user_id'),
+            data.get('reason'), data.get('original_date'), data.get('new_date'),
+            data.get('status', 'pending'), now
+        )
+        return ScheduleChange(**self._convert_to_camel_case(dict(row)))
+    
+    async def update(self, change_id: str, change_update: ScheduleChangeUpdate) -> Optional[ScheduleChange]:
+        """Update an existing schedule change."""
+        data = change_update.dict(exclude_unset=True, by_alias=True)
+        data = self._convert_from_camel_case(data)
+        
+        if not data:
+            return await self.get_by_id(change_id)
+        
+        set_clauses = []
+        values = []
+        param_count = 1
+        
+        for key, value in data.items():
+            set_clauses.append(f"{key} = ${param_count}")
+            values.append(value)
+            param_count += 1
+        
+        values.append(change_id)
+        
+        query = f"""
+            UPDATE {self.table_name} 
+            SET {', '.join(set_clauses)}
+            WHERE id = ${param_count}
+            RETURNING *
+        """
+        
+        row = await db_manager.execute_one(query, *values)
+        if row:
+            return ScheduleChange(**self._convert_to_camel_case(dict(row)))
+        return None
+    
+    async def delete(self, change_id: str) -> bool:
+        """Delete a schedule change."""
+        query = f"DELETE FROM {self.table_name} WHERE id = $1"
+        result = await db_manager.execute_command(query, change_id)
+        return "DELETE 1" in result

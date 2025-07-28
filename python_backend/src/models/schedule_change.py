@@ -9,25 +9,22 @@ from .base import BaseEntity, ScheduleChangeStatus
 
 class ScheduleChangeBase(BaseModel):
     """Base schedule change model."""
-    requested_by: str = Field(alias="requestedBy")
-    project_id: Optional[str] = Field(default=None, alias="projectId")
-    current_date: datetime = Field(alias="currentDate")
-    requested_date: datetime = Field(alias="requestedDate")
+    task_id: str = Field(alias="taskId")
+    user_id: str = Field(alias="userId")
     reason: str
+    original_date: datetime = Field(alias="originalDate")
+    new_date: datetime = Field(alias="newDate")
     status: ScheduleChangeStatus = ScheduleChangeStatus.pending
-    approved_by: Optional[str] = Field(default=None, alias="approvedBy")
-    approved_at: Optional[datetime] = Field(default=None, alias="approvedAt")
-    notes: str = ""
 
 
 class ScheduleChangeCreate(BaseModel):
     """Schedule change creation model."""
-    requested_by: str = Field(alias="requestedBy")
-    project_id: Optional[str] = Field(default=None, alias="projectId")
-    current_date: datetime = Field(alias="currentDate")
-    requested_date: datetime = Field(alias="requestedDate")
+    task_id: str = Field(alias="taskId")
+    user_id: str = Field(alias="userId")
     reason: str
-    notes: str = ""
+    original_date: datetime = Field(alias="originalDate")
+    new_date: datetime = Field(alias="newDate")
+    status: Optional[ScheduleChangeStatus] = ScheduleChangeStatus.pending
 
 
 class ScheduleChangeUpdate(BaseModel):
