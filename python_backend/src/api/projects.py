@@ -91,8 +91,17 @@ async def delete_project(project_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error deleting project {project_id}: {e}")
+        error_msg = str(e)
+        print(f"Error deleting project {project_id}: {error_msg}")
+        
+        # Check for foreign key constraint violation
+        if "foreign key constraint" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete project because it has associated data (tasks, photos, etc.). Please remove all related data first."
+            )
+        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete project"
+            detail=f"Failed to delete project: {error_msg}"
         )

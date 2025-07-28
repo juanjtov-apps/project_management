@@ -432,6 +432,7 @@ export default function Projects() {
   const [addingTaskProject, setAddingTaskProject] = useState<Project | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -465,15 +466,24 @@ export default function Projects() {
 
   const handleAddTask = (project: Project) => {
     setAddingTaskProject(project);
+    setIsAddTaskOpen(true);
   };
 
   const handleDeleteProject = async (project: Project) => {
-    if (confirm(`Delete project "${project.name}"?`)) {
+    const projectTasks = getProjectTasks(project.id);
+    const warningMessage = projectTasks.length > 0 
+      ? `This project has ${projectTasks.length} associated tasks. Delete project "${project.name}" and all its tasks?`
+      : `Delete project "${project.name}"?`;
+    
+    if (confirm(warningMessage)) {
       try {
         await apiRequest("DELETE", `/api/projects/${project.id}`);
         queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      } catch (error) {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      } catch (error: any) {
         console.error("Error deleting project:", error);
+        const errorMessage = error?.message || "Failed to delete project. It may have associated data that needs to be removed first.";
+        alert(`Error: ${errorMessage}`);
       }
     }
   };
@@ -959,6 +969,22 @@ export default function Projects() {
           {editingTask && <TaskEditForm task={editingTask} onClose={() => setEditingTask(null)} />}
         </DialogContent>
       </Dialog>
+
+      {/* Add Task Dialog */}
+      <Dialog open={isAddTaskOpen} onOpenChange={() => {
+        setIsAddTaskOpen(false);
+        setAddingTaskProject(null);
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Task to {addingTaskProject?.name}</DialogTitle>
+          </DialogHeader>
+          {addingTaskProject && <TaskCreateForm project={addingTaskProject} onClose={() => {
+            setIsAddTaskOpen(false);
+            setAddingTaskProject(null);
+          }} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1027,7 +1053,7 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea {...field} rows={3} />
+                <Textarea {...field} value={field.value || ""} rows={3} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -1183,6 +1209,180 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
           </Button>
           <Button type="submit" disabled={updateTaskMutation.isPending}>
             {updateTaskMutation.isPending ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
+// Task Create Form Component
+function TaskCreateForm({ project, onClose }: { project: Project; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  
+  const form = useForm<InsertTask>({
+    resolver: zodResolver(insertTaskSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      projectId: project.id,
+      category: "project",
+      status: "pending",
+      priority: "medium",
+    },
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: async (values: any) => {
+      // Format the data for API
+      const formattedData = {
+        ...values,
+        dueDate: values.dueDate ? values.dueDate.toISOString() : null,
+      };
+      const response = await apiRequest("POST", "/api/tasks", formattedData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      onClose();
+      form.reset();
+    },
+  });
+
+  const onSubmit = (values: any) => {
+    createTaskMutation.mutate(values);
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Task Title *</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter task title" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea placeholder="Enter task description" {...field} value={field.value || ""} rows={3} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="priority"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Priority</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name="dueDate"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Due Date</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full pl-3 text-left font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                    >
+                      {field.value ? (
+                        format(field.value, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={field.value}
+                    onSelect={field.onChange}
+                    disabled={(date) =>
+                      date < new Date() || date < new Date("1900-01-01")
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex items-center justify-end space-x-2 pt-4">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={createTaskMutation.isPending} className="construction-primary">
+            {createTaskMutation.isPending ? "Creating..." : "Create Task"}
           </Button>
         </div>
       </form>
