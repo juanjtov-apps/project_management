@@ -87,6 +87,15 @@ export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, completedAt: true }).extend({
   dueDate: z.union([z.date(), z.string(), z.null()]).optional().nullable(),
+}).refine((data) => {
+  // If category is "project", projectId must be provided and not null
+  if (data.category === "project" && (!data.projectId || data.projectId === null)) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Project selection is required when category is 'Project Related'",
+  path: ["projectId"], // This will show the error on the projectId field
 });
 export const insertProjectLogSchema = createInsertSchema(projectLogs).omit({ id: true, createdAt: true });
 export const insertPhotoSchema = createInsertSchema(photos).omit({ id: true, createdAt: true });

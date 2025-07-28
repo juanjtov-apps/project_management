@@ -58,6 +58,13 @@ async def get_task(task_id: str):
 async def create_task(task: TaskCreate):
     """Create a new task."""
     try:
+        # Validate that project tasks must have a project assigned
+        if task.category == "project" and not task.project_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Project selection is required when category is 'Project Related'"
+            )
+        
         print(f"Received task data: {task}")
         print(f"Task dict: {task.dict()}")
         print(f"Task dict with alias: {task.dict(by_alias=True)}")
