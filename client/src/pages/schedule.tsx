@@ -10,13 +10,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, CalendarIcon, Clock, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, CalendarIcon, Clock, AlertTriangle, CheckCircle, XCircle, CalendarDays, List } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertScheduleChangeSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, addMonths, subMonths } from "date-fns";
 import type { Task, ScheduleChange, InsertScheduleChange, Project } from "@shared/schema";
 
 const getStatusColor = (status: string) => {
@@ -48,6 +49,8 @@ const getStatusIcon = (status: string) => {
 export default function Schedule() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState("");
+  const [currentView, setCurrentView] = useState<"overview" | "timeline" | "calendar">("overview");
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const queryClient = useQueryClient();
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
@@ -110,6 +113,51 @@ export default function Schedule() {
   const upcomingTasks = tasksWithSchedules
     .filter(task => new Date(task.dueDate!) >= new Date())
     .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+
+  // Timeline data processing
+  const timelineData = tasksWithSchedules
+    .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
+    .map(task => ({
+      ...task,
+      project: projects.find(p => p.id === task.projectId),
+      daysFromNow: Math.ceil((new Date(task.dueDate!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    }));
+
+  // Calendar data processing
+  const calendarDays = eachDayOfInterval({
+    start: startOfMonth(currentMonth),
+    end: endOfMonth(currentMonth)
+  });
+
+  const getTasksForDay = (day: Date) => {
+    return tasksWithSchedules.filter(task => 
+      isSameDay(new Date(task.dueDate!), day)
+    );
+  };
+
+  const getProjectDeadlinesForDay = (day: Date) => {
+    return projects.filter(project => 
+      project.dueDate && isSameDay(new Date(project.dueDate), day)
+    );
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high": return "bg-red-500";
+      case "medium": return "bg-yellow-500";
+      case "low": return "bg-green-500";
+      default: return "bg-gray-500";
+    }
+  };
+
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "project": return "bg-blue-600";
+      case "administrative": return "bg-purple-600";
+      case "general": return "bg-gray-600";
+      default: return "bg-gray-500";
+    }
+  };
 
   if (tasksLoading || changesLoading) {
     return (
@@ -296,116 +344,323 @@ export default function Schedule() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upcoming Schedule */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="construction-secondary">Upcoming Tasks</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {upcomingTasks.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No upcoming scheduled tasks
-                </div>
-              ) : (
-                upcomingTasks.slice(0, 10).map((task) => (
-                  <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                    <div>
-                      <h4 className="font-medium construction-secondary">{task.title}</h4>
-                      <p className="text-sm text-blue-600">{getProjectName(task.id)}</p>
-                      <div className="flex items-center text-sm text-gray-500 mt-1">
-                        <Clock size={14} className="mr-1" />
-                        {new Date(task.dueDate!).toLocaleDateString()} at{" "}
-                        {new Date(task.dueDate!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                    <Badge className={task.status === "completed" ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"}>
-                      {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                    </Badge>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 bg-gray-100">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <List size={16} />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="timeline" className="flex items-center gap-2">
+            <Clock size={16} />
+            Timeline
+          </TabsTrigger>
+          <TabsTrigger value="calendar" className="flex items-center gap-2">
+            <CalendarDays size={16} />
+            Calendar
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Schedule Change Requests */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="construction-secondary">Schedule Change Requests</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {scheduleChanges.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No schedule change requests
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Upcoming Schedule */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="construction-secondary">Upcoming Tasks</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {upcomingTasks.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No upcoming scheduled tasks
+                    </div>
+                  ) : (
+                    upcomingTasks.slice(0, 10).map((task) => (
+                      <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                        <div>
+                          <h4 className="font-medium construction-secondary">{task.title}</h4>
+                          <p className="text-sm text-blue-600">{getProjectName(task.id)}</p>
+                          <div className="flex items-center text-sm text-gray-500 mt-1">
+                            <Clock size={14} className="mr-1" />
+                            {new Date(task.dueDate!).toLocaleDateString()} at{" "}
+                            {new Date(task.dueDate!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`}></div>
+                          <Badge className={task.status === "completed" ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"}>
+                            {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ) : (
-                scheduleChanges.map((change) => (
-                  <div key={change.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-medium construction-secondary">{getTaskName(change.taskId)}</h4>
-                        <p className="text-sm text-blue-600">{getProjectName(change.taskId)}</p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {getStatusIcon(change.status)}
-                        <Badge className={getStatusColor(change.status)}>
-                          {change.status.charAt(0).toUpperCase() + change.status.slice(1)}
-                        </Badge>
-                      </div>
+              </CardContent>
+            </Card>
+
+            {/* Schedule Change Requests */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="construction-secondary">Schedule Change Requests</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {scheduleChanges.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No schedule change requests
                     </div>
-                    
-                    <p className="text-sm text-gray-600">{change.reason}</p>
-                    
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-500">Original Date:</span>
-                        <p className="font-medium">{new Date(change.originalDate).toLocaleDateString()}</p>
+                  ) : (
+                    scheduleChanges.map((change) => (
+                      <div key={change.id} className="border rounded-lg p-4 space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h4 className="font-medium construction-secondary">{getTaskName(change.taskId)}</h4>
+                            <p className="text-sm text-blue-600">{getProjectName(change.taskId)}</p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {getStatusIcon(change.status)}
+                            <Badge className={getStatusColor(change.status)}>
+                              {change.status.charAt(0).toUpperCase() + change.status.slice(1)}
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                        <p className="text-sm text-gray-600">{change.reason}</p>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-500">Original Date:</span>
+                            <p className="font-medium">{new Date(change.originalDate).toLocaleDateString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Requested Date:</span>
+                            <p className="font-medium">{new Date(change.newDate).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        
+                        {change.status === "pending" && (
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              className="bg-green-600 text-white hover:bg-green-700"
+                              onClick={() => updateScheduleChangeMutation.mutate({
+                                id: change.id,
+                                updates: { status: "approved" }
+                              })}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-600 text-red-600 hover:bg-red-50"
+                              onClick={() => updateScheduleChangeMutation.mutate({
+                                id: change.id,
+                                updates: { status: "rejected" }
+                              })}
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                        
+                        <div className="text-xs text-gray-400">
+                          Requested {new Date(change.createdAt).toLocaleString()}
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-gray-500">Requested Date:</span>
-                        <p className="font-medium">{new Date(change.newDate).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    
-                    {change.status === "pending" && (
-                      <div className="flex space-x-2">
-                        <Button
-                          size="sm"
-                          className="bg-green-600 text-white hover:bg-green-700"
-                          onClick={() => updateScheduleChangeMutation.mutate({
-                            id: change.id,
-                            updates: { status: "approved" }
-                          })}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-red-600 text-red-600 hover:bg-red-50"
-                          onClick={() => updateScheduleChangeMutation.mutate({
-                            id: change.id,
-                            updates: { status: "rejected" }
-                          })}
-                        >
-                          Reject
-                        </Button>
-                      </div>
-                    )}
-                    
-                    <div className="text-xs text-gray-400">
-                      Requested {new Date(change.createdAt).toLocaleString()}
-                    </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Timeline View */}
+        <TabsContent value="timeline" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="construction-secondary">Project Timeline</CardTitle>
+              <p className="text-sm text-gray-600">Visual timeline of all tasks and project deadlines</p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {timelineData.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No scheduled tasks or project deadlines
                   </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                ) : (
+                  <div className="relative">
+                    {/* Timeline line */}
+                    <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                    
+                    {timelineData.map((item, index) => (
+                      <div key={item.id} className="relative flex items-start space-x-4 pb-6">
+                        {/* Timeline dot */}
+                        <div className={`relative z-10 w-8 h-8 rounded-full border-4 border-white ${getPriorityColor(item.priority)} flex items-center justify-center`}>
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                        </div>
+                        
+                        {/* Timeline content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="bg-white border rounded-lg p-4 shadow-sm">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-medium construction-secondary">{item.title}</h4>
+                                {item.project && (
+                                  <p className="text-sm text-blue-600 mt-1">{item.project.name}</p>
+                                )}
+                                <div className="flex items-center gap-4 mt-2">
+                                  <div className="flex items-center text-sm text-gray-500">
+                                    <Clock size={14} className="mr-1" />
+                                    {format(new Date(item.dueDate!), "MMM d, yyyy 'at' h:mm a")}
+                                  </div>
+                                  <div className={`px-2 py-1 rounded text-xs font-medium text-white ${getCategoryColor(item.category)}`}>
+                                    {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
+                                  </div>
+                                </div>
+                                {item.description && (
+                                  <p className="text-sm text-gray-600 mt-2">{item.description}</p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 ml-4">
+                                <div className={`w-3 h-3 rounded-full ${getPriorityColor(item.priority)}`} title={`${item.priority} priority`}></div>
+                                <Badge className={item.status === "completed" ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"}>
+                                  {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                              <span>
+                                {item.daysFromNow < 0 
+                                  ? `${Math.abs(item.daysFromNow)} days overdue` 
+                                  : item.daysFromNow === 0 
+                                  ? "Due today" 
+                                  : `${item.daysFromNow} days remaining`
+                                }
+                              </span>
+                              {item.daysFromNow < 0 && (
+                                <span className="text-red-500 font-medium">OVERDUE</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Calendar View */}
+        <TabsContent value="calendar" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="construction-secondary">Calendar View</CardTitle>
+                  <p className="text-sm text-gray-600">Monthly view of tasks and project deadlines</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                  >
+                    Previous
+                  </Button>
+                  <span className="font-medium px-4">
+                    {format(currentMonth, "MMMM yyyy")}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-7 gap-2">
+                {/* Day headers */}
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className="h-10 flex items-center justify-center font-medium text-gray-500 text-sm">
+                    {day}
+                  </div>
+                ))}
+                
+                {/* Calendar days */}
+                {calendarDays.map((day, index) => {
+                  const dayTasks = getTasksForDay(day);
+                  const projectDeadlines = getProjectDeadlinesForDay(day);
+                  const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
+                  
+                  return (
+                    <div
+                      key={index}
+                      className={cn(
+                        "min-h-[120px] border rounded-lg p-2 space-y-1",
+                        isCurrentMonth ? "bg-white" : "bg-gray-50",
+                        isToday(day) && "bg-blue-50 border-blue-200"
+                      )}
+                    >
+                      <div className={cn(
+                        "text-sm font-medium",
+                        isCurrentMonth ? "text-gray-900" : "text-gray-400",
+                        isToday(day) && "text-blue-600"
+                      )}>
+                        {day.getDate()}
+                      </div>
+                      
+                      {/* Project deadlines */}
+                      {projectDeadlines.map(project => (
+                        <div
+                          key={project.id}
+                          className="text-xs p-1 bg-purple-100 text-purple-800 rounded truncate"
+                          title={`Project: ${project.name}`}
+                        >
+                          📋 {project.name}
+                        </div>
+                      ))}
+                      
+                      {/* Tasks */}
+                      {dayTasks.slice(0, 3).map(task => (
+                        <div
+                          key={task.id}
+                          className={cn(
+                            "text-xs p-1 rounded truncate",
+                            task.status === "completed" 
+                              ? "bg-green-100 text-green-800" 
+                              : "bg-orange-100 text-orange-800"
+                          )}
+                          title={task.title}
+                        >
+                          <div className="flex items-center gap-1">
+                            <div className={`w-1.5 h-1.5 rounded-full ${getPriorityColor(task.priority)}`}></div>
+                            <span className="truncate">{task.title}</span>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {/* Show count if more tasks */}
+                      {dayTasks.length > 3 && (
+                        <div className="text-xs text-gray-500 text-center">
+                          +{dayTasks.length - 3} more
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
