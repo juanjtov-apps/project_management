@@ -112,6 +112,17 @@ export default function Subs() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setIsAddTaskOpen(false);
+      // Reset form to default values to clear previous data
+      form.reset({
+        projectId: "",
+        title: "",
+        description: "",
+        assigneeId: "unassigned",
+        priority: "medium",
+        category: "subcontractor",
+        status: "pending",
+        isMilestone: false,
+      });
       toast({ title: "Task created successfully" });
     },
     onError: (error) => {
@@ -246,7 +257,22 @@ export default function Subs() {
           <h1 className="text-3xl font-bold construction-secondary">Subcontractors</h1>
           <p className="text-gray-600 mt-2">Manage subcontractor assignments, tasks, and schedules</p>
         </div>
-        <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
+        <Dialog open={isAddTaskOpen} onOpenChange={(open) => {
+          if (open) {
+            // Reset form to default values when opening dialog
+            form.reset({
+              projectId: "",
+              title: "",
+              description: "",
+              assigneeId: "unassigned",
+              priority: "medium",
+              category: "subcontractor",
+              status: "pending",
+              isMilestone: false,
+            });
+          }
+          setIsAddTaskOpen(open);
+        }}>
           <DialogTrigger asChild>
             <Button className="construction-primary">
               <Plus className="mr-2 h-4 w-4" />
