@@ -228,12 +228,12 @@ export default function Schedule() {
           <DialogTrigger asChild>
             <Button className="construction-primary text-white">
               <Plus size={16} className="mr-2" />
-              Report Schedule Change
+              Update Task Schedule
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
-              <DialogTitle>Report Schedule Change</DialogTitle>
+              <DialogTitle>Update Task Schedule</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -372,7 +372,7 @@ export default function Schedule() {
                     disabled={createScheduleChangeMutation.isPending}
                     className="construction-primary text-white"
                   >
-                    {createScheduleChangeMutation.isPending ? "Submitting..." : "Submit Request"}
+                    {createScheduleChangeMutation.isPending ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
               </form>
@@ -384,7 +384,7 @@ export default function Schedule() {
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
-              <DialogTitle>Edit Schedule Change Request</DialogTitle>
+              <DialogTitle>Update Task Schedule</DialogTitle>
             </DialogHeader>
             <Form {...editForm}>
               <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
@@ -526,7 +526,7 @@ export default function Schedule() {
                     disabled={updateScheduleChangeMutation.isPending}
                     className="construction-primary text-white"
                   >
-                    {updateScheduleChangeMutation.isPending ? "Updating..." : "Update Request"}
+                    {updateScheduleChangeMutation.isPending ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
               </form>
