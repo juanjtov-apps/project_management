@@ -11,14 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, CalendarIcon, MapPin, Users, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { Plus, CalendarIcon, MapPin, Users, MoreHorizontal, Edit, Trash2, ChevronDown, ChevronRight, Clock, CheckCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProjectSchema, insertTaskSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import type { Project, InsertProject, InsertTask } from "@shared/schema";
+import type { Project, InsertProject, InsertTask, Task } from "@shared/schema";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -56,11 +56,16 @@ export default function Projects() {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [expandedProject, setExpandedProject] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
+  });
+
+  const { data: allTasks = [] } = useQuery<Task[]>({
+    queryKey: ["/api/tasks"],
   });
 
   const createProjectMutation = useMutation({
@@ -198,6 +203,34 @@ export default function Projects() {
     
     console.log("Task data being sent to API:", taskData);
     createTaskMutation.mutate(taskData);
+  };
+
+  const toggleProjectExpansion = (projectId: string) => {
+    setExpandedProject(expandedProject === projectId ? null : projectId);
+  };
+
+  const getProjectTasks = (projectId: string) => {
+    return allTasks.filter(task => task.projectId === projectId);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending": return "bg-yellow-100 text-yellow-800";
+      case "in-progress": return "bg-blue-100 text-blue-800";
+      case "completed": return "bg-green-100 text-green-800";
+      case "blocked": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "low": return "bg-gray-100 text-gray-800";
+      case "medium": return "bg-yellow-100 text-yellow-800";
+      case "high": return "bg-orange-100 text-orange-800";
+      case "critical": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
   };
 
   const filteredProjects = projects.filter(project =>
@@ -723,78 +756,123 @@ export default function Projects() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProjects.map((project) => (
-          <Card key={project.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-lg construction-secondary">{project.name}</CardTitle>
-                <div className="flex items-center space-x-2">
-                  <Badge className={getStatusColor(project.status)}>
-                    {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                  </Badge>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal size={16} />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleEditProject(project)}>
-                        <Edit size={16} className="mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleAddTask(project)}>
-                        <Plus size={16} className="mr-2" />
-                        Add Task
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => handleDeleteProject(project)}
-                        className="text-red-600"
-                      >
-                        <Trash2 size={16} className="mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-              <div className="flex items-center text-sm text-gray-500">
-                <MapPin size={14} className="mr-1" />
-                {project.location}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600 mb-4 line-clamp-2">{project.description}</p>
-              
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Progress</span>
-                    <span>{project.progress}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full ${getProgressColor(project.status)}`}
-                      style={{ width: `${project.progress}%` }}
-                    ></div>
+        {filteredProjects.map((project) => {
+          const projectTasks = getProjectTasks(project.id);
+          const isExpanded = expandedProject === project.id;
+          
+          return (
+            <Card key={project.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-lg construction-secondary">{project.name}</CardTitle>
+                  <div className="flex items-center space-x-2">
+                    <Badge className={getStatusColor(project.status)}>
+                      {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                    </Badge>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal size={16} />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditProject(project)}>
+                          <Edit size={16} className="mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleAddTask(project)}>
+                          <Plus size={16} className="mr-2" />
+                          Add Task
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteProject(project)}
+                          className="text-red-600"
+                        >
+                          <Trash2 size={16} className="mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
-                
-                {project.dueDate && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Due Date:</span>
-                    <span className="font-medium">{new Date(project.dueDate).toLocaleDateString()}</span>
-                  </div>
-                )}
-                
                 <div className="flex items-center text-sm text-gray-500">
-                  <Users size={14} className="mr-1" />
-                  <span>Teams assigned</span>
+                  <MapPin size={14} className="mr-1" />
+                  {project.location}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{project.description}</p>
+                
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Progress</span>
+                      <span>{project.progress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full ${getProgressColor(project.status)}`}
+                        style={{ width: `${project.progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  {project.dueDate && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Due Date:</span>
+                      <span className="font-medium">{new Date(project.dueDate).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  
+                  {/* Tasks Section */}
+                  <div className="border-t pt-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleProjectExpansion(project.id)}
+                      className="w-full justify-between p-2 h-auto"
+                    >
+                      <div className="flex items-center text-sm">
+                        <span className="font-medium">Tasks ({projectTasks.length})</span>
+                      </div>
+                      {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    </Button>
+                    
+                    {isExpanded && (
+                      <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                        {projectTasks.length === 0 ? (
+                          <p className="text-xs text-gray-500 text-center py-2">No tasks yet</p>
+                        ) : (
+                          projectTasks.map((task) => (
+                            <div key={task.id} className="bg-gray-50 rounded p-2 text-xs">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-medium truncate flex-1">{task.title}</span>
+                                <Badge className={getStatusColor(task.status)} variant="outline">
+                                  {task.status === "in-progress" ? "In Progress" : task.status}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center justify-between text-gray-500">
+                                <Badge className={getPriorityColor(task.priority)} variant="outline">
+                                  {task.priority}
+                                </Badge>
+                                {task.dueDate && (
+                                  <div className="flex items-center">
+                                    <Clock size={10} className="mr-1" />
+                                    <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {filteredProjects.length === 0 && !isLoading && (
