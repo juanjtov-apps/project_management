@@ -43,22 +43,22 @@ export default function Subs() {
 
   // Fetch data
   const { data: tasks = [], isLoading: isLoadingTasks } = useQuery<Task[]>({
-    queryKey: ["/api/tasks"],
+    queryKey: ["/api/tasks/"],
   });
 
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
-    queryKey: ["/api/projects"],
+    queryKey: ["/api/projects/"],
   });
 
   const { data: usersResponse = [], isLoading: isLoadingUsers } = useQuery<User[]>({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users/"],
   });
 
   // Ensure users is always an array
   const users = Array.isArray(usersResponse) ? usersResponse : [];
 
   const { data: assignments = [], isLoading: isLoadingAssignments } = useQuery<SubcontractorAssignment[]>({
-    queryKey: ["/api/subcontractor-assignments"],
+    queryKey: ["/api/subcontractor-assignments/"],
   });
 
   // Filter data for subcontractors
@@ -110,7 +110,7 @@ export default function Subs() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/"] });
       setIsAddTaskOpen(false);
       toast({ title: "Task created successfully" });
     },
