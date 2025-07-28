@@ -141,6 +141,8 @@ Preferred communication style: Simple, everyday language.
 - All 10 subcontractors now properly display in assignment dropdowns
 - Task creation working end-to-end with proper database constraints and validation
 - Improved user experience with mandatory project workflow ensuring proper task organization
+- Fixed responsive design issue: Added "Subs" tab to mobile navigation for tablet vertical position
+- Fixed form data persistence: Task creation form now properly resets to blank state after each submission
 
 ### January 2025 - Timeline and Calendar Views for Schedule Management
 - Successfully implemented comprehensive schedule visualization with three distinct views:
