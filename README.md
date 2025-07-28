@@ -6,4 +6,5 @@ Project management app for the construction industry
 
 <br>
 
-### 🚀 MVP User Journeys<br>- Open `/projects` → list or cards view.<br>- Click a project → edit task fields inline.<br>- Auto-save with toast → refresh to confirm persistence.<br>
+### 🚀 MVP User Journeys<br>
+- Open `/projects` → list or cards view.<br>- Click a project → edit task fields inline.<br>- Auto-save with toast → refresh to confirm persistence.<br>
