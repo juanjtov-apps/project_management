@@ -70,11 +70,15 @@ interface TaskCardProps {
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
   onStatusChange: (task: Task, newStatus: string) => void;
+  onScheduleChange?: (task: Task) => void;
 }
 
-function TaskCard({ task, project, onEdit, onDelete, onStatusChange }: TaskCardProps) {
+function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleChange }: TaskCardProps) {
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card 
+      className="hover:shadow-md transition-shadow cursor-pointer"
+      onClick={() => onScheduleChange?.(task)}
+    >
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div className="flex items-start space-x-2">
@@ -93,6 +97,7 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange }: TaskCardP
               {project && (
                 <p className="text-xs text-gray-500 mt-1">{project.name}</p>
               )}
+              <p className="text-xs text-blue-600 mt-1">Click to request schedule change</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -101,16 +106,20 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange }: TaskCardP
             </Badge>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <MoreHorizontal size={14} />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit(task)}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(task); }}>
                   <Edit size={14} className="mr-2" />
                   Edit
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onDelete(task)} className="text-red-600">
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(task); }} className="text-red-600">
                   <Trash2 size={14} className="mr-2" />
                   Delete
                 </DropdownMenuItem>
@@ -130,7 +139,10 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange }: TaskCardP
               {task.status.replace("-", " ")}
             </Badge>
             <Select value={task.status} onValueChange={(value) => onStatusChange(task, value)}>
-              <SelectTrigger className="h-6 w-auto text-xs border-0 bg-transparent p-1">
+              <SelectTrigger 
+                className="h-6 w-auto text-xs border-0 bg-transparent p-1"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -167,15 +179,19 @@ interface TaskListItemProps {
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
   onStatusChange: (task: Task, status: string) => void;
+  onScheduleChange?: (task: Task) => void;
 }
 
-function TaskListItem({ task, projectName, onEdit, onDelete, onStatusChange }: TaskListItemProps) {
+function TaskListItem({ task, projectName, onEdit, onDelete, onStatusChange, onScheduleChange }: TaskListItemProps) {
   const CategoryIcon = getCategoryIcon(task.category || "general");
   const iconClass = task.category === "project" ? "text-blue-600" : 
                    task.category === "administrative" ? "text-purple-600" : "text-green-600";
   
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card 
+      className="hover:shadow-md transition-shadow cursor-pointer"
+      onClick={() => onScheduleChange?.(task)}
+    >
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3 flex-1">
@@ -188,6 +204,8 @@ function TaskListItem({ task, projectName, onEdit, onDelete, onStatusChange }: T
                   {task.priority}
                 </Badge>
               </div>
+              
+              <p className="text-xs text-blue-600 mb-1">Click to request schedule change</p>
               
               <div className="flex items-center space-x-4 text-xs text-gray-500">
                 {projectName && (
@@ -220,7 +238,10 @@ function TaskListItem({ task, projectName, onEdit, onDelete, onStatusChange }: T
           
           <div className="flex items-center space-x-2 flex-shrink-0">
             <Select value={task.status} onValueChange={(value) => onStatusChange(task, value)}>
-              <SelectTrigger className="h-7 w-auto text-xs border px-2 py-1">
+              <SelectTrigger 
+                className="h-7 w-auto text-xs border px-2 py-1"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -233,17 +254,22 @@ function TaskListItem({ task, projectName, onEdit, onDelete, onStatusChange }: T
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 w-7 p-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <MoreHorizontal size={14} />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit(task)}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(task); }}>
                   <Edit size={12} className="mr-2" />
                   Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem 
-                  onClick={() => onDelete(task)}
+                  onClick={(e) => { e.stopPropagation(); onDelete(task); }}
                   className="text-red-600"
                 >
                   <Trash2 size={12} className="mr-2" />
@@ -339,7 +365,7 @@ export default function Tasks() {
     const taskData = {
       ...data,
       description: data.description?.trim() || null,
-      dueDate: data.dueDate ? data.dueDate.toISOString() : null,
+      dueDate: data.dueDate ? (typeof data.dueDate === 'string' ? data.dueDate : data.dueDate.toISOString()) : null,
     };
     
     console.log("Tasks page data being sent to API:", taskData);
@@ -379,6 +405,11 @@ export default function Tasks() {
         status: newStatus
       }
     });
+  };
+
+  const handleScheduleChange = (task: Task) => {
+    // Redirect to schedule page with the task ID as a parameter
+    window.location.href = `/schedule?taskId=${task.id}`;
   };
 
   const toggleSection = (sectionId: string) => {
@@ -572,6 +603,7 @@ export default function Tasks() {
                           onEdit={handleEditTask}
                           onDelete={handleDeleteTask}
                           onStatusChange={handleStatusChange}
+                          onScheduleChange={handleScheduleChange}
                         />
                       ))}
                     </div>
@@ -608,6 +640,7 @@ export default function Tasks() {
                       onEdit={handleEditTask}
                       onDelete={handleDeleteTask}
                       onStatusChange={handleStatusChange}
+                      onScheduleChange={handleScheduleChange}
                     />
                   ))}
                 </div>
@@ -642,6 +675,7 @@ export default function Tasks() {
                       onEdit={handleEditTask}
                       onDelete={handleDeleteTask}
                       onStatusChange={handleStatusChange}
+                      onScheduleChange={handleScheduleChange}
                     />
                   ))}
                 </div>
@@ -737,6 +771,7 @@ export default function Tasks() {
                     onEdit={handleEditTask}
                     onDelete={handleDeleteTask}
                     onStatusChange={handleStatusChange}
+                    onScheduleChange={handleScheduleChange}
                   />
                 );
               })}
@@ -770,6 +805,7 @@ export default function Tasks() {
                       onEdit={handleEditTask}
                       onDelete={handleDeleteTask}
                       onStatusChange={handleStatusChange}
+                      onScheduleChange={handleScheduleChange}
                     />
                   ))}
                 </div>
@@ -798,6 +834,7 @@ export default function Tasks() {
                   onEdit={handleEditTask}
                   onDelete={handleDeleteTask}
                   onStatusChange={handleStatusChange}
+                  onScheduleChange={handleScheduleChange}
                 />
               ))}
             </div>
@@ -824,6 +861,7 @@ export default function Tasks() {
                   onEdit={handleEditTask}
                   onDelete={handleDeleteTask}
                   onStatusChange={handleStatusChange}
+                  onScheduleChange={handleScheduleChange}
                 />
               ))}
             </div>

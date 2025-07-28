@@ -383,6 +383,17 @@ class ScheduleChangeRepository(BaseRepository):
         data = change.dict(by_alias=True)
         data = self._convert_from_camel_case(data)
         
+        # Convert timezone-aware dates to timezone-naive UTC
+        original_date = data.get('original_date')
+        if original_date and hasattr(original_date, 'tzinfo') and original_date.tzinfo is not None:
+            original_date = original_date.replace(tzinfo=None)
+        data['original_date'] = original_date
+        
+        new_date = data.get('new_date')
+        if new_date and hasattr(new_date, 'tzinfo') and new_date.tzinfo is not None:
+            new_date = new_date.replace(tzinfo=None)
+        data['new_date'] = new_date
+        
         query = f"""
             INSERT INTO {self.table_name} 
             (id, task_id, user_id, reason, original_date, new_date, status, created_at)
@@ -404,6 +415,17 @@ class ScheduleChangeRepository(BaseRepository):
         
         if not data:
             return await self.get_by_id(change_id)
+        
+        # Convert timezone-aware dates to timezone-naive UTC
+        if 'original_date' in data and data['original_date']:
+            original_date = data['original_date']
+            if hasattr(original_date, 'tzinfo') and original_date.tzinfo is not None:
+                data['original_date'] = original_date.replace(tzinfo=None)
+        
+        if 'new_date' in data and data['new_date']:
+            new_date = data['new_date']
+            if hasattr(new_date, 'tzinfo') and new_date.tzinfo is not None:
+                data['new_date'] = new_date.replace(tzinfo=None)
         
         set_clauses = []
         values = []
