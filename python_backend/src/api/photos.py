@@ -17,11 +17,11 @@ photo_repo = PhotoRepository()
 @router.get("", response_model=List[Photo])
 async def get_photos(
     project_id: Optional[str] = Query(None, alias="projectId"),
-    uploaded_by: Optional[str] = Query(None, alias="uploadedBy")
+    user_id: Optional[str] = Query(None, alias="userId")
 ):
     """Get photos with optional filters."""
     try:
-        return await photo_repo.get_all(project_id=project_id, uploaded_by=uploaded_by)
+        return await photo_repo.get_all(project_id=project_id, user_id=user_id)
     except Exception as e:
         print(f"Error fetching photos: {e}")
         raise HTTPException(
@@ -35,7 +35,7 @@ async def upload_photo(
     file: UploadFile = File(...),
     project_id: str = Form(..., alias="projectId"),
     description: str = Form(""),
-    uploaded_by: str = Form(..., alias="uploadedBy")
+    user_id: str = Form(..., alias="userId")
 ):
     """Upload a photo."""
     try:
@@ -69,14 +69,13 @@ async def upload_photo(
         photo_create = PhotoCreate(
             projectId=project_id,
             description=description,
-            uploadedBy=uploaded_by
+            userId=user_id
         )
         
         return await photo_repo.create(
             photo_create, 
             filename=unique_filename,
-            file_size=len(content),
-            mime_type=file.content_type
+            original_name=file.filename or "unknown.jpg"
         )
         
     except HTTPException:

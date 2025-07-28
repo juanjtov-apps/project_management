@@ -47,7 +47,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
       formData.append("file", file);
       formData.append("projectId", projectId);
       formData.append("description", description);
-      formData.append("uploadedBy", "sample-user-id"); // TODO: Get from auth context
+      formData.append("userId", "sample-user-id"); // TODO: Get from auth context
 
       const response = await fetch("/api/photos", {
         method: "POST",
@@ -254,21 +254,26 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                 className="mt-1"
               />
               {selectedFiles && selectedFiles.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-sm text-gray-600 mb-2">
-                    Preview:
+                <div className="mt-4 space-y-3">
+                  <p className="text-sm font-medium text-gray-700">
+                    Selected Photo Preview:
                   </p>
                   <div className="flex flex-wrap gap-4">
                     {previewUrls.map((url, index) => (
-                      <div key={index} className="relative">
-                        <img
-                          src={url}
-                          alt={`Preview ${index + 1}`}
-                          className="w-24 h-24 object-cover rounded-lg border"
-                        />
-                        <div className="mt-1">
-                          <Badge variant="outline" className="text-xs">
-                            {selectedFiles[index]?.name}
+                      <div key={index} className="relative bg-gray-50 p-2 rounded-lg">
+                        <div className="w-32 h-32 border border-gray-200 rounded-lg overflow-hidden">
+                          <img
+                            src={url}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.error('Image preview failed to load:', e);
+                            }}
+                          />
+                        </div>
+                        <div className="mt-2 text-center">
+                          <Badge variant="outline" className="text-xs truncate max-w-32">
+                            {selectedFiles[index]?.name || 'Unknown file'}
                           </Badge>
                         </div>
                       </div>
