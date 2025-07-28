@@ -53,9 +53,9 @@ async def debug_upload(request: Request):
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def upload_photo(
     file: UploadFile = File(...),
-    projectId: str = Form(None),  # Make optional to debug
+    projectId: str = Form(...),  # Required parameter
     description: str = Form(""),
-    userId: str = Form(None)  # Make optional to debug
+    userId: str = Form(...)  # Required parameter
 ):
     """Upload a photo."""
     print("=" * 50)
