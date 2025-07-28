@@ -65,6 +65,10 @@ async def create_task(task: TaskCreate):
                 detail="Project selection is required when category is 'Project Related'"
             )
         
+        # Handle empty assignee_id by setting it to None
+        if task.assignee_id == "":
+            task.assignee_id = None
+        
         print(f"Received task data: {task}")
         print(f"Task dict: {task.dict()}")
         print(f"Task dict with alias: {task.dict(by_alias=True)}")
