@@ -92,6 +92,7 @@ export default function Subs() {
       const formattedData = {
         ...data,
         category: "subcontractor",
+        assigneeId: data.assigneeId === "unassigned" ? null : data.assigneeId || null, // Convert "unassigned" to null
         dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
       };
       const response = await fetch("/api/tasks", {
@@ -255,6 +256,7 @@ export default function Subs() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                          <SelectItem value="unassigned">Unassigned</SelectItem>
                           {subcontractors.map((sub) => (
                             <SelectItem key={sub.id} value={sub.id}>
                               {sub.name}
