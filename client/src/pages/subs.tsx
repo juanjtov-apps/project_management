@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -221,6 +222,39 @@ export default function Subs() {
   const onSubmitEditTask = (data: SubcontractorTaskForm) => {
     if (editingTask) {
       updateTaskMutation.mutate({ id: editingTask.id, updates: data });
+    }
+  };
+
+  // Quick completion toggle function
+  const handleTaskCompletionToggle = async (task: Task, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent opening the edit dialog
+    
+    const newStatus = task.status === "completed" ? "pending" : "completed";
+    
+    try {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update task');
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({ 
+        title: task.status === "completed" ? "Task marked as pending" : "Task completed!",
+        description: `${task.title} has been ${task.status === "completed" ? "reopened" : "marked as completed"}.`
+      });
+    } catch (error) {
+      toast({ 
+        title: "Error updating task", 
+        description: "Failed to update task status",
+        variant: "destructive"
+      });
     }
   };
 
@@ -690,9 +724,17 @@ export default function Subs() {
                     onClick={() => handleTaskClick(task)}
                   >
                     <div className="flex items-center space-x-4">
+                      <Checkbox
+                        checked={task.status === "completed"}
+                        onCheckedChange={(event) => handleTaskCompletionToggle(task, event as any)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                      />
                       <div className={cn("w-3 h-3 rounded-full", getPriorityColor(task.priority))} />
                       <div>
-                        <p className="font-medium">{task.title}</p>
+                        <p className={cn("font-medium", task.status === "completed" && "line-through text-gray-500")}>
+                          {task.title}
+                        </p>
                         <p className="text-sm text-gray-600">
                           {assignee?.name || "Unassigned"} • {project?.name || "General Task"}
                         </p>
@@ -733,7 +775,17 @@ export default function Subs() {
                     <Card key={task.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleTaskClick(task)}>
                       <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm">{task.title}</CardTitle>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              checked={task.status === "completed"}
+                              onCheckedChange={(event) => handleTaskCompletionToggle(task, event as any)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                            />
+                            <CardTitle className={cn("text-sm", task.status === "completed" && "line-through text-gray-500")}>
+                              {task.title}
+                            </CardTitle>
+                          </div>
                           <div className={cn("w-3 h-3 rounded-full", getPriorityColor(task.priority))} />
                         </div>
                         <CardDescription>
@@ -782,7 +834,17 @@ export default function Subs() {
                     <Card key={task.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleTaskClick(task)}>
                       <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm">{task.title}</CardTitle>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              checked={task.status === "completed"}
+                              onCheckedChange={(event) => handleTaskCompletionToggle(task, event as any)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                            />
+                            <CardTitle className={cn("text-sm", task.status === "completed" && "line-through text-gray-500")}>
+                              {task.title}
+                            </CardTitle>
+                          </div>
                           <div className={cn("w-3 h-3 rounded-full", getPriorityColor(task.priority))} />
                         </div>
                         <CardDescription>
@@ -846,9 +908,17 @@ export default function Subs() {
                             onClick={() => handleTaskClick(task)}
                           >
                             <div className="flex items-center space-x-3">
+                              <Checkbox
+                                checked={task.status === "completed"}
+                                onCheckedChange={(event) => handleTaskCompletionToggle(task, event as any)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                              />
                               <div className={cn("w-3 h-3 rounded-full", getPriorityColor(task.priority))} />
                               <div>
-                                <p className="font-medium">{task.title}</p>
+                                <p className={cn("font-medium", task.status === "completed" && "line-through text-gray-500")}>
+                                  {task.title}
+                                </p>
                                 <p className="text-sm text-gray-600">
                                   Assigned to: {assignee?.name || "Unassigned"}
                                   {dueDate && ` • Due: ${dueDate.toLocaleDateString()}`}
@@ -908,9 +978,17 @@ export default function Subs() {
                               onClick={() => handleTaskClick(task)}
                             >
                               <div className="flex items-center space-x-3">
+                                <Checkbox
+                                  checked={task.status === "completed"}
+                                  onCheckedChange={(event) => handleTaskCompletionToggle(task, event as any)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                                />
                                 <div className={cn("w-3 h-3 rounded-full", getPriorityColor(task.priority))} />
                                 <div>
-                                  <p className="font-medium">{task.title}</p>
+                                  <p className={cn("font-medium", task.status === "completed" && "line-through text-gray-500")}>
+                                    {task.title}
+                                  </p>
                                   <p className="text-sm text-gray-600">
                                     Project: {project?.name || "General Task"}
                                     {dueDate && ` • Due: ${dueDate.toLocaleDateString()}`}
@@ -965,9 +1043,17 @@ export default function Subs() {
                             onClick={() => handleTaskClick(task)}
                           >
                             <div className="flex items-center space-x-3">
+                              <Checkbox
+                                checked={task.status === "completed"}
+                                onCheckedChange={(event) => handleTaskCompletionToggle(task, event as any)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                              />
                               <div className={cn("w-3 h-3 rounded-full", getPriorityColor(task.priority))} />
                               <div>
-                                <p className="font-medium">{task.title}</p>
+                                <p className={cn("font-medium", task.status === "completed" && "line-through text-gray-500")}>
+                                  {task.title}
+                                </p>
                                 <p className="text-sm text-gray-600">
                                   Project: {project?.name || "General Task"}
                                   {dueDate && ` • Due: ${dueDate.toLocaleDateString()}`}
@@ -1014,10 +1100,18 @@ export default function Subs() {
                     <Card key={task.id} className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-blue-500" onClick={() => handleTaskClick(task)}>
                       <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm flex items-center">
-                            <Target className="w-4 h-4 mr-2 text-blue-600" />
-                            {task.title}
-                          </CardTitle>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              checked={task.status === "completed"}
+                              onCheckedChange={(event) => handleTaskCompletionToggle(task, event as any)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                            />
+                            <CardTitle className={cn("text-sm flex items-center", task.status === "completed" && "line-through text-gray-500")}>
+                              <Target className="w-4 h-4 mr-2 text-blue-600" />
+                              {task.title}
+                            </CardTitle>
+                          </div>
                           <div className={cn("w-3 h-3 rounded-full", getPriorityColor(task.priority))} />
                         </div>
                         <CardDescription>
