@@ -76,6 +76,7 @@ export default function Projects() {
       location: "",
       status: "active",
       progress: 0,
+      dueDate: undefined,
     },
   });
 
@@ -152,7 +153,7 @@ export default function Projects() {
                     <FormItem>
                       <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Enter project description" {...field} />
+                        <Textarea placeholder="Enter project description" {...field} value={field.value || ""} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -248,7 +249,7 @@ export default function Projects() {
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={field.value}
+                            selected={field.value || undefined}
                             onSelect={field.onChange}
                             disabled={(date) =>
                               date < new Date()
