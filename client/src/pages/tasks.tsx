@@ -97,7 +97,7 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
               {project && (
                 <p className="text-xs text-gray-500 mt-1">{project.name}</p>
               )}
-              <p className="text-xs text-blue-600 mt-1">Click to request schedule change</p>
+              <p className="text-xs text-blue-600 mt-1">Click to edit task</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -205,7 +205,7 @@ function TaskListItem({ task, projectName, onEdit, onDelete, onStatusChange, onS
                 </Badge>
               </div>
               
-              <p className="text-xs text-blue-600 mb-1">Click to request schedule change</p>
+              <p className="text-xs text-blue-600 mb-1">Click to edit task</p>
               
               <div className="flex items-center space-x-4 text-xs text-gray-500">
                 {projectName && (
@@ -287,6 +287,7 @@ function TaskListItem({ task, projectName, onEdit, onDelete, onStatusChange, onS
 export default function Tasks() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isTaskDetailDialogOpen, setIsTaskDetailDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -319,6 +320,7 @@ export default function Tasks() {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       setIsEditDialogOpen(false);
+      setIsTaskDetailDialogOpen(false);
       setEditingTask(null);
       editForm.reset();
     },
@@ -408,8 +410,23 @@ export default function Tasks() {
   };
 
   const handleScheduleChange = (task: Task) => {
-    // Redirect to schedule page with the task ID as a parameter
-    window.location.href = `/schedule?taskId=${task.id}`;
+    // Open task detail modal instead of redirecting to schedule page
+    handleTaskDetailOpen(task);
+  };
+
+  const handleTaskDetailOpen = (task: Task) => {
+    setEditingTask(task);
+    editForm.reset({
+      title: task.title,
+      description: task.description || "",
+      projectId: task.projectId,
+      category: task.category || "general",
+      status: task.status,
+      priority: task.priority,
+      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+      assigneeId: task.assigneeId,
+    });
+    setIsTaskDetailDialogOpen(true);
   };
 
   const toggleSection = (sectionId: string) => {
@@ -508,6 +525,134 @@ export default function Tasks() {
               isLoading={updateTaskMutation.isPending}
               submitText="Save Changes"
             />
+          </DialogContent>
+        </Dialog>
+
+        {/* Task Detail Modal - Comprehensive Editing */}
+        <Dialog open={isTaskDetailDialogOpen} onOpenChange={setIsTaskDetailDialogOpen}>
+          <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold text-gray-900">
+                {editingTask?.title || "Edit Task"}
+              </DialogTitle>
+              <div className="flex items-center gap-2 mt-2">
+                {editingTask && (
+                  <>
+                    <Badge className={getPriorityColor(editingTask.priority)} variant="outline">
+                      {editingTask.priority}
+                    </Badge>
+                    <Badge className={getStatusColor(editingTask.status)} variant="secondary">
+                      {editingTask.status.replace("-", " ")}
+                    </Badge>
+                    {editingTask.category && (
+                      <Badge variant="outline" className="bg-gray-50">
+                        {editingTask.category}
+                      </Badge>
+                    )}
+                  </>
+                )}
+              </div>
+            </DialogHeader>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+              {/* Main Content - Task Form */}
+              <div className="lg:col-span-2 space-y-4">
+                <TaskForm 
+                  form={editForm} 
+                  onSubmit={onEditSubmit} 
+                  projects={projects}
+                  isLoading={updateTaskMutation.isPending}
+                  submitText="Save Changes"
+                />
+              </div>
+              
+              {/* Sidebar - Additional Info */}
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-gray-700">Task Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {editingTask?.dueDate && (
+                      <div className="flex items-center text-sm">
+                        <Clock size={14} className="mr-2 text-gray-500" />
+                        <span className="text-gray-600">Due:</span>
+                        <span className="ml-1 font-medium">
+                          {new Date(editingTask.dueDate).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {editingTask?.projectId && projects.find(p => p.id === editingTask.projectId) && (
+                      <div className="flex items-center text-sm">
+                        <Building size={14} className="mr-2 text-blue-500" />
+                        <span className="text-gray-600">Project:</span>
+                        <span className="ml-1 font-medium text-blue-600">
+                          {projects.find(p => p.id === editingTask.projectId)?.name}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center text-sm">
+                      <User size={14} className="mr-2 text-gray-500" />
+                      <span className="text-gray-600">Created:</span>
+                      <span className="ml-1 font-medium">
+                        {editingTask?.createdAt ? new Date(editingTask.createdAt).toLocaleDateString() : "Unknown"}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                {editingTask?.description && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-semibold text-gray-700">Description</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        {editingTask.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-gray-700">Quick Actions</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        if (editingTask) {
+                          handleStatusChange(editingTask, editingTask.status === "completed" ? "in-progress" : "completed");
+                        }
+                      }}
+                    >
+                      <CheckCircle size={14} className="mr-2" />
+                      {editingTask?.status === "completed" ? "Mark Incomplete" : "Mark Complete"}
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start text-red-600 hover:text-red-700"
+                      onClick={() => {
+                        if (editingTask && window.confirm(`Are you sure you want to delete "${editingTask.title}"?`)) {
+                          deleteTaskMutation.mutate(editingTask.id);
+                          setIsTaskDetailDialogOpen(false);
+                        }
+                      }}
+                    >
+                      <Trash2 size={14} className="mr-2" />
+                      Delete Task
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
