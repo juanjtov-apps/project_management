@@ -129,6 +129,19 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### July 2025 - Enhanced Subcontractor Task Management System
+- Successfully implemented comprehensive subcontractor management with mandatory project selection
+- Reordered task creation form fields to prioritize project selection as first required field
+- Added validation to ensure project must be selected (cannot be empty or "none")
+- Created two new organizational views in Subs tab:
+  - "By Projects": Tasks grouped by construction projects with task counts and assignee details
+  - "By Subcontractors": Tasks organized by individual subcontractors with project context
+  - "Milestones": Dedicated view for milestone tasks with special visual indicators
+- Enhanced form validation with clear asterisk (*) indicators for required fields
+- All 10 subcontractors now properly display in assignment dropdowns
+- Task creation working end-to-end with proper database constraints and validation
+- Improved user experience with mandatory project workflow ensuring proper task organization
+
 ### January 2025 - Timeline and Calendar Views for Schedule Management
 - Successfully implemented comprehensive schedule visualization with three distinct views:
   - Overview: Traditional list view of upcoming tasks and schedule change requests
