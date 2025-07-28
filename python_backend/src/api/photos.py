@@ -34,18 +34,20 @@ async def get_photos(
 @router.post("", response_model=Photo, status_code=status.HTTP_201_CREATED)
 async def upload_photo(
     file: UploadFile = File(...),
-    project_id: str = Form(..., alias="projectId"),
+    projectId: str = Form(...),  # Use exact field name from frontend
     description: str = Form(""),
-    user_id: str = Form(..., alias="userId")
+    userId: str = Form(...)  # Use exact field name from frontend
 ):
     """Upload a photo."""
-    print(f"=== PHOTO UPLOAD REQUEST ===")
-    print(f"project_id: {project_id}")
-    print(f"user_id: {user_id}")
-    print(f"description: {description}")
-    print(f"file.filename: {file.filename if file else 'None'}")
-    print(f"file.content_type: {file.content_type if file else 'None'}")
-    print(f"file.size: {file.size if hasattr(file, 'size') else 'Unknown'}")
+    print("=" * 50)
+    print("PHOTO UPLOAD REQUEST RECEIVED")
+    print(f"projectId: '{projectId}' (type: {type(projectId)})")
+    print(f"userId: '{userId}' (type: {type(userId)})")
+    print(f"description: '{description}' (type: {type(description)})")
+    print(f"file.filename: '{file.filename if file else None}' (type: {type(file.filename) if file else None})")
+    print(f"file.content_type: '{file.content_type if file else None}'")
+    print(f"file.size: {getattr(file, 'size', 'Unknown')}")
+    print("=" * 50)
     
     try:
         if not file:
@@ -76,9 +78,9 @@ async def upload_photo(
         
         # Create photo record
         photo_create = PhotoCreate(
-            projectId=project_id,
+            projectId=projectId,
             description=description,
-            userId=user_id
+            userId=userId
         )
         
         return await photo_repo.create(
