@@ -226,10 +226,8 @@ export default function Subs() {
   };
 
   // Quick completion toggle function
-  const handleTaskCompletionToggle = async (task: Task, event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent opening the edit dialog
-    
-    const newStatus = task.status === "completed" ? "pending" : "completed";
+  const handleTaskCompletionToggle = async (task: Task, checked: boolean) => {
+    const newStatus = checked ? "completed" : "pending";
     
     try {
       const response = await fetch(`/api/tasks/${task.id}`, {
@@ -246,8 +244,8 @@ export default function Subs() {
       
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({ 
-        title: task.status === "completed" ? "Task marked as pending" : "Task completed!",
-        description: `${task.title} has been ${task.status === "completed" ? "reopened" : "marked as completed"}.`
+        title: checked ? "Task completed!" : "Task marked as pending",
+        description: `${task.title} has been ${checked ? "marked as completed" : "reopened"}.`
       });
     } catch (error) {
       toast({ 
@@ -726,7 +724,7 @@ export default function Subs() {
                     <div className="flex items-center space-x-4">
                       <Checkbox
                         checked={task.status === "completed"}
-                        onCheckedChange={(event) => handleTaskCompletionToggle(task, event as any)}
+                        onCheckedChange={(checked) => handleTaskCompletionToggle(task, checked as boolean)}
                         onClick={(e) => e.stopPropagation()}
                         className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
                       />
@@ -778,7 +776,7 @@ export default function Subs() {
                           <div className="flex items-center space-x-2">
                             <Checkbox
                               checked={task.status === "completed"}
-                              onCheckedChange={(event) => handleTaskCompletionToggle(task, event as any)}
+                              onCheckedChange={(checked) => handleTaskCompletionToggle(task, checked as boolean)}
                               onClick={(e) => e.stopPropagation()}
                               className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
                             />
@@ -837,7 +835,7 @@ export default function Subs() {
                           <div className="flex items-center space-x-2">
                             <Checkbox
                               checked={task.status === "completed"}
-                              onCheckedChange={(event) => handleTaskCompletionToggle(task, event as any)}
+                              onCheckedChange={(checked) => handleTaskCompletionToggle(task, checked as boolean)}
                               onClick={(e) => e.stopPropagation()}
                               className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
                             />
@@ -910,7 +908,7 @@ export default function Subs() {
                             <div className="flex items-center space-x-3">
                               <Checkbox
                                 checked={task.status === "completed"}
-                                onCheckedChange={(event) => handleTaskCompletionToggle(task, event as any)}
+                                onCheckedChange={(checked) => handleTaskCompletionToggle(task, checked as boolean)}
                                 onClick={(e) => e.stopPropagation()}
                                 className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
                               />
@@ -980,7 +978,7 @@ export default function Subs() {
                               <div className="flex items-center space-x-3">
                                 <Checkbox
                                   checked={task.status === "completed"}
-                                  onCheckedChange={(event) => handleTaskCompletionToggle(task, event as any)}
+                                  onCheckedChange={(checked) => handleTaskCompletionToggle(task, checked as boolean)}
                                   onClick={(e) => e.stopPropagation()}
                                   className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
                                 />
@@ -1045,7 +1043,7 @@ export default function Subs() {
                             <div className="flex items-center space-x-3">
                               <Checkbox
                                 checked={task.status === "completed"}
-                                onCheckedChange={(event) => handleTaskCompletionToggle(task, event as any)}
+                                onCheckedChange={(checked) => handleTaskCompletionToggle(task, checked as boolean)}
                                 onClick={(e) => e.stopPropagation()}
                                 className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
                               />
@@ -1103,7 +1101,7 @@ export default function Subs() {
                           <div className="flex items-center space-x-2">
                             <Checkbox
                               checked={task.status === "completed"}
-                              onCheckedChange={(event) => handleTaskCompletionToggle(task, event as any)}
+                              onCheckedChange={(checked) => handleTaskCompletionToggle(task, checked as boolean)}
                               onClick={(e) => e.stopPropagation()}
                               className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
                             />
