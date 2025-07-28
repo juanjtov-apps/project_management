@@ -567,7 +567,7 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
       status: task?.status || "pending",
       priority: task?.priority || "medium",
       category: task?.category || "project",
-      projectId: task?.projectId || "",
+      projectId: task?.projectId || "none",
       dueDate: task?.dueDate ? new Date(task.dueDate) : undefined,
     },
   });
@@ -584,7 +584,12 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
   });
 
   const onSubmit = (values: any) => {
-    updateTaskMutation.mutate(values);
+    // Convert "none" back to null for projectId
+    const submitValues = {
+      ...values,
+      projectId: values.projectId === "none" ? null : values.projectId
+    };
+    updateTaskMutation.mutate(submitValues);
   };
 
   const { data: projects = [] } = useQuery<Project[]>({
@@ -709,7 +714,7 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">No Project</SelectItem>
+                    <SelectItem value="none">No Project</SelectItem>
                     {projects.map((project) => (
                       <SelectItem key={project.id} value={project.id}>
                         {project.name}
