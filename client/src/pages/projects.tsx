@@ -14,11 +14,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Plus, CalendarIcon, MapPin, Users, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertProjectSchema } from "@shared/schema";
+import { insertProjectSchema, insertTaskSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import type { Project, InsertProject } from "@shared/schema";
+import type { Project, InsertProject, InsertTask } from "@shared/schema";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -53,7 +53,9 @@ const getProgressColor = (status: string) => {
 export default function Projects() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
 
@@ -80,6 +82,17 @@ export default function Projects() {
       setIsEditDialogOpen(false);
       setEditingProject(null);
       editForm.reset();
+    },
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: (data: InsertTask) => apiRequest("POST", "/api/tasks", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      setIsTaskDialogOpen(false);
+      setSelectedProject(null);
+      taskForm.reset();
     },
   });
 
@@ -115,6 +128,19 @@ export default function Projects() {
     },
   });
 
+  const taskForm = useForm<InsertTask>({
+    resolver: zodResolver(insertTaskSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      projectId: null,
+      category: "project",
+      status: "pending",
+      priority: "medium",
+      dueDate: undefined,
+    },
+  });
+
   const onSubmit = (data: InsertProject) => {
     createProjectMutation.mutate(data);
   };
@@ -142,6 +168,24 @@ export default function Projects() {
     if (window.confirm(`Are you sure you want to delete "${project.name}"?`)) {
       deleteProjectMutation.mutate(project.id);
     }
+  };
+
+  const handleAddTask = (project: Project) => {
+    setSelectedProject(project);
+    taskForm.reset({
+      title: "",
+      description: "",
+      projectId: project.id,
+      category: "project",
+      status: "pending",
+      priority: "medium",
+      dueDate: undefined,
+    });
+    setIsTaskDialogOpen(true);
+  };
+
+  const onTaskSubmit = (data: InsertTask) => {
+    createTaskMutation.mutate(data);
   };
 
   const filteredProjects = projects.filter(project =>
@@ -503,6 +547,153 @@ export default function Projects() {
             </Form>
           </DialogContent>
         </Dialog>
+
+        {/* Add Task Dialog */}
+        <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Add Task to {selectedProject?.name}</DialogTitle>
+            </DialogHeader>
+            <Form {...taskForm}>
+              <form onSubmit={taskForm.handleSubmit(onTaskSubmit)} className="space-y-4">
+                <FormField
+                  control={taskForm.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Task Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter task title" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={taskForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Enter task description" {...field} value={field.value || ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={taskForm.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Priority</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="critical">Critical</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={taskForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="in-progress">In Progress</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="blocked">Blocked</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <FormField
+                  control={taskForm.control}
+                  name="dueDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Due Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value || undefined}
+                            onSelect={field.onChange}
+                            disabled={(date) => date < new Date()}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsTaskDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={createTaskMutation.isPending}
+                    className="construction-primary text-white"
+                  >
+                    {createTaskMutation.isPending ? "Creating..." : "Create Task"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="flex gap-4">
@@ -534,6 +725,10 @@ export default function Projects() {
                       <DropdownMenuItem onClick={() => handleEditProject(project)}>
                         <Edit size={16} className="mr-2" />
                         Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleAddTask(project)}>
+                        <Plus size={16} className="mr-2" />
+                        Add Task
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => handleDeleteProject(project)}
