@@ -10,3 +10,13 @@ Project management app for the construction industry
 - Open `/projects` → list or cards view.<br>
 - Click a project → edit task fields inline.<br>
 - Auto-save with toast → refresh to confirm persistence.<br>
+
+<br>
+
+### Post-launch Backlog<br>
+- Calendar / Gantt view<br>
+- File uploads<br>
+- Summary of the day<br>
+- Role-based permissions<br>
+- Email with daily tasks
+
