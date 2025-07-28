@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, CalendarIcon, Clock, User, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle } from "lucide-react";
+import { Plus, CalendarIcon, Clock, User, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle, Grid3X3, List, FolderOpen } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertTaskSchema } from "@shared/schema";
@@ -154,12 +154,108 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange }: TaskCardP
   );
 }
 
+interface TaskListItemProps {
+  task: Task;
+  projectName?: string;
+  onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
+  onStatusChange: (task: Task, status: string) => void;
+}
+
+function TaskListItem({ task, projectName, onEdit, onDelete, onStatusChange }: TaskListItemProps) {
+  const CategoryIcon = getCategoryIcon(task.category || "general");
+  
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3 flex-1">
+            <CategoryIcon size={16} className="text-gray-500 flex-shrink-0" />
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-1">
+                <h3 className="font-medium text-sm truncate">{task.title}</h3>
+                <Badge className={`${getPriorityColor(task.priority)} text-xs px-2 py-0`}>
+                  {task.priority}
+                </Badge>
+              </div>
+              
+              <div className="flex items-center space-x-4 text-xs text-gray-500">
+                {projectName && (
+                  <div className="flex items-center">
+                    <FolderOpen size={12} className="mr-1" />
+                    <span className="truncate max-w-32">{projectName}</span>
+                  </div>
+                )}
+                
+                {task.dueDate && (
+                  <div className="flex items-center">
+                    <Clock size={12} className="mr-1" />
+                    <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                  </div>
+                )}
+                
+                {task.assigneeId && (
+                  <div className="flex items-center">
+                    <User size={12} className="mr-1" />
+                    <span>Assigned</span>
+                  </div>
+                )}
+              </div>
+              
+              {task.description && (
+                <p className="text-xs text-gray-600 mt-1 line-clamp-1">{task.description}</p>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2 flex-shrink-0">
+            <Select value={task.status} onValueChange={(value) => onStatusChange(task, value)}>
+              <SelectTrigger className="h-7 w-auto text-xs border px-2 py-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="blocked">Blocked</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                  <MoreHorizontal size={14} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit(task)}>
+                  <Edit size={12} className="mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => onDelete(task)}
+                  className="text-red-600"
+                >
+                  <Trash2 size={12} className="mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Tasks() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [viewMode, setViewMode] = useState<"canvas" | "list">("canvas");
   const queryClient = useQueryClient();
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
@@ -368,7 +464,7 @@ export default function Tasks() {
         </Dialog>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 items-center">
         <Input
           placeholder="Search tasks..."
           value={searchTerm}
@@ -387,15 +483,145 @@ export default function Tasks() {
             <SelectItem value="blocked">Blocked</SelectItem>
           </SelectContent>
         </Select>
+        
+        <div className="flex items-center border rounded-lg">
+          <Button
+            variant={viewMode === "canvas" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("canvas")}
+            className="border-0 rounded-r-none"
+          >
+            <Grid3X3 size={16} className="mr-1" />
+            Canvas
+          </Button>
+          <Button
+            variant={viewMode === "list" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("list")}
+            className="border-0 rounded-l-none"
+          >
+            <List size={16} className="mr-1" />
+            List
+          </Button>
+        </div>
       </div>
 
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="projects">By Projects</TabsTrigger>
-          <TabsTrigger value="administrative">Administrative</TabsTrigger>
-          <TabsTrigger value="general">General</TabsTrigger>
-        </TabsList>
+      {viewMode === "list" ? (
+        // List View
+        <div className="space-y-6">
+          {/* Project Tasks Section */}
+          {Object.values(tasksByProject).length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <FolderOpen size={20} className="text-blue-600" />
+                <h2 className="text-lg font-semibold text-blue-600">Project Tasks</h2>
+              </div>
+              
+              {Object.values(tasksByProject).map(({ project, tasks }) => (
+                <div key={project.id} className="space-y-2">
+                  <h3 className="text-md font-medium text-gray-700 flex items-center">
+                    <Building size={16} className="mr-2" />
+                    {project.name}
+                    <Badge variant="outline" className="ml-2 text-xs">
+                      {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                    </Badge>
+                  </h3>
+                  <div className="space-y-2 pl-6">
+                    {tasks.map((task) => (
+                      <TaskListItem
+                        key={task.id}
+                        task={task}
+                        projectName={project.name}
+                        onEdit={handleEditTask}
+                        onDelete={handleDeleteTask}
+                        onStatusChange={handleStatusChange}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Administrative Tasks Section */}
+          {adminTasks.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Settings size={20} className="text-purple-600" />
+                <h2 className="text-lg font-semibold text-purple-600">Administrative Tasks</h2>
+                <Badge variant="outline" className="text-xs">
+                  {adminTasks.length} task{adminTasks.length !== 1 ? 's' : ''}
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                {adminTasks.map((task) => (
+                  <TaskListItem
+                    key={task.id}
+                    task={task}
+                    onEdit={handleEditTask}
+                    onDelete={handleDeleteTask}
+                    onStatusChange={handleStatusChange}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* General Tasks Section */}
+          {generalTasks.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <CheckCircle size={20} className="text-green-600" />
+                <h2 className="text-lg font-semibold text-green-600">General Tasks</h2>
+                <Badge variant="outline" className="text-xs">
+                  {generalTasks.length} task{generalTasks.length !== 1 ? 's' : ''}
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                {generalTasks.map((task) => (
+                  <TaskListItem
+                    key={task.id}
+                    task={task}
+                    onEdit={handleEditTask}
+                    onDelete={handleDeleteTask}
+                    onStatusChange={handleStatusChange}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {filteredTasks.length === 0 && (
+            <Card className="text-center py-12">
+              <CardContent>
+                <List size={48} className="mx-auto text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-600 mb-2">No tasks found</h3>
+                <p className="text-gray-500 mb-4">
+                  {searchTerm || statusFilter !== "all" 
+                    ? "Try adjusting your search or filter criteria" 
+                    : "Create your first task to get started"}
+                </p>
+                <Button 
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  className="construction-primary text-white"
+                >
+                  <Plus size={16} className="mr-2" />
+                  Create Task
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      ) : (
+        // Canvas View (Tabs)
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="projects">By Projects</TabsTrigger>
+            <TabsTrigger value="administrative">Administrative</TabsTrigger>
+            <TabsTrigger value="general">General</TabsTrigger>
+          </TabsList>
         
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -540,7 +766,8 @@ export default function Tasks() {
             )}
           </div>
         </TabsContent>
-      </Tabs>
+        </Tabs>
+      )}
     </div>
   );
 }
