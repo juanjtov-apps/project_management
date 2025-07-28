@@ -64,8 +64,8 @@ async def upload_photo(request: Request):
         form = await request.form()
         print(f"Form data received: {dict(form)}")
         
-        # Extract form fields manually
-        file = form.get("file")
+        # Extract form fields manually - check both field names for compatibility
+        file = form.get("file") or form.get("photo")  # Support both field names
         projectId = form.get("projectId")
         userId = form.get("userId")  
         description = form.get("description", "")
@@ -89,12 +89,26 @@ async def upload_photo(request: Request):
     
     print("=" * 50)
     
+    # Validation
+    if not file:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No file provided"
+        )
+    
+    if not projectId:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Project ID is required"
+        )
+    
+    if not userId:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User ID is required"
+        )
+    
     try:
-        if not file:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No file provided"
-            )
         
         # Validate file type
         if not file.content_type or not file.content_type.startswith('image/'):

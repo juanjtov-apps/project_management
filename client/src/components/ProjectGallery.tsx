@@ -44,11 +44,12 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
   const uploadMutation = useMutation({
     mutationFn: async ({ file, description }: { file: File; description: string }) => {
       console.log("Starting upload mutation with:", { fileName: file.name, projectId, description });
+      console.log("ProjectId value:", projectId, "Type:", typeof projectId);
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", file);  // Backend expects "file" field name
       formData.append("projectId", projectId);
       formData.append("description", description);
-      formData.append("userId", "sample-user-id"); // TODO: Get from auth context
+      formData.append("userId", "sample-user-id");
       
       console.log("FormData entries:");
       for (let [key, value] of formData.entries()) {
