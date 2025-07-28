@@ -106,6 +106,15 @@ export default function Photos() {
       return;
     }
 
+    if (!data.projectId || data.projectId.trim() === "") {
+      toast({
+        title: "Error",
+        description: "Please select a project before uploading photos",
+        variant: "destructive",
+      });
+      return;
+    }
+
     Array.from(selectedFiles).forEach((file) => {
       const formData = new FormData();
       formData.append("file", file);  // Backend expects "file" field name
@@ -187,11 +196,16 @@ export default function Photos() {
                   name="projectId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project</FormLabel>
+                      <FormLabel className="text-red-600 font-semibold">
+                        Project *
+                        <span className="text-sm font-normal text-gray-500 ml-2">
+                          (Required - You must select a project before uploading)
+                        </span>
+                      </FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select project" />
+                          <SelectTrigger className={!field.value ? "border-red-300 bg-red-50" : ""}>
+                            <SelectValue placeholder="⚠️ Please select a project first" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
