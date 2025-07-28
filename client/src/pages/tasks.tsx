@@ -291,7 +291,7 @@ export default function Tasks() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [viewMode, setViewMode] = useState<"canvas" | "list">("canvas");
+  const [viewMode, setViewMode] = useState<"canvas" | "list">("list");
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const queryClient = useQueryClient();
 

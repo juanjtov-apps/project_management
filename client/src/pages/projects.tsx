@@ -243,7 +243,7 @@ function ProjectEditForm({ project, onClose }: { project: Project; onClose: () =
 
 export default function Projects() {
   const queryClient = useQueryClient();
-  const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
+  const [viewMode, setViewMode] = useState<"cards" | "list">("list");
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
