@@ -48,6 +48,8 @@ const getStatusIcon = (status: string) => {
 
 export default function Schedule() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedScheduleChange, setSelectedScheduleChange] = useState<ScheduleChange | null>(null);
   const [selectedTask, setSelectedTask] = useState("");
   const [currentView, setCurrentView] = useState<"overview" | "timeline" | "gantt" | "calendar">("overview");
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -94,8 +96,43 @@ export default function Schedule() {
     },
   });
 
+  const editForm = useForm<InsertScheduleChange>({
+    resolver: zodResolver(insertScheduleChangeSchema),
+    defaultValues: {
+      taskId: "",
+      userId: "sample-user-id",
+      reason: "",
+      originalDate: new Date(),
+      newDate: new Date(),
+    },
+  });
+
   const onSubmit = (data: InsertScheduleChange) => {
     createScheduleChangeMutation.mutate(data);
+  };
+
+  const onEditSubmit = (data: InsertScheduleChange) => {
+    if (selectedScheduleChange) {
+      updateScheduleChangeMutation.mutate({
+        id: selectedScheduleChange.id,
+        updates: data
+      });
+      setIsEditDialogOpen(false);
+      setSelectedScheduleChange(null);
+      editForm.reset();
+    }
+  };
+
+  const handleScheduleChangeClick = (scheduleChange: ScheduleChange) => {
+    setSelectedScheduleChange(scheduleChange);
+    editForm.reset({
+      taskId: scheduleChange.taskId,
+      userId: scheduleChange.userId,
+      reason: scheduleChange.reason,
+      originalDate: new Date(scheduleChange.originalDate),
+      newDate: new Date(scheduleChange.newDate),
+    });
+    setIsEditDialogOpen(true);
   };
 
   const getTaskName = (taskId: string) => {
@@ -342,6 +379,160 @@ export default function Schedule() {
             </Form>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Schedule Change Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Edit Schedule Change Request</DialogTitle>
+            </DialogHeader>
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+                <FormField
+                  control={editForm.control}
+                  name="taskId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Task</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select task" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {tasks.map(task => (
+                            <SelectItem key={task.id} value={task.id}>
+                              {task.title} - {getProjectName(task.id)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editForm.control}
+                  name="reason"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Reason for Schedule Change</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Explain why the schedule needs to be changed..." 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="originalDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Original Date</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick original date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="newDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>New Requested Date</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick new date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditDialogOpen(false);
+                      setSelectedScheduleChange(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={updateScheduleChangeMutation.isPending}
+                    className="construction-primary text-white"
+                  >
+                    {updateScheduleChangeMutation.isPending ? "Updating..." : "Update Request"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
@@ -380,7 +571,16 @@ export default function Schedule() {
                     </div>
                   ) : (
                     upcomingTasks.slice(0, 10).map((task) => (
-                      <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                      <div 
+                        key={task.id} 
+                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() => {
+                          setSelectedTask(task.id);
+                          form.setValue('taskId', task.id);
+                          form.setValue('originalDate', new Date(task.dueDate!));
+                          setIsCreateDialogOpen(true);
+                        }}
+                      >
                         <div>
                           <h4 className="font-medium construction-secondary">{task.title}</h4>
                           <p className="text-sm text-blue-600">{getProjectName(task.id)}</p>
@@ -388,6 +588,9 @@ export default function Schedule() {
                             <Clock size={14} className="mr-1" />
                             {new Date(task.dueDate!).toLocaleDateString()} at{" "}
                             {new Date(task.dueDate!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                          <div className="text-xs text-blue-600 mt-1">
+                            Click to request schedule change
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -416,7 +619,11 @@ export default function Schedule() {
                     </div>
                   ) : (
                     scheduleChanges.map((change) => (
-                      <div key={change.id} className="border rounded-lg p-4 space-y-3">
+                      <div 
+                        key={change.id} 
+                        className="border rounded-lg p-4 space-y-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                        onClick={() => handleScheduleChangeClick(change)}
+                      >
                         <div className="flex items-start justify-between">
                           <div>
                             <h4 className="font-medium construction-secondary">{getTaskName(change.taskId)}</h4>
@@ -448,10 +655,13 @@ export default function Schedule() {
                             <Button
                               size="sm"
                               className="bg-green-600 text-white hover:bg-green-700"
-                              onClick={() => updateScheduleChangeMutation.mutate({
-                                id: change.id,
-                                updates: { status: "approved" }
-                              })}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateScheduleChangeMutation.mutate({
+                                  id: change.id,
+                                  updates: { status: "approved" }
+                                });
+                              }}
                             >
                               Approve
                             </Button>
@@ -459,10 +669,13 @@ export default function Schedule() {
                               size="sm"
                               variant="outline"
                               className="border-red-600 text-red-600 hover:bg-red-50"
-                              onClick={() => updateScheduleChangeMutation.mutate({
-                                id: change.id,
-                                updates: { status: "rejected" }
-                              })}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateScheduleChangeMutation.mutate({
+                                  id: change.id,
+                                  updates: { status: "rejected" }
+                                });
+                              }}
                             >
                               Reject
                             </Button>
@@ -511,7 +724,15 @@ export default function Schedule() {
                             
                             {/* Timeline content card */}
                             <div className="w-64 mt-4">
-                              <div className="bg-white border rounded-lg p-3 shadow-sm">
+                              <div 
+                                className="bg-white border rounded-lg p-3 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors"
+                                onClick={() => {
+                                  setSelectedTask(item.id);
+                                  form.setValue('taskId', item.id);
+                                  form.setValue('originalDate', new Date(item.dueDate!));
+                                  setIsCreateDialogOpen(true);
+                                }}
+                              >
                                 <div className="space-y-2">
                                   <h4 className="font-medium construction-secondary text-sm leading-tight">{item.title}</h4>
                                   {item.project && (
@@ -539,6 +760,9 @@ export default function Schedule() {
                                       ? <span className="text-orange-500 font-medium">Due today</span>
                                       : `${item.daysFromNow} days remaining`
                                     }
+                                  </div>
+                                  <div className="text-xs text-blue-600 mt-1">
+                                    Click to request schedule change
                                   </div>
                                 </div>
                               </div>
@@ -596,7 +820,16 @@ export default function Schedule() {
                         const duration = Math.max(1, Math.min(3, 2)); // Default 2-day duration, max 3 days
                         
                         return (
-                          <div key={item.id} className="flex items-center">
+                          <div 
+                            key={item.id} 
+                            className="flex items-center cursor-pointer hover:bg-gray-50 transition-colors rounded p-2"
+                            onClick={() => {
+                              setSelectedTask(item.id);
+                              form.setValue('taskId', item.id);
+                              form.setValue('originalDate', new Date(item.dueDate!));
+                              setIsCreateDialogOpen(true);
+                            }}
+                          >
                             {/* Task name column */}
                             <div className="w-64 flex-shrink-0 pr-4">
                               <div className="flex items-center space-x-2">
@@ -606,6 +839,7 @@ export default function Schedule() {
                                   {item.project && (
                                     <div className="text-xs text-blue-600 truncate">{item.project.name}</div>
                                   )}
+                                  <div className="text-xs text-gray-500">Click to request schedule change</div>
                                 </div>
                               </div>
                             </div>
@@ -748,12 +982,18 @@ export default function Schedule() {
                         <div
                           key={task.id}
                           className={cn(
-                            "text-xs p-1 rounded truncate",
+                            "text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 transition-opacity",
                             task.status === "completed" 
                               ? "bg-green-100 text-green-800" 
                               : "bg-orange-100 text-orange-800"
                           )}
-                          title={task.title}
+                          title={`${task.title} - Click to request schedule change`}
+                          onClick={() => {
+                            setSelectedTask(task.id);
+                            form.setValue('taskId', task.id);
+                            form.setValue('originalDate', new Date(task.dueDate!));
+                            setIsCreateDialogOpen(true);
+                          }}
                         >
                           <div className="flex items-center gap-1">
                             <div className={`w-1.5 h-1.5 rounded-full ${getPriorityColor(task.priority)}`}></div>
