@@ -23,28 +23,18 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
   // Wait for Python server to start
   await new Promise(resolve => setTimeout(resolve, 3000));
 
-  // Proxy API requests to Python backend
-  app.use('/api', async (req, res) => {
-    try {
-      const url = `http://localhost:8000${req.originalUrl}`;
-      const response = await fetch(url, {
-        method: req.method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...req.headers
-        },
-        body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined
-      });
-      
-      const data = await response.text();
-      res.status(response.status);
-      res.set(Object.fromEntries(response.headers.entries()));
-      res.send(data);
-    } catch (error) {
-      console.error('Proxy error:', error);
+  // Simple proxy using http-proxy-middleware
+  const { createProxyMiddleware } = await import('http-proxy-middleware');
+  
+  app.use('/api', createProxyMiddleware({
+    target: 'http://localhost:8000/api',
+    changeOrigin: true,
+    logLevel: 'debug',
+    onError: (err, req, res) => {
+      console.error('Proxy error:', err);
       res.status(500).json({ message: 'Proxy error' });
     }
-  });
+  }));
 
   const httpServer = createServer(app);
   return httpServer;
