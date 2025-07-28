@@ -14,7 +14,7 @@ export function TaskAssignmentDropdown({ task, onAssignmentChange }: TaskAssignm
   
   // Fetch managers/team members
   const { data: managers = [], isLoading: managersLoading } = useQuery<User[]>({
-    queryKey: ["/api/users/managers"],
+    queryKey: ["/api/users/managers/"],
   });
 
   // Assignment mutation
@@ -25,8 +25,8 @@ export function TaskAssignmentDropdown({ task, onAssignmentChange }: TaskAssignm
     },
     onSuccess: () => {
       // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects/"] });
       onAssignmentChange?.();
     },
   });

@@ -52,12 +52,7 @@ if not settings.debug:
     if Path("dist/public").exists():
         app.mount("/", StaticFiles(directory="dist/public", html=True), name="static")
 
-# Development catch-all route
-if settings.debug:
-    @app.get("/{path:path}")
-    async def catch_all(path: str):
-        """Catch-all route for development mode."""
-        return {"detail": "Not Found", "path": path}
+# Note: Removed catch-all route to prevent interference with API endpoints
 
 
 if __name__ == "__main__":
