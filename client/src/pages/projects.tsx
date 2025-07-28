@@ -72,6 +72,7 @@ export default function Projects() {
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [addingTaskProject, setAddingTaskProject] = useState<Project | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -119,8 +120,7 @@ export default function Projects() {
   };
 
   const handleEditTask = (task: Task) => {
-    // Navigate to schedule page for task editing
-    window.location.href = '/schedule';
+    setEditingTask(task);
   };
 
   const handleDeleteTask = async (task: Task) => {
@@ -297,7 +297,7 @@ export default function Projects() {
                                   <p className="text-xs text-gray-500 text-center py-2">No tasks yet</p>
                                 ) : (
                                   projectTasks.map((task) => (
-                                    <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                    <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors cursor-pointer" onClick={(e) => { e.stopPropagation(); handleEditTask(task); }}>
                                       <div className="flex items-center justify-between mb-2">
                                         <span className="font-medium truncate flex-1">{task.title}</span>
                                         <div className="flex items-center gap-1">
@@ -490,7 +490,7 @@ export default function Projects() {
                           <p className="text-sm text-gray-500 text-center py-4">No tasks yet</p>
                         ) : (
                           projectTasks.map((task) => (
-                            <div key={task.id} className="bg-gray-50 rounded p-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+                            <div key={task.id} className="bg-gray-50 rounded p-3 space-y-2 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleEditTask(task); }}>
                               <div className="flex items-center justify-between">
                                 <span className="font-medium">{task.title}</span>
                                 <div className="flex items-center gap-2">
@@ -542,6 +542,241 @@ export default function Projects() {
           })}
         </div>
       )}
+
+      {/* Task Edit Dialog */}
+      <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+          </DialogHeader>
+          {editingTask && <TaskEditForm task={editingTask} onClose={() => setEditingTask(null)} />}
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+// Task Edit Form Component
+function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  
+  const form = useForm({
+    resolver: zodResolver(insertTaskSchema.extend({
+      dueDate: insertTaskSchema.shape.dueDate.optional(),
+    })),
+    defaultValues: {
+      title: task.title,
+      description: task.description || "",
+      status: task.status,
+      priority: task.priority,
+      category: task.category,
+      projectId: task.projectId || "",
+      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+    },
+  });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: async (values: any) => {
+      const response = await apiRequest("PATCH", `/api/tasks/${task.id}`, values);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      onClose();
+    },
+  });
+
+  const onSubmit = (values: any) => {
+    updateTaskMutation.mutate(values);
+  };
+
+  const { data: projects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Title</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea {...field} rows={3} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="priority"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Priority</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Category</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="project">Project Related</SelectItem>
+                    <SelectItem value="administrative">Administrative</SelectItem>
+                    <SelectItem value="general">General</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="projectId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Project</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select project (optional)" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="">No Project</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name="dueDate"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Due Date</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full pl-3 text-left font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                    >
+                      {field.value ? (
+                        format(field.value, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={field.value}
+                    onSelect={field.onChange}
+                    disabled={(date) =>
+                      date < new Date(new Date().setHours(0, 0, 0, 0))
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex items-center justify-end space-x-2 pt-4">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={updateTaskMutation.isPending}>
+            {updateTaskMutation.isPending ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 }
