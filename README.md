@@ -1,2 +1,2 @@
 # project_management
-Project management app for the constrution industry
+Project management app for the construction industry
