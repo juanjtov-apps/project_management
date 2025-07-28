@@ -705,7 +705,7 @@ export default function Projects() {
                               </div>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                                     <MoreHorizontal size={16} />
                                   </Button>
                                 </DropdownMenuTrigger>
@@ -1046,7 +1046,11 @@ export default function Projects() {
                             <p className="text-xs text-gray-500 text-center py-2">No tasks yet</p>
                           ) : (
                             projectTasks.map((task) => (
-                              <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors">
+                              <div 
+                                key={task.id} 
+                                className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <div className="flex items-center justify-between mb-1">
                                   <span className="font-medium truncate flex-1">{task.title}</span>
                                   <div className="flex items-center gap-1">
@@ -1055,7 +1059,12 @@ export default function Projects() {
                                     </Badge>
                                     <DropdownMenu>
                                       <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm" 
+                                          className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
                                           <MoreHorizontal size={12} />
                                         </Button>
                                       </DropdownMenuTrigger>
@@ -1170,7 +1179,7 @@ export default function Projects() {
                             
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                                   <MoreHorizontal size={16} />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -1199,7 +1208,7 @@ export default function Projects() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toggleProjectExpansion(project.id)}
+                              onClick={(e) => { e.stopPropagation(); toggleProjectExpansion(project.id); }}
                               className="w-full justify-between p-2 h-auto"
                             >
                               <div className="flex items-center text-sm">
@@ -1214,7 +1223,7 @@ export default function Projects() {
                                   <p className="text-xs text-gray-500 text-center py-2">No tasks yet</p>
                                 ) : (
                                   projectTasks.map((task) => (
-                                    <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors">
+                                    <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors" onClick={(e) => e.stopPropagation()}>
                                       <div className="flex items-center justify-between mb-1">
                                         <span className="font-medium truncate flex-1">{task.title}</span>
                                         <div className="flex items-center gap-1">
@@ -1223,7 +1232,7 @@ export default function Projects() {
                                           </Badge>
                                           <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
+                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
                                                 <MoreHorizontal size={12} />
                                               </Button>
                                             </DropdownMenuTrigger>
@@ -1329,7 +1338,7 @@ export default function Projects() {
                             
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                                   <MoreHorizontal size={16} />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -1358,7 +1367,7 @@ export default function Projects() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toggleProjectExpansion(project.id)}
+                              onClick={(e) => { e.stopPropagation(); toggleProjectExpansion(project.id); }}
                               className="w-full justify-between p-2 h-auto"
                             >
                               <div className="flex items-center text-sm">
@@ -1373,7 +1382,7 @@ export default function Projects() {
                                   <p className="text-xs text-gray-500 text-center py-2">No tasks yet</p>
                                 ) : (
                                   projectTasks.map((task) => (
-                                    <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors">
+                                    <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors" onClick={(e) => e.stopPropagation()}>
                                       <div className="flex items-center justify-between mb-1">
                                         <span className="font-medium truncate flex-1">{task.title}</span>
                                         <div className="flex items-center gap-1">
@@ -1382,7 +1391,7 @@ export default function Projects() {
                                           </Badge>
                                           <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
+                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
                                                 <MoreHorizontal size={12} />
                                               </Button>
                                             </DropdownMenuTrigger>
@@ -1488,7 +1497,7 @@ export default function Projects() {
                             
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                                   <MoreHorizontal size={16} />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -1517,7 +1526,7 @@ export default function Projects() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toggleProjectExpansion(project.id)}
+                              onClick={(e) => { e.stopPropagation(); toggleProjectExpansion(project.id); }}
                               className="w-full justify-between p-2 h-auto"
                             >
                               <div className="flex items-center text-sm">
@@ -1532,7 +1541,7 @@ export default function Projects() {
                                   <p className="text-xs text-gray-500 text-center py-2">No tasks yet</p>
                                 ) : (
                                   projectTasks.map((task) => (
-                                    <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors">
+                                    <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors" onClick={(e) => e.stopPropagation()}>
                                       <div className="flex items-center justify-between mb-1">
                                         <span className="font-medium truncate flex-1">{task.title}</span>
                                         <div className="flex items-center gap-1">
@@ -1541,7 +1550,7 @@ export default function Projects() {
                                           </Badge>
                                           <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
+                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
                                                 <MoreHorizontal size={12} />
                                               </Button>
                                             </DropdownMenuTrigger>
@@ -1647,7 +1656,7 @@ export default function Projects() {
                             
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                                   <MoreHorizontal size={16} />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -1676,7 +1685,7 @@ export default function Projects() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toggleProjectExpansion(project.id)}
+                              onClick={(e) => { e.stopPropagation(); toggleProjectExpansion(project.id); }}
                               className="w-full justify-between p-2 h-auto"
                             >
                               <div className="flex items-center text-sm">
@@ -1691,7 +1700,7 @@ export default function Projects() {
                                   <p className="text-xs text-gray-500 text-center py-2">No tasks yet</p>
                                 ) : (
                                   projectTasks.map((task) => (
-                                    <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors">
+                                    <div key={task.id} className="bg-gray-50 rounded p-2 text-xs group hover:bg-gray-100 transition-colors" onClick={(e) => e.stopPropagation()}>
                                       <div className="flex items-center justify-between mb-1">
                                         <span className="font-medium truncate flex-1">{task.title}</span>
                                         <div className="flex items-center gap-1">
@@ -1700,7 +1709,7 @@ export default function Projects() {
                                           </Badge>
                                           <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100">
+                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
                                                 <MoreHorizontal size={12} />
                                               </Button>
                                             </DropdownMenuTrigger>
