@@ -10,6 +10,7 @@ import Schedule from "@/pages/schedule";
 import Photos from "@/pages/photos";
 import Logs from "@/pages/logs";
 import Crew from "@/pages/crew";
+import Subs from "@/pages/subs";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/photos" component={Photos} />
       <Route path="/logs" component={Logs} />
       <Route path="/crew" component={Crew} />
+      <Route path="/subs" component={Subs} />
       <Route component={NotFound} />
     </Switch>
   );

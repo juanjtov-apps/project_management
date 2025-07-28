@@ -8,7 +8,8 @@ import {
   Camera, 
   ClipboardList, 
   Users,
-  HardHat
+  HardHat,
+  Wrench
 } from "lucide-react";
 
 const navigation = [
@@ -19,6 +20,7 @@ const navigation = [
   { name: "Photos", href: "/photos", icon: Camera },
   { name: "Project Logs", href: "/logs", icon: ClipboardList },
   { name: "Crew", href: "/crew", icon: Users },
+  { name: "Subs", href: "/subs", icon: Wrench },
 ];
 
 export default function Sidebar() {
