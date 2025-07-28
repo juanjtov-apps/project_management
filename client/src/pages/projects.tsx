@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, CalendarIcon, MapPin, Users, MoreHorizontal, Edit, Trash2, ChevronDown, ChevronRight, Clock, CheckCircle } from "lucide-react";
+import { Plus, CalendarIcon, MapPin, Users, MoreHorizontal, Edit, Trash2, ChevronDown, ChevronRight, Clock, CheckCircle, Grid3X3, List } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProjectSchema, insertTaskSchema } from "@shared/schema";
@@ -58,6 +58,7 @@ export default function Projects() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
   const queryClient = useQueryClient();
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
@@ -746,29 +747,199 @@ export default function Projects() {
         </Dialog>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 items-center">
         <Input
           placeholder="Search projects..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-sm"
         />
+        <div className="flex items-center gap-2">
+          <Button
+            variant={viewMode === "cards" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("cards")}
+            className="flex items-center gap-2"
+          >
+            <Grid3X3 size={16} />
+            Cards
+          </Button>
+          <Button
+            variant={viewMode === "list" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("list")}
+            className="flex items-center gap-2"
+          >
+            <List size={16} />
+            List
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProjects.map((project) => {
-          const projectTasks = getProjectTasks(project.id);
-          const isExpanded = expandedProject === project.id;
-          
-          return (
-            <Card key={project.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg construction-secondary">{project.name}</CardTitle>
-                  <div className="flex items-center space-x-2">
-                    <Badge className={getStatusColor(project.status)}>
-                      {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                    </Badge>
+      {/* Cards View */}
+      {viewMode === "cards" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProjects.map((project) => {
+            const projectTasks = getProjectTasks(project.id);
+            const isExpanded = expandedProject === project.id;
+            
+            return (
+              <Card key={project.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-lg construction-secondary">{project.name}</CardTitle>
+                    <div className="flex items-center space-x-2">
+                      <Badge className={getStatusColor(project.status)}>
+                        {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal size={16} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditProject(project)}>
+                            <Edit size={16} className="mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleAddTask(project)}>
+                            <Plus size={16} className="mr-2" />
+                            Add Task
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteProject(project)}
+                            className="text-red-600"
+                          >
+                            <Trash2 size={16} className="mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-500">
+                    <MapPin size={14} className="mr-1" />
+                    {project.location}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">{project.description}</p>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>Progress</span>
+                        <span>{project.progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${getProgressColor(project.status)}`}
+                          style={{ width: `${project.progress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    {project.dueDate && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Due Date:</span>
+                        <span className="font-medium">{new Date(project.dueDate).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                    
+                    {/* Tasks Section */}
+                    <div className="border-t pt-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleProjectExpansion(project.id)}
+                        className="w-full justify-between p-2 h-auto"
+                      >
+                        <div className="flex items-center text-sm">
+                          <span className="font-medium">Tasks ({projectTasks.length})</span>
+                        </div>
+                        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      </Button>
+                      
+                      {isExpanded && (
+                        <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                          {projectTasks.length === 0 ? (
+                            <p className="text-xs text-gray-500 text-center py-2">No tasks yet</p>
+                          ) : (
+                            projectTasks.map((task) => (
+                              <div key={task.id} className="bg-gray-50 rounded p-2 text-xs">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-medium truncate flex-1">{task.title}</span>
+                                  <Badge className={getStatusColor(task.status)} variant="outline">
+                                    {task.status === "in-progress" ? "In Progress" : task.status}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center justify-between text-gray-500">
+                                  <Badge className={getPriorityColor(task.priority)} variant="outline">
+                                    {task.priority}
+                                  </Badge>
+                                  {task.dueDate && (
+                                    <div className="flex items-center">
+                                      <Clock size={10} className="mr-1" />
+                                      <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* List View */}
+      {viewMode === "list" && (
+        <div className="space-y-6">
+          {filteredProjects.map((project) => {
+            const projectTasks = getProjectTasks(project.id);
+            
+            return (
+              <Card key={project.id} className="w-full">
+                <CardHeader className="pb-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-4 mb-2">
+                        <CardTitle className="text-xl construction-secondary">{project.name}</CardTitle>
+                        <Badge className={getStatusColor(project.status)}>
+                          {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                        </Badge>
+                        <div className="flex items-center text-sm text-gray-500">
+                          <MapPin size={14} className="mr-1" />
+                          {project.location}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-3">{project.description}</p>
+                      <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500">Progress:</span>
+                          <div className="w-32 bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full ${getProgressColor(project.status)}`}
+                              style={{ width: `${project.progress}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-medium">{project.progress}%</span>
+                        </div>
+                        {project.dueDate && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-500">Due:</span>
+                            <span className="text-sm font-medium">{new Date(project.dueDate).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm">
@@ -794,86 +965,47 @@ export default function Projects() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                </div>
-                <div className="flex items-center text-sm text-gray-500">
-                  <MapPin size={14} className="mr-1" />
-                  {project.location}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{project.description}</p>
-                
-                <div className="space-y-3">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Progress</span>
-                      <span>{project.progress}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${getProgressColor(project.status)}`}
-                        style={{ width: `${project.progress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                  
-                  {project.dueDate && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">Due Date:</span>
-                      <span className="font-medium">{new Date(project.dueDate).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                  
-                  {/* Tasks Section */}
-                  <div className="border-t pt-3">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleProjectExpansion(project.id)}
-                      className="w-full justify-between p-2 h-auto"
-                    >
-                      <div className="flex items-center text-sm">
-                        <span className="font-medium">Tasks ({projectTasks.length})</span>
-                      </div>
-                      {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                    </Button>
-                    
-                    {isExpanded && (
-                      <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
-                        {projectTasks.length === 0 ? (
-                          <p className="text-xs text-gray-500 text-center py-2">No tasks yet</p>
-                        ) : (
-                          projectTasks.map((task) => (
-                            <div key={task.id} className="bg-gray-50 rounded p-2 text-xs">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="font-medium truncate flex-1">{task.title}</span>
-                                <Badge className={getStatusColor(task.status)} variant="outline">
-                                  {task.status === "in-progress" ? "In Progress" : task.status}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center justify-between text-gray-500">
-                                <Badge className={getPriorityColor(task.priority)} variant="outline">
-                                  {task.priority}
-                                </Badge>
-                                {task.dueDate && (
-                                  <div className="flex items-center">
-                                    <Clock size={10} className="mr-1" />
-                                    <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                                  </div>
-                                )}
-                              </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium text-lg mb-3 construction-secondary">Tasks ({projectTasks.length})</h4>
+                    {projectTasks.length === 0 ? (
+                      <p className="text-gray-500 text-center py-4">No tasks assigned to this project yet</p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {projectTasks.map((task) => (
+                          <div key={task.id} className="bg-gray-50 rounded-lg p-3 border">
+                            <div className="flex items-center justify-between mb-2">
+                              <h5 className="font-medium text-sm truncate flex-1">{task.title}</h5>
+                              <Badge className={getStatusColor(task.status)} variant="outline">
+                                {task.status === "in-progress" ? "In Progress" : task.status}
+                              </Badge>
                             </div>
-                          ))
-                        )}
+                            {task.description && (
+                              <p className="text-xs text-gray-600 mb-2 line-clamp-2">{task.description}</p>
+                            )}
+                            <div className="flex items-center justify-between text-xs">
+                              <Badge className={getPriorityColor(task.priority)} variant="outline">
+                                {task.priority}
+                              </Badge>
+                              {task.dueDate && (
+                                <div className="flex items-center text-gray-500">
+                                  <Clock size={12} className="mr-1" />
+                                  <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {filteredProjects.length === 0 && !isLoading && (
         <div className="text-center py-12">
