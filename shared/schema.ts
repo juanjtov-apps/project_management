@@ -27,8 +27,9 @@ export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   description: text("description"),
-  projectId: varchar("project_id").notNull().references(() => projects.id),
+  projectId: varchar("project_id").references(() => projects.id), // Optional - null for general/admin tasks
   assigneeId: varchar("assignee_id").references(() => users.id),
+  category: text("category").notNull().default("project"), // project, administrative, general
   status: text("status").notNull().default("pending"), // pending, in-progress, completed, blocked
   priority: text("priority").notNull().default("medium"), // low, medium, high, critical
   dueDate: timestamp("due_date"),

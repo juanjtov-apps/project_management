@@ -126,4 +126,24 @@ Preferred communication style: Simple, everyday language.
 - Session management infrastructure prepared for authentication
 - Component architecture supports feature expansion
 
+## Recent Changes
+
+### January 2025 - Task Management Canvas Enhancement
+- Enhanced task schema to support both project-related and general/administrative tasks
+- Added task category field (project, administrative, general) to organize work types
+- Made projectId optional to allow standalone tasks not tied to specific projects
+- Created comprehensive Task Management Canvas with tabbed interface:
+  - Overview tab showing task statistics and recent activity
+  - By Projects tab grouping tasks under their respective projects
+  - Administrative tab for management and office tasks
+  - General tab for operational tasks not tied to projects
+- Implemented inline status updates for quick task management
+- Added visual indicators for task categories and priorities
+- Enhanced task forms to support new categorization system
+
+### Database Schema Updates
+- Modified tasks table to make projectId optional (nullable foreign key)
+- Added category column to tasks table for task classification
+- Pushed schema changes to PostgreSQL database successfully
+
 The system is designed to be easily maintainable and scalable, with clear separation between frontend, backend, and database layers. The use of TypeScript throughout ensures type safety, while the modern tooling provides excellent developer experience.

@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, CalendarIcon, Clock, User } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, CalendarIcon, Clock, User, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertTaskSchema } from "@shared/schema";
@@ -23,15 +24,15 @@ import type { Task, InsertTask, Project } from "@shared/schema";
 const getPriorityColor = (priority: string) => {
   switch (priority) {
     case "critical":
-      return "bg-red-100 text-red-800";
+      return "bg-red-100 text-red-800 border-red-200";
     case "high":
-      return "bg-orange-100 text-orange-800";
+      return "bg-orange-100 text-orange-800 border-orange-200";
     case "medium":
-      return "bg-blue-100 text-blue-800";
+      return "bg-blue-100 text-blue-800 border-blue-200";
     case "low":
-      return "bg-green-100 text-green-800";
+      return "bg-green-100 text-green-800 border-green-200";
     default:
-      return "bg-gray-100 text-gray-800";
+      return "bg-gray-100 text-gray-800 border-gray-200";
   }
 };
 
@@ -50,8 +51,113 @@ const getStatusColor = (status: string) => {
   }
 };
 
+const getCategoryIcon = (category: string) => {
+  switch (category) {
+    case "project":
+      return <Building size={16} className="text-blue-600" />;
+    case "administrative":
+      return <Settings size={16} className="text-purple-600" />;
+    case "general":
+      return <CheckCircle size={16} className="text-green-600" />;
+    default:
+      return <CheckCircle size={16} className="text-gray-600" />;
+  }
+};
+
+interface TaskCardProps {
+  task: Task;
+  project?: Project;
+  onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
+  onStatusChange: (task: Task, newStatus: string) => void;
+}
+
+function TaskCard({ task, project, onEdit, onDelete, onStatusChange }: TaskCardProps) {
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start">
+          <div className="flex items-start space-x-2">
+            {getCategoryIcon(task.category || "general")}
+            <div className="flex-1">
+              <CardTitle className="text-sm font-medium construction-secondary">
+                {task.title}
+              </CardTitle>
+              {project && (
+                <p className="text-xs text-gray-500 mt-1">{project.name}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Badge className={getPriorityColor(task.priority)} variant="outline">
+              {task.priority}
+            </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <MoreHorizontal size={14} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit(task)}>
+                  <Edit size={14} className="mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onDelete(task)} className="text-red-600">
+                  <Trash2 size={14} className="mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {task.description && (
+          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{task.description}</p>
+        )}
+        
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Badge className={getStatusColor(task.status)} variant="secondary">
+              {task.status.replace("-", " ")}
+            </Badge>
+            <Select value={task.status} onValueChange={(value) => onStatusChange(task, value)}>
+              <SelectTrigger className="h-6 w-auto text-xs border-0 bg-transparent p-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="blocked">Blocked</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {task.dueDate && (
+            <div className="flex items-center text-xs text-gray-500">
+              <Clock size={12} className="mr-1" />
+              Due: {new Date(task.dueDate).toLocaleDateString()}
+            </div>
+          )}
+          
+          {task.assigneeId && (
+            <div className="flex items-center text-xs text-gray-500">
+              <User size={12} className="mr-1" />
+              Assigned
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Tasks() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const queryClient = useQueryClient();
@@ -75,8 +181,19 @@ export default function Tasks() {
   });
 
   const updateTaskMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) =>
-      apiRequest("PATCH", `/api/tasks/${id}`, updates),
+    mutationFn: ({ id, data }: { id: string; data: Partial<InsertTask> }) => 
+      apiRequest("PATCH", `/api/tasks/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      setIsEditDialogOpen(false);
+      setEditingTask(null);
+      editForm.reset();
+    },
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/tasks/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
@@ -88,9 +205,24 @@ export default function Tasks() {
     defaultValues: {
       title: "",
       description: "",
-      projectId: "",
+      projectId: null,
+      category: "general",
       status: "pending",
       priority: "medium",
+      dueDate: undefined,
+    },
+  });
+
+  const editForm = useForm<InsertTask>({
+    resolver: zodResolver(insertTaskSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      projectId: null,
+      category: "general",
+      status: "pending",
+      priority: "medium",
+      dueDate: undefined,
     },
   });
 
@@ -98,15 +230,44 @@ export default function Tasks() {
     createTaskMutation.mutate(data);
   };
 
-  const handleTaskToggle = (task: Task, completed: boolean) => {
-    updateTaskMutation.mutate({
-      id: task.id,
-      updates: {
-        status: completed ? "completed" : "pending"
+  const onEditSubmit = (data: InsertTask) => {
+    if (editingTask) {
+      updateTaskMutation.mutate({ id: editingTask.id, data });
+    }
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    editForm.reset({
+      title: task.title,
+      description: task.description || "",
+      projectId: task.projectId,
+      category: task.category || "general",
+      status: task.status,
+      priority: task.priority,
+      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteTask = (task: Task) => {
+    if (window.confirm(`Are you sure you want to delete "${task.title}"?`)) {
+      deleteTaskMutation.mutate(task.id);
+    }
+  };
+
+  const handleStatusChange = (task: Task, newStatus: string) => {
+    updateTaskMutation.mutate({ 
+      id: task.id, 
+      data: { 
+        ...task, 
+        status: newStatus,
+        completedAt: newStatus === "completed" ? new Date() : undefined
       }
     });
   };
 
+  // Filter and organize tasks
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -114,21 +275,33 @@ export default function Tasks() {
     return matchesSearch && matchesStatus;
   });
 
-  const getProjectName = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
-    return project?.name || "Unknown Project";
-  };
+  // Group tasks by projects and categories
+  const projectTasks = filteredTasks.filter(task => task.projectId);
+  const generalTasks = filteredTasks.filter(task => !task.projectId && task.category === "general");
+  const adminTasks = filteredTasks.filter(task => !task.projectId && task.category === "administrative");
+
+  // Group project tasks by project
+  const tasksByProject = projects.reduce((acc, project) => {
+    const projectTasksList = projectTasks.filter(task => task.projectId === project.id);
+    if (projectTasksList.length > 0) {
+      acc[project.id] = {
+        project,
+        tasks: projectTasksList
+      };
+    }
+    return acc;
+  }, {} as Record<string, { project: Project; tasks: Task[] }>);
 
   if (tasksLoading) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Tasks</h1>
+          <h1 className="text-2xl font-bold">Task Management Canvas</h1>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i} className="animate-pulse">
-              <CardHeader className="space-y-2">
+              <CardHeader>
                 <div className="h-4 bg-gray-200 rounded"></div>
                 <div className="h-3 bg-gray-200 rounded w-2/3"></div>
               </CardHeader>
@@ -148,7 +321,7 @@ export default function Tasks() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold construction-secondary">Tasks</h1>
+        <h1 className="text-2xl font-bold construction-secondary">Task Management Canvas</h1>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button className="construction-primary text-white">
@@ -160,168 +333,29 @@ export default function Tasks() {
             <DialogHeader>
               <DialogTitle>Create New Task</DialogTitle>
             </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Task Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter task title" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Enter task description" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="projectId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Project</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select project" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {projects.map(project => (
-                            <SelectItem key={project.id} value={project.id}>
-                              {project.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="priority"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Priority</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select priority" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                            <SelectItem value="critical">Critical</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="in-progress">In Progress</SelectItem>
-                            <SelectItem value="blocked">Blocked</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <FormField
-                  control={form.control}
-                  name="dueDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Due Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsCreateDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={createTaskMutation.isPending}
-                    className="construction-primary text-white"
-                  >
-                    {createTaskMutation.isPending ? "Creating..." : "Create Task"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
+            <TaskForm 
+              form={form} 
+              onSubmit={onSubmit} 
+              projects={projects}
+              isLoading={createTaskMutation.isPending}
+              submitText="Create Task"
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Task Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Edit Task</DialogTitle>
+            </DialogHeader>
+            <TaskForm 
+              form={editForm} 
+              onSubmit={onEditSubmit} 
+              projects={projects}
+              isLoading={updateTaskMutation.isPending}
+              submitText="Save Changes"
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -334,76 +368,362 @@ export default function Tasks() {
           className="max-w-sm"
         />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Tasks</SelectItem>
+            <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="in-progress">In Progress</SelectItem>
-            <SelectItem value="blocked">Blocked</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="blocked">Blocked</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTasks.map((task) => (
-          <Card key={task.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  checked={task.status === "completed"}
-                  onCheckedChange={(checked) => handleTaskToggle(task, !!checked)}
-                  className="mt-1 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                />
-                <div className="flex-1">
-                  <CardTitle className={`text-lg ${task.status === "completed" ? "line-through text-gray-500" : "construction-secondary"}`}>
-                    {task.title}
-                  </CardTitle>
-                  <p className="text-sm text-blue-600 font-medium">{getProjectName(task.projectId)}</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Badge className={getPriorityColor(task.priority)}>
-                  {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                </Badge>
-                <Badge className={getStatusColor(task.status)}>
-                  {task.status.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className={`text-sm mb-4 line-clamp-3 ${task.status === "completed" ? "text-gray-400" : "text-gray-600"}`}>
-                {task.description}
-              </p>
-              
-              <div className="space-y-2">
-                {task.dueDate && (
-                  <div className="flex items-center text-sm text-gray-500">
-                    <Clock size={14} className="mr-2" />
-                    <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
-                  </div>
-                )}
-                
-                {task.assigneeId && (
-                  <div className="flex items-center text-sm text-gray-500">
-                    <User size={14} className="mr-2" />
-                    <span>Assigned to team</span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="projects">By Projects</TabsTrigger>
+          <TabsTrigger value="administrative">Administrative</TabsTrigger>
+          <TabsTrigger value="general">General</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center">
+                  <Building className="mr-2 text-blue-600" />
+                  Project Tasks
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold construction-secondary">{projectTasks.length}</div>
+                <p className="text-sm text-gray-600">Tasks linked to projects</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center">
+                  <Settings className="mr-2 text-purple-600" />
+                  Administrative
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold construction-secondary">{adminTasks.length}</div>
+                <p className="text-sm text-gray-600">Admin & management tasks</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center">
+                  <CheckCircle className="mr-2 text-green-600" />
+                  General Tasks
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold construction-secondary">{generalTasks.length}</div>
+                <p className="text-sm text-gray-600">General operational tasks</p>
+              </CardContent>
+            </Card>
+          </div>
 
-      {filteredTasks.length === 0 && !tasksLoading && (
-        <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">No tasks found</p>
-          <p className="text-gray-400">Create your first task to get started</p>
-        </div>
-      )}
+          {/* Recent Tasks */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Recent Tasks</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredTasks.slice(0, 6).map((task) => {
+                const project = projects.find(p => p.id === task.projectId);
+                return (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    project={project}
+                    onEdit={handleEditTask}
+                    onDelete={handleDeleteTask}
+                    onStatusChange={handleStatusChange}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="projects" className="space-y-6">
+          {Object.values(tasksByProject).map(({ project, tasks }) => (
+            <div key={project.id}>
+              <h3 className="text-lg font-semibold mb-4 flex items-center">
+                <Building className="mr-2 text-blue-600" />
+                {project.name}
+                <Badge variant="outline" className="ml-2">{tasks.length} tasks</Badge>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {tasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    project={project}
+                    onEdit={handleEditTask}
+                    onDelete={handleDeleteTask}
+                    onStatusChange={handleStatusChange}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          {Object.keys(tasksByProject).length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No project tasks found</p>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="administrative">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center">
+              <Settings className="mr-2 text-purple-600" />
+              Administrative Tasks
+              <Badge variant="outline" className="ml-2">{adminTasks.length} tasks</Badge>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {adminTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onEdit={handleEditTask}
+                  onDelete={handleDeleteTask}
+                  onStatusChange={handleStatusChange}
+                />
+              ))}
+            </div>
+            {adminTasks.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No administrative tasks found</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="general">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center">
+              <CheckCircle className="mr-2 text-green-600" />
+              General Tasks
+              <Badge variant="outline" className="ml-2">{generalTasks.length} tasks</Badge>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {generalTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onEdit={handleEditTask}
+                  onDelete={handleDeleteTask}
+                  onStatusChange={handleStatusChange}
+                />
+              ))}
+            </div>
+            {generalTasks.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No general tasks found</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
+  );
+}
+
+interface TaskFormProps {
+  form: any;
+  onSubmit: (data: InsertTask) => void;
+  projects: Project[];
+  isLoading: boolean;
+  submitText: string;
+}
+
+function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormProps) {
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Task Title</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter task title" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea placeholder="Enter task description" {...field} value={field.value || ""} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Category</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="project">Project Related</SelectItem>
+                    <SelectItem value="administrative">Administrative</SelectItem>
+                    <SelectItem value="general">General</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="projectId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Project (Optional)</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="">No Project</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="priority"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Priority</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        <FormField
+          control={form.control}
+          name="dueDate"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Due Date</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full pl-3 text-left font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                    >
+                      {field.value ? (
+                        format(field.value, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={field.value || undefined}
+                    onSelect={field.onChange}
+                    disabled={(date) => date < new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <div className="flex justify-end space-x-2">
+          <Button type="submit" disabled={isLoading} className="construction-primary text-white">
+            {isLoading ? "Saving..." : submitText}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 }
