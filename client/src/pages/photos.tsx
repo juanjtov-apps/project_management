@@ -108,11 +108,16 @@ export default function Photos() {
 
     Array.from(selectedFiles).forEach((file) => {
       const formData = new FormData();
-      formData.append("photo", file);
+      formData.append("file", file);  // Backend expects "file" field name
       formData.append("projectId", data.projectId);
       formData.append("userId", "sample-user-id"); // In a real app, this would come from auth
       formData.append("description", data.description);
       formData.append("tags", JSON.stringify(data.tags));
+      
+      console.log("Photo upload - FormData entries:");
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}:`, value);
+      }
 
       uploadPhotoMutation.mutate({ formData });
     });
