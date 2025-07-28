@@ -138,6 +138,10 @@ Preferred communication style: Simple, everyday language.
 - All CRUD operations now functioning correctly with proper HTTP status codes (201 Created)
 - Frontend loading correctly alongside working API proxy functionality
 - Task creation from Projects tab now fully operational with proper due date handling
+- Added validation to make project selection mandatory when "Project Related" category is chosen
+- Implemented both frontend (Zod schema) and backend (FastAPI) validation for project requirement
+- Dynamic form labels show "Project (Required)" vs "Project (Optional)" based on category selection
+- "No Project" option hidden when project category is selected to enforce validation
 
 ### July 2025 - Backend Restructuring and Organization
 - Successfully restructured Python backend into professional folder organization:

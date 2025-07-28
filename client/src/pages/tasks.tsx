@@ -554,6 +554,9 @@ interface TaskFormProps {
 }
 
 function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormProps) {
+  const watchedCategory = form.watch("category");
+  const isProjectRequired = watchedCategory === "project";
+  
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -614,7 +617,10 @@ function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormP
             name="projectId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Project (Optional)</FormLabel>
+                <FormLabel>
+                  Project {isProjectRequired ? "(Required)" : "(Optional)"}
+                  {isProjectRequired && <span className="text-red-500 ml-1">*</span>}
+                </FormLabel>
                 <Select onValueChange={(value) => field.onChange(value === "none" ? null : value)} defaultValue={field.value || "none"}>
                   <FormControl>
                     <SelectTrigger>
@@ -622,7 +628,7 @@ function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormP
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="none">No Project</SelectItem>
+                    {!isProjectRequired && <SelectItem value="none">No Project</SelectItem>}
                     {projects.map((project) => (
                       <SelectItem key={project.id} value={project.id}>
                         {project.name}

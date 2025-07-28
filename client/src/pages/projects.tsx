@@ -234,7 +234,7 @@ export default function Projects() {
       projectId: selectedProject?.id || data.projectId,
       description: data.description?.trim() || null,
       // Send dueDate as ISO string - server will handle conversion
-      dueDate: data.dueDate ? data.dueDate.toISOString() : null,
+      dueDate: data.dueDate ? (data.dueDate instanceof Date ? data.dueDate.toISOString() : data.dueDate) : null,
     };
     
     console.log("Task data being sent to API:", taskData);
@@ -294,7 +294,7 @@ export default function Projects() {
       const taskData = {
         ...data,
         description: data.description?.trim() || null,
-        dueDate: data.dueDate ? data.dueDate.toISOString() : null,
+        dueDate: data.dueDate ? (data.dueDate instanceof Date ? data.dueDate.toISOString() : data.dueDate) : null,
       };
       updateTaskMutation.mutate({ id: editingTask.id, data: taskData });
     }
