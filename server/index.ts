@@ -4,8 +4,6 @@ import { spawn } from "child_process";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
 
 async function setupPythonBackend(app: express.Express): Promise<Server> {
   // Start Python backend on port 8000
@@ -23,46 +21,37 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
   // Wait for Python server to start
   await new Promise(resolve => setTimeout(resolve, 3000));
 
-  // Manual proxy to Python backend with proper body handling
-  app.use('/api', express.raw({ type: 'application/json', limit: '10mb' }));
+  // Use http-proxy-middleware with router configuration for specific API endpoints  
+  const { createProxyMiddleware } = await import('http-proxy-middleware');
   
-  app.use('/api', async (req, res) => {
-    try {
-      const url = `http://localhost:8000${req.originalUrl}`;
-      console.log(`Proxying ${req.method} ${req.originalUrl} -> ${url}`);
-      console.log('Body type:', typeof req.body, 'Is Buffer:', Buffer.isBuffer(req.body));
-      
-      // Remove problematic headers
-      const { 'content-length': _, 'host': __, ...cleanHeaders } = req.headers;
-      
-      const fetchOptions: RequestInit = {
-        method: req.method,
-        headers: cleanHeaders
-      };
-      
-      // For non-GET requests with body, handle properly
-      if (req.method !== 'GET' && req.body) {
-        if (Buffer.isBuffer(req.body)) {
-          fetchOptions.body = req.body;
-          fetchOptions.headers = {
-            ...cleanHeaders,
-            'Content-Type': 'application/json',
-            'Content-Length': req.body.length.toString()
-          };
-        }
+  const proxy = createProxyMiddleware({
+    target: 'http://localhost:8000',
+    changeOrigin: true,
+    ws: true,
+    router: (req) => 'http://localhost:8000',
+    pathRewrite: (path, req) => {
+      console.log(`Original path: ${path}`);
+      // For /api/something requests, keep the full path with /api prefix
+      const newPath = path.startsWith('/api') ? path : `/api${path}`;
+      console.log(`Rewritten path: ${newPath}`);
+      return newPath;
+    },
+    onError: (err, req, res) => {
+      console.error('Proxy error:', err.message);
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'Proxy error' });
       }
-      
-      const response = await fetch(url, fetchOptions);
-      const data = await response.text();
-      
-      res.status(response.status);
-      res.set(Object.fromEntries(response.headers.entries()));
-      res.send(data);
-    } catch (error) {
-      console.error('Proxy error:', error);
-      res.status(500).json({ message: 'Proxy error' });
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      console.log(`Final proxy request: ${req.method} ${proxyReq.path}`);
     }
   });
+  
+  app.use('/api', proxy);
+  
+  // Add JSON parsing for non-API routes
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: false }));
 
   const httpServer = createServer(app);
   return httpServer;
