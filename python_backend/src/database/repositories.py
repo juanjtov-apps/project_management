@@ -247,7 +247,7 @@ class PhotoRepository(BaseRepository):
     def __init__(self):
         super().__init__("photos")
     
-    async def get_all(self, project_id: Optional[str] = None, uploaded_by: Optional[str] = None) -> List[Photo]:
+    async def get_all(self, project_id: Optional[str] = None, user_id: Optional[str] = None) -> List[Photo]:
         """Get photos with optional filters."""
         query = f"SELECT * FROM {self.table_name} WHERE 1=1"
         params = []
@@ -258,9 +258,9 @@ class PhotoRepository(BaseRepository):
             params.append(project_id)
             param_count += 1
         
-        if uploaded_by:
-            query += f" AND uploaded_by = ${param_count}"
-            params.append(uploaded_by)
+        if user_id:
+            query += f" AND user_id = ${param_count}"
+            params.append(user_id)
             param_count += 1
         
         query += " ORDER BY created_at DESC"
@@ -275,7 +275,7 @@ class PhotoRepository(BaseRepository):
             return Photo(**self._convert_to_camel_case(dict(row)))
         return None
     
-    async def create(self, photo: PhotoCreate, filename: str, file_size: int, mime_type: str) -> Photo:
+    async def create(self, photo: PhotoCreate, filename: str, original_name: str) -> Photo:
         """Create a new photo record."""
         photo_id = str(uuid.uuid4())
         now = datetime.utcnow()
@@ -285,14 +285,14 @@ class PhotoRepository(BaseRepository):
         
         query = f"""
             INSERT INTO {self.table_name} 
-            (id, filename, project_id, description, file_size, mime_type, uploaded_by, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (id, filename, original_name, project_id, description, user_id, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
         """
         
         row = await db_manager.execute_one(
-            query, photo_id, filename, data.get('project_id'),
-            data.get('description'), file_size, mime_type, data.get('uploaded_by'), now
+            query, photo_id, filename, original_name, data.get('project_id'),
+            data.get('description'), data.get('user_id'), now
         )
         return Photo(**self._convert_to_camel_case(dict(row)))
     

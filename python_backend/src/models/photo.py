@@ -10,18 +10,17 @@ from .base import BaseEntity
 class PhotoBase(BaseModel):
     """Base photo model."""
     filename: str
+    original_name: str = Field(alias="originalName")
     project_id: str = Field(alias="projectId")
+    user_id: str = Field(alias="userId")
     description: str = ""
-    file_size: int = Field(alias="fileSize")
-    mime_type: str = Field(alias="mimeType")
-    uploaded_by: str = Field(alias="uploadedBy")
 
 
 class PhotoCreate(BaseModel):
     """Photo creation model."""
     project_id: str = Field(alias="projectId")
+    user_id: str = Field(alias="userId")
     description: str = ""
-    uploaded_by: str = Field(alias="uploadedBy")
 
 
 class Photo(BaseEntity, PhotoBase):
