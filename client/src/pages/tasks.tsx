@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, CalendarIcon, Clock, User, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle, Grid3X3, List, FolderOpen } from "lucide-react";
+import { Plus, CalendarIcon, Clock, User, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle, Grid3X3, List, FolderOpen, ChevronDown, ChevronRight } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertTaskSchema } from "@shared/schema";
@@ -265,6 +265,7 @@ export default function Tasks() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"canvas" | "list">("canvas");
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const queryClient = useQueryClient();
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
@@ -378,6 +379,13 @@ export default function Tasks() {
         status: newStatus
       }
     });
+  };
+
+  const toggleSection = (sectionId: string) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
   };
 
   // Filter and organize tasks
@@ -521,32 +529,53 @@ export default function Tasks() {
           {/* Project Tasks Section */}
           {Object.values(tasksByProject).length > 0 && (
             <div className="space-y-4">
-              <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                onClick={() => toggleSection('projects')}
+                className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
+              >
+                {collapsedSections['projects'] ? 
+                  <ChevronRight size={20} className="text-blue-600" /> : 
+                  <ChevronDown size={20} className="text-blue-600" />
+                }
                 <FolderOpen size={20} className="text-blue-600" />
                 <h2 className="text-lg font-semibold text-blue-600">Project Tasks</h2>
-              </div>
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {Object.values(tasksByProject).reduce((total, { tasks }) => total + tasks.length, 0)} tasks
+                </Badge>
+              </Button>
               
-              {Object.values(tasksByProject).map(({ project, tasks }) => (
+              {!collapsedSections['projects'] && Object.values(tasksByProject).map(({ project, tasks }) => (
                 <div key={project.id} className="space-y-2">
-                  <h3 className="text-md font-medium text-gray-700 flex items-center">
+                  <Button
+                    variant="ghost"
+                    onClick={() => toggleSection(`project-${project.id}`)}
+                    className="flex items-center w-full justify-start p-2 h-auto hover:bg-gray-50 ml-6"
+                  >
+                    {collapsedSections[`project-${project.id}`] ? 
+                      <ChevronRight size={16} className="mr-2" /> : 
+                      <ChevronDown size={16} className="mr-2" />
+                    }
                     <Building size={16} className="mr-2" />
-                    {project.name}
+                    <span className="text-md font-medium text-gray-700">{project.name}</span>
                     <Badge variant="outline" className="ml-2 text-xs">
                       {tasks.length} task{tasks.length !== 1 ? 's' : ''}
                     </Badge>
-                  </h3>
-                  <div className="space-y-2 pl-6">
-                    {tasks.map((task) => (
-                      <TaskListItem
-                        key={task.id}
-                        task={task}
-                        projectName={project.name}
-                        onEdit={handleEditTask}
-                        onDelete={handleDeleteTask}
-                        onStatusChange={handleStatusChange}
-                      />
-                    ))}
-                  </div>
+                  </Button>
+                  {!collapsedSections[`project-${project.id}`] && (
+                    <div className="space-y-2 pl-12">
+                      {tasks.map((task) => (
+                        <TaskListItem
+                          key={task.id}
+                          task={task}
+                          projectName={project.name}
+                          onEdit={handleEditTask}
+                          onDelete={handleDeleteTask}
+                          onStatusChange={handleStatusChange}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -555,48 +584,68 @@ export default function Tasks() {
           {/* Administrative Tasks Section */}
           {adminTasks.length > 0 && (
             <div className="space-y-4">
-              <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                onClick={() => toggleSection('administrative')}
+                className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
+              >
+                {collapsedSections['administrative'] ? 
+                  <ChevronRight size={20} className="text-purple-600" /> : 
+                  <ChevronDown size={20} className="text-purple-600" />
+                }
                 <Settings size={20} className="text-purple-600" />
                 <h2 className="text-lg font-semibold text-purple-600">Administrative Tasks</h2>
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="ml-2 text-xs">
                   {adminTasks.length} task{adminTasks.length !== 1 ? 's' : ''}
                 </Badge>
-              </div>
-              <div className="space-y-2">
-                {adminTasks.map((task) => (
-                  <TaskListItem
-                    key={task.id}
-                    task={task}
-                    onEdit={handleEditTask}
-                    onDelete={handleDeleteTask}
-                    onStatusChange={handleStatusChange}
-                  />
-                ))}
-              </div>
+              </Button>
+              {!collapsedSections['administrative'] && (
+                <div className="space-y-2 pl-6">
+                  {adminTasks.map((task) => (
+                    <TaskListItem
+                      key={task.id}
+                      task={task}
+                      onEdit={handleEditTask}
+                      onDelete={handleDeleteTask}
+                      onStatusChange={handleStatusChange}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {/* General Tasks Section */}
           {generalTasks.length > 0 && (
             <div className="space-y-4">
-              <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                onClick={() => toggleSection('general')}
+                className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
+              >
+                {collapsedSections['general'] ? 
+                  <ChevronRight size={20} className="text-green-600" /> : 
+                  <ChevronDown size={20} className="text-green-600" />
+                }
                 <CheckCircle size={20} className="text-green-600" />
                 <h2 className="text-lg font-semibold text-green-600">General Tasks</h2>
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="ml-2 text-xs">
                   {generalTasks.length} task{generalTasks.length !== 1 ? 's' : ''}
                 </Badge>
-              </div>
-              <div className="space-y-2">
-                {generalTasks.map((task) => (
-                  <TaskListItem
-                    key={task.id}
-                    task={task}
-                    onEdit={handleEditTask}
-                    onDelete={handleDeleteTask}
-                    onStatusChange={handleStatusChange}
-                  />
-                ))}
-              </div>
+              </Button>
+              {!collapsedSections['general'] && (
+                <div className="space-y-2 pl-6">
+                  {generalTasks.map((task) => (
+                    <TaskListItem
+                      key={task.id}
+                      task={task}
+                      onEdit={handleEditTask}
+                      onDelete={handleDeleteTask}
+                      onStatusChange={handleStatusChange}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -698,23 +747,33 @@ export default function Tasks() {
         <TabsContent value="projects" className="space-y-6">
           {Object.values(tasksByProject).map(({ project, tasks }) => (
             <div key={project.id}>
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Button
+                variant="ghost"
+                onClick={() => toggleSection(`canvas-project-${project.id}`)}
+                className="flex items-center w-full justify-start p-2 h-auto hover:bg-gray-50 mb-4"
+              >
+                {collapsedSections[`canvas-project-${project.id}`] ? 
+                  <ChevronRight size={16} className="mr-2" /> : 
+                  <ChevronDown size={16} className="mr-2" />
+                }
                 <Building className="mr-2 text-blue-600" />
-                {project.name}
+                <h3 className="text-lg font-semibold">{project.name}</h3>
                 <Badge variant="outline" className="ml-2">{tasks.length} tasks</Badge>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {tasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    project={project}
-                    onEdit={handleEditTask}
-                    onDelete={handleDeleteTask}
-                    onStatusChange={handleStatusChange}
-                  />
-                ))}
-              </div>
+              </Button>
+              {!collapsedSections[`canvas-project-${project.id}`] && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {tasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      project={project}
+                      onEdit={handleEditTask}
+                      onDelete={handleDeleteTask}
+                      onStatusChange={handleStatusChange}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           {Object.keys(tasksByProject).length === 0 && (
