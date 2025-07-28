@@ -159,6 +159,13 @@ class TaskRepository(BaseRepository):
         data = task.dict(by_alias=True)
         data = self._convert_from_camel_case(data)
         
+        # Convert timezone-aware due_date to timezone-naive UTC
+        due_date = data.get('due_date')
+        if due_date and hasattr(due_date, 'tzinfo') and due_date.tzinfo is not None:
+            # Convert to UTC and remove timezone info
+            due_date = due_date.replace(tzinfo=None)
+        data['due_date'] = due_date
+        
         query = f"""
             INSERT INTO {self.table_name} 
             (id, title, description, status, priority, category, project_id, 
@@ -181,6 +188,12 @@ class TaskRepository(BaseRepository):
         
         if not data:
             return await self.get_by_id(task_id)
+        
+        # Convert timezone-aware due_date to timezone-naive UTC
+        if 'due_date' in data and data['due_date']:
+            due_date = data['due_date']
+            if hasattr(due_date, 'tzinfo') and due_date.tzinfo is not None:
+                data['due_date'] = due_date.replace(tzinfo=None)
         
         set_clauses = []
         values = []

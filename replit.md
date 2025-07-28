@@ -132,9 +132,12 @@ Preferred communication style: Simple, everyday language.
 - Successfully resolved "Create task is not working" functionality issue
 - Fixed Express proxy middleware to properly forward /api requests to Python FastAPI backend
 - Implemented correct path rewriting: `/api/tasks` -> `/api/tasks` (preserving full path)
+- Resolved timezone handling issue for due dates in task creation
+- Added automatic conversion of timezone-aware datetimes to timezone-naive for PostgreSQL compatibility
 - Confirmed task creation working end-to-end: frontend -> Express proxy -> Python backend -> database
 - All CRUD operations now functioning correctly with proper HTTP status codes (201 Created)
 - Frontend loading correctly alongside working API proxy functionality
+- Task creation from Projects tab now fully operational with proper due date handling
 
 ### July 2025 - Backend Restructuring and Organization
 - Successfully restructured Python backend into professional folder organization:
