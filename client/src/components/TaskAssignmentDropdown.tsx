@@ -14,21 +14,30 @@ export function TaskAssignmentDropdown({ task, onAssignmentChange }: TaskAssignm
   
   // Fetch managers/team members
   const { data: managers = [], isLoading: managersLoading } = useQuery<User[]>({
-    queryKey: ["/api/users/managers/"],
+    queryKey: ["/api/users/managers"],
   });
 
   // Assignment mutation
   const assignTaskMutation = useMutation({
     mutationFn: async (assigneeId: string | null) => {
       const endpoint = `/api/tasks/${task.id}/assign`;
-      return apiRequest("PATCH", endpoint, { assignee_id: assigneeId });
+      return apiRequest(endpoint, {
+        method: "PATCH",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ assignee_id: assigneeId })
+      });
     },
     onSuccess: () => {
       // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects/"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       onAssignmentChange?.();
     },
+    onError: (error) => {
+      console.error("Error assigning task:", error);
+    }
   });
 
   const handleAssignmentChange = (value: string) => {
