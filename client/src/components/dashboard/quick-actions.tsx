@@ -8,18 +8,18 @@ export default function QuickActions() {
   const actions = [
     {
       icon: Plus,
-      label: "New Project",
+      label: "Add Project",
       onClick: () => setLocation("/projects")
+    },
+    {
+      icon: ClipboardList,
+      label: "Add Tasks",
+      onClick: () => setLocation("/tasks")
     },
     {
       icon: Camera,
       label: "Upload Photos",
       onClick: () => setLocation("/photos")
-    },
-    {
-      icon: ClipboardList,
-      label: "Create Log",
-      onClick: () => setLocation("/logs")
     },
     {
       icon: UserPlus,

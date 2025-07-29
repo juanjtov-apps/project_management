@@ -1,8 +1,8 @@
-# ContractorPro - Construction Project Management System
+# Tower Flow - Construction Project Management System
 
 ## Overview
 
-ContractorPro is a comprehensive construction project management application built with a modern full-stack architecture. The system provides tools for managing construction projects, tasks, crew members, photo documentation, project logs, and scheduling. It features a React-based frontend with TypeScript, an Express.js backend, and PostgreSQL database with Drizzle ORM.
+Tower Flow is a comprehensive construction project management application built with a modern full-stack architecture. The system provides tools for managing construction projects, tasks, crew members, photo documentation, project logs, and scheduling. It features a React-based frontend with TypeScript, an Express.js backend, and PostgreSQL database with Drizzle ORM.
 
 ## User Preferences
 

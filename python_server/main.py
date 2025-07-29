@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Create FastAPI app
-app = FastAPI(title="ContractorPro API", version="1.0.0")
+app = FastAPI(title="Tower Flow API", version="1.0.0")
 
 # Add CORS middleware
 app.add_middleware(

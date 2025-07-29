@@ -532,7 +532,7 @@ export default function Projects() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold construction-primary">Projects</h1>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Projects</h1>
         <div className="flex items-center gap-4">
           <div className="flex items-center border rounded-md">
             <Button
