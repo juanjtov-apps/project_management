@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="ContractorPro API", 
+    title="Tower Flow API", 
     version="1.0.0",
     lifespan=lifespan
 )
