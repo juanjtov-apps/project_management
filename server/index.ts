@@ -57,10 +57,19 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
       }
     },
     onProxyReq: (proxyReq, req, res) => {
-      // Don't double-encode JSON - Express already parsed it and apiRequest already stringified it
       console.log(`Proxying ${req.method} request to: ${proxyReq.path}`);
+      
+      // Fix for PATCH/PUT/POST requests with body - properly forward the body
       if (req.body && (req.method === 'PATCH' || req.method === 'PUT' || req.method === 'POST')) {
-        console.log(`Request body:`, req.body);
+        const bodyData = JSON.stringify(req.body);
+        console.log(`Request body:`, req.body, 'serialized:', bodyData);
+        
+        // Set proper headers
+        proxyReq.setHeader('Content-Type', 'application/json');
+        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+        
+        // Write the body data
+        proxyReq.write(bodyData);
       }
     },
     onProxyRes: (proxyRes, req, res) => {
