@@ -48,16 +48,17 @@ export default function Sidebar() {
             
             return (
               <li key={item.name}>
-                <Link href={item.href}>
-                  <a className={cn(
+                <Link 
+                  href={item.href}
+                  className={cn(
                     "flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors",
                     isActive 
                       ? "construction-primary text-white" 
                       : "text-gray-600 hover:bg-gray-100"
-                  )}>
-                    <Icon size={20} />
-                    <span>{item.name}</span>
-                  </a>
+                  )}
+                >
+                  <Icon size={20} />
+                  <span>{item.name}</span>
                 </Link>
               </li>
             );
