@@ -41,7 +41,8 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
     target: 'http://localhost:8000',
     changeOrigin: true,
     ws: false,
-    logLevel: 'silent',
+    logLevel: 'debug',
+    timeout: 30000,
     // Don't rewrite the path at all - by default express strips /api when mounting at /api
     // So we need to add it back
     pathRewrite: (path, req) => {
@@ -52,11 +53,14 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
     onError: (err, req, res) => {
       console.error('API Proxy error:', err.message);
       if (!res.headersSent) {
-        res.status(500).json({ message: 'Proxy error' });
+        res.status(500).json({ message: 'Proxy error', details: err.message });
       }
     },
     onProxyReq: (proxyReq, req, res) => {
       console.log(`API Proxy: ${req.method} ${req.originalUrl} -> ${proxyReq.path}`);
+    },
+    onProxyRes: (proxyRes, req, res) => {
+      console.log(`API Proxy Response: ${req.method} ${req.originalUrl} ${proxyRes.statusCode}`);
     }
   });
   

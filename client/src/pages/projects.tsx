@@ -274,6 +274,10 @@ function ProjectCreateForm({ onClose }: { onClose: () => void }) {
         body: formattedData,
       });
       console.log("Response received:", response.status);
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorData}`);
+      }
       return response.json();
     },
     onSuccess: (data) => {
