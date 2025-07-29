@@ -61,8 +61,15 @@ export default function Subs() {
     queryKey: ["/api/subcontractor-assignments/"],
   });
 
+  // Debug logging
+  console.log("Raw users response:", usersResponse);
+  console.log("Users array:", users);
+  console.log("Users length:", users.length);
+
   // Filter data for subcontractors
   const subcontractors = users.filter(user => user.role === "subcontractor");
+  console.log("Filtered subcontractors:", subcontractors);
+  console.log("Subcontractors count:", subcontractors.length);
   const subcontractorTasks = tasks.filter(task => 
     task.category === "subcontractor" || 
     subcontractors.some(sub => sub.id === task.assigneeId)

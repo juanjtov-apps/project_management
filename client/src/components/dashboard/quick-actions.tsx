@@ -5,7 +5,11 @@ import { useLocation } from "wouter";
 export default function QuickActions() {
   const [, setLocation] = useLocation();
   
-  console.log("QuickActions component rendering");
+  console.log("QuickActions component rendering - this should appear!");
+  console.log("setLocation function:", typeof setLocation);
+  
+  // Force re-render test
+  console.log("Current timestamp:", Date.now());
 
   const actions = [
     {
@@ -42,6 +46,8 @@ export default function QuickActions() {
     }
   ];
 
+  console.log("About to render QuickActions, actions count:", actions.length);
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="p-6 border-b border-gray-200">
@@ -49,15 +55,18 @@ export default function QuickActions() {
       </div>
       <div className="p-6 space-y-3">
         {actions.length > 0 ? (
-          actions.map((action) => {
+          actions.map((action, index) => {
             const Icon = action.icon;
-            console.log("Rendering action:", action.label);
+            console.log(`Rendering action ${index}:`, action.label);
             return (
               <Button
                 key={action.label}
                 variant="outline"
-                className="w-full flex items-center justify-start space-x-3 p-4 h-auto border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all text-left"
-                onClick={action.onClick}
+                className="w-full flex items-center justify-start space-x-3 p-4 h-auto border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all text-left min-h-[60px]"
+                onClick={() => {
+                  console.log("Button clicked:", action.label);
+                  action.onClick();
+                }}
               >
                 <Icon className="text-blue-600 flex-shrink-0" size={20} />
                 <span className="font-medium text-gray-700">{action.label}</span>
@@ -65,7 +74,7 @@ export default function QuickActions() {
             );
           })
         ) : (
-          <div className="text-gray-500">No actions available</div>
+          <div className="text-gray-500 p-4">No actions available</div>
         )}
       </div>
     </div>
