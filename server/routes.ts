@@ -189,6 +189,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get users/managers route with authentication check
+  app.get('/api/users/managers', requireAuth, async (req, res) => {
+    try {
+      const response = await fetch('http://localhost:8000/api/users/managers');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Python backend error:', data);
+        return res.status(response.status).json(data);
+      }
+
+      res.json(data);
+    } catch (error) {
+      console.error('Error fetching managers:', error);
+      res.status(500).json({ message: 'Failed to fetch managers', error: error.message });
+    }
+  });
+
+  // Task assignment route with authentication check
+  app.patch('/api/tasks/:taskId/assign', requireAuth, async (req, res) => {
+    try {
+      const { taskId } = req.params;
+      const assignmentData = req.body;
+      
+      const response = await fetch(`http://localhost:8000/api/tasks/${taskId}/assign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(assignmentData)
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Python backend error:', data);
+        return res.status(response.status).json(data);
+      }
+
+      res.json(data);
+    } catch (error) {
+      console.error('Error assigning task:', error);
+      res.status(500).json({ message: 'Failed to assign task', error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
