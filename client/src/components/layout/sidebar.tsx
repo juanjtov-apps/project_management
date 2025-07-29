@@ -34,7 +34,7 @@ export default function Sidebar() {
             <HardHat className="text-white text-lg" size={20} />
           </div>
           <div>
-            <h1 className="text-xl font-bold construction-secondary">ContractorPro</h1>
+            <h1 className="text-xl font-bold construction-secondary">Tower Flow</h1>
             <p className="text-sm text-gray-500">Project Management</p>
           </div>
         </div>
