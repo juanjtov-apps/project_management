@@ -235,6 +235,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual task update handler to bypass proxy issues  
+  app.patch("/api/tasks/:id", requireAuth, async (req, res) => {
+    try {
+      console.log(`Manual PATCH handler for task ${req.params.id}:`, req.body);
+      
+      const response = await fetch(`http://localhost:8000/api/tasks/${req.params.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(req.body)
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error(`Python backend error: ${response.status}`, data);
+        return res.status(response.status).json(data);
+      }
+
+      console.log(`Task update successful:`, data);
+      res.json(data);
+    } catch (error) {
+      console.error('Manual task update error:', error);
+      res.status(500).json({ message: 'Failed to update task', error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
