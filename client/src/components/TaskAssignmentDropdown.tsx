@@ -22,7 +22,7 @@ export function TaskAssignmentDropdown({ task, onAssignmentChange }: TaskAssignm
     mutationFn: async (assigneeId: string | null) => {
       return apiRequest(`/api/tasks/${task.id}/assign`, {
         method: "PATCH",
-        body: JSON.stringify({ assignee_id: assigneeId })
+        body: { assignee_id: assigneeId }
       });
     },
     onSuccess: () => {
