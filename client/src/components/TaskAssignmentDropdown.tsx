@@ -20,12 +20,8 @@ export function TaskAssignmentDropdown({ task, onAssignmentChange }: TaskAssignm
   // Assignment mutation
   const assignTaskMutation = useMutation({
     mutationFn: async (assigneeId: string | null) => {
-      const endpoint = `/api/tasks/${task.id}/assign`;
-      return apiRequest(endpoint, {
+      return apiRequest(`/api/tasks/${task.id}/assign`, {
         method: "PATCH",
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ assignee_id: assigneeId })
       });
     },
