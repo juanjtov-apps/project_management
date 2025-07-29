@@ -41,7 +41,6 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
     target: 'http://localhost:8000',
     changeOrigin: true,
     ws: false,
-    logLevel: 'silent',
     timeout: 30000,
     proxyTimeout: 30000,
     // Don't rewrite the path at all - by default express strips /api when mounting at /api
@@ -58,14 +57,11 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
       }
     },
     onProxyReq: (proxyReq, req, res) => {
-      // Fix for PATCH/PUT requests - ensure proper content handling
-      if (req.body && (req.method === 'PATCH' || req.method === 'PUT' || req.method === 'POST')) {
-        const bodyData = JSON.stringify(req.body);
-        proxyReq.setHeader('Content-Type', 'application/json');
-        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-        proxyReq.write(bodyData);
-      }
+      // Don't double-encode JSON - Express already parsed it and apiRequest already stringified it
       console.log(`Proxying ${req.method} request to: ${proxyReq.path}`);
+      if (req.body && (req.method === 'PATCH' || req.method === 'PUT' || req.method === 'POST')) {
+        console.log(`Request body:`, req.body);
+      }
     },
     onProxyRes: (proxyRes, req, res) => {
       console.log(`API Proxy Response: ${req.method} ${req.originalUrl} ${proxyRes.statusCode}`);
