@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Mail, Lock, AlertCircle } from "lucide-react";
+import { Building2, Mail, Lock, AlertCircle, ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -47,6 +47,16 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center p-6">
+      {/* Back to Landing Button */}
+      <Button 
+        onClick={() => setLocation("/")}
+        variant="ghost"
+        className="absolute top-6 left-6 text-blue-700 hover:text-blue-800 hover:bg-blue-50"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Landing
+      </Button>
+      
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center space-y-4">
           <div className="flex items-center justify-center space-x-3">

@@ -1,14 +1,24 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, LogOut, Users, Calendar, CheckCircle } from "lucide-react";
+import { Building2, LogOut, Calendar, CheckCircle } from "lucide-react";
 import type { User } from "@shared/schema";
 
 export default function Home() {
   const { user } = useAuth() as { user: User | undefined };
 
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Force redirect anyway
+      window.location.href = "/";
+    }
   };
 
   return (
@@ -66,7 +76,7 @@ export default function Home() {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid md:grid-cols-4 gap-6 mb-8">
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
             <Card className="border-0 shadow-md bg-white dark:bg-tower-surface-dark">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -81,19 +91,7 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-md bg-white dark:bg-tower-surface-dark">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-tower-navy-light dark:text-gray-400">Team Members</p>
-                    <p className="text-2xl font-bold text-tower-navy dark:text-white">28</p>
-                  </div>
-                  <div className="bg-tower-navy/10 p-2 rounded-lg">
-                    <Users className="h-6 w-6 text-tower-navy" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+
 
             <Card className="border-0 shadow-md bg-white dark:bg-tower-surface-dark">
               <CardContent className="p-6">
