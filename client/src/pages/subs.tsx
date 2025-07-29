@@ -379,7 +379,7 @@ export default function Subs() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Assign to Subcontractor</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select subcontractor" />
@@ -387,11 +387,17 @@ export default function Subs() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="unassigned">Unassigned</SelectItem>
-                          {subcontractors.map((sub) => (
-                            <SelectItem key={sub.id} value={sub.id}>
-                              {sub.name}
+                          {subcontractors.length > 0 ? (
+                            subcontractors.map((sub) => (
+                              <SelectItem key={sub.id} value={sub.id}>
+                                {sub.name} ({sub.username})
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-subs" disabled>
+                              No subcontractors available
                             </SelectItem>
-                          ))}
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -534,7 +540,7 @@ export default function Subs() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Assign to Subcontractor</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select subcontractor" />
@@ -542,11 +548,17 @@ export default function Subs() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="unassigned">Unassigned</SelectItem>
-                          {subcontractors.map((sub) => (
-                            <SelectItem key={sub.id} value={sub.id}>
-                              {sub.name}
+                          {subcontractors.length > 0 ? (
+                            subcontractors.map((sub) => (
+                              <SelectItem key={sub.id} value={sub.id}>
+                                {sub.name} ({sub.username})
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-subs" disabled>
+                              No subcontractors available
                             </SelectItem>
-                          ))}
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
