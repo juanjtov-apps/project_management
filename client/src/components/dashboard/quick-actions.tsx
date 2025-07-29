@@ -66,7 +66,7 @@ function QuickActions() {
       <div className="p-6 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-800">Quick Actions</h3>
       </div>
-      <div className="p-6 space-y-3">
+      <div className="p-6 grid grid-cols-2 gap-3">
         {actions.map((action, index) => {
           const Icon = action.icon;
           console.log(`Rendering action ${index}:`, action.label);
@@ -74,14 +74,14 @@ function QuickActions() {
             <Button
               key={action.label}
               variant="outline"
-              className="w-full flex items-center justify-start space-x-3 p-4 h-auto border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all text-left min-h-[60px]"
+              className="flex flex-col items-center justify-center space-y-2 p-4 h-20 border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all"
               onClick={() => {
                 console.log("Button clicked:", action.label);
                 action.onClick();
               }}
             >
               <Icon className="text-blue-600 flex-shrink-0" size={20} />
-              <span className="font-medium text-gray-700">{action.label}</span>
+              <span className="font-medium text-gray-700 text-sm text-center">{action.label}</span>
             </Button>
           );
         })}
