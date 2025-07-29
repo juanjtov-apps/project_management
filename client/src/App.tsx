@@ -3,6 +3,9 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/useAuth";
+import Landing from "@/pages/landing";
+import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
 import Tasks from "@/pages/tasks";
@@ -19,16 +22,25 @@ import NotificationModal from "@/components/notifications/notification-modal";
 import { useState } from "react";
 
 function Router() {
+  const { isAuthenticated, isLoading } = useAuth();
+
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/projects" component={Projects} />
-      <Route path="/tasks" component={Tasks} />
-      <Route path="/schedule" component={Schedule} />
-      <Route path="/photos" component={Photos} />
-      <Route path="/logs" component={Logs} />
-      <Route path="/crew" component={Crew} />
-      <Route path="/subs" component={Subs} />
+      {isLoading || !isAuthenticated ? (
+        <Route path="/" component={Landing} />
+      ) : (
+        <>
+          <Route path="/" component={Home} />
+          <Route path="/dashboard" component={Dashboard} />
+          <Route path="/projects" component={Projects} />
+          <Route path="/tasks" component={Tasks} />
+          <Route path="/schedule" component={Schedule} />
+          <Route path="/photos" component={Photos} />
+          <Route path="/logs" component={Logs} />
+          <Route path="/crew" component={Crew} />
+          <Route path="/subs" component={Subs} />
+        </>
+      )}
       <Route component={NotFound} />
     </Switch>
   );
@@ -41,32 +53,58 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <div className="flex h-screen bg-construction-surface">
-          <Sidebar />
-          <main className="flex-1 overflow-hidden">
-            <Header 
-              onToggleMobileMenu={() => setIsMobileMenuOpen(true)}
-              onToggleNotifications={() => setIsNotificationModalOpen(true)}
-            />
-            <div className="p-6 overflow-y-auto h-full">
-              <Router />
-            </div>
-          </main>
-        </div>
-        
-        <MobileMenu 
-          isOpen={isMobileMenuOpen} 
-          onClose={() => setIsMobileMenuOpen(false)} 
+        <AuthenticatedLayout
+          isMobileMenuOpen={isMobileMenuOpen}
+          setIsMobileMenuOpen={setIsMobileMenuOpen}
+          isNotificationModalOpen={isNotificationModalOpen}
+          setIsNotificationModalOpen={setIsNotificationModalOpen}
         />
-        
-        <NotificationModal 
-          isOpen={isNotificationModalOpen} 
-          onClose={() => setIsNotificationModalOpen(false)} 
-        />
-        
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
+  );
+}
+
+function AuthenticatedLayout({ 
+  isMobileMenuOpen, 
+  setIsMobileMenuOpen, 
+  isNotificationModalOpen, 
+  setIsNotificationModalOpen 
+}: {
+  isMobileMenuOpen: boolean;
+  setIsMobileMenuOpen: (open: boolean) => void;
+  isNotificationModalOpen: boolean;
+  setIsNotificationModalOpen: (open: boolean) => void;
+}) {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading || !isAuthenticated) {
+    return <Router />;
+  }
+
+  return (
+    <div className="flex h-screen bg-construction-surface">
+      <Sidebar />
+      <main className="flex-1 overflow-hidden">
+        <Header 
+          onToggleMobileMenu={() => setIsMobileMenuOpen(true)}
+          onToggleNotifications={() => setIsNotificationModalOpen(true)}
+        />
+        <div className="p-6 overflow-y-auto h-full">
+          <Router />
+        </div>
+      </main>
+      
+      <MobileMenu 
+        isOpen={isMobileMenuOpen} 
+        onClose={() => setIsMobileMenuOpen(false)} 
+      />
+      
+      <NotificationModal 
+        isOpen={isNotificationModalOpen} 
+        onClose={() => setIsNotificationModalOpen(false)} 
+      />
+    </div>
   );
 }
 
