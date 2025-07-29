@@ -71,7 +71,7 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
   // Apply proxy to API routes, but skip auth routes and other routes we handle locally
   app.use('/api', (req, res, next) => {
     // Skip proxy for routes that we handle locally in Express
-    if (req.path.startsWith('/auth') || req.path === '/login' || req.path === '/logout' || req.path === '/callback' || req.path === '/projects' || req.path === '/tasks' || req.path.startsWith('/users')) {
+    if (req.path.startsWith('/auth') || req.path === '/login' || req.path === '/logout' || req.path === '/callback') {
       return next();
     }
     return proxy(req, res, next);
