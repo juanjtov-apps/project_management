@@ -83,7 +83,10 @@ function ProjectEditForm({ project, onClose }: { project: Project; onClose: () =
 
   const updateProjectMutation = useMutation({
     mutationFn: async (values: any) => {
-      const response = await apiRequest("PATCH", `/api/projects/${project.id}`, values);
+      const response = await apiRequest(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        body: values,
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -264,7 +267,10 @@ function ProjectCreateForm({ onClose }: { onClose: () => void }) {
         ...values,
         dueDate: values.dueDate ? values.dueDate.toISOString() : null,
       };
-      const response = await apiRequest("POST", "/api/projects", formattedData);
+      const response = await apiRequest("/api/projects", {
+        method: "POST",
+        body: formattedData,
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -477,7 +483,9 @@ export default function Projects() {
     
     if (confirm(warningMessage)) {
       try {
-        await apiRequest("DELETE", `/api/projects/${project.id}`);
+        await apiRequest(`/api/projects/${project.id}`, {
+          method: "DELETE",
+        });
         queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
         queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       } catch (error: any) {
@@ -495,7 +503,9 @@ export default function Projects() {
   const handleDeleteTask = async (task: Task) => {
     if (confirm(`Delete task "${task.title}"?`)) {
       try {
-        await apiRequest("DELETE", `/api/tasks/${task.id}`);
+        await apiRequest(`/api/tasks/${task.id}`, {
+          method: "DELETE",
+        });
         queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       } catch (error) {
         console.error("Error deleting task:", error);
@@ -1239,7 +1249,10 @@ function TaskCreateForm({ project, onClose }: { project: Project; onClose: () =>
         ...values,
         dueDate: values.dueDate ? values.dueDate.toISOString() : null,
       };
-      const response = await apiRequest("POST", "/api/tasks", formattedData);
+      const response = await apiRequest("/api/tasks", {
+        method: "POST",
+        body: formattedData,
+      });
       return response.json();
     },
     onSuccess: () => {
