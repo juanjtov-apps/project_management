@@ -262,21 +262,29 @@ function ProjectCreateForm({ onClose }: { onClose: () => void }) {
 
   const createProjectMutation = useMutation({
     mutationFn: async (values: any) => {
+      console.log("Creating project with data:", values);
       // Format the data for API
       const formattedData = {
         ...values,
         dueDate: values.dueDate ? values.dueDate.toISOString() : null,
       };
+      console.log("Formatted data:", formattedData);
       const response = await apiRequest("/api/projects", {
         method: "POST",
         body: formattedData,
       });
+      console.log("Response received:", response.status);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Project created successfully:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       onClose();
       form.reset();
+    },
+    onError: (error) => {
+      console.error("Error creating project:", error);
+      alert(`Failed to create project: ${error.message}`);
     },
   });
 
