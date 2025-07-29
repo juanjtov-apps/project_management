@@ -95,6 +95,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   };
 
+  // Get all projects route with authentication check
+  app.get('/api/projects', requireAuth, async (req, res) => {
+    try {
+      const response = await fetch('http://localhost:8000/api/projects');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Python backend error:', data);
+        return res.status(response.status).json(data);
+      }
+
+      res.json(data);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      res.status(500).json({ message: 'Failed to fetch projects', error: error.message });
+    }
+  });
+
   // Create project route with authentication check
   app.post('/api/projects', requireAuth, async (req, res) => {
     try {
