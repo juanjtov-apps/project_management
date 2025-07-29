@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, LogOut, Calendar, CheckCircle, Users } from "lucide-react";
+import QuickActions from "@/components/dashboard/quick-actions";
 import type { User } from "@shared/schema";
 
 export default function Home() {
@@ -126,41 +127,7 @@ export default function Home() {
 
           {/* Main Actions */}
           <div className="grid md:grid-cols-2 gap-8">
-            <Card className="border-0 shadow-lg bg-white dark:bg-tower-surface-dark">
-              <CardHeader>
-                <CardTitle className="text-tower-navy dark:text-white">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button 
-                  className="w-full bg-tower-navy hover:bg-tower-navy-dark text-white"
-                  onClick={() => window.location.href = '/projects'}
-                >
-                  <Building2 className="h-4 w-4 mr-2" />
-                  View All Projects
-                </Button>
-                <Button 
-                  className="w-full bg-tower-emerald hover:bg-tower-emerald-dark text-white"
-                  onClick={() => window.location.href = '/tasks'}
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Manage Tasks
-                </Button>
-                <Button 
-                  className="w-full bg-tower-navy-light hover:bg-tower-navy text-white"
-                  onClick={() => window.location.href = '/subs'}
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Subcontractors
-                </Button>
-                <Button 
-                  className="w-full bg-gray-600 hover:bg-gray-700 text-white"
-                  onClick={() => window.location.href = '/photos'}
-                >
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Upload Photos
-                </Button>
-              </CardContent>
-            </Card>
+            <QuickActions />
 
             <Card className="border-0 shadow-lg bg-white dark:bg-tower-surface-dark">
               <CardHeader>
