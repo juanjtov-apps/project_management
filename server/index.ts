@@ -42,8 +42,8 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
     changeOrigin: true,
     ws: false,
     logLevel: 'silent',
-    timeout: 10000,
-    proxyTimeout: 10000,
+    timeout: 30000,
+    proxyTimeout: 30000,
     // Don't rewrite the path at all - by default express strips /api when mounting at /api
     // So we need to add it back
     pathRewrite: (path, req) => {
@@ -58,10 +58,14 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
       }
     },
     onProxyReq: (proxyReq, req, res) => {
-      // Add timeout to prevent hanging requests
-      proxyReq.setTimeout(10000, () => {
-        proxyReq.destroy();
-      });
+      // Fix for PATCH/PUT requests - ensure proper content handling
+      if (req.body && (req.method === 'PATCH' || req.method === 'PUT' || req.method === 'POST')) {
+        const bodyData = JSON.stringify(req.body);
+        proxyReq.setHeader('Content-Type', 'application/json');
+        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+        proxyReq.write(bodyData);
+      }
+      console.log(`Proxying ${req.method} request to: ${proxyReq.path}`);
     },
     onProxyRes: (proxyRes, req, res) => {
       console.log(`API Proxy Response: ${req.method} ${req.originalUrl} ${proxyRes.statusCode}`);
