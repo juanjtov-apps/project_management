@@ -66,22 +66,24 @@ function QuickActions() {
       <div className="p-6 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-800">Quick Actions</h3>
       </div>
-      <div className="p-6 grid grid-cols-2 gap-3">
+      <div className="p-6 grid grid-cols-2 gap-4">
         {actions.map((action, index) => {
           const Icon = action.icon;
           console.log(`Rendering action ${index}:`, action.label);
           return (
             <Button
-              key={action.label}
+              key={`action-${index}-${action.label}`}
               variant="outline"
-              className="flex flex-col items-center justify-center space-y-2 p-4 h-20 border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all"
-              onClick={() => {
+              className="flex flex-col items-center justify-center gap-2 p-4 h-20 border-2 border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all bg-white"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 console.log("Button clicked:", action.label);
                 action.onClick();
               }}
             >
-              <Icon className="text-blue-600 flex-shrink-0" size={20} />
-              <span className="font-medium text-gray-700 text-sm text-center">{action.label}</span>
+              <Icon className="text-blue-600" size={20} />
+              <span className="font-medium text-gray-700 text-xs text-center leading-tight">{action.label}</span>
             </Button>
           );
         })}
