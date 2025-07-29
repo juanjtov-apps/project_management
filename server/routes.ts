@@ -86,6 +86,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Add middleware to check authentication for protected routes
+  const requireAuth = (req: any, res: any, next: any) => {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    next();
+  };
+
+  // Create project route with authentication check
+  app.post('/api/projects', requireAuth, async (req, res) => {
+    try {
+      console.log('Creating project via Express:', req.body);
+      const projectData = req.body;
+      
+      const response = await fetch('http://localhost:8000/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(projectData)
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Python backend error:', data);
+        return res.status(response.status).json(data);
+      }
+
+      console.log('Project created successfully:', data);
+      res.status(201).json(data);
+    } catch (error) {
+      console.error('Error creating project:', error);
+      res.status(500).json({ message: 'Failed to create project', error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
