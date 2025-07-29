@@ -74,6 +74,12 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
     if (req.path.startsWith('/auth') || req.path === '/login' || req.path === '/logout' || req.path === '/callback') {
       return next();
     }
+    
+    // Add special handling for PATCH requests to prevent aborts
+    if (req.method === 'PATCH') {
+      console.log('Handling PATCH request:', req.path, 'with body:', req.body);
+    }
+    
     return proxy(req, res, next);
   });
 

@@ -237,10 +237,23 @@ export default function Subs() {
   const completionToggleMutation = useMutation({
     mutationFn: async ({ taskId, status }: { taskId: string; status: string }) => {
       console.log("Toggling task completion:", taskId, "to", status);
-      return await apiRequest(`/api/tasks/${taskId}`, {
+      
+      // Use direct fetch with proper headers to bypass proxy issues
+      const response = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
-        body: { status },
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status }),
       });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Toggle error:", errorText);
+        throw new Error(`Failed to update task: ${response.status}`);
+      }
+      
+      return response.json();
     },
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
