@@ -164,11 +164,14 @@ export default function Subs() {
   // Task update mutation
   const updateTaskMutation = useMutation({
     mutationFn: async (data: { id: string; updates: Partial<SubcontractorTaskForm> }) => {
+      console.log("Updating task:", data.id, "with data:", data.updates);
       const formattedData = {
         ...data.updates,
         assigneeId: data.updates.assigneeId === "unassigned" ? null : data.updates.assigneeId || null,
-        dueDate: data.updates.dueDate ? new Date(data.updates.dueDate).toISOString() : null,
+        dueDate: data.updates.dueDate ? new Date(data.updates.dueDate + 'T00:00:00Z').toISOString() : null,
       };
+      console.log("Formatted data for API:", formattedData);
+      
       const response = await fetch(`/api/tasks/${data.id}`, {
         method: "PATCH",
         headers: {
@@ -176,18 +179,24 @@ export default function Subs() {
         },
         body: JSON.stringify(formattedData),
       });
+      
+      console.log("Update response status:", response.status);
       if (!response.ok) {
-        throw new Error('Failed to update task');
+        const errorText = await response.text();
+        console.error("Update error:", errorText);
+        throw new Error(`Failed to update task: ${response.status} ${errorText}`);
       }
       return response.json();
     },
     onSuccess: () => {
+      console.log("Task update successful");
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setIsEditTaskOpen(false);
       setEditingTask(null);
       toast({ title: "Task updated successfully" });
     },
     onError: (error) => {
+      console.error("Task update error:", error);
       toast({ 
         title: "Error updating task", 
         description: error.message,
@@ -205,7 +214,7 @@ export default function Subs() {
       assigneeId: task.assigneeId || "unassigned",
       priority: task.priority,
       status: task.status,
-      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 16) : "",
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : "",
       isMilestone: task.isMilestone || false,
     });
     setIsEditTaskOpen(true);
@@ -228,7 +237,10 @@ export default function Subs() {
 
   const onSubmitEditTask = (data: SubcontractorTaskForm) => {
     if (editingTask) {
-      updateTaskMutation.mutate({ id: editingTask.id, updates: data });
+      updateTaskMutation.mutate({
+        id: editingTask.id,
+        updates: data
+      });
     }
   };
 
@@ -444,9 +456,9 @@ export default function Subs() {
                       <FormLabel>Due Date</FormLabel>
                       <FormControl>
                         <Input 
-                          type="datetime-local" 
+                          type="date" 
                           {...field} 
-                          value={field.value ? new Date(field.value).toISOString().slice(0, 16) : ""}
+                          value={field.value ? new Date(field.value).toISOString().slice(0, 10) : ""}
                         />
                       </FormControl>
                       <FormMessage />
@@ -629,9 +641,9 @@ export default function Subs() {
                       <FormLabel>Due Date</FormLabel>
                       <FormControl>
                         <Input 
-                          type="datetime-local" 
+                          type="date" 
                           {...field} 
-                          value={field.value ? new Date(field.value).toISOString().slice(0, 16) : ""}
+                          value={field.value ? new Date(field.value).toISOString().slice(0, 10) : ""}
                         />
                       </FormControl>
                       <FormMessage />
