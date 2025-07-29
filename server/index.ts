@@ -21,7 +21,20 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
   // Wait for Python server to start
   await new Promise(resolve => setTimeout(resolve, 3000));
 
-  // Use http-proxy-middleware for API routes only
+  // Add JSON parsing first for auth routes
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: false }));
+
+  // Register authentication routes first
+  try {
+    const { registerRoutes } = await import('./routes');
+    await registerRoutes(app);
+    console.log('Authentication routes registered successfully');
+  } catch (error) {
+    console.error('Failed to register authentication routes:', error);
+  }
+
+  // Use http-proxy-middleware for remaining API routes only
   const { createProxyMiddleware } = await import('http-proxy-middleware');
   
   const proxy = createProxyMiddleware({
@@ -47,11 +60,14 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
     }
   });
   
-  app.use('/api', proxy);
-  
-  // Add JSON parsing for non-API routes
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
+  // Apply proxy to API routes, but skip auth routes
+  app.use('/api', (req, res, next) => {
+    // Skip proxy for auth routes that we handle locally
+    if (req.path.startsWith('/auth') || req.path === '/login' || req.path === '/logout' || req.path === '/callback') {
+      return next();
+    }
+    return proxy(req, res, next);
+  });
 
   const httpServer = createServer(app);
   return httpServer;
