@@ -8,6 +8,18 @@ from src.database.connection import db_manager
 from src.models import *
 from src.utils.data_conversion import to_camel_case, to_snake_case
 
+def normalize_datetime(dt):
+    """Convert timezone-aware datetime to timezone-naive UTC datetime."""
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        # Parse ISO string to datetime
+        dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+    if dt.tzinfo is not None:
+        # Convert to UTC and make naive
+        return dt.utctimetuple()
+    return dt
+
 
 class BaseRepository:
     """Base repository with common database operations."""
@@ -54,6 +66,17 @@ class ProjectRepository(BaseRepository):
         data = project.dict(by_alias=True)
         data = self._convert_from_camel_case(data)
         
+        # Handle due_date timezone conversion
+        due_date = data.get('due_date')
+        if due_date:
+            if isinstance(due_date, str):
+                # Parse ISO string and convert to naive UTC
+                dt = datetime.fromisoformat(due_date.replace('Z', '+00:00'))
+                due_date = dt.replace(tzinfo=None) if dt.tzinfo else dt
+            elif hasattr(due_date, 'tzinfo') and due_date.tzinfo:
+                # Convert timezone-aware to naive
+                due_date = due_date.replace(tzinfo=None)
+        
         query = f"""
             INSERT INTO {self.table_name} 
             (id, name, description, location, status, progress, due_date, created_at)
@@ -64,7 +87,7 @@ class ProjectRepository(BaseRepository):
         row = await db_manager.execute_one(
             query, project_id, data.get('name'), data.get('description'), 
             data.get('location'), data.get('status'), data.get('progress'),
-            data.get('due_date'), now
+            due_date, now
         )
         return Project(**self._convert_to_camel_case(dict(row)))
     
@@ -75,6 +98,17 @@ class ProjectRepository(BaseRepository):
         
         if not data:
             return await self.get_by_id(project_id)
+        
+        # Handle due_date timezone conversion
+        if 'due_date' in data and data['due_date']:
+            due_date = data['due_date']
+            if isinstance(due_date, str):
+                # Parse ISO string and convert to naive UTC
+                dt = datetime.fromisoformat(due_date.replace('Z', '+00:00'))
+                data['due_date'] = dt.replace(tzinfo=None) if dt.tzinfo else dt
+            elif hasattr(due_date, 'tzinfo') and due_date.tzinfo:
+                # Convert timezone-aware to naive
+                data['due_date'] = due_date.replace(tzinfo=None)
         
         set_clauses = []
         values = []
