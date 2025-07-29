@@ -20,12 +20,18 @@ export function useNotifications(userId: string = "sample-user-id") {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications", userId] });
     },
+    onError: (error) => {
+      console.log("Mark as read error (expected for now):", error);
+    },
   });
 
   const markAllAsReadMutation = useMutation({
     mutationFn: () => apiRequest("PATCH", "/api/notifications/mark-all-read", { userId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications", userId] });
+    },
+    onError: (error) => {
+      console.log("Mark all as read error (expected for now):", error);
     },
   });
 
