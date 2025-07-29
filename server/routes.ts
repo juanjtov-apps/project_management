@@ -142,6 +142,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all tasks route with authentication check
+  app.get('/api/tasks', requireAuth, async (req, res) => {
+    try {
+      const response = await fetch('http://localhost:8000/api/tasks');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Python backend error:', data);
+        return res.status(response.status).json(data);
+      }
+
+      res.json(data);
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      res.status(500).json({ message: 'Failed to fetch tasks', error: error.message });
+    }
+  });
+
+  // Create task route with authentication check
+  app.post('/api/tasks', requireAuth, async (req, res) => {
+    try {
+      console.log('Creating task via Express:', req.body);
+      const taskData = req.body;
+      
+      const response = await fetch('http://localhost:8000/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(taskData)
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Python backend error:', data);
+        return res.status(response.status).json(data);
+      }
+
+      console.log('Task created successfully:', data);
+      res.status(201).json(data);
+    } catch (error) {
+      console.error('Error creating task:', error);
+      res.status(500).json({ message: 'Failed to create task', error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
