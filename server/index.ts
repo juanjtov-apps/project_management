@@ -41,8 +41,9 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
     target: 'http://localhost:8000',
     changeOrigin: true,
     ws: false,
-    logLevel: 'debug',
-    timeout: 30000,
+    logLevel: 'silent',
+    timeout: 10000,
+    proxyTimeout: 10000,
     // Don't rewrite the path at all - by default express strips /api when mounting at /api
     // So we need to add it back
     pathRewrite: (path, req) => {
@@ -53,21 +54,24 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
     onError: (err, req, res) => {
       console.error('API Proxy error:', err.message);
       if (!res.headersSent) {
-        res.status(500).json({ message: 'Proxy error', details: err.message });
+        res.status(500).json({ message: 'Backend service unavailable', error: err.message });
       }
     },
     onProxyReq: (proxyReq, req, res) => {
-      console.log(`API Proxy: ${req.method} ${req.originalUrl} -> ${proxyReq.path}`);
+      // Add timeout to prevent hanging requests
+      proxyReq.setTimeout(10000, () => {
+        proxyReq.destroy();
+      });
     },
     onProxyRes: (proxyRes, req, res) => {
       console.log(`API Proxy Response: ${req.method} ${req.originalUrl} ${proxyRes.statusCode}`);
     }
   });
   
-  // Apply proxy to API routes, but skip auth routes
+  // Apply proxy to API routes, but skip auth routes and project creation
   app.use('/api', (req, res, next) => {
-    // Skip proxy for auth routes that we handle locally
-    if (req.path.startsWith('/auth') || req.path === '/login' || req.path === '/logout' || req.path === '/callback') {
+    // Skip proxy for auth routes and project creation that we handle locally
+    if (req.path.startsWith('/auth') || req.path === '/login' || req.path === '/logout' || req.path === '/callback' || req.path === '/projects') {
       return next();
     }
     return proxy(req, res, next);
