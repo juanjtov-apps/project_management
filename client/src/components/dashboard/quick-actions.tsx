@@ -9,22 +9,34 @@ export default function QuickActions() {
     {
       icon: Plus,
       label: "Add Project",
-      onClick: () => setLocation("/projects")
+      onClick: () => {
+        console.log("Navigating to projects");
+        setLocation("/projects");
+      }
     },
     {
       icon: ClipboardList,
       label: "Add Tasks",
-      onClick: () => setLocation("/tasks")
+      onClick: () => {
+        console.log("Navigating to tasks");
+        setLocation("/tasks");
+      }
     },
     {
       icon: Camera,
       label: "Upload Photos",
-      onClick: () => setLocation("/photos")
+      onClick: () => {
+        console.log("Navigating to photos");
+        setLocation("/photos");
+      }
     },
     {
       icon: UserPlus,
       label: "Assign Task",
-      onClick: () => setLocation("/tasks")
+      onClick: () => {
+        console.log("Navigating to subs");
+        setLocation("/subs");
+      }
     }
   ];
 
