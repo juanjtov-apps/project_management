@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, LogOut, Calendar, CheckCircle } from "lucide-react";
+import { Building2, LogOut, Calendar, CheckCircle, Users } from "lucide-react";
 import type { User } from "@shared/schema";
 
 export default function Home() {
