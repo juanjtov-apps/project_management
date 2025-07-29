@@ -56,22 +56,6 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
         res.status(500).json({ message: 'Backend service unavailable', error: err.message });
       }
     },
-    onProxyReq: (proxyReq, req, res) => {
-      console.log(`Proxying ${req.method} request to: ${proxyReq.path}`);
-      
-      // Fix for PATCH/PUT/POST requests with body - properly forward the body
-      if (req.body && (req.method === 'PATCH' || req.method === 'PUT' || req.method === 'POST')) {
-        const bodyData = JSON.stringify(req.body);
-        console.log(`Request body:`, req.body, 'serialized:', bodyData);
-        
-        // Set proper headers
-        proxyReq.setHeader('Content-Type', 'application/json');
-        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-        
-        // Write the body data
-        proxyReq.write(bodyData);
-      }
-    },
     onProxyRes: (proxyRes, req, res) => {
       console.log(`API Proxy Response: ${req.method} ${req.originalUrl} ${proxyRes.statusCode}`);
     }
