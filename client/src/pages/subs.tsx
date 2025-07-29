@@ -172,21 +172,10 @@ export default function Subs() {
       };
       console.log("Formatted data for API:", formattedData);
       
-      const response = await fetch(`/api/tasks/${data.id}`, {
+      return await apiRequest(`/api/tasks/${data.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formattedData),
+        body: formattedData,
       });
-      
-      console.log("Update response status:", response.status);
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Update error:", errorText);
-        throw new Error(`Failed to update task: ${response.status} ${errorText}`);
-      }
-      return response.json();
     },
     onSuccess: () => {
       console.log("Task update successful");
@@ -250,7 +239,7 @@ export default function Subs() {
       console.log("Toggling task completion:", taskId, "to", status);
       return await apiRequest(`/api/tasks/${taskId}`, {
         method: "PATCH",
-        body: JSON.stringify({ status }),
+        body: { status },
       });
     },
     onSuccess: (_, { status }) => {
