@@ -31,7 +31,7 @@ export default function QuickActions() {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="p-6 border-b border-gray-200">
-        <h3 className="text-lg font-semibold construction-secondary">Quick Actions</h3>
+        <h3 className="text-lg font-semibold text-gray-800">Quick Actions</h3>
       </div>
       <div className="p-6 space-y-3">
         {actions.map((action) => {
@@ -44,7 +44,7 @@ export default function QuickActions() {
               onClick={action.onClick}
             >
               <Icon className="text-blue-600" size={20} />
-              <span className="font-medium construction-secondary">{action.label}</span>
+              <span className="font-medium text-gray-700">{action.label}</span>
             </Button>
           );
         })}
