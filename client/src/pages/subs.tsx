@@ -244,35 +244,45 @@ export default function Subs() {
     }
   };
 
-  // Quick completion toggle function
-  const handleTaskCompletionToggle = async (task: Task, checked: boolean) => {
-    const newStatus = checked ? "completed" : "pending";
-    
-    try {
-      const response = await fetch(`/api/tasks/${task.id}`, {
+  // Quick completion toggle mutation
+  const completionToggleMutation = useMutation({
+    mutationFn: async ({ taskId, status }: { taskId: string; status: string }) => {
+      console.log("Toggling task completion:", taskId, "to", status);
+      const response = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status }),
       });
       
       if (!response.ok) {
-        throw new Error('Failed to update task');
+        const errorText = await response.text();
+        console.error("Toggle error:", errorText);
+        throw new Error(`Failed to update task: ${response.status}`);
       }
-      
+      return response.json();
+    },
+    onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({ 
-        title: checked ? "Task completed!" : "Task marked as pending",
-        description: `${task.title} has been ${checked ? "marked as completed" : "reopened"}.`
+        title: status === "completed" ? "Task completed!" : "Task marked as pending",
+        description: "Task status updated successfully."
       });
-    } catch (error) {
+    },
+    onError: (error) => {
+      console.error("Failed to update task:", error);
       toast({ 
-        title: "Error updating task", 
+        title: "Error", 
         description: "Failed to update task status",
         variant: "destructive"
       });
-    }
+    },
+  });
+
+  const handleTaskCompletionToggle = (task: Task, checked: boolean) => {
+    const newStatus = checked ? "completed" : "pending";
+    completionToggleMutation.mutate({ taskId: task.id, status: newStatus });
   };
 
   const getStatusColor = (status: string) => {

@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Camera, ClipboardList, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
 
-export default function QuickActions() {
+function QuickActions() {
   const [, setLocation] = useLocation();
   
   console.log("QuickActions component rendering - this should appear!");
@@ -89,3 +89,5 @@ export default function QuickActions() {
     </div>
   );
 }
+
+export default QuickActions;
