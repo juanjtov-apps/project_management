@@ -6,20 +6,48 @@ import { setupVite, serveStatic, log } from "./vite";
 const app = express();
 
 async function setupPythonBackend(app: express.Express): Promise<Server> {
-  // Start Python backend on port 8000
-  const pythonProcess = spawn("python", ["python_backend/main.py"], {
-    cwd: process.cwd(),
-    stdio: "inherit",
+  // Start Python backend on port 8000 using main.py in root directory
+  console.log("Starting Python FastAPI backend...");
+  
+  const pythonProcess = spawn("python", ["-c", `
+import os
+import sys
+os.chdir('/home/runner/workspace')
+sys.path.insert(0, '/home/runner/workspace')
+from main import app
+import uvicorn
+print("Python backend starting on port 8000...")
+uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+`], {
+    cwd: '/home/runner/workspace',
+    stdio: ["pipe", "pipe", "pipe"],
     env: { ...process.env, PORT: "8000" }
+  });
+
+  pythonProcess.stdout?.on('data', (data) => {
+    console.log(`[python-backend] ${data.toString().trim()}`);
+  });
+
+  pythonProcess.stderr?.on('data', (data) => {
+    console.error(`[python-backend] ${data.toString().trim()}`);
   });
 
   pythonProcess.on("error", (error) => {
     console.error("Failed to start Python backend:", error);
-    process.exit(1);
+    // Don't exit - let Express continue serving frontend
+  });
+
+  pythonProcess.on("close", (code) => {
+    console.log(`[python-backend] Process exited with code ${code}`);
+    // Try to restart after 3 seconds
+    setTimeout(() => {
+      console.log("Attempting to restart Python backend...");
+      setupPythonBackend(app);
+    }, 3000);
   });
 
   // Wait for Python server to start
-  await new Promise(resolve => setTimeout(resolve, 3000));
+  await new Promise(resolve => setTimeout(resolve, 5000));
 
   // Add JSON parsing first for auth routes
   app.use(express.json());
