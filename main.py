@@ -34,10 +34,20 @@ def format_datetime_for_frontend(dt_value):
     try:
         # Handle various string formats from PostgreSQL
         dt_str = str(dt_value).replace('Z', '+00:00')
-        dt = datetime.fromisoformat(dt_str)
-        return dt.isoformat()
-    except:
-        # Fallback to string representation
+        
+        # Try different parsing methods
+        try:
+            # First try direct ISO format parsing
+            dt = datetime.fromisoformat(dt_str)
+            return dt.isoformat()
+        except:
+            # Try parsing PostgreSQL timestamp format
+            from datetime import datetime
+            dt = datetime.strptime(dt_str.split('.')[0], '%Y-%m-%d %H:%M:%S')
+            return dt.isoformat()
+    except Exception as e:
+        print(f"Date parsing error for value '{dt_value}': {e}")
+        # Return the original string for debugging
         return str(dt_value)
 
 # Create FastAPI app
@@ -957,9 +967,9 @@ async def get_companies():
                 company['subscription_tier'] = 'basic'
             company['is_active'] = company.get('status') == 'active'
             
-            # Fix date formatting for frontend
-            company['created_at'] = format_datetime_for_frontend(company.get('created_at'))
-            company['updated_at'] = format_datetime_for_frontend(company.get('updated_at'))
+            # Fix date formatting for frontend (PostgreSQL returns camelCase field names)
+            company['created_at'] = format_datetime_for_frontend(company.get('createdAt'))
+            company['updated_at'] = format_datetime_for_frontend(company.get('updatedAt'))
             
         return companies
     except Exception as e:
@@ -1055,9 +1065,9 @@ async def create_company(request: Request):
             company['subscription_tier'] = company['settings'].get('subscription_tier', 'basic')
             company['is_active'] = company.get('status') == 'active'
             
-            # Fix date formatting for frontend
-            company['created_at'] = format_datetime_for_frontend(company.get('created_at'))
-            company['updated_at'] = format_datetime_for_frontend(company.get('updated_at'))
+            # Fix date formatting for frontend (PostgreSQL returns camelCase field names)
+            company['created_at'] = format_datetime_for_frontend(company.get('createdAt'))
+            company['updated_at'] = format_datetime_for_frontend(company.get('updatedAt'))
         
         return company
     except Exception as e:
@@ -1137,9 +1147,9 @@ async def update_company(company_id: int, request: Request):
             company['subscription_tier'] = 'basic'
         company['is_active'] = company.get('status') == 'active'
         
-        # Fix date formatting - map database fields to frontend fields
-        company['created_at'] = format_datetime_for_frontend(company.get('created_at'))
-        company['updated_at'] = format_datetime_for_frontend(company.get('updated_at'))
+        # Fix date formatting - map database fields to frontend fields (PostgreSQL returns camelCase)
+        company['created_at'] = format_datetime_for_frontend(company.get('createdAt'))
+        company['updated_at'] = format_datetime_for_frontend(company.get('updatedAt'))
         
         return company
     except HTTPException:
