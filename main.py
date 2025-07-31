@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import psycopg2
+import psycopg2.extras
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import SimpleConnectionPool
 from pydantic import BaseModel, Field
@@ -836,37 +837,54 @@ async def mark_all_notifications_as_read(request_data: MarkAllReadRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to mark all notifications as read")
 
-# Dashboard stats
+# Dashboard stats - Optimized single query
 @app.get("/api/dashboard/stats", response_model=DashboardStats)
 async def get_dashboard_stats():
-    """Get dashboard statistics"""
+    """Get dashboard statistics with optimized single query"""
     try:
-        # Get active projects count
-        active_projects_query = "SELECT COUNT(*) as count FROM projects WHERE status = 'active'"
-        active_projects_result = execute_query(active_projects_query, fetch_one=True)
-        active_projects = active_projects_result["count"] if active_projects_result else 0
-        
-        # Get pending tasks count
-        pending_tasks_query = "SELECT COUNT(*) as count FROM tasks WHERE status IN ('pending', 'in-progress')"
-        pending_tasks_result = execute_query(pending_tasks_query, fetch_one=True)
-        pending_tasks = pending_tasks_result["count"] if pending_tasks_result else 0
-        
-        # Get total photos count
-        photos_query = "SELECT COUNT(*) as count FROM photos"
-        photos_result = execute_query(photos_query, fetch_one=True)
-        photos_uploaded = photos_result["count"] if photos_result else 0
-        
-        # Get photos uploaded today
         today = datetime.now().date()
-        photos_today_query = "SELECT COUNT(*) as count FROM photos WHERE DATE(created_at) = %s"
-        photos_today_result = execute_query(photos_today_query, (today,), fetch_one=True)
-        photos_uploaded_today = photos_today_result["count"] if photos_today_result else 0
+        
+        # Single optimized query to get all stats at once
+        optimized_query = """
+        WITH project_stats AS (
+            SELECT COUNT(*) FILTER (WHERE status = 'active') as active_projects
+            FROM projects
+        ),
+        task_stats AS (
+            SELECT COUNT(*) FILTER (WHERE status IN ('pending', 'in-progress')) as pending_tasks
+            FROM tasks
+        ),
+        photo_stats AS (
+            SELECT 
+                COUNT(*) as total_photos,
+                COUNT(*) FILTER (WHERE DATE(created_at) = %s) as photos_today
+            FROM photos
+        )
+        SELECT 
+            ps.active_projects,
+            ts.pending_tasks,
+            phs.total_photos as photos_uploaded,
+            phs.photos_today as photos_uploaded_today
+        FROM project_stats ps, task_stats ts, photo_stats phs
+        """
+        
+        result = execute_query(optimized_query, (today,), fetch_one=True)
+        
+        if not result:
+            # Fallback values if query fails
+            return DashboardStats(
+                activeProjects=0,
+                pendingTasks=0,
+                photosUploaded=0,
+                photosUploadedToday=0,
+                crewMembers=28
+            )
         
         return DashboardStats(
-            activeProjects=active_projects,
-            pendingTasks=pending_tasks,
-            photosUploaded=photos_uploaded,
-            photosUploadedToday=photos_uploaded_today,
+            activeProjects=result.get("active_projects", 0),
+            pendingTasks=result.get("pending_tasks", 0),
+            photosUploaded=result.get("photos_uploaded", 0),
+            photosUploadedToday=result.get("photos_uploaded_today", 0),
             crewMembers=28  # Static for demo
         )
     except Exception as e:
@@ -936,19 +954,35 @@ async def create_company(request: Request):
     """Create a new company"""
     try:
         data = await request.json()
+        
+        # Validate required fields
+        if not data.get('name'):
+            raise HTTPException(status_code=400, detail="Company name is required")
+        
+        # Use correct column names based on the actual schema
         query = """
-            INSERT INTO companies (name, description, industry, is_active)
+            INSERT INTO companies (name, domain, status, settings)
             VALUES (%s, %s, %s, %s)
             RETURNING *
         """
+        
+        # Handle settings as JSONB - use psycopg2.extras.Json for proper adaptation
+        settings = data.get('settings', {})
+        
         company = execute_query(
             query, 
-            (data.get('name'), data.get('description'), data.get('industry'), data.get('is_active', True)),
+            (
+                data.get('name'), 
+                data.get('domain', f"{data.get('name', 'company').lower().replace(' ', '')}.com"),
+                data.get('status', 'active'),
+                psycopg2.extras.Json(settings)
+            ),
             fetch_one=True
         )
         return company
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to create company")
+        print(f"RBAC company creation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create company: {str(e)}")
 
 # API RBAC endpoints (with /api prefix for frontend compatibility)
 @app.get("/api/rbac/permissions")
@@ -1131,18 +1165,21 @@ async def update_api_company(company_id: str, request: Request):
 async def health_check():
     return {"status": "ok", "message": "Tower Flow API is running"}
 
-# In development, we need to proxy to Vite dev server
+# Catch-all route with proper 404 status
 @app.api_route("/{path:path}", methods=["GET"])
 async def catch_all(path: str, request: Request):
-    """Catch-all route for development mode to proxy to Vite"""
+    """Catch-all route for development mode with proper 404 status"""
     if is_development:
-        # This should not be reached in development as Vite should handle routing
-        return {"detail": "Not Found"}
+        # Return proper 404 for API paths that don't exist
+        if path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API endpoint not found")
+        # For non-API paths, return 404 as well
+        raise HTTPException(status_code=404, detail="Not Found")
     else:
         # In production, serve index.html for SPA routing
         if Path("dist/public/index.html").exists():
             return FileResponse("dist/public/index.html")
-        return {"detail": "Not Found"}
+        raise HTTPException(status_code=404, detail="Not Found")
 
 if __name__ == "__main__":
     import uvicorn
