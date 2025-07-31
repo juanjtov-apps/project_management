@@ -938,6 +938,12 @@ async def get_companies():
                 company['subscription_tier'] = 'basic'
             company['is_active'] = company.get('status') == 'active'
             
+            # Fix date formatting for frontend
+            if company.get('createdAt'):
+                company['createdAt'] = company['createdAt'].isoformat() if hasattr(company['createdAt'], 'isoformat') else str(company['createdAt'])
+            if company.get('updatedAt'):
+                company['updatedAt'] = company['updatedAt'].isoformat() if hasattr(company['updatedAt'], 'isoformat') else str(company['updatedAt'])
+            
         return companies
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch companies")
@@ -1031,11 +1037,98 @@ async def create_company(request: Request):
             company['type'] = company['settings'].get('type', 'customer')
             company['subscription_tier'] = company['settings'].get('subscription_tier', 'basic')
             company['is_active'] = company.get('status') == 'active'
+            
+            # Fix date formatting for frontend
+            if company.get('createdAt'):
+                company['createdAt'] = company['createdAt'].isoformat() if hasattr(company['createdAt'], 'isoformat') else str(company['createdAt'])
+            if company.get('updatedAt'):
+                company['updatedAt'] = company['updatedAt'].isoformat() if hasattr(company['updatedAt'], 'isoformat') else str(company['updatedAt'])
         
         return company
     except Exception as e:
         print(f"RBAC company creation error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to create company: {str(e)}")
+
+@app.patch("/rbac/companies/{company_id}")
+async def update_company(company_id: int, request: Request):
+    """Update a company"""
+    try:
+        data = await request.json()
+        
+        # Build dynamic update query based on provided fields
+        update_fields = []
+        params = []
+        
+        if data.get('name'):
+            update_fields.append("name = %s")
+            params.append(data['name'])
+            
+        if data.get('domain'):
+            update_fields.append("domain = %s")
+            params.append(data['domain'])
+            
+        if data.get('status'):
+            update_fields.append("status = %s")
+            params.append(data['status'])
+            
+        # Handle settings update
+        if any(key in data for key in ['type', 'subscription_tier', 'settings']):
+            # Get existing settings first
+            existing_query = "SELECT settings FROM companies WHERE id = %s"
+            existing_company = execute_query(existing_query, (company_id,), fetch_one=True)
+            
+            existing_settings = existing_company.get('settings', {}) if existing_company else {}
+            
+            # Update settings
+            if data.get('type'):
+                existing_settings['type'] = data['type']
+            if data.get('subscription_tier'):
+                existing_settings['subscription_tier'] = data['subscription_tier']
+            if data.get('settings'):
+                existing_settings.update(data['settings'])
+            
+            update_fields.append("settings = %s")
+            params.append(psycopg2.extras.Json(existing_settings))
+        
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No valid fields to update")
+        
+        # Add company_id to params for WHERE clause
+        params.append(company_id)
+        
+        query = f"""
+            UPDATE companies 
+            SET {', '.join(update_fields)}, updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+            RETURNING *
+        """
+        
+        company = execute_query(query, tuple(params), fetch_one=True)
+        
+        if not company:
+            raise HTTPException(status_code=404, detail="Company not found")
+        
+        # Add frontend-compatible fields
+        if company.get('settings'):
+            company['type'] = company['settings'].get('type', 'customer')
+            company['subscription_tier'] = company['settings'].get('subscription_tier', 'basic')
+        else:
+            company['type'] = 'customer'
+            company['subscription_tier'] = 'basic'
+        company['is_active'] = company.get('status') == 'active'
+        
+        # Fix date formatting
+        if company.get('createdAt'):
+            company['createdAt'] = company['createdAt'].isoformat() if hasattr(company['createdAt'], 'isoformat') else str(company['createdAt'])
+        if company.get('updatedAt'):
+            company['updatedAt'] = company['updatedAt'].isoformat() if hasattr(company['updatedAt'], 'isoformat') else str(company['updatedAt'])
+        
+        return company
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"RBAC company update error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update company: {str(e)}")
 
 # API RBAC endpoints (with /api prefix for frontend compatibility)
 @app.get("/api/rbac/permissions")
