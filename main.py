@@ -1070,6 +1070,11 @@ async def update_company(company_id: int, request: Request):
         if data.get('status'):
             update_fields.append("status = %s")
             params.append(data['status'])
+        elif 'is_active' in data:
+            # Handle is_active field from frontend
+            status = 'active' if data.get('is_active') else 'inactive'
+            update_fields.append("status = %s")
+            params.append(status)
             
         # Handle settings update
         if any(key in data for key in ['type', 'subscription_tier', 'settings']):
