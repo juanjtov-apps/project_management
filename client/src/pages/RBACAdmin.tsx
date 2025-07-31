@@ -160,7 +160,8 @@ export default function RBACAdmin() {
       toast({ title: 'Success', description: 'Company created successfully' });
     },
     onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      console.error('Company creation error:', error);
+      toast({ title: 'Error', description: error.message || 'Failed to create company', variant: 'destructive' });
     }
   });
 
@@ -636,13 +637,17 @@ export default function RBACAdmin() {
                 </Button>
                 <Button 
                   onClick={() => {
+                    if (!newCompany.name.trim()) {
+                      toast({ title: 'Error', description: 'Company name is required', variant: 'destructive' });
+                      return;
+                    }
                     createCompanyMutation.mutate(newCompany);
                     setIsCreateDialogOpen(false);
                     setNewCompany({ name: '', type: 'customer', subscription_tier: 'basic' });
                   }}
                   disabled={createCompanyMutation.isPending}
                 >
-                  Create Company
+                  {createCompanyMutation.isPending ? 'Creating...' : 'Create Company'}
                 </Button>
               </DialogFooter>
             </DialogContent>

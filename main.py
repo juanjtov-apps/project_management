@@ -1093,17 +1093,29 @@ async def create_api_company(request: Request):
     """Create a new company"""
     try:
         data = await request.json()
+        
+        # Validate required fields
+        if not data.get("name"):
+            raise HTTPException(status_code=400, detail="Company name is required")
+        
+        # Get current companies to generate new ID
+        companies = await get_api_companies()
+        next_id = len(companies) + 1
+        
         new_company = {
-            "id": f"comp-{len((await get_api_companies())) + 1:03d}",
+            "id": f"comp-{next_id:03d}",
             "name": data["name"],
-            "type": data["type"],
-            "subscription_tier": data["subscription_tier"],
+            "type": data.get("type", "customer"),
+            "subscription_tier": data.get("subscription_tier", "basic"),
             "created_at": "2025-01-31T19:15:00",
             "is_active": True
         }
         return new_company
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail="Invalid company data")
+        print(f"Company creation error: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid company data: {str(e)}")
 
 @app.patch("/api/rbac/companies/{company_id}")
 async def update_api_company(company_id: str, request: Request):
