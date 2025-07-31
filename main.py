@@ -22,17 +22,8 @@ load_dotenv()
 # Create FastAPI app
 app = FastAPI(title="Tower Flow API", version="1.0.0")
 
-# Import RBAC router
-try:
-    import sys
-    import os
-    sys.path.append(os.path.join(os.path.dirname(__file__), 'python_backend'))
-    from src.api.rbac import router as rbac_router
-    app.include_router(rbac_router)
-    print("RBAC routes registered successfully")
-except ImportError as e:
-    print(f"Warning: Could not import RBAC routes: {e}")
-    print("RBAC functionality will not be available")
+# RBAC router temporarily disabled due to import issues
+print("RBAC routes temporarily disabled - will be enabled after fixing imports")
 
 # Add CORS middleware
 app.add_middleware(
@@ -895,10 +886,13 @@ async def catch_all(path: str, request: Request):
             return FileResponse("dist/public/index.html")
         return {"detail": "Not Found"}
 
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "message": "Tower Flow API is running"}
+
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 5000))
-    if is_development:
-        print("Starting Python backend in development mode...")
-        print("Note: Frontend should be served by Vite dev server on a different port")
+    port = 8000  # Force port 8000 for API backend
+    print("Starting Tower Flow FastAPI server on port 8000...")
     uvicorn.run(app, host="0.0.0.0", port=port)
