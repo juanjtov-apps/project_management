@@ -1,354 +1,804 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RoleManagement } from '@/components/rbac/RoleManagement';
-import { 
-  Shield, 
-  Building2, 
-  Users, 
-  Settings,
-  FileText,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  Activity
-} from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
+import { Users, Shield, Building, UserCheck, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle } from 'lucide-react';
 
-interface Company {
-  id: number;
+interface Permission {
+  id: string;
   name: string;
-  domain: string;
-  status: 'active' | 'suspended' | 'pending';
-  settings: Record<string, any>;
+  description: string;
+  category: string;
+  resource_type: string;
+  action: string;
+  created_at: string;
+}
+
+interface Role {
+  id: string;
+  name: string;
+  description: string;
+  company_id: string;
+  permissions: string[];
+  is_template: boolean;
   created_at: string;
   updated_at: string;
 }
 
-interface RBACStats {
-  totalCompanies: number;
-  activeUsers: number;
-  totalRoles: number;
-  recentActivity: number;
+interface Company {
+  id: string;
+  name: string;
+  type: string;
+  subscription_tier: string;
+  created_at: string;
+  is_active: boolean;
 }
 
-export function RBACAdmin() {
-  const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState('overview');
+interface UserProfile {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  company_id: string;
+  role_id: string;
+  is_active: boolean;
+  created_at: string;
+  last_login: string;
+  role_name?: string;
+  company_name?: string;
+}
 
-  // Fetch companies (platform admin view)
-  const { data: companies = [], isLoading: companiesLoading } = useQuery({
-    queryKey: ['/rbac/companies'],
+export default function RBACAdmin() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState('users');
+
+  // Data fetching
+  const { data: permissions = [], isLoading: permissionsLoading } = useQuery<Permission[]>({
+    queryKey: ['/api/rbac/permissions'],
   });
 
-  // Mock stats for now - in real implementation, these would come from API
-  const stats: RBACStats = {
-    totalCompanies: companies.length,
-    activeUsers: 0, // Would be calculated from API
-    totalRoles: 0, // Would be calculated from API
-    recentActivity: 0, // Would be calculated from API
-  };
+  const { data: roles = [], isLoading: rolesLoading } = useQuery<Role[]>({
+    queryKey: ['/api/rbac/roles'],
+  });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900';
-      case 'suspended':
-        return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900';
-      case 'pending':
-        return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900';
-      default:
-        return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900';
+  const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
+    queryKey: ['/api/rbac/companies'],
+  });
+
+  const { data: users = [], isLoading: usersLoading } = useQuery<UserProfile[]>({
+    queryKey: ['/api/rbac/users'],
+  });
+
+  // Mutations
+  const createUserMutation = useMutation({
+    mutationFn: (userData: any) => apiRequest('/api/rbac/users', { method: 'POST', body: userData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+      toast({ title: 'Success', description: 'User created successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => 
+      apiRequest(`/api/rbac/users/${id}`, { method: 'PATCH', body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+      toast({ title: 'Success', description: 'User updated successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/rbac/users/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+      toast({ title: 'Success', description: 'User deleted successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const createRoleMutation = useMutation({
+    mutationFn: (roleData: any) => apiRequest('/api/rbac/roles', { method: 'POST', body: roleData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/roles'] });
+      toast({ title: 'Success', description: 'Role created successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => 
+      apiRequest(`/api/rbac/roles/${id}`, { method: 'PATCH', body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/roles'] });
+      toast({ title: 'Success', description: 'Role updated successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const deleteRoleMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/rbac/roles/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/roles'] });
+      toast({ title: 'Success', description: 'Role deleted successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const createCompanyMutation = useMutation({
+    mutationFn: (companyData: any) => apiRequest('/api/rbac/companies', { method: 'POST', body: companyData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/companies'] });
+      toast({ title: 'Success', description: 'Company created successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const updateCompanyMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => 
+      apiRequest(`/api/rbac/companies/${id}`, { method: 'PATCH', body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/companies'] });
+      toast({ title: 'Success', description: 'Company updated successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Component functions
+  const UserManagement = () => {
+    const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [newUser, setNewUser] = useState({
+      email: '',
+      first_name: '',
+      last_name: '',
+      company_id: '',
+      role_id: '',
+      password: ''
+    });
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-2xl font-semibold">User Management</h3>
+            <p className="text-muted-foreground">Manage users across all companies</p>
+          </div>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add User
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Create New User</DialogTitle>
+                <DialogDescription>Add a new user to the system</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="first_name">First Name</Label>
+                    <Input
+                      id="first_name"
+                      value={newUser.first_name}
+                      onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="last_name">Last Name</Label>
+                    <Input
+                      id="last_name"
+                      value={newUser.last_name}
+                      onChange={(e) => setNewUser({ ...newUser, last_name: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="company">Company</Label>
+                  <Select value={newUser.company_id} onValueChange={(value) => setNewUser({ ...newUser, company_id: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((company: Company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="role">Role</Label>
+                  <Select value={newUser.role_id} onValueChange={(value) => setNewUser({ ...newUser, role_id: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles
+                        .filter((role: Role) => role.company_id === newUser.company_id || role.is_template)
+                        .map((role: Role) => (
+                          <SelectItem key={role.id} value={role.id}>
+                            {role.name} {role.is_template && '(Template)'}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    createUserMutation.mutate(newUser);
+                    setIsCreateDialogOpen(false);
+                    setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '' });
+                  }}
+                  disabled={createUserMutation.isPending}
+                >
+                  Create User
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Last Login</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {usersLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center">Loading users...</TableCell>
+                  </TableRow>
+                ) : (
+                  users.map((user: UserProfile) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">
+                        {user.first_name} {user.last_name}
+                      </TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.company_name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{user.role_name}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={user.is_active ? 'default' : 'destructive'}>
+                          {user.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="outline">
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => deleteUserMutation.mutate(user.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    );
   };
 
-  return (
-    <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">RBAC Administration</h1>
-          <p className="text-muted-foreground">
-            Manage companies, roles, and user permissions across the platform
-          </p>
+  const RoleManagement = () => {
+    const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [newRole, setNewRole] = useState({
+      name: '',
+      description: '',
+      company_id: '',
+      is_template: false
+    });
+
+    const permissionsByCategory = permissions.reduce((acc: any, permission: Permission) => {
+      if (!acc[permission.category]) {
+        acc[permission.category] = [];
+      }
+      acc[permission.category].push(permission);
+      return acc;
+    }, {});
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-2xl font-semibold">Role Management</h3>
+            <p className="text-muted-foreground">Manage roles and permissions</p>
+          </div>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Role
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create New Role</DialogTitle>
+                <DialogDescription>Define a new role with specific permissions</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="role_name">Role Name</Label>
+                    <Input
+                      id="role_name"
+                      value={newRole.name}
+                      onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="company">Company</Label>
+                    <Select value={newRole.company_id} onValueChange={(value) => setNewRole({ ...newRole, company_id: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select company" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {companies.map((company: Company) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={newRole.description}
+                    onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="is_template"
+                    checked={newRole.is_template}
+                    onCheckedChange={(checked) => setNewRole({ ...newRole, is_template: checked as boolean })}
+                  />
+                  <Label htmlFor="is_template">Template Role (can be used across companies)</Label>
+                </div>
+                
+                <div>
+                  <Label>Permissions</Label>
+                  <div className="mt-2 space-y-4 max-h-60 overflow-y-auto border rounded-md p-4">
+                    {Object.entries(permissionsByCategory).map(([category, perms]: [string, any]) => (
+                      <div key={category}>
+                        <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide mb-2">
+                          {category}
+                        </h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          {perms.map((permission: Permission) => (
+                            <div key={permission.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={permission.id}
+                                checked={selectedPermissions.includes(permission.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedPermissions([...selectedPermissions, permission.id]);
+                                  } else {
+                                    setSelectedPermissions(selectedPermissions.filter(id => id !== permission.id));
+                                  }
+                                }}
+                              />
+                              <Label htmlFor={permission.id} className="text-sm">
+                                {permission.name}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                        <Separator className="mt-2" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    createRoleMutation.mutate({ ...newRole, permissions: selectedPermissions });
+                    setIsCreateDialogOpen(false);
+                    setNewRole({ name: '', description: '', company_id: '', is_template: false });
+                    setSelectedPermissions([]);
+                  }}
+                  disabled={createRoleMutation.isPending}
+                >
+                  Create Role
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
-        <Badge variant="outline" className="px-3 py-1">
-          <Shield className="h-4 w-4 mr-2" />
-          Platform Admin
-        </Badge>
-      </div>
 
-      {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Companies</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalCompanies}</div>
-            <p className="text-xs text-muted-foreground">
-              Across the platform
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.activeUsers}</div>
-            <p className="text-xs text-muted-foreground">
-              +2% from last month
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Roles</CardTitle>
-            <Settings className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalRoles}</div>
-            <p className="text-xs text-muted-foreground">
-              Across all companies
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.recentActivity}</div>
-            <p className="text-xs text-muted-foreground">
-              In the last 24 hours
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="companies">Companies</TabsTrigger>
-          <TabsTrigger value="roles">Role Management</TabsTrigger>
-          <TabsTrigger value="audit">Audit Logs</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Companies Overview */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {rolesLoading ? (
             <Card>
+              <CardContent className="p-6">
+                <p>Loading roles...</p>
+              </CardContent>
+            </Card>
+          ) : (
+            roles.map((role: Role) => (
+              <Card key={role.id}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        {role.name}
+                        {role.is_template && <Badge variant="secondary">Template</Badge>}
+                      </CardTitle>
+                      <CardDescription>{role.description}</CardDescription>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button size="sm" variant="outline">
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => deleteRoleMutation.mutate(role.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="text-sm text-muted-foreground">
+                      Permissions ({role.permissions?.length || 0})
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {role.permissions?.slice(0, 5).map((permId: string) => {
+                        const perm = permissions.find((p: Permission) => p.id === permId);
+                        return perm ? (
+                          <Badge key={permId} variant="outline" className="text-xs">
+                            {perm.name}
+                          </Badge>
+                        ) : null;
+                      })}
+                      {role.permissions?.length > 5 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{role.permissions.length - 5} more
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const CompanyManagement = () => {
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [newCompany, setNewCompany] = useState({
+      name: '',
+      type: 'customer',
+      subscription_tier: 'basic'
+    });
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-2xl font-semibold">Company Management</h3>
+            <p className="text-muted-foreground">Manage companies and tenants</p>
+          </div>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Company
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Company</DialogTitle>
+                <DialogDescription>Add a new company to the system</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="company_name">Company Name</Label>
+                  <Input
+                    id="company_name"
+                    value={newCompany.name}
+                    onChange={(e) => setNewCompany({ ...newCompany, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="type">Company Type</Label>
+                  <Select value={newCompany.type} onValueChange={(value) => setNewCompany({ ...newCompany, type: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="platform">Platform Owner</SelectItem>
+                      <SelectItem value="customer">Customer</SelectItem>
+                      <SelectItem value="partner">Partner</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="subscription">Subscription Tier</Label>
+                  <Select value={newCompany.subscription_tier} onValueChange={(value) => setNewCompany({ ...newCompany, subscription_tier: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="basic">Basic</SelectItem>
+                      <SelectItem value="professional">Professional</SelectItem>
+                      <SelectItem value="enterprise">Enterprise</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    createCompanyMutation.mutate(newCompany);
+                    setIsCreateDialogOpen(false);
+                    setNewCompany({ name: '', type: 'customer', subscription_tier: 'basic' });
+                  }}
+                  disabled={createCompanyMutation.isPending}
+                >
+                  Create Company
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {companiesLoading ? (
+            <Card>
+              <CardContent className="p-6">
+                <p>Loading companies...</p>
+              </CardContent>
+            </Card>
+          ) : (
+            companies.map((company: Company) => (
+              <Card key={company.id}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle>{company.name}</CardTitle>
+                      <CardDescription>
+                        {company.type} • {company.subscription_tier}
+                      </CardDescription>
+                    </div>
+                    <Badge variant={company.is_active ? 'default' : 'destructive'}>
+                      {company.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="text-sm text-muted-foreground">
+                      Created: {new Date(company.created_at).toLocaleDateString()}
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button size="sm" variant="outline">
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Users
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const PermissionsOverview = () => {
+    const permissionsByCategory = permissions.reduce((acc: any, permission: Permission) => {
+      if (!acc[permission.category]) {
+        acc[permission.category] = [];
+      }
+      acc[permission.category].push(permission);
+      return acc;
+    }, {});
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-2xl font-semibold">Permissions Overview</h3>
+          <p className="text-muted-foreground">View all available permissions in the system</p>
+        </div>
+
+        <div className="grid gap-6">
+          {Object.entries(permissionsByCategory).map(([category, perms]: [string, any]) => (
+            <Card key={category}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  Companies
+                  <Key className="w-5 h-5" />
+                  {category.charAt(0).toUpperCase() + category.slice(1)} Permissions
                 </CardTitle>
                 <CardDescription>
-                  Recent companies and their status
+                  {perms.length} permissions in this category
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {companiesLoading ? (
-                  <div className="space-y-2">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={i} className="h-12 bg-muted rounded animate-pulse" />
-                    ))}
-                  </div>
-                ) : companies.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No companies found
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {companies.slice(0, 5).map((company: Company) => (
-                      <div key={company.id} className="flex items-center justify-between p-3 rounded border">
-                        <div>
-                          <h4 className="font-medium">{company.name}</h4>
-                          <p className="text-sm text-muted-foreground">{company.domain}</p>
-                        </div>
-                        <Badge className={getStatusColor(company.status)}>
-                          {company.status}
-                        </Badge>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {perms.map((permission: Permission) => (
+                    <div key={permission.id} className="border rounded-lg p-3">
+                      <div className="font-medium text-sm">{permission.name}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {permission.description}
                       </div>
-                    ))}
-                    {companies.length > 5 && (
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => setActiveTab('companies')}
-                      >
-                        View All Companies
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Quick Actions
-                </CardTitle>
-                <CardDescription>
-                  Common administrative tasks
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button className="w-full justify-start" variant="outline">
-                  <Building2 className="h-4 w-4 mr-2" />
-                  Create New Company
-                </Button>
-                <Button className="w-full justify-start" variant="outline">
-                  <Users className="h-4 w-4 mr-2" />
-                  Manage Platform Users
-                </Button>
-                <Button className="w-full justify-start" variant="outline">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Review Role Templates
-                </Button>
-                <Button className="w-full justify-start" variant="outline">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Export Audit Report
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="companies" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                All Companies
-              </CardTitle>
-              <CardDescription>
-                Manage all companies on the platform
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {companiesLoading ? (
-                <div className="space-y-2">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="h-16 bg-muted rounded animate-pulse" />
-                  ))}
-                </div>
-              ) : companies.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No companies found
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {companies.map((company: Company) => (
-                    <div key={company.id} className="flex items-center justify-between p-4 rounded border">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Building2 className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium">{company.name}</h4>
-                            <p className="text-sm text-muted-foreground">{company.domain}</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge className={getStatusColor(company.status)}>
-                          {company.status}
+                      <div className="flex gap-1 mt-2">
+                        <Badge variant="outline" className="text-xs">
+                          {permission.resource_type}
                         </Badge>
-                        <div className="text-sm text-muted-foreground">
-                          Created: {new Date(company.created_at).toLocaleDateString()}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedCompanyId(company.id);
-                            setActiveTab('roles');
-                          }}
-                        >
-                          Manage Roles
-                        </Button>
+                        <Badge variant="outline" className="text-xs">
+                          {permission.action}
+                        </Badge>
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="container mx-auto p-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold flex items-center gap-2">
+          <Shield className="w-8 h-8" />
+          RBAC Administration
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          Comprehensive role-based access control management system
+        </p>
+      </div>
+
+      {(permissionsLoading || rolesLoading || companiesLoading || usersLoading) && (
+        <Alert className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Loading RBAC data...
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="roles" className="flex items-center gap-2">
+            <UserCheck className="w-4 h-4" />
+            Roles
+          </TabsTrigger>
+          <TabsTrigger value="companies" className="flex items-center gap-2">
+            <Building className="w-4 h-4" />
+            Companies
+          </TabsTrigger>
+          <TabsTrigger value="permissions" className="flex items-center gap-2">
+            <Key className="w-4 h-4" />
+            Permissions
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users" className="mt-6">
+          <UserManagement />
         </TabsContent>
 
-        <TabsContent value="roles" className="space-y-6">
-          {/* Company Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Select Company</CardTitle>
-              <CardDescription>
-                Choose a company to manage roles and users
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Select
-                value={selectedCompanyId?.toString() || ''}
-                onValueChange={(value) => setSelectedCompanyId(parseInt(value))}
-              >
-                <SelectTrigger className="w-full max-w-md">
-                  <SelectValue placeholder="Select a company" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.map((company: Company) => (
-                    <SelectItem key={company.id} value={company.id.toString()}>
-                      {company.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
-
-          {/* Role Management Component */}
-          {selectedCompanyId && (
-            <RoleManagement companyId={selectedCompanyId} />
-          )}
+        <TabsContent value="roles" className="mt-6">
+          <RoleManagement />
         </TabsContent>
 
-        <TabsContent value="audit" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Audit Logs
-              </CardTitle>
-              <CardDescription>
-                Platform-wide audit trail and security events
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Audit log functionality will be implemented here</p>
-                <p className="text-sm">This will show security events, role changes, and user activities</p>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="companies" className="mt-6">
+          <CompanyManagement />
+        </TabsContent>
+
+        <TabsContent value="permissions" className="mt-6">
+          <PermissionsOverview />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
-
-export default RBACAdmin;
