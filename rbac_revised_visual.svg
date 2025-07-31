@@ -62,7 +62,7 @@
   <circle cx="80" cy="275" r="3" class="pk"/>
   <text x="85" y="278" class="text">id (PK)</text>
   <circle cx="80" cy="287" r="3" class="rls"/>
-  <text x="85" y="290" class="text">company_id (FK) 🔒RLS</text>
+  <text x="85" y="290" class="text">company_id (FK) RLS</text>
   <circle cx="80" cy="299" r="3" class="fk"/>
   <text x="85" y="302" class="text">user_id (FK)</text>
   <circle cx="80" cy="311" r="3" class="fk"/>
@@ -71,7 +71,7 @@
   <text x="85" y="326" class="text">granted_by_user_id</text>
   <text x="85" y="338" class="text">granted_at</text>
   <text x="85" y="350" class="text">expires_at</text>
-  <text x="85" y="362" class="text">🔍 AUDIT TRAIL</text>
+  <text x="85" y="362" class="text">AUDIT TRAIL</text>
 
   <!-- ROLES Table -->
   <rect x="280" y="250" width="140" height="120" class="table"/>
@@ -80,13 +80,13 @@
   <circle cx="290" cy="275" r="3" class="pk"/>
   <text x="295" y="278" class="text">id (PK)</text>
   <circle cx="290" cy="287" r="3" class="rls"/>
-  <text x="295" y="290" class="text">company_id (FK) 🔒RLS</text>
+  <text x="295" y="290" class="text">company_id (FK) RLS</text>
   <text x="295" y="302" class="text">name</text>
   <text x="295" y="314" class="text">description</text>
   <circle cx="290" cy="323" r="3" class="fk"/>
   <text x="295" y="326" class="text">template_id (FK)</text>
   <text x="295" y="338" class="text">is_template</text>
-  <text x="295" y="350" class="text">🧬 INHERITANCE</text>
+  <text x="295" y="350" class="text">INHERITANCE</text>
   
   <!-- PERMISSIONS Table -->
   <rect x="470" y="250" width="140" height="120" class="table"/>
@@ -99,7 +99,7 @@
   <text x="485" y="314" class="text">resource</text>
   <text x="485" y="326" class="text">action</text>
   <text x="485" y="338" class="text">description</text>
-  <text x="485" y="350" class="text">⚡ TYPE SAFE</text>
+  <text x="485" y="350" class="text">TYPE SAFE</text>
 
   <!-- ROLE_PERMISSIONS Table -->
   <rect x="650" y="250" width="160" height="120" class="table"/>
@@ -108,14 +108,14 @@
   <circle cx="660" cy="275" r="3" class="pk"/>
   <text x="665" y="278" class="text">id (PK)</text>
   <circle cx="660" cy="287" r="3" class="rls"/>
-  <text x="665" y="290" class="text">company_id (FK) 🔒RLS</text>
+  <text x="665" y="290" class="text">company_id (FK) RLS</text>
   <circle cx="660" cy="299" r="3" class="fk"/>
   <text x="665" y="302" class="text">role_id (FK)</text>
   <circle cx="660" cy="311" r="3" class="fk"/>
   <text x="665" y="314" class="text">permission_id (FK)</text>
   <text x="665" y="326" class="text">abac_rule (JSONB)</text>
   <text x="665" y="338" class="text">created_at</text>
-  <text x="665" y="350" class="text">🔧 ABAC RULES</text>
+  <text x="665" y="350" class="text">ABAC RULES</text>
 
   <!-- PERFORMANCE OPTIMIZATION TABLE -->
   <rect x="850" y="250" width="180" height="120" class="table"/>
@@ -124,13 +124,13 @@
   <circle cx="860" cy="275" r="3" class="pk"/>
   <text x="865" y="278" class="text">id (PK)</text>
   <circle cx="860" cy="287" r="3" class="rls"/>
-  <text x="865" y="290" class="text">company_id (FK) 🔒RLS</text>
+  <text x="865" y="290" class="text">company_id (FK) RLS</text>
   <circle cx="860" cy="299" r="3" class="fk"/>
   <text x="865" y="302" class="text">user_id (FK)</text>
   <text x="865" y="314" class="text">permissions (JSONB[])</text>
   <text x="865" y="326" class="text">updated_at</text>
-  <text x="865" y="338" class="text">🚀 O(1) LOOKUPS</text>
-  <text x="865" y="350" class="text">⚡ CACHED PERMS</text>
+  <text x="865" y="338" class="text">O(1) LOOKUPS</text>
+  <text x="865" y="350" class="text">CACHED PERMS</text>
 
   <!-- PROJECT MANAGEMENT SECTION -->
   
@@ -141,7 +141,7 @@
   <circle cx="80" cy="445" r="3" class="pk"/>
   <text x="85" y="448" class="text">id (PK)</text>
   <circle cx="80" cy="457" r="3" class="rls"/>
-  <text x="85" y="460" class="text">company_id (FK) 🔒RLS</text>
+  <text x="85" y="460" class="text">company_id (FK) RLS</text>
   <text x="85" y="472" class="text">name</text>
   <text x="85" y="484" class="text">description</text>
   <text x="85" y="496" class="text">status</text>
@@ -149,7 +149,7 @@
   <text x="85" y="520" class="text">budget_visible_roles[]</text>
   <circle cx="80" cy="529" r="3" class="fk"/>
   <text x="85" y="532" class="text">created_by (FK)</text>
-  <text x="85" y="544" class="text">💰 FINANCIAL CONTROL</text>
+  <text x="85" y="544" class="text">FINANCIAL CONTROL</text>
 
   <!-- PROJECT_ASSIGNMENTS Table -->
   <rect x="280" y="420" width="180" height="130" class="table"/>
@@ -158,7 +158,7 @@
   <circle cx="290" cy="445" r="3" class="pk"/>
   <text x="295" y="448" class="text">id (PK)</text>
   <circle cx="290" cy="457" r="3" class="rls"/>
-  <text x="295" y="460" class="text">company_id (FK) 🔒RLS</text>
+  <text x="295" y="460" class="text">company_id (FK) RLS</text>
   <circle cx="290" cy="469" r="3" class="fk"/>
   <text x="295" y="472" class="text">project_id (FK)</text>
   <circle cx="290" cy="481" r="3" class="fk"/>
@@ -168,7 +168,7 @@
   <text x="295" y="508" class="text">granted_by_user_id</text>
   <text x="295" y="520" class="text">granted_at</text>
   <text x="295" y="532" class="text">expires_at</text>
-  <text x="295" y="544" class="text">🎯 NO ROLE EXPLOSION</text>
+  <text x="295" y="544" class="text">NO ROLE EXPLOSION</text>
 
   <!-- TASKS Table -->
   <rect x="500" y="420" width="140" height="130" class="table"/>
@@ -177,7 +177,7 @@
   <circle cx="510" cy="445" r="3" class="pk"/>
   <text x="515" y="448" class="text">id (PK)</text>
   <circle cx="510" cy="457" r="3" class="rls"/>
-  <text x="515" y="460" class="text">company_id (FK) 🔒RLS</text>
+  <text x="515" y="460" class="text">company_id (FK) RLS</text>
   <circle cx="510" cy="469" r="3" class="fk"/>
   <text x="515" y="472" class="text">project_id (FK)</text>
   <text x="515" y="484" class="text">title</text>
@@ -186,7 +186,7 @@
   <text x="515" y="520" class="text">priority</text>
   <circle cx="510" cy="529" r="3" class="fk"/>
   <text x="515" y="532" class="text">assigned_to (FK)</text>
-  <text x="515" y="544" class="text">⚡ MULTI-TENANT</text>
+  <text x="515" y="544" class="text">MULTI-TENANT</text>
 
   <!-- Connection Lines -->
   <!-- Company to Company_Users -->
@@ -214,30 +214,30 @@
 
   <!-- Special RLS Connection -->
   <line x1="50" y1="580" x2="1350" y2="580" class="special-connection"/>
-  <text x="700" y="600" class="text" text-anchor="middle" font-weight="bold">🔒 ROW-LEVEL SECURITY: ALL TABLES FILTERED BY current_setting('app.current_company')</text>
+  <text x="700" y="600" class="text" text-anchor="middle" font-weight="bold">ROW-LEVEL SECURITY: ALL TABLES FILTERED BY current_setting('app.current_company')</text>
 
   <!-- LEGEND SECTION -->
   <rect x="70" y="650" width="500" height="180" class="legend"/>
   <rect x="70" y="650" width="500" height="25" class="legend-header"/>
   <text x="320" y="667" class="header-text" text-anchor="middle">KEY FEATURES & IMPROVEMENTS</text>
   
-  <text x="80" y="690" class="text" font-weight="bold">🏢 Company 0 Strategy:</text>
+  <text x="80" y="690" class="text" font-weight="bold">Company 0 Strategy:</text>
   <text x="80" y="705" class="text">• Platform staff (you) in Company 0, customers in Company 1+</text>
   <text x="80" y="720" class="text">• Single RLS policy covers all data isolation</text>
   
-  <text x="300" y="690" class="text" font-weight="bold">🚀 Performance:</text>
+  <text x="300" y="690" class="text" font-weight="bold">Performance:</text>
   <text x="300" y="705" class="text">• Cached effective permissions (O(1) lookups)</text>
   <text x="300" y="720" class="text">• Strategic indexes on (company_id, user_id)</text>
   
-  <text x="80" y="745" class="text" font-weight="bold">🧬 Role Templates:</text>
+  <text x="80" y="745" class="text" font-weight="bold">Role Templates:</text>
   <text x="80" y="760" class="text">• Global templates prevent role explosion</text>
   <text x="80" y="775" class="text">• Inheritance chain for automatic updates</text>
   
-  <text x="300" y="745" class="text" font-weight="bold">🔧 ABAC Edge Cases:</text>
+  <text x="300" y="745" class="text" font-weight="bold">ABAC Edge Cases:</text>
   <text x="300" y="760" class="text">• JSON rules: "project.created_by == user.id"</text>
   <text x="300" y="775" class="text">• Complex business logic support</text>
   
-  <text x="80" y="800" class="text" font-weight="bold">🔍 Audit & Security:</text>
+  <text x="80" y="800" class="text" font-weight="bold">Audit &amp; Security:</text>
   <text x="80" y="815" class="text">• Full audit trails with expiration dates</text>
   <text x="80" y="830" class="text">• MFA required for admin roles</text>
   
