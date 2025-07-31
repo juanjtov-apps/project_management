@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .table { fill: #f8f9fa; stroke: #dee2e6; stroke-width: 2; }
+      .header { fill: #495057; }
+      .text { font-family: Arial, sans-serif; font-size: 12px; fill: #212529; }
+      .pk { fill: #ffd43b; }
+      .fk { fill: #74c0fc; }
+      .connection { stroke: #6c757d; stroke-width: 2; fill: none; }
+    </style>
+  </defs>
+  
+  <!-- APP_ADMINS Table -->
+  <rect x="50" y="50" width="150" height="100" class="table"/>
+  <rect x="50" y="50" width="150" height="25" class="header"/>
+  <text x="125" y="67" class="text" text-anchor="middle" fill="white">APP_ADMINS</text>
+  <text x="60" y="85" class="text">id (PK)</text>
+  <text x="60" y="100" class="text">user_id (FK)</text>
+  <text x="60" y="115" class="text">created_at</text>
+  <text x="60" y="130" class="text">updated_at</text>
+  
+  <!-- COMPANIES Table -->
+  <rect x="300" y="50" width="150" height="125" class="table"/>
+  <rect x="300" y="50" width="150" height="25" class="header"/>
+  <text x="375" y="67" class="text" text-anchor="middle" fill="white">COMPANIES</text>
+  <text x="310" y="85" class="text">id (PK)</text>
+  <text x="310" y="100" class="text">name</text>
+  <text x="310" y="115" class="text">subscription_id</text>
+  <text x="310" y="130" class="text">status</text>
+  <text x="310" y="145" class="text">created_at</text>
+  <text x="310" y="160" class="text">updated_at</text>
+  
+  <!-- USERS Table -->
+  <rect x="550" y="50" width="150" height="150" class="table"/>
+  <rect x="550" y="50" width="150" height="25" class="header"/>
+  <text x="625" y="67" class="text" text-anchor="middle" fill="white">USERS</text>
+  <text x="560" y="85" class="text">id (PK)</text>
+  <text x="560" y="100" class="text">email</text>
+  <text x="560" y="115" class="text">first_name</text>
+  <text x="560" y="130" class="text">last_name</text>
+  <text x="560" y="145" class="text">password_hash</text>
+  <text x="560" y="160" class="text">profile_image</text>
+  <text x="560" y="175" class="text">created_at</text>
+  <text x="560" y="190" class="text">updated_at</text>
+  
+  <!-- COMPANY_USERS Table -->
+  <rect x="300" y="250" width="180" height="150" class="table"/>
+  <rect x="300" y="250" width="180" height="25" class="header"/>
+  <text x="390" y="267" class="text" text-anchor="middle" fill="white">COMPANY_USERS</text>
+  <text x="310" y="285" class="text">id (PK)</text>
+  <text x="310" y="300" class="text">company_id (FK)</text>
+  <text x="310" y="315" class="text">user_id (FK)</text>
+  <text x="310" y="330" class="text">role_id (FK)</text>
+  <text x="310" y="345" class="text">is_company_admin</text>
+  <text x="310" y="360" class="text">created_at</text>
+  <text x="310" y="375" class="text">updated_at</text>
+  
+  <!-- ROLES Table -->
+  <rect x="50" y="250" width="150" height="100" class="table"/>
+  <rect x="50" y="250" width="150" height="25" class="header"/>
+  <text x="125" y="267" class="text" text-anchor="middle" fill="white">ROLES</text>
+  <text x="60" y="285" class="text">id (PK)</text>
+  <text x="60" y="300" class="text">name</text>
+  <text x="60" y="315" class="text">description</text>
+  <text x="60" y="330" class="text">created_at</text>
+  
+  <!-- PERMISSIONS Table -->
+  <rect x="50" y="450" width="150" height="125" class="table"/>
+  <rect x="50" y="450" width="150" height="25" class="header"/>
+  <text x="125" y="467" class="text" text-anchor="middle" fill="white">PERMISSIONS</text>
+  <text x="60" y="485" class="text">id (PK)</text>
+  <text x="60" y="500" class="text">name</text>
+  <text x="60" y="515" class="text">resource</text>
+  <text x="60" y="530" class="text">action</text>
+  <text x="60" y="545" class="text">description</text>
+  
+  <!-- ROLE_PERMISSIONS Table -->
+  <rect x="300" y="450" width="180" height="100" class="table"/>
+  <rect x="300" y="450" width="180" height="25" class="header"/>
+  <text x="390" y="467" class="text" text-anchor="middle" fill="white">ROLE_PERMISSIONS</text>
+  <text x="310" y="485" class="text">id (PK)</text>
+  <text x="310" y="500" class="text">role_id (FK)</text>
+  <text x="310" y="515" class="text">permission_id (FK)</text>
+  <text x="310" y="530" class="text">created_at</text>
+  
+  <!-- PROJECTS Table -->
+  <rect x="800" y="250" width="150" height="150" class="table"/>
+  <rect x="800" y="250" width="150" height="25" class="header"/>
+  <text x="875" y="267" class="text" text-anchor="middle" fill="white">PROJECTS</text>
+  <text x="810" y="285" class="text">id (PK)</text>
+  <text x="810" y="300" class="text">company_id (FK)</text>
+  <text x="810" y="315" class="text">name</text>
+  <text x="810" y="330" class="text">description</text>
+  <text x="810" y="345" class="text">status</text>
+  <text x="810" y="360" class="text">budget</text>
+  <text x="810" y="375" class="text">created_at</text>
+  <text x="810" y="390" class="text">updated_at</text>
+  
+  <!-- PROJECT_USERS Table -->
+  <rect x="800" y="450" width="150" height="100" class="table"/>
+  <rect x="800" y="450" width="150" height="25" class="header"/>
+  <text x="875" y="467" class="text" text-anchor="middle" fill="white">PROJECT_USERS</text>
+  <text x="810" y="485" class="text">id (PK)</text>
+  <text x="810" y="500" class="text">project_id (FK)</text>
+  <text x="810" y="515" class="text">user_id (FK)</text>
+  <text x="810" y="530" class="text">role</text>
+  <text x="810" y="545" class="text">created_at</text>
+  
+  <!-- Connection Lines -->
+  <line x1="200" y1="100" x2="300" y2="100" class="connection"/>
+  <line x1="450" y1="112" x2="550" y2="112" class="connection"/>
+  <line x1="375" y1="175" x2="375" y2="250" class="connection"/>
+  <line x1="625" y1="200" x2="625" y2="225" class="connection"/>
+  <line x1="625" y1="225" x2="450" y2="225" class="connection"/>
+  <line x1="450" y1="225" x2="450" y2="315" class="connection"/>
+  <line x1="200" y1="300" x2="300" y2="330" class="connection"/>
+  <line x1="200" y1="350" x2="200" y2="380" class="connection"/>
+  <line x1="200" y1="380" x2="300" y2="380" class="connection"/>
+  <line x1="300" y1="380" x2="300" y2="500" class="connection"/>
+  <line x1="200" y1="500" x2="300" y2="500" class="connection"/>
+  <line x1="450" y1="325" x2="800" y2="325" class="connection"/>
+  <line x1="875" y1="400" x2="875" y2="450" class="connection"/>
+  
+  <!-- Role Types Legend -->
+  <rect x="850" y="50" width="300" height="150" class="table"/>
+  <rect x="850" y="50" width="300" height="25" class="header"/>
+  <text x="1000" y="67" class="text" text-anchor="middle" fill="white">ROLE HIERARCHY</text>
+  <text x="860" y="90" class="text">1. APP_ADMIN - Full system access</text>
+  <text x="860" y="105" class="text">2. COMPANY_ADMIN - Company + Financial</text>
+  <text x="860" y="120" class="text">3. PROJECT_MANAGER - All projects, no financial</text>
+  <text x="860" y="135" class="text">4. SUBCONTRACTOR - Subs module only</text>
+  <text x="860" y="150" class="text">5. CLIENT - Specific project only</text>
+  <text x="860" y="175" class="text">6. Custom roles via company admin</text>
+</svg>
