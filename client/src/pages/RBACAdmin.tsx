@@ -786,148 +786,146 @@ export default function RBACAdmin() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-
         </div>
 
-          {/* Edit Company Dialog */}
-          <Dialog open={isEditCompanyDialogOpen} onOpenChange={setIsEditCompanyDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Company</DialogTitle>
-                <DialogDescription>Update company information</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="edit_company_name">Company Name</Label>
-                  <Input
-                    id="edit_company_name"
-                    value={editingCompany?.name || ''}
-                    onChange={(e) => setEditingCompany(prev => prev ? {...prev, name: e.target.value} : null)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit_type">Company Type</Label>
-                  <Select 
-                    value={editingCompany?.type || ''} 
-                    onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, type: value} : null)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="platform">Platform Owner</SelectItem>
-                      <SelectItem value="customer">Customer</SelectItem>
-                      <SelectItem value="partner">Partner</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="edit_subscription">Subscription Tier</Label>
-                  <Select 
-                    value={editingCompany?.subscription_tier || ''} 
-                    onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, subscription_tier: value} : null)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="basic">Basic</SelectItem>
-                      <SelectItem value="professional">Professional</SelectItem>
-                      <SelectItem value="enterprise">Enterprise</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="edit_is_active"
-                    checked={editingCompany?.is_active || false}
-                    onCheckedChange={(checked) => setEditingCompany(prev => prev ? {...prev, is_active: checked} : null)}
-                  />
-                  <Label htmlFor="edit_is_active">Active Company</Label>
-                </div>
+        {/* Edit Company Dialog */}
+        <Dialog open={isEditCompanyDialogOpen} onOpenChange={setIsEditCompanyDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Company</DialogTitle>
+              <DialogDescription>Update company information</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit_company_name">Company Name</Label>
+                <Input
+                  id="edit_company_name"
+                  value={editingCompany?.name || ''}
+                  onChange={(e) => setEditingCompany(prev => prev ? {...prev, name: e.target.value} : null)}
+                />
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => {
-                  setIsEditCompanyDialogOpen(false);
-                  setEditingCompany(null);
-                }}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={() => {
-                    if (editingCompany) {
-                      updateCompanyMutation.mutate({ 
-                        id: editingCompany.id, 
-                        data: {
-                          name: editingCompany.name,
-                          type: editingCompany.type,
-                          subscription_tier: editingCompany.subscription_tier,
-                          is_active: editingCompany.is_active
-                        }
-                      });
-                      setIsEditCompanyDialogOpen(false);
-                      setEditingCompany(null);
-                    }
-                  }}
-                  disabled={updateCompanyMutation.isPending || !editingCompany?.name?.trim()}
+              <div>
+                <Label htmlFor="edit_type">Company Type</Label>
+                <Select 
+                  value={editingCompany?.type || ''} 
+                  onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, type: value} : null)}
                 >
-                  {updateCompanyMutation.isPending ? 'Updating...' : 'Update Company'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="platform">Platform Owner</SelectItem>
+                    <SelectItem value="customer">Customer</SelectItem>
+                    <SelectItem value="partner">Partner</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit_subscription">Subscription Tier</Label>
+                <Select 
+                  value={editingCompany?.subscription_tier || ''} 
+                  onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, subscription_tier: value} : null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="basic">Basic</SelectItem>
+                    <SelectItem value="professional">Professional</SelectItem>
+                    <SelectItem value="enterprise">Enterprise</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="edit_is_active"
+                  checked={editingCompany?.is_active || false}
+                  onCheckedChange={(checked) => setEditingCompany(prev => prev ? {...prev, is_active: checked} : null)}
+                />
+                <Label htmlFor="edit_is_active">Active Company</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setIsEditCompanyDialogOpen(false);
+                setEditingCompany(null);
+              }}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (editingCompany) {
+                    updateCompanyMutation.mutate({ 
+                      id: editingCompany.id, 
+                      data: {
+                        name: editingCompany.name,
+                        type: editingCompany.type,
+                        subscription_tier: editingCompany.subscription_tier,
+                        is_active: editingCompany.is_active
+                      }
+                    });
+                    setIsEditCompanyDialogOpen(false);
+                    setEditingCompany(null);
+                  }
+                }}
+                disabled={updateCompanyMutation.isPending || !editingCompany?.name?.trim()}
+              >
+                {updateCompanyMutation.isPending ? 'Updating...' : 'Update Company'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {companiesLoading ? (
-              <Card>
-                <CardContent className="p-6">
-                  <p>Loading companies...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {companiesLoading ? (
+            <Card>
+              <CardContent className="p-6">
+                <p>Loading companies...</p>
+              </CardContent>
+            </Card>
+          ) : (
+            companies.map((company: Company) => (
+              <Card key={company.id}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle>{company.name}</CardTitle>
+                      <CardDescription>
+                        {company.type} • {company.subscription_tier}
+                      </CardDescription>
+                    </div>
+                    <Badge variant={company.is_active ? 'default' : 'destructive'}>
+                      {company.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="text-sm text-muted-foreground">
+                      Created: {new Date(company.created_at).toLocaleDateString()}
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setEditingCompany(company);
+                          setIsEditCompanyDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Users
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
-            ) : (
-              companies.map((company: Company) => (
-                <Card key={company.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle>{company.name}</CardTitle>
-                        <CardDescription>
-                          {company.type} • {company.subscription_tier}
-                        </CardDescription>
-                      </div>
-                      <Badge variant={company.is_active ? 'default' : 'destructive'}>
-                        {company.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="text-sm text-muted-foreground">
-                        Created: {new Date(company.created_at).toLocaleDateString()}
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => {
-                            setEditingCompany(company);
-                            setIsEditCompanyDialogOpen(true);
-                          }}
-                        >
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Eye className="w-4 h-4 mr-2" />
-                          View Users
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
+            ))
+          )}
         </div>
       </div>
     );
