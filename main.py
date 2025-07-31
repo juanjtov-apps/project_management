@@ -1010,22 +1010,36 @@ async def get_users():
     """Get all users"""
     try:
         query = """
-            SELECT u.*, cu.company_id, c.name as company_name, cu.role_id, r.name as role_name
+            SELECT u.*, 
+                   cu.company_id, 
+                   c.name as company_name, 
+                   cu.role_id, 
+                   r.name as role_name
             FROM users u
             LEFT JOIN company_users cu ON u.id = cu.user_id
             LEFT JOIN companies c ON cu.company_id = c.id
             LEFT JOIN roles r ON cu.role_id = r.id
-            ORDER BY u.name
+            ORDER BY c.name NULLS LAST, u.name
         """
         users = execute_query(query)
         
-        # Format dates for frontend
+        if not users:
+            return []
+            
+        # Format dates for frontend and ensure proper field mapping
         for user in users:
             user['created_at'] = format_datetime_for_frontend(user.get('createdAt'))
             user['updated_at'] = format_datetime_for_frontend(user.get('updatedAt'))
+            
+            # Map camelCase to snake_case for company_name (frontend expects snake_case)
+            if user.get('companyName'):
+                user['company_name'] = user['companyName']
+            elif not user.get('company_name'):
+                user['company_name'] = None
         
         return users
     except Exception as e:
+        print(f"Error fetching users: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch users")
 
 @app.get("/rbac/companies/{company_id}/users")

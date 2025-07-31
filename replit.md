@@ -19,6 +19,7 @@ Preferred communication style: Simple, everyday language.
 ✅ **User-Company Associations Created**: Fixed empty company_users table by linking users to companies with proper roles
 ✅ **Date Formatting Issues Resolved**: Fixed "Invalid Date" display by correcting PostgreSQL field name mapping from snake_case to camelCase
 ✅ **User Management Tab Fixed**: Added missing `/rbac/users` endpoint that was causing 404 errors in user management interface
+✅ **User-Company Association Display Fixed**: Resolved field mapping issue where `companyName` (camelCase) from database was not properly mapped to `company_name` (snake_case) expected by frontend
 
 ## System Architecture
 
