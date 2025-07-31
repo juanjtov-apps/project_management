@@ -17,11 +17,12 @@ Preferred communication style: Simple, everyday language.
 - **Build Tool**: Vite
 
 ### Backend Architecture
-- **Primary Backend**: Python FastAPI (port 8000) for all API logic and database operations
+- **Primary Backend**: Python FastAPI (port 8000) for all API logic and database operations - **OPERATIONAL**
 - **Proxy Layer**: Node.js Express.js server (port 5000) serves frontend and proxies API requests
 - **Language**: Python with Pydantic models and async/await
 - **API Design**: RESTful API architecture with automatic OpenAPI documentation
 - **Database Operations**: Direct PostgreSQL queries with asyncpg and repository pattern
+- **RBAC System**: Comprehensive role-based access control with 26 permissions, 6 role templates, multi-tenant architecture
 
 ### Database Architecture
 - **Database**: PostgreSQL with Neon serverless database
