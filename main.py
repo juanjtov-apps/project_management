@@ -939,10 +939,10 @@ async def get_companies():
             company['is_active'] = company.get('status') == 'active'
             
             # Fix date formatting for frontend
-            if company.get('createdAt'):
-                company['createdAt'] = company['createdAt'].isoformat() if hasattr(company['createdAt'], 'isoformat') else str(company['createdAt'])
-            if company.get('updatedAt'):
-                company['updatedAt'] = company['updatedAt'].isoformat() if hasattr(company['updatedAt'], 'isoformat') else str(company['updatedAt'])
+            if company.get('created_at'):
+                company['created_at'] = company['created_at'].isoformat() if hasattr(company['created_at'], 'isoformat') else str(company['created_at'])
+            if company.get('updated_at'):
+                company['updated_at'] = company['updated_at'].isoformat() if hasattr(company['updated_at'], 'isoformat') else str(company['updated_at'])
             
         return companies
     except Exception as e:
@@ -1039,10 +1039,10 @@ async def create_company(request: Request):
             company['is_active'] = company.get('status') == 'active'
             
             # Fix date formatting for frontend
-            if company.get('createdAt'):
-                company['createdAt'] = company['createdAt'].isoformat() if hasattr(company['createdAt'], 'isoformat') else str(company['createdAt'])
-            if company.get('updatedAt'):
-                company['updatedAt'] = company['updatedAt'].isoformat() if hasattr(company['updatedAt'], 'isoformat') else str(company['updatedAt'])
+            if company.get('created_at'):
+                company['created_at'] = company['created_at'].isoformat() if hasattr(company['created_at'], 'isoformat') else str(company['created_at'])
+            if company.get('updated_at'):
+                company['updated_at'] = company['updated_at'].isoformat() if hasattr(company['updated_at'], 'isoformat') else str(company['updated_at'])
         
         return company
     except Exception as e:
@@ -1122,11 +1122,11 @@ async def update_company(company_id: int, request: Request):
             company['subscription_tier'] = 'basic'
         company['is_active'] = company.get('status') == 'active'
         
-        # Fix date formatting
-        if company.get('createdAt'):
-            company['createdAt'] = company['createdAt'].isoformat() if hasattr(company['createdAt'], 'isoformat') else str(company['createdAt'])
-        if company.get('updatedAt'):
-            company['updatedAt'] = company['updatedAt'].isoformat() if hasattr(company['updatedAt'], 'isoformat') else str(company['updatedAt'])
+        # Fix date formatting - map database fields to frontend fields
+        if company.get('created_at'):
+            company['created_at'] = company['created_at'].isoformat() if hasattr(company['created_at'], 'isoformat') else str(company['created_at'])
+        if company.get('updated_at'):
+            company['updated_at'] = company['updated_at'].isoformat() if hasattr(company['updated_at'], 'isoformat') else str(company['updated_at'])
         
         return company
     except HTTPException:
