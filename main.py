@@ -24,7 +24,10 @@ app = FastAPI(title="Tower Flow API", version="1.0.0")
 
 # Import RBAC router
 try:
-    from python_backend.src.api.rbac import router as rbac_router
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), 'python_backend'))
+    from src.api.rbac import router as rbac_router
     app.include_router(rbac_router)
     print("RBAC routes registered successfully")
 except ImportError as e:
