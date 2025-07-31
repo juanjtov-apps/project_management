@@ -898,6 +898,17 @@ async def get_companies():
     try:
         query = "SELECT * FROM companies ORDER BY name"
         companies = execute_query(query)
+        
+        # Add frontend-compatible fields to each company
+        for company in companies:
+            if company.get('settings'):
+                company['type'] = company['settings'].get('type', 'customer')
+                company['subscription_tier'] = company['settings'].get('subscription_tier', 'basic')
+            else:
+                company['type'] = 'customer'
+                company['subscription_tier'] = 'basic'
+            company['is_active'] = company.get('status') == 'active'
+            
         return companies
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch companies")
@@ -959,26 +970,39 @@ async def create_company(request: Request):
         if not data.get('name'):
             raise HTTPException(status_code=400, detail="Company name is required")
         
-        # Use correct column names based on the actual schema
+        # Map frontend fields to database schema
+        # Frontend sends: name, type, subscription_tier
+        # Database has: name, domain, status, settings
         query = """
             INSERT INTO companies (name, domain, status, settings)
             VALUES (%s, %s, %s, %s)
             RETURNING *
         """
         
-        # Handle settings as JSONB - use psycopg2.extras.Json for proper adaptation
-        settings = data.get('settings', {})
+        # Handle settings as JSONB - include type and subscription_tier in settings
+        settings = {
+            'type': data.get('type', 'customer'),
+            'subscription_tier': data.get('subscription_tier', 'basic'),
+            **data.get('settings', {})
+        }
         
         company = execute_query(
             query, 
             (
                 data.get('name'), 
                 data.get('domain', f"{data.get('name', 'company').lower().replace(' ', '')}.com"),
-                data.get('status', 'active'),
+                'active',  # Default status
                 psycopg2.extras.Json(settings)
             ),
             fetch_one=True
         )
+        
+        # Add type and subscription_tier to response for frontend compatibility
+        if company and company.get('settings'):
+            company['type'] = company['settings'].get('type', 'customer')
+            company['subscription_tier'] = company['settings'].get('subscription_tier', 'basic')
+            company['is_active'] = company.get('status') == 'active'
+        
         return company
     except Exception as e:
         print(f"RBAC company creation error: {e}")
