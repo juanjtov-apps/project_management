@@ -165,23 +165,7 @@ export default function RBACAdmin() {
     }
   });
 
-  const updateCompanyMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => 
-      apiRequest(`/api/rbac/companies/${id}`, { method: 'PATCH', body: data }),
-    onSuccess: (updatedCompany) => {
-      // Invalidate and refetch the companies list
-      queryClient.invalidateQueries({ queryKey: ['/api/rbac/companies'] });
-      
-      // Close the edit dialog and clear state
-      setIsEditCompanyDialogOpen(false);
-      setEditingCompany(null);
-      
-      toast({ title: 'Success', description: 'Company updated successfully' });
-    },
-    onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    }
-  });
+  // Move updateCompanyMutation to inside CompanyManagement component where state is defined
 
   // Component functions
   const UserManagement = () => {
@@ -716,6 +700,25 @@ export default function RBACAdmin() {
       name: '',
       type: 'customer',
       subscription_tier: 'basic'
+    });
+
+    // Company update mutation - now has access to local state
+    const updateCompanyMutation = useMutation({
+      mutationFn: ({ id, data }: { id: string; data: any }) => 
+        apiRequest(`/api/rbac/companies/${id}`, { method: 'PATCH', body: data }),
+      onSuccess: (updatedCompany) => {
+        // Invalidate and refetch the companies list
+        queryClient.invalidateQueries({ queryKey: ['/api/rbac/companies'] });
+        
+        // Close the edit dialog and clear state
+        setIsEditCompanyDialogOpen(false);
+        setEditingCompany(null);
+        
+        toast({ title: 'Success', description: 'Company updated successfully' });
+      },
+      onError: (error: any) => {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      }
     });
 
     // Fetch users for selected company
