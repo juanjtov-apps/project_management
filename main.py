@@ -20,7 +20,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Create FastAPI app
-app = FastAPI(title="ContractorPro API", version="1.0.0")
+app = FastAPI(title="Tower Flow API", version="1.0.0")
+
+# Import RBAC router
+try:
+    from python_backend.src.api.rbac import router as rbac_router
+    app.include_router(rbac_router)
+    print("RBAC routes registered successfully")
+except ImportError as e:
+    print(f"Warning: Could not import RBAC routes: {e}")
+    print("RBAC functionality will not be available")
 
 # Add CORS middleware
 app.add_middleware(

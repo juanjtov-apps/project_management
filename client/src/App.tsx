@@ -15,6 +15,7 @@ import Photos from "@/pages/photos";
 import Logs from "@/pages/logs";
 import Crew from "@/pages/crew";
 import Subs from "@/pages/subs";
+import RBACAdmin from "@/pages/RBACAdmin";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
@@ -43,6 +44,7 @@ function Router() {
           <Route path="/logs" component={Logs} />
           <Route path="/crew" component={Crew} />
           <Route path="/subs" component={Subs} />
+          <Route path="/rbac" component={RBACAdmin} />
         </>
       )}
       <Route component={NotFound} />
