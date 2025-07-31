@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .table { fill: #f8f9fa; stroke: #1B365D; stroke-width: 3; }
+      .platform { fill: #E3F2FD; stroke: #1976D2; stroke-width: 3; }
+      .header { fill: #1B365D; }
+      .platform-header { fill: #1976D2; }
+      .text { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; fill: #212529; font-weight: 500; }
+      .header-text { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; fill: white; font-weight: bold; }
+      .pk { fill: #FFD700; stroke: #FF8F00; stroke-width: 1; }
+      .fk { fill: #90CAF9; stroke: #1976D2; stroke-width: 1; }
+      .rls { fill: #FFCDD2; stroke: #D32F2F; stroke-width: 1; }
+      .connection { stroke: #424242; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .special-connection { stroke: #D32F2F; stroke-width: 3; fill: none; stroke-dasharray: 5,5; }
+      .legend { fill: #FFFDE7; stroke: #F57F17; stroke-width: 2; }
+      .legend-header { fill: #F57F17; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#424242" />
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="700" y="30" class="header-text" text-anchor="middle" font-size="20">Tower Flow RBAC - Revised Multi-Tenant Architecture</text>
+  
+  <!-- COMPANY 0 SECTION (Platform) -->
+  <rect x="50" y="60" width="300" height="140" class="platform"/>
+  <rect x="50" y="60" width="300" height="25" class="platform-header"/>
+  <text x="200" y="77" class="header-text" text-anchor="middle">COMPANY 0 - PLATFORM</text>
+  
+  <!-- COMPANIES Table -->
+  <rect x="70" y="100" width="130" height="90" class="table"/>
+  <rect x="70" y="100" width="130" height="20" class="header"/>
+  <text x="135" y="113" class="header-text" text-anchor="middle" font-size="10">COMPANIES</text>
+  <circle cx="80" cy="125" r="3" class="pk"/>
+  <text x="85" y="128" class="text">id (PK)</text>
+  <text x="85" y="140" class="text">name</text>
+  <text x="85" y="152" class="text">subscription_id</text>
+  <text x="85" y="164" class="text">status</text>
+  <circle cx="80" cy="176" r="3" class="rls"/>
+  <text x="85" y="179" class="text">is_platform</text>
+  
+  <!-- USERS Table -->
+  <rect x="220" y="100" width="110" height="90" class="table"/>
+  <rect x="220" y="100" width="110" height="20" class="header"/>
+  <text x="275" y="113" class="header-text" text-anchor="middle" font-size="10">USERS</text>
+  <circle cx="230" cy="125" r="3" class="pk"/>
+  <text x="235" y="128" class="text">id (PK)</text>
+  <text x="235" y="140" class="text">email</text>
+  <text x="235" y="152" class="text">first_name</text>
+  <text x="235" y="164" class="text">password_hash</text>
+  <circle cx="230" cy="176" r="3" class="rls"/>
+  <text x="235" y="179" class="text">mfa_enabled</text>
+
+  <!-- CORE RBAC TABLES -->
+  
+  <!-- COMPANY_USERS Table -->
+  <rect x="70" y="250" width="160" height="120" class="table"/>
+  <rect x="70" y="250" width="160" height="20" class="header"/>
+  <text x="150" y="263" class="header-text" text-anchor="middle" font-size="10">COMPANY_USERS</text>
+  <circle cx="80" cy="275" r="3" class="pk"/>
+  <text x="85" y="278" class="text">id (PK)</text>
+  <circle cx="80" cy="287" r="3" class="rls"/>
+  <text x="85" y="290" class="text">company_id (FK) 🔒RLS</text>
+  <circle cx="80" cy="299" r="3" class="fk"/>
+  <text x="85" y="302" class="text">user_id (FK)</text>
+  <circle cx="80" cy="311" r="3" class="fk"/>
+  <text x="85" y="314" class="text">role_id (FK)</text>
+  <circle cx="80" cy="323" r="3" class="fk"/>
+  <text x="85" y="326" class="text">granted_by_user_id</text>
+  <text x="85" y="338" class="text">granted_at</text>
+  <text x="85" y="350" class="text">expires_at</text>
+  <text x="85" y="362" class="text">🔍 AUDIT TRAIL</text>
+
+  <!-- ROLES Table -->
+  <rect x="280" y="250" width="140" height="120" class="table"/>
+  <rect x="280" y="250" width="140" height="20" class="header"/>
+  <text x="350" y="263" class="header-text" text-anchor="middle" font-size="10">ROLES</text>
+  <circle cx="290" cy="275" r="3" class="pk"/>
+  <text x="295" y="278" class="text">id (PK)</text>
+  <circle cx="290" cy="287" r="3" class="rls"/>
+  <text x="295" y="290" class="text">company_id (FK) 🔒RLS</text>
+  <text x="295" y="302" class="text">name</text>
+  <text x="295" y="314" class="text">description</text>
+  <circle cx="290" cy="323" r="3" class="fk"/>
+  <text x="295" y="326" class="text">template_id (FK)</text>
+  <text x="295" y="338" class="text">is_template</text>
+  <text x="295" y="350" class="text">🧬 INHERITANCE</text>
+  
+  <!-- PERMISSIONS Table -->
+  <rect x="470" y="250" width="140" height="120" class="table"/>
+  <rect x="470" y="250" width="140" height="20" class="header"/>
+  <text x="540" y="263" class="header-text" text-anchor="middle" font-size="10">PERMISSIONS</text>
+  <circle cx="480" cy="275" r="3" class="pk"/>
+  <text x="485" y="278" class="text">id (PK)</text>
+  <text x="485" y="290" class="text">code (INTEGER)</text>
+  <text x="485" y="302" class="text">name</text>
+  <text x="485" y="314" class="text">resource</text>
+  <text x="485" y="326" class="text">action</text>
+  <text x="485" y="338" class="text">description</text>
+  <text x="485" y="350" class="text">⚡ TYPE SAFE</text>
+
+  <!-- ROLE_PERMISSIONS Table -->
+  <rect x="650" y="250" width="160" height="120" class="table"/>
+  <rect x="650" y="250" width="160" height="20" class="header"/>
+  <text x="730" y="263" class="header-text" text-anchor="middle" font-size="10">ROLE_PERMISSIONS</text>
+  <circle cx="660" cy="275" r="3" class="pk"/>
+  <text x="665" y="278" class="text">id (PK)</text>
+  <circle cx="660" cy="287" r="3" class="rls"/>
+  <text x="665" y="290" class="text">company_id (FK) 🔒RLS</text>
+  <circle cx="660" cy="299" r="3" class="fk"/>
+  <text x="665" y="302" class="text">role_id (FK)</text>
+  <circle cx="660" cy="311" r="3" class="fk"/>
+  <text x="665" y="314" class="text">permission_id (FK)</text>
+  <text x="665" y="326" class="text">abac_rule (JSONB)</text>
+  <text x="665" y="338" class="text">created_at</text>
+  <text x="665" y="350" class="text">🔧 ABAC RULES</text>
+
+  <!-- PERFORMANCE OPTIMIZATION TABLE -->
+  <rect x="850" y="250" width="180" height="120" class="table"/>
+  <rect x="850" y="250" width="180" height="20" class="header"/>
+  <text x="940" y="263" class="header-text" text-anchor="middle" font-size="10">USER_EFFECTIVE_PERMISSIONS</text>
+  <circle cx="860" cy="275" r="3" class="pk"/>
+  <text x="865" y="278" class="text">id (PK)</text>
+  <circle cx="860" cy="287" r="3" class="rls"/>
+  <text x="865" y="290" class="text">company_id (FK) 🔒RLS</text>
+  <circle cx="860" cy="299" r="3" class="fk"/>
+  <text x="865" y="302" class="text">user_id (FK)</text>
+  <text x="865" y="314" class="text">permissions (JSONB[])</text>
+  <text x="865" y="326" class="text">updated_at</text>
+  <text x="865" y="338" class="text">🚀 O(1) LOOKUPS</text>
+  <text x="865" y="350" class="text">⚡ CACHED PERMS</text>
+
+  <!-- PROJECT MANAGEMENT SECTION -->
+  
+  <!-- PROJECTS Table -->
+  <rect x="70" y="420" width="160" height="130" class="table"/>
+  <rect x="70" y="420" width="160" height="20" class="header"/>
+  <text x="150" y="433" class="header-text" text-anchor="middle" font-size="10">PROJECTS</text>
+  <circle cx="80" cy="445" r="3" class="pk"/>
+  <text x="85" y="448" class="text">id (PK)</text>
+  <circle cx="80" cy="457" r="3" class="rls"/>
+  <text x="85" y="460" class="text">company_id (FK) 🔒RLS</text>
+  <text x="85" y="472" class="text">name</text>
+  <text x="85" y="484" class="text">description</text>
+  <text x="85" y="496" class="text">status</text>
+  <text x="85" y="508" class="text">budget</text>
+  <text x="85" y="520" class="text">budget_visible_roles[]</text>
+  <circle cx="80" cy="529" r="3" class="fk"/>
+  <text x="85" y="532" class="text">created_by (FK)</text>
+  <text x="85" y="544" class="text">💰 FINANCIAL CONTROL</text>
+
+  <!-- PROJECT_ASSIGNMENTS Table -->
+  <rect x="280" y="420" width="180" height="130" class="table"/>
+  <rect x="280" y="420" width="180" height="20" class="header"/>
+  <text x="370" y="433" class="header-text" text-anchor="middle" font-size="10">PROJECT_ASSIGNMENTS</text>
+  <circle cx="290" cy="445" r="3" class="pk"/>
+  <text x="295" y="448" class="text">id (PK)</text>
+  <circle cx="290" cy="457" r="3" class="rls"/>
+  <text x="295" y="460" class="text">company_id (FK) 🔒RLS</text>
+  <circle cx="290" cy="469" r="3" class="fk"/>
+  <text x="295" y="472" class="text">project_id (FK)</text>
+  <circle cx="290" cy="481" r="3" class="fk"/>
+  <text x="295" y="484" class="text">user_id (FK)</text>
+  <text x="295" y="496" class="text">role_type (enum)</text>
+  <circle cx="290" cy="505" r="3" class="fk"/>
+  <text x="295" y="508" class="text">granted_by_user_id</text>
+  <text x="295" y="520" class="text">granted_at</text>
+  <text x="295" y="532" class="text">expires_at</text>
+  <text x="295" y="544" class="text">🎯 NO ROLE EXPLOSION</text>
+
+  <!-- TASKS Table -->
+  <rect x="500" y="420" width="140" height="130" class="table"/>
+  <rect x="500" y="420" width="140" height="20" class="header"/>
+  <text x="570" y="433" class="header-text" text-anchor="middle" font-size="10">TASKS</text>
+  <circle cx="510" cy="445" r="3" class="pk"/>
+  <text x="515" y="448" class="text">id (PK)</text>
+  <circle cx="510" cy="457" r="3" class="rls"/>
+  <text x="515" y="460" class="text">company_id (FK) 🔒RLS</text>
+  <circle cx="510" cy="469" r="3" class="fk"/>
+  <text x="515" y="472" class="text">project_id (FK)</text>
+  <text x="515" y="484" class="text">title</text>
+  <text x="515" y="496" class="text">description</text>
+  <text x="515" y="508" class="text">status</text>
+  <text x="515" y="520" class="text">priority</text>
+  <circle cx="510" cy="529" r="3" class="fk"/>
+  <text x="515" y="532" class="text">assigned_to (FK)</text>
+  <text x="515" y="544" class="text">⚡ MULTI-TENANT</text>
+
+  <!-- Connection Lines -->
+  <!-- Company to Company_Users -->
+  <line x1="135" y1="190" x2="135" y2="250" class="connection"/>
+  <!-- Users to Company_Users -->
+  <line x1="275" y1="190" x2="275" y2="220" class="connection"/>
+  <line x1="275" y1="220" x2="200" y2="220" class="connection"/>
+  <line x1="200" y1="220" x2="200" y2="290" class="connection"/>
+  <!-- Roles to Company_Users -->
+  <line x1="280" y1="310" x2="230" y2="310" class="connection"/>
+  <!-- Roles to Role_Permissions -->
+  <line x1="420" y1="310" x2="650" y2="310" class="connection"/>
+  <!-- Permissions to Role_Permissions -->
+  <line x1="610" y1="310" x2="650" y2="310" class="connection"/>
+  <!-- Users to Effective Permissions -->
+  <line x1="330" y1="145" x2="760" y2="145" class="connection"/>
+  <line x1="760" y1="145" x2="760" y2="220" class="connection"/>
+  <line x1="760" y1="220" x2="900" y2="220" class="connection"/>
+  <line x1="900" y1="220" x2="900" y2="250" class="connection"/>
+  
+  <!-- Project section connections -->
+  <line x1="135" y1="370" x2="135" y2="420" class="connection"/>
+  <line x1="230" y1="420" x2="280" y2="450" class="connection"/>
+  <line x1="460" y1="485" x2="500" y2="485" class="connection"/>
+
+  <!-- Special RLS Connection -->
+  <line x1="50" y1="580" x2="1350" y2="580" class="special-connection"/>
+  <text x="700" y="600" class="text" text-anchor="middle" font-weight="bold">🔒 ROW-LEVEL SECURITY: ALL TABLES FILTERED BY current_setting('app.current_company')</text>
+
+  <!-- LEGEND SECTION -->
+  <rect x="70" y="650" width="500" height="180" class="legend"/>
+  <rect x="70" y="650" width="500" height="25" class="legend-header"/>
+  <text x="320" y="667" class="header-text" text-anchor="middle">KEY FEATURES & IMPROVEMENTS</text>
+  
+  <text x="80" y="690" class="text" font-weight="bold">🏢 Company 0 Strategy:</text>
+  <text x="80" y="705" class="text">• Platform staff (you) in Company 0, customers in Company 1+</text>
+  <text x="80" y="720" class="text">• Single RLS policy covers all data isolation</text>
+  
+  <text x="300" y="690" class="text" font-weight="bold">🚀 Performance:</text>
+  <text x="300" y="705" class="text">• Cached effective permissions (O(1) lookups)</text>
+  <text x="300" y="720" class="text">• Strategic indexes on (company_id, user_id)</text>
+  
+  <text x="80" y="745" class="text" font-weight="bold">🧬 Role Templates:</text>
+  <text x="80" y="760" class="text">• Global templates prevent role explosion</text>
+  <text x="80" y="775" class="text">• Inheritance chain for automatic updates</text>
+  
+  <text x="300" y="745" class="text" font-weight="bold">🔧 ABAC Edge Cases:</text>
+  <text x="300" y="760" class="text">• JSON rules: "project.created_by == user.id"</text>
+  <text x="300" y="775" class="text">• Complex business logic support</text>
+  
+  <text x="80" y="800" class="text" font-weight="bold">🔍 Audit & Security:</text>
+  <text x="80" y="815" class="text">• Full audit trails with expiration dates</text>
+  <text x="80" y="830" class="text">• MFA required for admin roles</text>
+  
+  <!-- PERMISSION CODES SECTION -->
+  <rect x="600" y="650" width="280" height="180" class="legend"/>
+  <rect x="600" y="650" width="280" height="25" class="legend-header"/>
+  <text x="740" y="667" class="header-text" text-anchor="middle">INTEGER PERMISSION CODES</text>
+  
+  <text x="610" y="690" class="text" font-weight="bold">Platform (1-9):</text>
+  <text x="610" y="705" class="text">1=SYSTEM_ADMIN, 2=IMPERSONATE</text>
+  
+  <text x="610" y="725" class="text" font-weight="bold">Company Admin (10-19):</text>
+  <text x="610" y="740" class="text">10=MANAGE_USERS, 11=VIEW_FINANCIALS</text>
+  <text x="610" y="755" class="text">12=EDIT_FINANCIALS, 13=CLONE_ROLES</text>
+  
+  <text x="610" y="775" class="text" font-weight="bold">Project Manager (20-29):</text>
+  <text x="610" y="790" class="text">20=VIEW_ALL_PROJECTS, 21=MANAGE_TASKS</text>
+  <text x="610" y="805" class="text">22=ASSIGN_SUBS</text>
+  
+  <text x="610" y="825" class="text" font-weight="bold">Sub/Client (30-49):</text>
+  <text x="610" y="840" class="text">30=VIEW_ASSIGNED, 40=VIEW_PROGRESS</text>
+
+  <!-- ROLE ASSIGNMENTS -->
+  <rect x="920" y="650" width="260" height="180" class="legend"/>
+  <rect x="920" y="650" width="260" height="25" class="legend-header"/>
+  <text x="1050" y="667" class="header-text" text-anchor="middle">ROLE ASSIGNMENTS</text>
+  
+  <text x="930" y="690" class="text" font-weight="bold">Global Scope (Company Roles):</text>
+  <text x="930" y="705" class="text">• Platform Admin (Company 0)</text>
+  <text x="930" y="720" class="text">• Company Admin (per company)</text>
+  <text x="930" y="735" class="text">• Project Manager (company-wide)</text>
+  
+  <text x="930" y="755" class="text" font-weight="bold">Project Scope (Assignments):</text>
+  <text x="930" y="770" class="text">• Client (specific projects only)</text>
+  <text x="930" y="785" class="text">• Subcontractor (assigned projects)</text>
+  
+  <text x="930" y="805" class="text" font-weight="bold">Security Hygiene:</text>
+  <text x="930" y="820" class="text">• Financial data requires elevation</text>
+  <text x="930" y="835" class="text">• Temporary access with expiration</text>
+
+</svg>
