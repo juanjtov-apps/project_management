@@ -1045,6 +1045,62 @@ async def get_company_users(company_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch company users")
 
+@app.patch("/rbac/users/{user_id}")
+async def update_user_status(user_id: str, request: Request):
+    """Update user status or other properties"""
+    try:
+        data = await request.json()
+        
+        # Build dynamic update query based on provided fields
+        update_fields = []
+        params = []
+        
+        if 'is_active' in data:
+            update_fields.append("is_active = %s")
+            params.append(data['is_active'])
+        
+        if 'email' in data:
+            update_fields.append("email = %s")
+            params.append(data['email'])
+            
+        if 'first_name' in data:
+            update_fields.append("first_name = %s")
+            params.append(data['first_name'])
+            
+        if 'last_name' in data:
+            update_fields.append("last_name = %s")
+            params.append(data['last_name'])
+        
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No valid fields to update")
+        
+        # Add updated timestamp and user ID
+        update_fields.append("updated_at = CURRENT_TIMESTAMP")
+        params.append(user_id)
+        
+        query = f"""
+            UPDATE users 
+            SET {', '.join(update_fields)}
+            WHERE id = %s
+            RETURNING *
+        """
+        
+        updated_user = execute_query(query, params)
+        if not updated_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Format dates for frontend
+        user = updated_user[0] if isinstance(updated_user, list) else updated_user
+        user['created_at'] = format_datetime_for_frontend(user.get('createdAt'))
+        user['updated_at'] = format_datetime_for_frontend(user.get('updatedAt'))
+        
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"User update error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update user")
+
 @app.post("/rbac/companies")
 async def create_company(request: Request):
     """Create a new company"""

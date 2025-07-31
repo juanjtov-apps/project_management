@@ -14,9 +14,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Users, Shield, Building, UserCheck, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle } from 'lucide-react';
+import { Users, Shield, Building, UserCheck, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle, ChevronDown, ChevronRight, ToggleLeft, ToggleRight } from 'lucide-react';
 
 interface Permission {
   id: string;
@@ -50,9 +51,10 @@ interface Company {
 
 interface UserProfile {
   id: string;
+  name: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  first_name?: string;
+  last_name?: string;
   company_id: string;
   role_id: string;
   is_active: boolean;
@@ -60,6 +62,8 @@ interface UserProfile {
   last_login: string;
   role_name?: string;
   company_name?: string;
+  username?: string;
+  isActive?: boolean;
 }
 
 export default function RBACAdmin() {
@@ -173,6 +177,7 @@ export default function RBACAdmin() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+    const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
     const [newUser, setNewUser] = useState({
       email: '',
       first_name: '',
@@ -181,6 +186,48 @@ export default function RBACAdmin() {
       role_id: '',
       password: ''
     });
+
+    // Toggle user active status
+    const toggleUserStatus = useMutation({
+      mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+        return apiRequest(`/api/rbac/users/${userId}`, {
+          method: 'PATCH',
+          body: { is_active: isActive }
+        });
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+        toast({ title: 'Success', description: 'User status updated successfully' });
+      },
+      onError: (error: any) => {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      }
+    });
+
+    // Group users by company
+    const usersByCompany = React.useMemo(() => {
+      const grouped: { [key: string]: UserProfile[] } = {};
+      
+      users.forEach((user: UserProfile) => {
+        const companyKey = user.company_name || 'Unassigned';
+        if (!grouped[companyKey]) {
+          grouped[companyKey] = [];
+        }
+        grouped[companyKey].push(user);
+      });
+      
+      return grouped;
+    }, [users]);
+
+    const toggleCompanyExpansion = (companyName: string) => {
+      const newExpanded = new Set(expandedCompanies);
+      if (newExpanded.has(companyName)) {
+        newExpanded.delete(companyName);
+      } else {
+        newExpanded.add(companyName);
+      }
+      setExpandedCompanies(newExpanded);
+    };
 
     return (
       <div className="space-y-6">
@@ -403,76 +450,126 @@ export default function RBACAdmin() {
           </Dialog>
         </div>
 
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Login</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {usersLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center">Loading users...</TableCell>
-                  </TableRow>
-                ) : users && Array.isArray(users) ? (
-                  users.map((user: UserProfile) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">
-                        {user.first_name} {user.last_name}
-                      </TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.company_name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{user.role_name}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={user.is_active ? 'default' : 'destructive'}>
-                          {user.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {
-                              setEditingUser(user);
-                              setIsEditDialogOpen(true);
-                            }}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => deleteUserMutation.mutate(user.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+        <div className="space-y-4">
+          {usersLoading ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center">Loading users...</div>
+              </CardContent>
+            </Card>
+          ) : users && Array.isArray(users) && Object.keys(usersByCompany).length > 0 ? (
+            Object.entries(usersByCompany).map(([companyName, companyUsers]) => (
+              <Card key={companyName} className="overflow-hidden">
+                <Collapsible
+                  open={expandedCompanies.has(companyName)}
+                  onOpenChange={() => toggleCompanyExpansion(companyName)}
+                >
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center">
+                            {expandedCompanies.has(companyName) ? (
+                              <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                            )}
+                          </div>
+                          <Building className="w-5 h-5 text-primary" />
+                          <div>
+                            <CardTitle className="text-lg">{companyName}</CardTitle>
+                            <CardDescription>
+                              {companyUsers.length} user{companyUsers.length !== 1 ? 's' : ''}
+                            </CardDescription>
+                          </div>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center">No users found</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                        <Badge variant="outline">{companyUsers.length}</Badge>
+                      </div>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <CardContent className="p-0">
+                      <div className="divide-y">
+                        {companyUsers.map((user: UserProfile) => (
+                          <div key={user.id} className="p-4 flex items-center justify-between hover:bg-muted/30">
+                            <div className="flex items-center space-x-4">
+                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Users className="w-5 h-5 text-primary" />
+                              </div>
+                              <div>
+                                <div className="font-medium">
+                                  {user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username}
+                                </div>
+                                <div className="text-sm text-muted-foreground">{user.email}</div>
+                                <div className="flex items-center space-x-2 mt-1">
+                                  {user.role_name && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {user.role_name}
+                                    </Badge>
+                                  )}
+                                  <Badge variant={user.is_active || user.isActive ? 'default' : 'destructive'} className="text-xs">
+                                    {user.is_active || user.isActive ? 'Active' : 'Inactive'}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const currentStatus = user.is_active || user.isActive;
+                                  toggleUserStatus.mutate({
+                                    userId: user.id,
+                                    isActive: !currentStatus
+                                  });
+                                }}
+                                disabled={toggleUserStatus.isPending}
+                                className="flex items-center space-x-1"
+                              >
+                                {user.is_active || user.isActive ? (
+                                  <ToggleRight className="w-4 h-4 text-green-600" />
+                                ) : (
+                                  <ToggleLeft className="w-4 h-4 text-muted-foreground" />
+                                )}
+                                <span className="text-xs">
+                                  {toggleUserStatus.isPending ? 'Updating...' : (user.is_active || user.isActive ? 'Deactivate' : 'Activate')}
+                                </span>
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingUser(user);
+                                  setIsEditDialogOpen(true);
+                                }}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => deleteUserMutation.mutate(user.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            ))
+          ) : (
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center">No users found</div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     );
   };
