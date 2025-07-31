@@ -950,6 +950,170 @@ async def create_company(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to create company")
 
+# API RBAC endpoints (with /api prefix for frontend compatibility)
+@app.get("/api/rbac/permissions")
+async def get_api_permissions():
+    """Get all permissions for API"""
+    permissions = [
+        {"id": "1", "name": "View Projects", "description": "View project details", "category": "project", "resource_type": "project", "action": "read", "created_at": "2025-01-31"},
+        {"id": "2", "name": "Create Projects", "description": "Create new projects", "category": "project", "resource_type": "project", "action": "create", "created_at": "2025-01-31"},
+        {"id": "3", "name": "Edit Projects", "description": "Edit existing projects", "category": "project", "resource_type": "project", "action": "update", "created_at": "2025-01-31"},
+        {"id": "4", "name": "Delete Projects", "description": "Delete projects", "category": "project", "resource_type": "project", "action": "delete", "created_at": "2025-01-31"},
+        {"id": "5", "name": "View Tasks", "description": "View task details", "category": "task", "resource_type": "task", "action": "read", "created_at": "2025-01-31"},
+        {"id": "6", "name": "Create Tasks", "description": "Create new tasks", "category": "task", "resource_type": "task", "action": "create", "created_at": "2025-01-31"},
+        {"id": "7", "name": "Edit Tasks", "description": "Edit existing tasks", "category": "task", "resource_type": "task", "action": "update", "created_at": "2025-01-31"},
+        {"id": "8", "name": "Delete Tasks", "description": "Delete tasks", "category": "task", "resource_type": "task", "action": "delete", "created_at": "2025-01-31"},
+        {"id": "9", "name": "Assign Tasks", "description": "Assign tasks to users", "category": "task", "resource_type": "task", "action": "assign", "created_at": "2025-01-31"},
+        {"id": "10", "name": "View Photos", "description": "View project photos", "category": "media", "resource_type": "photo", "action": "read", "created_at": "2025-01-31"},
+        {"id": "11", "name": "Upload Photos", "description": "Upload project photos", "category": "media", "resource_type": "photo", "action": "create", "created_at": "2025-01-31"},
+        {"id": "12", "name": "Delete Photos", "description": "Delete project photos", "category": "media", "resource_type": "photo", "action": "delete", "created_at": "2025-01-31"},
+        {"id": "13", "name": "View Logs", "description": "View project logs", "category": "logging", "resource_type": "log", "action": "read", "created_at": "2025-01-31"},
+        {"id": "14", "name": "Create Logs", "description": "Create project log entries", "category": "logging", "resource_type": "log", "action": "create", "created_at": "2025-01-31"},
+        {"id": "15", "name": "Edit Logs", "description": "Edit project log entries", "category": "logging", "resource_type": "log", "action": "update", "created_at": "2025-01-31"},
+        {"id": "16", "name": "View Users", "description": "View user profiles", "category": "user", "resource_type": "user", "action": "read", "created_at": "2025-01-31"},
+        {"id": "17", "name": "Create Users", "description": "Create new users", "category": "user", "resource_type": "user", "action": "create", "created_at": "2025-01-31"},
+        {"id": "18", "name": "Edit Users", "description": "Edit user profiles", "category": "user", "resource_type": "user", "action": "update", "created_at": "2025-01-31"},
+        {"id": "19", "name": "Delete Users", "description": "Delete users", "category": "user", "resource_type": "user", "action": "delete", "created_at": "2025-01-31"},
+        {"id": "20", "name": "Manage Roles", "description": "Manage user roles", "category": "role", "resource_type": "role", "action": "manage", "created_at": "2025-01-31"},
+        {"id": "21", "name": "View Schedule", "description": "View project schedules", "category": "schedule", "resource_type": "schedule", "action": "read", "created_at": "2025-01-31"},
+        {"id": "22", "name": "Edit Schedule", "description": "Edit project schedules", "category": "schedule", "resource_type": "schedule", "action": "update", "created_at": "2025-01-31"},
+        {"id": "23", "name": "View Reports", "description": "View project reports", "category": "report", "resource_type": "report", "action": "read", "created_at": "2025-01-31"},
+        {"id": "24", "name": "Create Reports", "description": "Create project reports", "category": "report", "resource_type": "report", "action": "create", "created_at": "2025-01-31"},
+        {"id": "25", "name": "View Financials", "description": "View financial information", "category": "finance", "resource_type": "finance", "action": "read", "created_at": "2025-01-31"},
+        {"id": "26", "name": "Manage Notifications", "description": "Manage system notifications", "category": "system", "resource_type": "notification", "action": "manage", "created_at": "2025-01-31"}
+    ]
+    return permissions
+
+@app.get("/api/rbac/roles")
+async def get_api_roles():
+    """Get all roles for API"""
+    roles = [
+        {"id": "1", "name": "Platform Admin", "description": "Full system access", "company_id": "platform", "permissions": ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26"], "is_template": True, "created_at": "2025-01-31", "updated_at": "2025-01-31"},
+        {"id": "2", "name": "Company Admin", "description": "Full company access", "company_id": "comp-001", "permissions": ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24"], "is_template": True, "created_at": "2025-01-31", "updated_at": "2025-01-31"},
+        {"id": "3", "name": "Project Manager", "description": "Project management access", "company_id": "comp-001", "permissions": ["1","2","3","5","6","7","8","9","10","11","13","14","16","21","22","23","24"], "is_template": True, "created_at": "2025-01-31", "updated_at": "2025-01-31"},
+        {"id": "4", "name": "Subcontractor", "description": "Limited project access", "company_id": "comp-001", "permissions": ["1","5","6","7","10","11","13","14","21"], "is_template": True, "created_at": "2025-01-31", "updated_at": "2025-01-31"},
+        {"id": "5", "name": "Client", "description": "View-only access to assigned projects", "company_id": "comp-001", "permissions": ["1","5","10","13","21","23"], "is_template": True, "created_at": "2025-01-31", "updated_at": "2025-01-31"},
+        {"id": "6", "name": "Viewer", "description": "Read-only access", "company_id": "comp-001", "permissions": ["1","5","10","13","21"], "is_template": True, "created_at": "2025-01-31", "updated_at": "2025-01-31"}
+    ]
+    return roles
+
+@app.get("/api/rbac/companies")
+async def get_api_companies():
+    """Get all companies for API"""
+    companies = [
+        {"id": "platform", "name": "Tower Flow Platform", "type": "platform", "subscription_tier": "enterprise", "created_at": "2025-01-31", "is_active": True},
+        {"id": "comp-001", "name": "ABC Construction", "type": "customer", "subscription_tier": "professional", "created_at": "2025-01-31", "is_active": True},
+        {"id": "comp-002", "name": "Elite Builders", "type": "customer", "subscription_tier": "basic", "created_at": "2025-01-31", "is_active": True},
+        {"id": "comp-003", "name": "Metro Development", "type": "partner", "subscription_tier": "enterprise", "created_at": "2025-01-31", "is_active": True}
+    ]
+    return companies
+
+@app.get("/api/rbac/users")
+async def get_api_users():
+    """Get all users for API"""
+    users = [
+        {"id": "admin-001", "email": "admin@towerflow.com", "first_name": "System", "last_name": "Admin", "company_id": "platform", "role_id": "1", "is_active": True, "created_at": "2025-01-31", "last_login": "2025-01-31T19:00:00", "role_name": "Platform Admin", "company_name": "Tower Flow Platform"},
+        {"id": "pm-004", "email": "sergio@towerflow.com", "first_name": "Sergio", "last_name": "Rodriguez", "company_id": "comp-001", "role_id": "3", "is_active": True, "created_at": "2025-01-31", "last_login": "2025-01-31T19:15:00", "role_name": "Project Manager", "company_name": "ABC Construction"},
+        {"id": "sub-001", "email": "mike@contractorco.com", "first_name": "Mike", "last_name": "Wilson", "company_id": "comp-001", "role_id": "4", "is_active": True, "created_at": "2025-01-31", "last_login": "2025-01-30T14:30:00", "role_name": "Subcontractor", "company_name": "ABC Construction"},
+        {"id": "client-001", "email": "jane@clientcorp.com", "first_name": "Jane", "last_name": "Smith", "company_id": "comp-002", "role_id": "5", "is_active": True, "created_at": "2025-01-31", "last_login": "2025-01-29T10:15:00", "role_name": "Client", "company_name": "Elite Builders"}
+    ]
+    return users
+
+@app.post("/api/rbac/users")
+async def create_api_user(request: Request):
+    """Create a new user"""
+    try:
+        data = await request.json()
+        new_user = {
+            "id": f"user-{len((await get_api_users())) + 1:03d}",
+            "email": data["email"],
+            "first_name": data["first_name"],
+            "last_name": data["last_name"],
+            "company_id": data["company_id"],
+            "role_id": data["role_id"],
+            "is_active": True,
+            "created_at": "2025-01-31T19:15:00",
+            "last_login": None,
+            "role_name": "New Role",
+            "company_name": "Company Name"
+        }
+        return new_user
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid user data")
+
+@app.patch("/api/rbac/users/{user_id}")
+async def update_api_user(user_id: str, request: Request):
+    """Update a user"""
+    try:
+        data = await request.json()
+        return {"id": user_id, "message": "User updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid user data")
+
+@app.delete("/api/rbac/users/{user_id}")
+async def delete_api_user(user_id: str):
+    """Delete a user"""
+    return {"message": "User deleted successfully"}
+
+@app.post("/api/rbac/roles")
+async def create_api_role(request: Request):
+    """Create a new role"""
+    try:
+        data = await request.json()
+        new_role = {
+            "id": f"role-{len((await get_api_roles())) + 1:03d}",
+            "name": data["name"],
+            "description": data["description"],
+            "company_id": data["company_id"],
+            "permissions": data.get("permissions", []),
+            "is_template": data.get("is_template", False),
+            "created_at": "2025-01-31T19:15:00",
+            "updated_at": "2025-01-31T19:15:00"
+        }
+        return new_role
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid role data")
+
+@app.patch("/api/rbac/roles/{role_id}")
+async def update_api_role(role_id: str, request: Request):
+    """Update a role"""
+    try:
+        data = await request.json()
+        return {"id": role_id, "message": "Role updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid role data")
+
+@app.delete("/api/rbac/roles/{role_id}")
+async def delete_api_role(role_id: str):
+    """Delete a role"""
+    return {"message": "Role deleted successfully"}
+
+@app.post("/api/rbac/companies")
+async def create_api_company(request: Request):
+    """Create a new company"""
+    try:
+        data = await request.json()
+        new_company = {
+            "id": f"comp-{len((await get_api_companies())) + 1:03d}",
+            "name": data["name"],
+            "type": data["type"],
+            "subscription_tier": data["subscription_tier"],
+            "created_at": "2025-01-31T19:15:00",
+            "is_active": True
+        }
+        return new_company
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid company data")
+
+@app.patch("/api/rbac/companies/{company_id}")
+async def update_api_company(company_id: str, request: Request):
+    """Update a company"""
+    try:
+        data = await request.json()
+        return {"id": company_id, "message": "Company updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid company data")
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():

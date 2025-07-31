@@ -316,7 +316,7 @@ export default function RBACAdmin() {
                   <TableRow>
                     <TableCell colSpan={7} className="text-center">Loading users...</TableCell>
                   </TableRow>
-                ) : (
+                ) : users && Array.isArray(users) ? (
                   users.map((user: UserProfile) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">
@@ -351,6 +351,10 @@ export default function RBACAdmin() {
                       </TableCell>
                     </TableRow>
                   ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center">No users found</TableCell>
+                  </TableRow>
                 )}
               </TableBody>
             </Table>
@@ -501,7 +505,7 @@ export default function RBACAdmin() {
                 <p>Loading roles...</p>
               </CardContent>
             </Card>
-          ) : (
+          ) : roles && Array.isArray(roles) && roles.length > 0 ? (
             roles.map((role: Role) => (
               <Card key={role.id}>
                 <CardHeader>
@@ -551,6 +555,12 @@ export default function RBACAdmin() {
                 </CardContent>
               </Card>
             ))
+          ) : (
+            <Card>
+              <CardContent className="p-6">
+                <p>No roles found</p>
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>
