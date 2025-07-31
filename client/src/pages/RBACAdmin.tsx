@@ -181,6 +181,8 @@ export default function RBACAdmin() {
   const UserManagement = () => {
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
     const [newUser, setNewUser] = useState({
       email: '',
       first_name: '',
@@ -296,6 +298,105 @@ export default function RBACAdmin() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Edit User Dialog */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Edit User</DialogTitle>
+                <DialogDescription>Update user information</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit_first_name">First Name</Label>
+                    <Input
+                      id="edit_first_name"
+                      value={editingUser?.first_name || ''}
+                      onChange={(e) => setEditingUser(prev => prev ? {...prev, first_name: e.target.value} : null)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_last_name">Last Name</Label>
+                    <Input
+                      id="edit_last_name"
+                      value={editingUser?.last_name || ''}
+                      onChange={(e) => setEditingUser(prev => prev ? {...prev, last_name: e.target.value} : null)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="edit_email">Email</Label>
+                  <Input
+                    id="edit_email"
+                    type="email"
+                    value={editingUser?.email || ''}
+                    onChange={(e) => setEditingUser(prev => prev ? {...prev, email: e.target.value} : null)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_company">Company</Label>
+                  <Select 
+                    value={editingUser?.company_id || ''} 
+                    onValueChange={(value) => setEditingUser(prev => prev ? {...prev, company_id: value} : null)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((company: Company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="edit_role">Role</Label>
+                  <Select 
+                    value={editingUser?.role_id || ''} 
+                    onValueChange={(value) => setEditingUser(prev => prev ? {...prev, role_id: value} : null)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.map((role: Role) => (
+                        <SelectItem key={role.id} value={role.id}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="edit_is_active"
+                    checked={editingUser?.is_active || false}
+                    onCheckedChange={(checked) => setEditingUser(prev => prev ? {...prev, is_active: checked} : null)}
+                  />
+                  <Label htmlFor="edit_is_active">Active User</Label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    if (editingUser) {
+                      updateUserMutation.mutate({ id: editingUser.id, data: editingUser });
+                      setIsEditDialogOpen(false);
+                    }
+                  }}
+                  disabled={updateUserMutation.isPending}
+                >
+                  {updateUserMutation.isPending ? 'Updating...' : 'Update User'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <Card>
@@ -338,7 +439,14 @@ export default function RBACAdmin() {
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              setEditingUser(user);
+                              setIsEditDialogOpen(true);
+                            }}
+                          >
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button 
@@ -368,6 +476,8 @@ export default function RBACAdmin() {
   const RoleManagement = () => {
     const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [editingRole, setEditingRole] = useState<Role | null>(null);
     const [newRole, setNewRole] = useState({
       name: '',
       description: '',
@@ -519,8 +629,16 @@ export default function RBACAdmin() {
                       <CardDescription>{role.description}</CardDescription>
                     </div>
                     <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">
-                        <Edit className="w-4 h-4" />
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setEditingRole(role);
+                          setIsEditDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
                       </Button>
                       <Button 
                         size="sm" 
@@ -570,6 +688,8 @@ export default function RBACAdmin() {
 
   const CompanyManagement = () => {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [editingCompany, setEditingCompany] = useState<Company | null>(null);
     const [newCompany, setNewCompany] = useState({
       name: '',
       type: 'customer',
@@ -652,6 +772,154 @@ export default function RBACAdmin() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Edit Role Dialog */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Role</DialogTitle>
+                <DialogDescription>Update role information and permissions</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit_role_name">Role Name</Label>
+                    <Input
+                      id="edit_role_name"
+                      value={editingRole?.name || ''}
+                      onChange={(e) => setEditingRole(prev => prev ? {...prev, name: e.target.value} : null)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_company">Company</Label>
+                    <Select 
+                      value={editingRole?.company_id || ''} 
+                      onValueChange={(value) => setEditingRole(prev => prev ? {...prev, company_id: value} : null)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select company" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {companies.map((company: Company) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="edit_description">Description</Label>
+                  <Textarea
+                    id="edit_description"
+                    value={editingRole?.description || ''}
+                    onChange={(e) => setEditingRole(prev => prev ? {...prev, description: e.target.value} : null)}
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="edit_is_template"
+                    checked={editingRole?.is_template || false}
+                    onCheckedChange={(checked) => setEditingRole(prev => prev ? {...prev, is_template: checked as boolean} : null)}
+                  />
+                  <Label htmlFor="edit_is_template">Template Role (can be used across companies)</Label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    if (editingRole) {
+                      updateRoleMutation.mutate({ id: editingRole.id, data: editingRole });
+                      setIsEditDialogOpen(false);
+                    }
+                  }}
+                  disabled={updateRoleMutation.isPending}
+                >
+                  {updateRoleMutation.isPending ? 'Updating...' : 'Update Role'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit Company Dialog */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Company</DialogTitle>
+                <DialogDescription>Update company information</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="edit_company_name">Company Name</Label>
+                  <Input
+                    id="edit_company_name"
+                    value={editingCompany?.name || ''}
+                    onChange={(e) => setEditingCompany(prev => prev ? {...prev, name: e.target.value} : null)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_type">Company Type</Label>
+                  <Select 
+                    value={editingCompany?.type || ''} 
+                    onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, type: value} : null)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="platform">Platform Owner</SelectItem>
+                      <SelectItem value="customer">Customer</SelectItem>
+                      <SelectItem value="partner">Partner</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="edit_subscription">Subscription Tier</Label>
+                  <Select 
+                    value={editingCompany?.subscription_tier || ''} 
+                    onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, subscription_tier: value} : null)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="basic">Basic</SelectItem>
+                      <SelectItem value="professional">Professional</SelectItem>
+                      <SelectItem value="enterprise">Enterprise</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="edit_is_active"
+                    checked={editingCompany?.is_active || false}
+                    onCheckedChange={(checked) => setEditingCompany(prev => prev ? {...prev, is_active: checked} : null)}
+                  />
+                  <Label htmlFor="edit_is_active">Active Company</Label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    if (editingCompany) {
+                      updateCompanyMutation.mutate({ id: editingCompany.id, data: editingCompany });
+                      setIsEditDialogOpen(false);
+                    }
+                  }}
+                  disabled={updateCompanyMutation.isPending}
+                >
+                  {updateCompanyMutation.isPending ? 'Updating...' : 'Update Company'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -683,7 +951,14 @@ export default function RBACAdmin() {
                       Created: {new Date(company.created_at).toLocaleDateString()}
                     </div>
                     <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setEditingCompany(company);
+                          setIsEditDialogOpen(true);
+                        }}
+                      >
                         <Edit className="w-4 h-4 mr-2" />
                         Edit
                       </Button>
