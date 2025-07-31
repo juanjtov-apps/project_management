@@ -129,6 +129,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### August 2025 - RBAC System Design Complete
+- **User Feedback Integration**: All 10 user suggestions adopted for production-ready RBAC
+- **Company 0 Strategy**: Platform staff and customers use unified schema with RLS isolation
+- **Role Template System**: Prevents role explosion, allows inheritance and customization
+- **Integer Permissions**: Type-safe enum-based permissions for performance and static analysis
+- **Database RLS**: Row-level security policies for defense-in-depth data protection
+- **Performance Optimization**: Cached effective permissions, strategic indexing for scale
+- **Audit Compliance**: Full audit trails with grantor tracking and expiration dates
+- **ABAC Edge Cases**: JSON-based attribute rules for complex business logic
+- **Security Hygiene**: MFA requirements, least privilege, financial data elevation
+- **Multi-tenant Architecture**: Complete separation with cross-company impersonation support
+
 ### July 2025 - Critical Task Checkbox Functionality Fixed
 - **MAJOR SUCCESS**: Completely resolved the broken task checkbox functionality that was causing 502 Bad Gateway errors
 - **Root Cause**: Proxy middleware was failing to forward PATCH requests from Express to Python backend
