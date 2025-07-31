@@ -704,10 +704,18 @@ export default function RBACAdmin() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isEditCompanyDialogOpen, setIsEditCompanyDialogOpen] = useState(false);
     const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+    const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
+    const [isViewUsersDialogOpen, setIsViewUsersDialogOpen] = useState(false);
     const [newCompany, setNewCompany] = useState({
       name: '',
       type: 'customer',
       subscription_tier: 'basic'
+    });
+
+    // Fetch users for selected company
+    const { data: companyUsers = [], isLoading: companyUsersLoading } = useQuery<any[]>({
+      queryKey: ['/api/rbac/companies', selectedCompanyId, 'users'],
+      enabled: !!selectedCompanyId && isViewUsersDialogOpen,
     });
 
     return (
@@ -876,6 +884,60 @@ export default function RBACAdmin() {
           </DialogContent>
         </Dialog>
 
+        {/* View Users Dialog */}
+        <Dialog open={isViewUsersDialogOpen} onOpenChange={setIsViewUsersDialogOpen}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Company Users</DialogTitle>
+              <DialogDescription>
+                View all users assigned to {companies.find(c => c.id.toString() === selectedCompanyId?.toString())?.name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {companyUsersLoading ? (
+                <div className="text-center py-8">Loading users...</div>
+              ) : companyUsers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No users found for this company
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {companyUsers.map((user: any) => (
+                    <Card key={user.id}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <span className="text-sm font-medium">
+                                {user.name?.[0] || user.email?.[0]?.toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="font-medium">{user.name || 'No name'}</p>
+                              <p className="text-sm text-muted-foreground">{user.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">{user.role_name || 'No role'}</Badge>
+                            <Badge variant={user.is_active ? 'default' : 'secondary'}>
+                              {user.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsViewUsersDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {companiesLoading ? (
             <Card>
@@ -900,11 +962,11 @@ export default function RBACAdmin() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="text-sm text-muted-foreground">
                       Created: {new Date(company.created_at).toLocaleDateString()}
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button 
                         size="sm" 
                         variant="outline"
@@ -916,7 +978,14 @@ export default function RBACAdmin() {
                         <Edit className="w-4 h-4 mr-2" />
                         Edit
                       </Button>
-                      <Button size="sm" variant="outline">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedCompanyId(Number(company.id));
+                          setIsViewUsersDialogOpen(true);
+                        }}
+                      >
                         <Eye className="w-4 h-4 mr-2" />
                         View Users
                       </Button>

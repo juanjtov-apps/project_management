@@ -941,7 +941,7 @@ async def get_company_users(company_id: int):
             FROM users u
             JOIN company_users cu ON u.id = cu.user_id
             LEFT JOIN roles r ON cu.role_id = r.id
-            WHERE cu.company_id = %s AND cu.is_active = true
+            WHERE cu.company_id = %s
             ORDER BY u.name
         """
         users = execute_query(query, (company_id,))
