@@ -16,6 +16,7 @@ Preferred communication style: Simple, everyday language.
 ✅ **Dashboard Performance Optimized**: Response time improved from 1340ms to 341ms (75% faster)
 ✅ **RBAC Company Creation Fixed**: Resolved JSON serialization issues with psycopg2.extras.Json
 ✅ **View Users Button Fixed**: Added proper onClick handler and improved visual layout in company cards
+✅ **User-Company Associations Created**: Fixed empty company_users table by linking users to companies with proper roles
 
 ## System Architecture
 
