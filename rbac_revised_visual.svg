@@ -219,7 +219,7 @@
   <!-- LEGEND SECTION -->
   <rect x="70" y="650" width="500" height="180" class="legend"/>
   <rect x="70" y="650" width="500" height="25" class="legend-header"/>
-  <text x="320" y="667" class="header-text" text-anchor="middle">KEY FEATURES & IMPROVEMENTS</text>
+  <text x="320" y="667" class="header-text" text-anchor="middle">KEY FEATURES AND IMPROVEMENTS</text>
   
   <text x="80" y="690" class="text" font-weight="bold">Company 0 Strategy:</text>
   <text x="80" y="705" class="text">• Platform staff (you) in Company 0, customers in Company 1+</text>
