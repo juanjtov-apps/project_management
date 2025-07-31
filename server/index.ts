@@ -69,11 +69,17 @@ uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
     target: 'http://localhost:8000',
     changeOrigin: true,
     ws: false,
-    timeout: 30000,
-    proxyTimeout: 30000,
+    timeout: 10000,
+    proxyTimeout: 10000,
     // Don't rewrite the path at all - by default express strips /api when mounting at /api
     // So we need to add it back
     pathRewrite: (path, req) => {
+      // For RBAC endpoints, don't double-add /api prefix
+      if (path.startsWith('/rbac/')) {
+        console.log(`Path rewrite: ${path} -> ${path} (RBAC endpoint)`);
+        return path;
+      }
+      // For other endpoints, add /api prefix
       const fullPath = `/api${path}`;
       console.log(`Path rewrite: ${path} -> ${fullPath}`);
       return fullPath;
@@ -106,16 +112,37 @@ uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
     }
   });
   
-  // Apply proxy to API routes, but skip auth routes and other routes we handle locally
-  app.use('/api', (req, res, next) => {
-    // Skip proxy for routes that we handle locally in Express
-    if (req.path.startsWith('/auth') || req.path === '/login' || req.path === '/logout' || req.path === '/callback') {
-      return next();
-    }
+  // Direct RBAC proxy handler to avoid timeout issues
+  app.all('/api/rbac/*', async (req, res) => {
+    const targetPath = req.path.replace('/api', '');
+    const targetUrl = `http://localhost:8000${targetPath}`;
     
-    // Add special handling for PATCH requests to prevent aborts
-    if (req.method === 'PATCH') {
-      console.log('Handling PATCH request:', req.path, 'with body:', req.body);
+    console.log(`Direct RBAC proxy: ${req.method} ${req.path} -> ${targetUrl}`);
+    
+    try {
+      const response = await fetch(targetUrl, {
+        method: req.method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...req.headers
+        },
+        body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined,
+        signal: AbortSignal.timeout(8000) // 8 second timeout
+      });
+      
+      const data = await response.json();
+      res.status(response.status).json(data);
+    } catch (error) {
+      console.error('Direct RBAC proxy error:', error);
+      res.status(500).json({ message: 'Backend service error', error: error.message });
+    }
+  });
+
+  // Apply proxy to other API routes, but skip auth routes and RBAC routes
+  app.use('/api', (req, res, next) => {
+    // Skip proxy for routes that we handle locally in Express or handle directly
+    if (req.path.startsWith('/auth') || req.path === '/login' || req.path === '/logout' || req.path === '/callback' || req.path.startsWith('/rbac')) {
+      return next();
     }
     
     return proxy(req, res, next);
