@@ -168,8 +168,14 @@ export default function RBACAdmin() {
   const updateCompanyMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => 
       apiRequest(`/api/rbac/companies/${id}`, { method: 'PATCH', body: data }),
-    onSuccess: () => {
+    onSuccess: (updatedCompany) => {
+      // Invalidate and refetch the companies list
       queryClient.invalidateQueries({ queryKey: ['/api/rbac/companies'] });
+      
+      // Close the edit dialog and clear state
+      setIsEditCompanyDialogOpen(false);
+      setEditingCompany(null);
+      
       toast({ title: 'Success', description: 'Company updated successfully' });
     },
     onError: (error: any) => {
@@ -872,8 +878,7 @@ export default function RBACAdmin() {
                         is_active: editingCompany.is_active
                       }
                     });
-                    setIsEditCompanyDialogOpen(false);
-                    setEditingCompany(null);
+                    // Don't close dialog here - let onSuccess handle it
                   }
                 }}
                 disabled={updateCompanyMutation.isPending || !editingCompany?.name?.trim()}
