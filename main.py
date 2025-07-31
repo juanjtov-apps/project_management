@@ -48,12 +48,22 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable is required")
 
-# Create connection pool
-connection_pool = SimpleConnectionPool(
-    minconn=1,
-    maxconn=10,
-    dsn=DATABASE_URL
-)
+# Create connection pool with SSL handling
+try:
+    connection_pool = SimpleConnectionPool(
+        minconn=1,
+        maxconn=10,
+        dsn=DATABASE_URL,
+        # Add connection parameters to handle SSL issues
+        connection_factory=None,
+        keepalives_idle=300,
+        keepalives_interval=30,
+        keepalives_count=3
+    )
+    print("Database connection pool created successfully")
+except Exception as e:
+    print(f"Failed to create connection pool: {e}")
+    raise
 
 # Ensure uploads directory exists
 UPLOADS_DIR = Path("uploads")
@@ -68,17 +78,36 @@ def return_db_connection(conn):
     connection_pool.putconn(conn)
 
 class DatabaseConnection:
-    """Context manager for database connections"""
+    """Context manager for database connections with improved error handling"""
     def __init__(self):
         self.conn = None
         
     def __enter__(self):
-        self.conn = get_db_connection()
-        return self.conn
+        try:
+            self.conn = get_db_connection()
+            self.conn.autocommit = False  # Ensure explicit transaction control
+            return self.conn
+        except Exception as e:
+            print(f"Failed to get database connection: {e}")
+            raise
         
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.conn:
-            return_db_connection(self.conn)
+            try:
+                if exc_type is None:
+                    # No exception occurred, commit the transaction
+                    self.conn.commit()
+                else:
+                    # Exception occurred, rollback
+                    self.conn.rollback()
+                    print(f"Database transaction rolled back due to: {exc_val}")
+            except Exception as e:
+                print(f"Error during transaction cleanup: {e}")
+            finally:
+                try:
+                    return_db_connection(self.conn)
+                except Exception as e:
+                    print(f"Error returning connection to pool: {e}")
 
 # Pydantic models
 class UserBase(BaseModel):
