@@ -214,7 +214,7 @@
 
   <!-- Special RLS Connection -->
   <line x1="50" y1="580" x2="1350" y2="580" class="special-connection"/>
-  <text x="700" y="600" class="text" text-anchor="middle" font-weight="bold">ROW-LEVEL SECURITY: ALL TABLES FILTERED BY current_setting('app.current_company')</text>
+  <text x="700" y="600" class="text" text-anchor="middle" font-weight="bold">ROW-LEVEL SECURITY: ALL TABLES FILTERED BY current_setting(&apos;app.current_company&apos;)</text>
 
   <!-- LEGEND SECTION -->
   <rect x="70" y="650" width="500" height="180" class="legend"/>
@@ -234,7 +234,7 @@
   <text x="80" y="775" class="text">• Inheritance chain for automatic updates</text>
   
   <text x="300" y="745" class="text" font-weight="bold">ABAC Edge Cases:</text>
-  <text x="300" y="760" class="text">• JSON rules: "project.created_by == user.id"</text>
+  <text x="300" y="760" class="text">• JSON rules: &quot;project.created_by == user.id&quot;</text>
   <text x="300" y="775" class="text">• Complex business logic support</text>
   
   <text x="80" y="800" class="text" font-weight="bold">Audit &amp; Security:</text>
