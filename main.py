@@ -21,6 +21,25 @@ import uvicorn
 # Load environment variables
 load_dotenv()
 
+def format_datetime_for_frontend(dt_value):
+    """Helper function to format datetime values for frontend consumption"""
+    if not dt_value:
+        return None
+    
+    # If it's already a datetime object
+    if hasattr(dt_value, 'isoformat'):
+        return dt_value.isoformat()
+    
+    # If it's a string, try to parse and format it
+    try:
+        # Handle various string formats from PostgreSQL
+        dt_str = str(dt_value).replace('Z', '+00:00')
+        dt = datetime.fromisoformat(dt_str)
+        return dt.isoformat()
+    except:
+        # Fallback to string representation
+        return str(dt_value)
+
 # Create FastAPI app
 app = FastAPI(title="Tower Flow API", version="1.0.0")
 
@@ -939,10 +958,8 @@ async def get_companies():
             company['is_active'] = company.get('status') == 'active'
             
             # Fix date formatting for frontend
-            if company.get('created_at'):
-                company['created_at'] = company['created_at'].isoformat() if hasattr(company['created_at'], 'isoformat') else str(company['created_at'])
-            if company.get('updated_at'):
-                company['updated_at'] = company['updated_at'].isoformat() if hasattr(company['updated_at'], 'isoformat') else str(company['updated_at'])
+            company['created_at'] = format_datetime_for_frontend(company.get('created_at'))
+            company['updated_at'] = format_datetime_for_frontend(company.get('updated_at'))
             
         return companies
     except Exception as e:
@@ -1039,10 +1056,8 @@ async def create_company(request: Request):
             company['is_active'] = company.get('status') == 'active'
             
             # Fix date formatting for frontend
-            if company.get('created_at'):
-                company['created_at'] = company['created_at'].isoformat() if hasattr(company['created_at'], 'isoformat') else str(company['created_at'])
-            if company.get('updated_at'):
-                company['updated_at'] = company['updated_at'].isoformat() if hasattr(company['updated_at'], 'isoformat') else str(company['updated_at'])
+            company['created_at'] = format_datetime_for_frontend(company.get('created_at'))
+            company['updated_at'] = format_datetime_for_frontend(company.get('updated_at'))
         
         return company
     except Exception as e:
@@ -1123,10 +1138,8 @@ async def update_company(company_id: int, request: Request):
         company['is_active'] = company.get('status') == 'active'
         
         # Fix date formatting - map database fields to frontend fields
-        if company.get('created_at'):
-            company['created_at'] = company['created_at'].isoformat() if hasattr(company['created_at'], 'isoformat') else str(company['created_at'])
-        if company.get('updated_at'):
-            company['updated_at'] = company['updated_at'].isoformat() if hasattr(company['updated_at'], 'isoformat') else str(company['updated_at'])
+        company['created_at'] = format_datetime_for_frontend(company.get('created_at'))
+        company['updated_at'] = format_datetime_for_frontend(company.get('updated_at'))
         
         return company
     except HTTPException:
