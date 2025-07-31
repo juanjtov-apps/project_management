@@ -380,17 +380,31 @@ export default function RBACAdmin() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                <Button variant="outline" onClick={() => {
+                  setIsEditDialogOpen(false);
+                  setEditingUser(null);
+                }}>
                   Cancel
                 </Button>
                 <Button 
                   onClick={() => {
                     if (editingUser) {
-                      updateUserMutation.mutate({ id: editingUser.id, data: editingUser });
+                      updateUserMutation.mutate({ 
+                        id: editingUser.id, 
+                        data: {
+                          email: editingUser.email,
+                          first_name: editingUser.first_name,
+                          last_name: editingUser.last_name,
+                          company_id: editingUser.company_id,
+                          role_id: editingUser.role_id,
+                          is_active: editingUser.is_active
+                        }
+                      });
                       setIsEditDialogOpen(false);
+                      setEditingUser(null);
                     }
                   }}
-                  disabled={updateUserMutation.isPending}
+                  disabled={updateUserMutation.isPending || !editingUser?.email?.trim()}
                 >
                   {updateUserMutation.isPending ? 'Updating...' : 'Update User'}
                 </Button>
@@ -688,7 +702,7 @@ export default function RBACAdmin() {
 
   const CompanyManagement = () => {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isEditCompanyDialogOpen, setIsEditCompanyDialogOpen] = useState(false);
     const [editingCompany, setEditingCompany] = useState<Company | null>(null);
     const [newCompany, setNewCompany] = useState({
       name: '',
@@ -773,80 +787,10 @@ export default function RBACAdmin() {
             </DialogContent>
           </Dialog>
 
-          {/* Edit Role Dialog */}
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Edit Role</DialogTitle>
-                <DialogDescription>Update role information and permissions</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit_role_name">Role Name</Label>
-                    <Input
-                      id="edit_role_name"
-                      value={editingRole?.name || ''}
-                      onChange={(e) => setEditingRole(prev => prev ? {...prev, name: e.target.value} : null)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit_company">Company</Label>
-                    <Select 
-                      value={editingRole?.company_id || ''} 
-                      onValueChange={(value) => setEditingRole(prev => prev ? {...prev, company_id: value} : null)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select company" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {companies.map((company: Company) => (
-                          <SelectItem key={company.id} value={company.id}>
-                            {company.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="edit_description">Description</Label>
-                  <Textarea
-                    id="edit_description"
-                    value={editingRole?.description || ''}
-                    onChange={(e) => setEditingRole(prev => prev ? {...prev, description: e.target.value} : null)}
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="edit_is_template"
-                    checked={editingRole?.is_template || false}
-                    onCheckedChange={(checked) => setEditingRole(prev => prev ? {...prev, is_template: checked as boolean} : null)}
-                  />
-                  <Label htmlFor="edit_is_template">Template Role (can be used across companies)</Label>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={() => {
-                    if (editingRole) {
-                      updateRoleMutation.mutate({ id: editingRole.id, data: editingRole });
-                      setIsEditDialogOpen(false);
-                    }
-                  }}
-                  disabled={updateRoleMutation.isPending}
-                >
-                  {updateRoleMutation.isPending ? 'Updating...' : 'Update Role'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+        </div>
 
           {/* Edit Company Dialog */}
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <Dialog open={isEditCompanyDialogOpen} onOpenChange={setIsEditCompanyDialogOpen}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Edit Company</DialogTitle>
@@ -903,75 +847,87 @@ export default function RBACAdmin() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                <Button variant="outline" onClick={() => {
+                  setIsEditCompanyDialogOpen(false);
+                  setEditingCompany(null);
+                }}>
                   Cancel
                 </Button>
                 <Button 
                   onClick={() => {
                     if (editingCompany) {
-                      updateCompanyMutation.mutate({ id: editingCompany.id, data: editingCompany });
-                      setIsEditDialogOpen(false);
+                      updateCompanyMutation.mutate({ 
+                        id: editingCompany.id, 
+                        data: {
+                          name: editingCompany.name,
+                          type: editingCompany.type,
+                          subscription_tier: editingCompany.subscription_tier,
+                          is_active: editingCompany.is_active
+                        }
+                      });
+                      setIsEditCompanyDialogOpen(false);
+                      setEditingCompany(null);
                     }
                   }}
-                  disabled={updateCompanyMutation.isPending}
+                  disabled={updateCompanyMutation.isPending || !editingCompany?.name?.trim()}
                 >
                   {updateCompanyMutation.isPending ? 'Updating...' : 'Update Company'}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {companiesLoading ? (
-            <Card>
-              <CardContent className="p-6">
-                <p>Loading companies...</p>
-              </CardContent>
-            </Card>
-          ) : (
-            companies.map((company: Company) => (
-              <Card key={company.id}>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle>{company.name}</CardTitle>
-                      <CardDescription>
-                        {company.type} • {company.subscription_tier}
-                      </CardDescription>
-                    </div>
-                    <Badge variant={company.is_active ? 'default' : 'destructive'}>
-                      {company.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">
-                      Created: {new Date(company.created_at).toLocaleDateString()}
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => {
-                          setEditingCompany(company);
-                          setIsEditDialogOpen(true);
-                        }}
-                      >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit
-                      </Button>
-                      <Button size="sm" variant="outline">
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Users
-                      </Button>
-                    </div>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {companiesLoading ? (
+              <Card>
+                <CardContent className="p-6">
+                  <p>Loading companies...</p>
                 </CardContent>
               </Card>
-            ))
-          )}
+            ) : (
+              companies.map((company: Company) => (
+                <Card key={company.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle>{company.name}</CardTitle>
+                        <CardDescription>
+                          {company.type} • {company.subscription_tier}
+                        </CardDescription>
+                      </div>
+                      <Badge variant={company.is_active ? 'default' : 'destructive'}>
+                        {company.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="text-sm text-muted-foreground">
+                        Created: {new Date(company.created_at).toLocaleDateString()}
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            setEditingCompany(company);
+                            setIsEditCompanyDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="outline">
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Users
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
         </div>
       </div>
     );
