@@ -15,6 +15,7 @@ from psycopg2.extras import RealDictCursor
 from psycopg2.pool import SimpleConnectionPool
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+import uvicorn
 
 # Load environment variables
 load_dotenv()
@@ -22,8 +23,7 @@ load_dotenv()
 # Create FastAPI app
 app = FastAPI(title="Tower Flow API", version="1.0.0")
 
-# RBAC router temporarily disabled due to import issues
-print("RBAC routes temporarily disabled - will be enabled after fixing imports")
+# RBAC functionality integrated directly
 
 # Add CORS middleware
 app.add_middleware(
@@ -873,6 +873,88 @@ async def get_dashboard_stats():
         print(f"Dashboard stats error: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch dashboard stats")
 
+# Add RBAC endpoints directly
+@app.get("/rbac/companies")
+async def get_companies():
+    """Get all companies"""
+    try:
+        query = "SELECT * FROM companies ORDER BY name"
+        companies = execute_query(query)
+        return companies
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to fetch companies")
+
+@app.get("/rbac/role-templates")
+async def get_role_templates():
+    """Get all role templates"""
+    try:
+        query = "SELECT * FROM role_templates ORDER BY name"
+        templates = execute_query(query)
+        return templates
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to fetch role templates")
+
+@app.get("/rbac/permissions")
+async def get_permissions():
+    """Get all permissions"""
+    try:
+        query = "SELECT * FROM permissions ORDER BY id"
+        permissions = execute_query(query)
+        return permissions
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to fetch permissions")
+
+@app.get("/rbac/roles")
+async def get_roles():
+    """Get all roles"""
+    try:
+        query = "SELECT * FROM roles ORDER BY name"
+        roles = execute_query(query)
+        return roles
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to fetch roles")
+
+@app.get("/rbac/companies/{company_id}/users")
+async def get_company_users(company_id: int):
+    """Get users for a specific company"""
+    try:
+        query = """
+            SELECT u.*, cu.role_id, r.name as role_name
+            FROM users u
+            JOIN company_users cu ON u.id = cu.user_id
+            LEFT JOIN roles r ON cu.role_id = r.id
+            WHERE cu.company_id = %s AND cu.is_active = true
+            ORDER BY u.name
+        """
+        users = execute_query(query, (company_id,))
+        return users
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to fetch company users")
+
+@app.post("/rbac/companies")
+async def create_company(request: Request):
+    """Create a new company"""
+    try:
+        data = await request.json()
+        query = """
+            INSERT INTO companies (name, description, industry, is_active)
+            VALUES (%s, %s, %s, %s)
+            RETURNING *
+        """
+        company = execute_query(
+            query, 
+            (data.get('name'), data.get('description'), data.get('industry'), data.get('is_active', True)),
+            fetch_one=True
+        )
+        return company
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to create company")
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "message": "Tower Flow API is running"}
+
 # In development, we need to proxy to Vite dev server
 @app.api_route("/{path:path}", methods=["GET"])
 async def catch_all(path: str, request: Request):
@@ -885,11 +967,6 @@ async def catch_all(path: str, request: Request):
         if Path("dist/public/index.html").exists():
             return FileResponse("dist/public/index.html")
         return {"detail": "Not Found"}
-
-# Health check endpoint
-@app.get("/health")
-async def health_check():
-    return {"status": "ok", "message": "Tower Flow API is running"}
 
 if __name__ == "__main__":
     import uvicorn
