@@ -36,13 +36,13 @@ def format_datetime_for_frontend(dt_value):
         dt_str = str(dt_value).replace('Z', '+00:00')
         
         # Try different parsing methods
+        from datetime import datetime
         try:
             # First try direct ISO format parsing
             dt = datetime.fromisoformat(dt_str)
             return dt.isoformat()
         except:
             # Try parsing PostgreSQL timestamp format
-            from datetime import datetime
             dt = datetime.strptime(dt_str.split('.')[0], '%Y-%m-%d %H:%M:%S')
             return dt.isoformat()
     except Exception as e:
@@ -1004,6 +1004,29 @@ async def get_roles():
         return roles
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch roles")
+
+@app.get("/rbac/users")
+async def get_users():
+    """Get all users"""
+    try:
+        query = """
+            SELECT u.*, cu.company_id, c.name as company_name, cu.role_id, r.name as role_name
+            FROM users u
+            LEFT JOIN company_users cu ON u.id = cu.user_id
+            LEFT JOIN companies c ON cu.company_id = c.id
+            LEFT JOIN roles r ON cu.role_id = r.id
+            ORDER BY u.name
+        """
+        users = execute_query(query)
+        
+        # Format dates for frontend
+        for user in users:
+            user['created_at'] = format_datetime_for_frontend(user.get('createdAt'))
+            user['updated_at'] = format_datetime_for_frontend(user.get('updatedAt'))
+        
+        return users
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to fetch users")
 
 @app.get("/rbac/companies/{company_id}/users")
 async def get_company_users(company_id: int):
