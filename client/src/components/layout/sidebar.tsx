@@ -9,7 +9,8 @@ import {
   ClipboardList, 
   Users,
   HardHat,
-  Wrench
+  Wrench,
+  Shield
 } from "lucide-react";
 
 const navigation = [
@@ -21,6 +22,7 @@ const navigation = [
   { name: "Project Logs", href: "/logs", icon: ClipboardList },
   { name: "Crew", href: "/crew", icon: Users },
   { name: "Subs", href: "/subs", icon: Wrench },
+  { name: "RBAC Admin", href: "/rbac", icon: Shield },
 ];
 
 export default function Sidebar() {
