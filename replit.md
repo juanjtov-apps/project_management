@@ -17,6 +17,8 @@ Preferred communication style: Simple, everyday language.
 ✅ **RBAC Company Creation Fixed**: Resolved JSON serialization issues with psycopg2.extras.Json
 ✅ **View Users Button Fixed**: Added proper onClick handler and improved visual layout in company cards
 ✅ **User-Company Associations Created**: Fixed empty company_users table by linking users to companies with proper roles
+✅ **Date Formatting Issues Resolved**: Fixed "Invalid Date" display by correcting PostgreSQL field name mapping from snake_case to camelCase
+✅ **User Management Tab Fixed**: Added missing `/rbac/users` endpoint that was causing 404 errors in user management interface
 
 ## System Architecture
 
