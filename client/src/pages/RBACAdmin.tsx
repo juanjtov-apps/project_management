@@ -799,6 +799,18 @@ export default function RBACAdmin() {
       subscription_tier: 'basic'
     });
 
+    // Calculate user counts per company
+    const userCountsByCompany = React.useMemo(() => {
+      const counts: { [key: string]: number } = {};
+      users.forEach((user: UserProfile) => {
+        const companyName = user.company_name;
+        if (companyName) {
+          counts[companyName] = (counts[companyName] || 0) + 1;
+        }
+      });
+      return counts;
+    }, [users]);
+
     // Company update mutation - now has access to local state
     const updateCompanyMutation = useMutation({
       mutationFn: ({ id, data }: { id: string; data: any }) => 
@@ -1068,8 +1080,13 @@ export default function RBACAdmin() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <div className="text-sm text-muted-foreground">
-                      Created: {new Date(company.created_at).toLocaleDateString()}
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm text-muted-foreground">
+                        Created: {new Date(company.created_at).toLocaleDateString()}
+                      </div>
+                      <div className="text-sm font-medium">
+                        {userCountsByCompany[company.name] || 0} users
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button 
