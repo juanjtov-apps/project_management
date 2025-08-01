@@ -793,6 +793,7 @@ export default function RBACAdmin() {
     const [editingCompany, setEditingCompany] = useState<Company | null>(null);
     const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
     const [isViewUsersDialogOpen, setIsViewUsersDialogOpen] = useState(false);
+    const [showOnlyWithUsers, setShowOnlyWithUsers] = useState(false);
     const [newCompany, setNewCompany] = useState({
       name: '',
       type: 'customer',
@@ -810,6 +811,16 @@ export default function RBACAdmin() {
       });
       return counts;
     }, [users]);
+
+    // Filter companies based on user preference
+    const filteredCompanies = React.useMemo(() => {
+      if (showOnlyWithUsers) {
+        return companies.filter((company: Company) => 
+          (userCountsByCompany[company.name] || 0) > 0
+        );
+      }
+      return companies;
+    }, [companies, userCountsByCompany, showOnlyWithUsers]);
 
     // Company update mutation - now has access to local state
     const updateCompanyMutation = useMutation({
@@ -843,7 +854,18 @@ export default function RBACAdmin() {
             <h3 className="text-2xl font-semibold">Company Management</h3>
             <p className="text-muted-foreground">Manage companies and tenants</p>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="show-only-with-users"
+                checked={showOnlyWithUsers}
+                onCheckedChange={setShowOnlyWithUsers}
+              />
+              <Label htmlFor="show-only-with-users" className="text-sm">
+                Only show companies with users
+              </Label>
+            </div>
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
@@ -911,7 +933,8 @@ export default function RBACAdmin() {
                 </Button>
               </DialogFooter>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
 
         {/* Edit Company Dialog */}
@@ -1063,7 +1086,7 @@ export default function RBACAdmin() {
               </CardContent>
             </Card>
           ) : (
-            companies.map((company: Company) => (
+            filteredCompanies.map((company: Company) => (
               <Card key={company.id}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
