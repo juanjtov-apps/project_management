@@ -1,0 +1,122 @@
+Below is a practical check-list you can turn into automated tests (pgTAP, pytest-async, or any harness you like).
+
+I group them by intent so you can prioritise and wire them into CI one slice at a time.
+
+---
+
+### **1 – Smoke-up / migration sanity**
+
+- Run the migration from an empty database; expect **no errors**.
+- Run the down-migration; the database should return to a pristine state.
+- Re-apply the migration a second time to prove it is idempotent.
+
+---
+
+### **2 – Schema and constraint validation**
+
+- Insert a row in every table with *good* data: must succeed.
+- Try illegal values for every NOT NULL, CHECK, and foreign-key: each should raise the expected error code.
+- Confirm company_id is NOT NULL everywhere except the two platform tables (companies row 0 and its users).
+
+---
+
+### **3 – Seed-data sanity**
+
+- Verify the seeds created exactly the integer permission codes you documented (1–49).
+- Check that default roles (“PlatformAdmin”, “CompanyAdmin”, etc.) reference the correct permission IDs.
+- Assert that the cloning trigger copies permissions but **not** the template_id (to avoid recursive chains).
+
+---
+
+### **4 – Row-level security isolation**
+
+- SET app.current_company = 42 then try SELECT * FROM projects—should return only company 42 rows.
+- Switch to company 0 and repeat: should expose only platform rows.
+- Attempt SET ROLE postgres (or another superuser) in a test transaction; RLS must still block access unless bypass_rls is set.
+
+---
+
+### **5 – Role-and-permission matrix**
+
+- Create a matrix of users × actions for each persona (PlatformAdmin, CompanyAdmin, PM, Client, Sub).
+- Loop through the matrix issuing the real application query (e.g. UPDATE projects SET budget = 1 …).
+- Expect TRUE for allowed intersections, ERROR: permission denied for everything else.
+
+---
+
+### **6 – Project-scope tests (“no role explosion” guarantee)**
+
+- Give Alice role **Client** and insert two project_assignments: P1 and P2.
+- List projects as Alice—should see P1 and P2 only.
+- Delete one assignment; run query again—only remaining project should appear.
+- Ensure the global role row count never changes when assignments fluctuate.
+
+---
+
+### **7 – Trigger & cache coherence (**
+
+### **user_effective_permissions**
+
+### **)**
+
+- After inserting Alice’s company_users membership, check the cache row exists with the expected JSON array.
+- Grant Alice an extra role (“Subcontractor”); the cache must refresh in the same transaction.
+- Remove a permission from the underlying role and verify the cache prunes it.
+
+---
+
+### **8 – Template cloning edge-cases**
+
+- Clone “Project Manager” into “Site Supervisor”; assert template_id filled, is_template = false.
+- Add a new permission to the original template then run your “propagate” routine; the clone should now include the new permission unless it was explicitly overridden.
+- Attempt to clone a clone—should raise an error or reset template_id to the root template, depending on your rule.
+
+---
+
+### **9 – Audit-trail integrity**
+
+- Insert a project_assignment using API code; confirm granted_by_user_id, granted_at, and optional expires_at are set.
+- Travel past expires_at with SET TIME ZONE or a manual update; ensure Alice loses access without manual revocation.
+- Validate that deletions cascade or archive according to your retention policy.
+
+---
+
+### **10 – ABAC rule evaluation**
+
+- Create a permission with rule project.created_by == user.id.
+- Log in as the project creator and attempt the guarded action—should succeed.
+- Log in as another PM of the same company—should fail with a policy error even though RBAC passes.
+- Write property-based tests with random creators to stress-test the rule interpreter.
+
+---
+
+### **11 – Performance smoke-tests**
+
+- Use EXPLAIN ANALYZE on the hottest read paths (login permission fetch, project list) and assert a max cost or latency budget (e.g. <5 ms).
+- Check that the query plan uses the composite indexes (company_id, user_id) and (project_id, user_id).
+- Run a short pgbench script with 10 k users × 100 k projects to identify missing indexes early.
+
+---
+
+### **12 – Concurrent-write contention**
+
+- Open two transactions, each granting the same role to the same user; one should block and then raise unique_violation or be serialised away.
+- Simultaneously insert into user_effective_permissions and query from it to ensure no dirty-read happens (serialisable or repeatable-read isolation works).
+
+---
+
+### **13 – Backup / restore drills**
+
+- Take a logical backup (pg_dump) and restore into a fresh container; all constraints, RLS policies, and extensions must survive.
+- Restore onto Postgres *one* minor version newer to uncover compatibility warnings early.
+
+---
+
+### **14 – Security fuzzing**
+
+- Run SQL-injection strings through every text field in your seeding and API layer; database should error or sanitise, never execute arbitrary SQL.
+- Attempt privilege escalation by manually inserting a row into company_users for a different tenant; RLS should block the insert.
+
+---
+
+Automate the first ten groups in CI so every migration runs them by default; keep the heavy-load pgbench and backup drills in a nightly workflow.  Once those tests pass reliably you can invite alpha users with confidence that tenancy, permissions, and audit guarantees hold.

@@ -47,21 +47,53 @@ export default function PhotoGallery({ photos, onDelete }: PhotoGalleryProps) {
   return (
     <>
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        {photos.map((photo) => (
-          <div
-            key={photo.id}
-            className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
-            onClick={() => handlePhotoClick(photo)}
-          >
-            <img
-              src={`/api/photos/${photo.id}/file`}
-              alt={photo.originalName}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-            
-            {/* Overlay with actions */}
-            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-opacity flex items-center justify-center">
+        {photos.map((photo) => {
+          // Parse tags safely
+          let photoTags: string[] = [];
+          try {
+            photoTags = typeof photo.tags === 'string' ? JSON.parse(photo.tags) : photo.tags || [];
+          } catch {
+            photoTags = [];
+          }
+
+          return (
+            <div
+              key={photo.id}
+              className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => handlePhotoClick(photo)}
+            >
+              <img
+                src={`/api/photos/${photo.id}/file`}
+                alt={photo.originalName}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+              
+              {/* Tags overlay - always visible */}
+              {photoTags.length > 0 && (
+                <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[calc(100%-1rem)]">
+                  {photoTags.slice(0, 2).map((tag, index) => (
+                    <Badge
+                      key={index}
+                      variant="secondary"
+                      className="text-xs bg-black bg-opacity-70 text-white hover:bg-opacity-90 transition-opacity"
+                    >
+                      {tag}
+                    </Badge>
+                  ))}
+                  {photoTags.length > 2 && (
+                    <Badge
+                      variant="secondary"
+                      className="text-xs bg-black bg-opacity-70 text-white"
+                    >
+                      +{photoTags.length - 2}
+                    </Badge>
+                  )}
+                </div>
+              )}
+              
+              {/* Overlay with actions */}
+              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-opacity flex items-center justify-center">
               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
                 <Button
                   size="sm"
@@ -105,8 +137,9 @@ export default function PhotoGallery({ photos, onDelete }: PhotoGalleryProps) {
                 {new Date(photo.createdAt).toLocaleDateString()}
               </p>
             </div>
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
 
       {/* Photo Viewer Dialog */}

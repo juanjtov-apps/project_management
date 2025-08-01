@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, CalendarIcon, Clock, User, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle } from "lucide-react";
+import { Plus, CalendarIcon, Clock, User, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle, Grid3X3, List, FolderOpen, ChevronDown, ChevronRight } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertTaskSchema } from "@shared/schema";
@@ -54,13 +54,13 @@ const getStatusColor = (status: string) => {
 const getCategoryIcon = (category: string) => {
   switch (category) {
     case "project":
-      return <Building size={16} className="text-blue-600" />;
+      return Building;
     case "administrative":
-      return <Settings size={16} className="text-purple-600" />;
+      return Settings;
     case "general":
-      return <CheckCircle size={16} className="text-green-600" />;
+      return CheckCircle;
     default:
-      return <CheckCircle size={16} className="text-gray-600" />;
+      return CheckCircle;
   }
 };
 
@@ -70,15 +70,26 @@ interface TaskCardProps {
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
   onStatusChange: (task: Task, newStatus: string) => void;
+  onScheduleChange?: (task: Task) => void;
 }
 
-function TaskCard({ task, project, onEdit, onDelete, onStatusChange }: TaskCardProps) {
+function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleChange }: TaskCardProps) {
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card 
+      className="hover:shadow-md transition-shadow cursor-pointer"
+      onClick={() => onScheduleChange?.(task)}
+    >
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div className="flex items-start space-x-2">
-            {getCategoryIcon(task.category || "general")}
+            <div className="flex items-center">
+              {(() => {
+                const IconComponent = getCategoryIcon(task.category || "general");
+                const iconClass = task.category === "project" ? "text-blue-600" : 
+                                 task.category === "administrative" ? "text-purple-600" : "text-green-600";
+                return <IconComponent size={16} className={iconClass} />;
+              })()}
+            </div>
             <div className="flex-1">
               <CardTitle className="text-sm font-medium construction-secondary">
                 {task.title}
@@ -86,6 +97,7 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange }: TaskCardP
               {project && (
                 <p className="text-xs text-gray-500 mt-1">{project.name}</p>
               )}
+              <p className="text-xs text-blue-600 mt-1">Click to edit task</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -94,16 +106,20 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange }: TaskCardP
             </Badge>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <MoreHorizontal size={14} />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit(task)}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(task); }}>
                   <Edit size={14} className="mr-2" />
                   Edit
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onDelete(task)} className="text-red-600">
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(task); }} className="text-red-600">
                   <Trash2 size={14} className="mr-2" />
                   Delete
                 </DropdownMenuItem>
@@ -123,7 +139,10 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange }: TaskCardP
               {task.status.replace("-", " ")}
             </Badge>
             <Select value={task.status} onValueChange={(value) => onStatusChange(task, value)}>
-              <SelectTrigger className="h-6 w-auto text-xs border-0 bg-transparent p-1">
+              <SelectTrigger 
+                className="h-6 w-auto text-xs border-0 bg-transparent p-1"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -154,12 +173,126 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange }: TaskCardP
   );
 }
 
+interface TaskListItemProps {
+  task: Task;
+  projectName?: string;
+  onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
+  onStatusChange: (task: Task, status: string) => void;
+  onScheduleChange?: (task: Task) => void;
+}
+
+function TaskListItem({ task, projectName, onEdit, onDelete, onStatusChange, onScheduleChange }: TaskListItemProps) {
+  const CategoryIcon = getCategoryIcon(task.category || "general");
+  const iconClass = task.category === "project" ? "text-blue-600" : 
+                   task.category === "administrative" ? "text-purple-600" : "text-green-600";
+  
+  return (
+    <Card 
+      className="hover:shadow-md transition-shadow cursor-pointer"
+      onClick={() => onScheduleChange?.(task)}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3 flex-1">
+            <CategoryIcon size={16} className={`${iconClass} flex-shrink-0`} />
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-1">
+                <h3 className="font-medium text-sm truncate">{task.title}</h3>
+                <Badge className={`${getPriorityColor(task.priority)} text-xs px-2 py-0`}>
+                  {task.priority}
+                </Badge>
+              </div>
+              
+              <p className="text-xs text-blue-600 mb-1">Click to edit task</p>
+              
+              <div className="flex items-center space-x-4 text-xs text-gray-500">
+                {projectName && (
+                  <div className="flex items-center">
+                    <FolderOpen size={12} className="mr-1" />
+                    <span className="truncate max-w-32">{projectName}</span>
+                  </div>
+                )}
+                
+                {task.dueDate && (
+                  <div className="flex items-center">
+                    <Clock size={12} className="mr-1" />
+                    <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                  </div>
+                )}
+                
+                {task.assigneeId && (
+                  <div className="flex items-center">
+                    <User size={12} className="mr-1" />
+                    <span>Assigned</span>
+                  </div>
+                )}
+              </div>
+              
+              {task.description && (
+                <p className="text-xs text-gray-600 mt-1 line-clamp-1">{task.description}</p>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2 flex-shrink-0">
+            <Select value={task.status} onValueChange={(value) => onStatusChange(task, value)}>
+              <SelectTrigger 
+                className="h-7 w-auto text-xs border px-2 py-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="blocked">Blocked</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 w-7 p-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal size={14} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(task); }}>
+                  <Edit size={12} className="mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={(e) => { e.stopPropagation(); onDelete(task); }}
+                  className="text-red-600"
+                >
+                  <Trash2 size={12} className="mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Tasks() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isTaskDetailDialogOpen, setIsTaskDetailDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [viewMode, setViewMode] = useState<"canvas" | "list">("list");
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const queryClient = useQueryClient();
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
@@ -187,6 +320,7 @@ export default function Tasks() {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       setIsEditDialogOpen(false);
+      setIsTaskDetailDialogOpen(false);
       setEditingTask(null);
       editForm.reset();
     },
@@ -233,7 +367,7 @@ export default function Tasks() {
     const taskData = {
       ...data,
       description: data.description?.trim() || null,
-      dueDate: data.dueDate ? data.dueDate.toISOString() : null,
+      dueDate: data.dueDate ? (typeof data.dueDate === 'string' ? data.dueDate : data.dueDate.toISOString()) : null,
     };
     
     console.log("Tasks page data being sent to API:", taskData);
@@ -273,6 +407,33 @@ export default function Tasks() {
         status: newStatus
       }
     });
+  };
+
+  const handleScheduleChange = (task: Task) => {
+    // Open task detail modal instead of redirecting to schedule page
+    handleTaskDetailOpen(task);
+  };
+
+  const handleTaskDetailOpen = (task: Task) => {
+    setEditingTask(task);
+    editForm.reset({
+      title: task.title,
+      description: task.description || "",
+      projectId: task.projectId,
+      category: task.category || "general",
+      status: task.status,
+      priority: task.priority,
+      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+      assigneeId: task.assigneeId,
+    });
+    setIsTaskDetailDialogOpen(true);
+  };
+
+  const toggleSection = (sectionId: string) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
   };
 
   // Filter and organize tasks
@@ -366,9 +527,137 @@ export default function Tasks() {
             />
           </DialogContent>
         </Dialog>
+
+        {/* Task Detail Modal - Comprehensive Editing */}
+        <Dialog open={isTaskDetailDialogOpen} onOpenChange={setIsTaskDetailDialogOpen}>
+          <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold text-gray-900">
+                {editingTask?.title || "Edit Task"}
+              </DialogTitle>
+              <div className="flex items-center gap-2 mt-2">
+                {editingTask && (
+                  <>
+                    <Badge className={getPriorityColor(editingTask.priority)} variant="outline">
+                      {editingTask.priority}
+                    </Badge>
+                    <Badge className={getStatusColor(editingTask.status)} variant="secondary">
+                      {editingTask.status.replace("-", " ")}
+                    </Badge>
+                    {editingTask.category && (
+                      <Badge variant="outline" className="bg-gray-50">
+                        {editingTask.category}
+                      </Badge>
+                    )}
+                  </>
+                )}
+              </div>
+            </DialogHeader>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+              {/* Main Content - Task Form */}
+              <div className="lg:col-span-2 space-y-4">
+                <TaskForm 
+                  form={editForm} 
+                  onSubmit={onEditSubmit} 
+                  projects={projects}
+                  isLoading={updateTaskMutation.isPending}
+                  submitText="Save Changes"
+                />
+              </div>
+              
+              {/* Sidebar - Additional Info */}
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-gray-700">Task Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {editingTask?.dueDate && (
+                      <div className="flex items-center text-sm">
+                        <Clock size={14} className="mr-2 text-gray-500" />
+                        <span className="text-gray-600">Due:</span>
+                        <span className="ml-1 font-medium">
+                          {new Date(editingTask.dueDate).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {editingTask?.projectId && projects.find(p => p.id === editingTask.projectId) && (
+                      <div className="flex items-center text-sm">
+                        <Building size={14} className="mr-2 text-blue-500" />
+                        <span className="text-gray-600">Project:</span>
+                        <span className="ml-1 font-medium text-blue-600">
+                          {projects.find(p => p.id === editingTask.projectId)?.name}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center text-sm">
+                      <User size={14} className="mr-2 text-gray-500" />
+                      <span className="text-gray-600">Created:</span>
+                      <span className="ml-1 font-medium">
+                        {editingTask?.createdAt ? new Date(editingTask.createdAt).toLocaleDateString() : "Unknown"}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                {editingTask?.description && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-semibold text-gray-700">Description</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        {editingTask.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-gray-700">Quick Actions</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        if (editingTask) {
+                          handleStatusChange(editingTask, editingTask.status === "completed" ? "in-progress" : "completed");
+                        }
+                      }}
+                    >
+                      <CheckCircle size={14} className="mr-2" />
+                      {editingTask?.status === "completed" ? "Mark Incomplete" : "Mark Complete"}
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start text-red-600 hover:text-red-700"
+                      onClick={() => {
+                        if (editingTask && window.confirm(`Are you sure you want to delete "${editingTask.title}"?`)) {
+                          deleteTaskMutation.mutate(editingTask.id);
+                          setIsTaskDetailDialogOpen(false);
+                        }
+                      }}
+                    >
+                      <Trash2 size={14} className="mr-2" />
+                      Delete Task
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 items-center">
         <Input
           placeholder="Search tasks..."
           value={searchTerm}
@@ -387,15 +676,189 @@ export default function Tasks() {
             <SelectItem value="blocked">Blocked</SelectItem>
           </SelectContent>
         </Select>
+        
+        <div className="flex items-center border rounded-lg">
+          <Button
+            variant={viewMode === "canvas" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("canvas")}
+            className="border-0 rounded-r-none"
+          >
+            <Grid3X3 size={16} className="mr-1" />
+            Canvas
+          </Button>
+          <Button
+            variant={viewMode === "list" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("list")}
+            className="border-0 rounded-l-none"
+          >
+            <List size={16} className="mr-1" />
+            List
+          </Button>
+        </div>
       </div>
 
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="projects">By Projects</TabsTrigger>
-          <TabsTrigger value="administrative">Administrative</TabsTrigger>
-          <TabsTrigger value="general">General</TabsTrigger>
-        </TabsList>
+      {viewMode === "list" ? (
+        // List View
+        <div className="space-y-6">
+          {/* Project Tasks Section */}
+          {Object.values(tasksByProject).length > 0 && (
+            <div className="space-y-4">
+              <Button
+                variant="ghost"
+                onClick={() => toggleSection('projects')}
+                className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
+              >
+                {collapsedSections['projects'] ? 
+                  <ChevronRight size={20} className="text-blue-600" /> : 
+                  <ChevronDown size={20} className="text-blue-600" />
+                }
+                <FolderOpen size={20} className="text-blue-600" />
+                <h2 className="text-lg font-semibold text-blue-600">Project Tasks</h2>
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {Object.values(tasksByProject).reduce((total, { tasks }) => total + tasks.length, 0)} tasks
+                </Badge>
+              </Button>
+              
+              {!collapsedSections['projects'] && Object.values(tasksByProject).map(({ project, tasks }) => (
+                <div key={project.id} className="space-y-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => toggleSection(`project-${project.id}`)}
+                    className="flex items-center w-full justify-start p-2 h-auto hover:bg-gray-50 ml-6"
+                  >
+                    {collapsedSections[`project-${project.id}`] ? 
+                      <ChevronRight size={16} className="mr-2" /> : 
+                      <ChevronDown size={16} className="mr-2" />
+                    }
+                    <Building size={16} className="mr-2" />
+                    <span className="text-md font-medium text-gray-700">{project.name}</span>
+                    <Badge variant="outline" className="ml-2 text-xs">
+                      {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                    </Badge>
+                  </Button>
+                  {!collapsedSections[`project-${project.id}`] && (
+                    <div className="space-y-2 pl-12">
+                      {tasks.map((task) => (
+                        <TaskListItem
+                          key={task.id}
+                          task={task}
+                          projectName={project.name}
+                          onEdit={handleEditTask}
+                          onDelete={handleDeleteTask}
+                          onStatusChange={handleStatusChange}
+                          onScheduleChange={handleScheduleChange}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Administrative Tasks Section */}
+          {adminTasks.length > 0 && (
+            <div className="space-y-4">
+              <Button
+                variant="ghost"
+                onClick={() => toggleSection('administrative')}
+                className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
+              >
+                {collapsedSections['administrative'] ? 
+                  <ChevronRight size={20} className="text-purple-600" /> : 
+                  <ChevronDown size={20} className="text-purple-600" />
+                }
+                <Settings size={20} className="text-purple-600" />
+                <h2 className="text-lg font-semibold text-purple-600">Administrative Tasks</h2>
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {adminTasks.length} task{adminTasks.length !== 1 ? 's' : ''}
+                </Badge>
+              </Button>
+              {!collapsedSections['administrative'] && (
+                <div className="space-y-2 pl-6">
+                  {adminTasks.map((task) => (
+                    <TaskListItem
+                      key={task.id}
+                      task={task}
+                      onEdit={handleEditTask}
+                      onDelete={handleDeleteTask}
+                      onStatusChange={handleStatusChange}
+                      onScheduleChange={handleScheduleChange}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* General Tasks Section */}
+          {generalTasks.length > 0 && (
+            <div className="space-y-4">
+              <Button
+                variant="ghost"
+                onClick={() => toggleSection('general')}
+                className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
+              >
+                {collapsedSections['general'] ? 
+                  <ChevronRight size={20} className="text-green-600" /> : 
+                  <ChevronDown size={20} className="text-green-600" />
+                }
+                <CheckCircle size={20} className="text-green-600" />
+                <h2 className="text-lg font-semibold text-green-600">General Tasks</h2>
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {generalTasks.length} task{generalTasks.length !== 1 ? 's' : ''}
+                </Badge>
+              </Button>
+              {!collapsedSections['general'] && (
+                <div className="space-y-2 pl-6">
+                  {generalTasks.map((task) => (
+                    <TaskListItem
+                      key={task.id}
+                      task={task}
+                      onEdit={handleEditTask}
+                      onDelete={handleDeleteTask}
+                      onStatusChange={handleStatusChange}
+                      onScheduleChange={handleScheduleChange}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Empty State */}
+          {filteredTasks.length === 0 && (
+            <Card className="text-center py-12">
+              <CardContent>
+                <List size={48} className="mx-auto text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-600 mb-2">No tasks found</h3>
+                <p className="text-gray-500 mb-4">
+                  {searchTerm || statusFilter !== "all" 
+                    ? "Try adjusting your search or filter criteria" 
+                    : "Create your first task to get started"}
+                </p>
+                <Button 
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  className="construction-primary text-white"
+                >
+                  <Plus size={16} className="mr-2" />
+                  Create Task
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      ) : (
+        // Canvas View (Tabs)
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="projects">By Projects</TabsTrigger>
+            <TabsTrigger value="administrative">Administrative</TabsTrigger>
+            <TabsTrigger value="general">General</TabsTrigger>
+          </TabsList>
         
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -453,6 +916,7 @@ export default function Tasks() {
                     onEdit={handleEditTask}
                     onDelete={handleDeleteTask}
                     onStatusChange={handleStatusChange}
+                    onScheduleChange={handleScheduleChange}
                   />
                 );
               })}
@@ -463,23 +927,34 @@ export default function Tasks() {
         <TabsContent value="projects" className="space-y-6">
           {Object.values(tasksByProject).map(({ project, tasks }) => (
             <div key={project.id}>
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Button
+                variant="ghost"
+                onClick={() => toggleSection(`canvas-project-${project.id}`)}
+                className="flex items-center w-full justify-start p-2 h-auto hover:bg-gray-50 mb-4"
+              >
+                {collapsedSections[`canvas-project-${project.id}`] ? 
+                  <ChevronRight size={16} className="mr-2" /> : 
+                  <ChevronDown size={16} className="mr-2" />
+                }
                 <Building className="mr-2 text-blue-600" />
-                {project.name}
+                <h3 className="text-lg font-semibold">{project.name}</h3>
                 <Badge variant="outline" className="ml-2">{tasks.length} tasks</Badge>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {tasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    project={project}
-                    onEdit={handleEditTask}
-                    onDelete={handleDeleteTask}
-                    onStatusChange={handleStatusChange}
-                  />
-                ))}
-              </div>
+              </Button>
+              {!collapsedSections[`canvas-project-${project.id}`] && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {tasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      project={project}
+                      onEdit={handleEditTask}
+                      onDelete={handleDeleteTask}
+                      onStatusChange={handleStatusChange}
+                      onScheduleChange={handleScheduleChange}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           {Object.keys(tasksByProject).length === 0 && (
@@ -504,6 +979,7 @@ export default function Tasks() {
                   onEdit={handleEditTask}
                   onDelete={handleDeleteTask}
                   onStatusChange={handleStatusChange}
+                  onScheduleChange={handleScheduleChange}
                 />
               ))}
             </div>
@@ -530,6 +1006,7 @@ export default function Tasks() {
                   onEdit={handleEditTask}
                   onDelete={handleDeleteTask}
                   onStatusChange={handleStatusChange}
+                  onScheduleChange={handleScheduleChange}
                 />
               ))}
             </div>
@@ -540,7 +1017,8 @@ export default function Tasks() {
             )}
           </div>
         </TabsContent>
-      </Tabs>
+        </Tabs>
+      )}
     </div>
   );
 }
@@ -554,6 +1032,9 @@ interface TaskFormProps {
 }
 
 function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormProps) {
+  const watchedCategory = form.watch("category");
+  const isProjectRequired = watchedCategory === "project";
+  
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -614,7 +1095,10 @@ function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormP
             name="projectId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Project (Optional)</FormLabel>
+                <FormLabel>
+                  Project {isProjectRequired ? "(Required)" : "(Optional)"}
+                  {isProjectRequired && <span className="text-red-500 ml-1">*</span>}
+                </FormLabel>
                 <Select onValueChange={(value) => field.onChange(value === "none" ? null : value)} defaultValue={field.value || "none"}>
                   <FormControl>
                     <SelectTrigger>
@@ -622,7 +1106,7 @@ function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormP
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="none">No Project</SelectItem>
+                    {!isProjectRequired && <SelectItem value="none">No Project</SelectItem>}
                     {projects.map((project) => (
                       <SelectItem key={project.id} value={project.id}>
                         {project.name}

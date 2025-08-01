@@ -1,0 +1,29 @@
+1. Put every user—​even the SaaS owner—​inside “Company 0”, the platform tenant.
+Multi-tenant SaaS apps are simplest when every row carries a company_id.  By creating a special Company record with ID 0 for platform staff, you avoid special-case queries and can protect all data with one row-level security rule (company_id = current_setting('app.current_company')).  Support staff who need to “impersonate” a customer still belong to Company 0; they just switch the current_company session setting during the impersonation flow.
+
+2. Prevent “role explosion” by keeping roles global and scoping access with project membership.
+Instead of generating a fresh role for every project (“Client-P42”, “Sub-P99”), keep just five or six core roles (Client, Subcontractor, Project Manager, etc.).  Which projects a user can see lives in a project_assignments table.  This keeps the role and permission tables small and makes audits easier.
+
+3. Let customer admins clone roles from templates, not build them from scratch.
+Give each record in the roles table an optional template_id.  When a CompanyRootAdmin clones “Project Manager” to create “Site Supervisor”, you insert a new role row that points back to the original template.  Later, if you add a new default permission to “Project Manager”, you can propagate it automatically to every clone that still wants to inherit updates.
+
+4. Store permissions as integers, never free-text strings.
+Define a permissions table with columns like id, code, and description.  Code refers to an enum-like constant in your application (Permission.VIEW_FINANCIALS = 17).  Using integers prevents typos (“view-finanicals”) and allows static analysis or code generation.
+
+5. Enforce data isolation with database Row-Level Security (RLS).
+Application-layer guards stop most leaks, but an ORM bug or rogue admin console could bypass them.  Enabling RLS on every tenant-tagged table means the database itself filters rows.  After JWT validation you run SET app.current_company = :company_id; and the policy shields all future queries in that session.
+
+6. Cache each user’s “effective” permission list for fast look-ups.
+Runtime joins across users, user_roles, roles, and role_permissions grow expensive as you scale.  A materialized or trigger-maintained table (e.g., user_effective_permissions) stores one JSON array per user.  When middleware enforces an action, it loads that array once and performs O(1) membership checks.
+
+7. Capture who granted access, when, and for how long.
+Add granted_by_user_id, granted_at, and expires_at to project_assignments (and similar junctions).  This satisfies audit frameworks like SOC-2 or GDPR, and lets temporary consultants lose access automatically after the deadline.
+
+8. Add a lightweight ABAC layer for edge-case rules.
+Role-based access control covers 90 percent of scenarios, but eventually you need conditions like “Project Managers may edit tasks only on projects they created”.  Store an optional JSON rule on each permission (e.g., {"condition": "project.created_by == user.id"}) and evaluate it with a policy engine such as Oso or Casbin after the RBAC check passes.
+
+9. Create key indexes up front to keep look-ups cheap.
+Typical winners are (company_id, id) on users, (project_id, user_id) on project_assignments, and both (role_id) and (permission_id) on role_permissions.  These ensure that authentication middleware and permission joins stay sub-millisecond even with millions of rows.
+
+10. Bake security hygiene into the schema.
+Require MFA for the two admin roles, include an expires_at column for any temporary elevation, and start CompanyRootAdmin in view-only mode for sensitive data like financial records.  The principle of least privilege forces admins to opt in explicitly when they truly need to modify high-risk information.

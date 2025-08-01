@@ -2,49 +2,88 @@ import { Button } from "@/components/ui/button";
 import { Plus, Camera, ClipboardList, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
 
-export default function QuickActions() {
+function QuickActions() {
   const [, setLocation] = useLocation();
+  
+  console.log("QuickActions component rendering - this should appear!");
+  console.log("setLocation function:", typeof setLocation);
+  
+  // Force re-render test
+  console.log("Current timestamp:", Date.now());
 
   const actions = [
     {
       icon: Plus,
-      label: "New Project",
-      onClick: () => setLocation("/projects")
+      label: "Add Project",
+      onClick: () => {
+        console.log("Navigating to projects");
+        setLocation("/projects");
+      }
+    },
+    {
+      icon: ClipboardList,
+      label: "Add Tasks",
+      onClick: () => {
+        console.log("Navigating to tasks");
+        setLocation("/tasks");
+      }
     },
     {
       icon: Camera,
       label: "Upload Photos",
-      onClick: () => setLocation("/photos")
-    },
-    {
-      icon: ClipboardList,
-      label: "Create Log",
-      onClick: () => setLocation("/logs")
+      onClick: () => {
+        console.log("Navigating to photos");
+        setLocation("/photos");
+      }
     },
     {
       icon: UserPlus,
       label: "Assign Task",
-      onClick: () => setLocation("/tasks")
+      onClick: () => {
+        console.log("Navigating to subs");
+        setLocation("/subs");
+      }
     }
   ];
 
-  return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      <div className="p-6 border-b border-gray-200">
-        <h3 className="text-lg font-semibold construction-secondary">Quick Actions</h3>
+  console.log("About to render QuickActions, actions count:", actions.length);
+
+  if (!actions || actions.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="p-6 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800">Quick Actions</h3>
+        </div>
+        <div className="p-6">
+          <div className="text-gray-500">Loading actions...</div>
+        </div>
       </div>
-      <div className="p-6 space-y-3">
-        {actions.map((action) => {
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 w-full">
+      <div className="p-6 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-800">Quick Actions</h3>
+      </div>
+      <div className="p-6 grid grid-cols-2 gap-4">
+        {actions.map((action, index) => {
           const Icon = action.icon;
+          console.log(`Rendering action ${index}:`, action.label);
           return (
             <Button
-              key={action.label}
+              key={`action-${index}-${action.label}`}
               variant="outline"
-              className="w-full flex items-center space-x-3 p-3 h-auto border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all"
-              onClick={action.onClick}
+              className="flex flex-col items-center justify-center gap-2 p-4 h-20 border-2 border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all bg-white"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("Button clicked:", action.label);
+                action.onClick();
+              }}
             >
               <Icon className="text-blue-600" size={20} />
-              <span className="font-medium construction-secondary">{action.label}</span>
+              <span className="font-medium text-gray-700 text-xs text-center leading-tight">{action.label}</span>
             </Button>
           );
         })}
@@ -52,3 +91,5 @@ export default function QuickActions() {
     </div>
   );
 }
+
+export default QuickActions;
