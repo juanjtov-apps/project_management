@@ -66,15 +66,15 @@ def create_root_user(email: str, password: str):
                 # Update existing root user
                 cursor.execute("""
                     UPDATE users 
-                    SET email = %s, password = %s, "updatedAt" = %s
+                    SET email = %s, password = %s, updated_at = %s
                     WHERE id = %s
                 """, (email, hashed_password, current_time, '0'))
                 print("✅ Root admin user updated successfully!")
             else:
                 # Create new root user
                 cursor.execute("""
-                    INSERT INTO users (id, username, password, name, email, role, "firstName", "lastName", "createdAt", "updatedAt")
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO users (id, username, password, name, email, role, first_name, last_name, is_active, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     '0',                    # id
                     'root',                 # username
@@ -82,10 +82,11 @@ def create_root_user(email: str, password: str):
                     'Root Administrator',   # name
                     email,                  # email
                     'admin',               # role
-                    'Root',                # firstName
-                    'Administrator',       # lastName
-                    current_time,          # createdAt
-                    current_time           # updatedAt
+                    'Root',                # first_name
+                    'Administrator',       # last_name
+                    True,                  # is_active
+                    current_time,          # created_at
+                    current_time           # updated_at
                 ))
                 print("✅ Root admin user created successfully!")
         
