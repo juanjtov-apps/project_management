@@ -20,6 +20,7 @@ Preferred communication style: Simple, everyday language.
 ✅ **Date Formatting Issues Resolved**: Fixed "Invalid Date" display by correcting PostgreSQL field name mapping from snake_case to camelCase
 ✅ **User Management Tab Fixed**: Added missing `/rbac/users` endpoint that was causing 404 errors in user management interface
 ✅ **User-Company Association Display Fixed**: Resolved field mapping issue where `companyName` (camelCase) from database was not properly mapped to `company_name` (snake_case) expected by frontend
+✅ **Root Admin Creation Script**: Added secure console script (`create_root_admin.py`) for creating root user (ID 0) with full system access and bcrypt password hashing
 
 ## System Architecture
 
