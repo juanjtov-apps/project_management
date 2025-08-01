@@ -384,15 +384,9 @@ export default function RBACAdmin() {
                     onValueChange={(value) => setEditingUser(prev => prev ? {...prev, company_id: value} : null)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={editingUser?.companyName || "Select company"} />
+                      <SelectValue placeholder="Select company" />
                     </SelectTrigger>
                     <SelectContent>
-                      {/* Show current company even if companies list fails to load */}
-                      {editingUser?.companyName && (
-                        <SelectItem key={editingUser.companyId} value={editingUser.companyId?.toString() || ''}>
-                          {editingUser.companyName}
-                        </SelectItem>
-                      )}
                       {companies.map((company: Company) => (
                         <SelectItem key={company.id} value={company.id.toString()}>
                           {company.name}
