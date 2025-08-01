@@ -308,10 +308,10 @@ export default function RBACAdmin() {
                     </SelectTrigger>
                     <SelectContent>
                       {roles
-                        .filter((role: Role) => role.company_id === newUser.company_id || role.is_template)
+                        .filter((role: Role) => !newUser.company_id || role.companyId?.toString() === newUser.company_id || !role.companyId)
                         .map((role: Role) => (
-                          <SelectItem key={role.id} value={role.id}>
-                            {role.name} {role.is_template && '(Template)'}
+                          <SelectItem key={role.id} value={role.id.toString()}>
+                            {role.name} {!role.companyId && '(Platform)'}
                           </SelectItem>
                         ))}
                     </SelectContent>
@@ -324,13 +324,19 @@ export default function RBACAdmin() {
                 </Button>
                 <Button 
                   onClick={() => {
+                    // Validate required fields
+                    if (!newUser.email || !newUser.first_name || !newUser.last_name || !newUser.company_id || !newUser.role_id) {
+                      toast({ title: 'Error', description: 'All fields are required', variant: 'destructive' });
+                      return;
+                    }
+                    console.log('Creating user with data:', newUser); // Debug logging
                     createUserMutation.mutate(newUser);
                     setIsCreateDialogOpen(false);
                     setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '' });
                   }}
                   disabled={createUserMutation.isPending}
                 >
-                  Create User
+                  {createUserMutation.isPending ? 'Creating...' : 'Create User'}
                 </Button>
               </DialogFooter>
             </DialogContent>
