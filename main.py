@@ -895,6 +895,45 @@ async def mark_all_notifications_as_read(request_data: MarkAllReadRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to mark all notifications as read")
 
+# Users API endpoint
+@app.get("/api/users")
+async def get_api_users():
+    """Get all users - legacy API endpoint for compatibility"""
+    try:
+        # Return the same data as /rbac/users but formatted for legacy API compatibility
+        query = """
+            SELECT u.*, 
+                   cu.company_id, 
+                   c.name as company_name, 
+                   cu.role_id, 
+                   r.name as role_name
+            FROM users u
+            LEFT JOIN company_users cu ON u.id = cu.user_id
+            LEFT JOIN companies c ON cu.company_id = c.id
+            LEFT JOIN roles r ON cu.role_id = r.id
+            ORDER BY c.name NULLS LAST, u.name
+        """
+        users = execute_query(query)
+        
+        if not users:
+            return []
+            
+        # Format dates for frontend and ensure proper field mapping
+        for user in users:
+            user['created_at'] = format_datetime_for_frontend(user.get('createdAt'))
+            user['updated_at'] = format_datetime_for_frontend(user.get('updatedAt'))
+            
+            # Map camelCase to snake_case for company_name (frontend expects snake_case)
+            if user.get('companyName'):
+                user['company_name'] = user['companyName']
+            elif not user.get('company_name'):
+                user['company_name'] = None
+        
+        return users
+    except Exception as e:
+        print(f"Error fetching users: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch users")
+
 # Dashboard stats - Optimized single query
 @app.get("/api/dashboard/stats", response_model=DashboardStats)
 async def get_dashboard_stats():
@@ -1172,9 +1211,15 @@ async def update_user_status(user_id: str, request: Request):
             RETURNING *
         """
         
+        # First check if user exists
+        check_query = "SELECT id FROM users WHERE id = %s"
+        existing_user = execute_query(check_query, (user_id,))
+        if not existing_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
         updated_user = execute_query(query, params)
         if not updated_user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=500, detail="Failed to update user")
         
         # Format dates for frontend
         user = updated_user[0] if isinstance(updated_user, list) else updated_user
@@ -1470,7 +1515,17 @@ async def update_api_user(user_id: str, request: Request):
     """Update a user"""
     try:
         data = await request.json()
+        
+        # Check if user exists first
+        existing_users = await get_api_users()
+        user_exists = any(user["id"] == user_id for user in existing_users)
+        
+        if not user_exists:
+            raise HTTPException(status_code=404, detail="User not found")
+        
         return {"id": user_id, "message": "User updated successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid user data")
 
@@ -1503,7 +1558,17 @@ async def update_api_role(role_id: str, request: Request):
     """Update a role"""
     try:
         data = await request.json()
+        
+        # Check if role exists first
+        existing_roles = await get_api_roles()
+        role_exists = any(role["id"] == role_id for role in existing_roles)
+        
+        if not role_exists:
+            raise HTTPException(status_code=404, detail="Role not found")
+        
         return {"id": role_id, "message": "Role updated successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid role data")
 
@@ -1546,7 +1611,17 @@ async def update_api_company(company_id: str, request: Request):
     """Update a company"""
     try:
         data = await request.json()
+        
+        # Check if company exists first
+        existing_companies = await get_api_companies()
+        company_exists = any(company["id"] == company_id for company in existing_companies)
+        
+        if not company_exists:
+            raise HTTPException(status_code=404, detail="Company not found")
+        
         return {"id": company_id, "message": "Company updated successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid company data")
 
