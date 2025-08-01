@@ -380,7 +380,7 @@ export default function RBACAdmin() {
                 <div>
                   <Label htmlFor="edit_company">Company</Label>
                   <Select 
-                    value={editingUser?.company_id || ''} 
+                    value={editingUser?.company_id?.toString() || ''} 
                     onValueChange={(value) => setEditingUser(prev => prev ? {...prev, company_id: value} : null)}
                   >
                     <SelectTrigger>
@@ -388,7 +388,7 @@ export default function RBACAdmin() {
                     </SelectTrigger>
                     <SelectContent>
                       {companies.map((company: Company) => (
-                        <SelectItem key={company.id} value={company.id}>
+                        <SelectItem key={company.id} value={company.id.toString()}>
                           {company.name}
                         </SelectItem>
                       ))}
@@ -398,18 +398,20 @@ export default function RBACAdmin() {
                 <div>
                   <Label htmlFor="edit_role">Role</Label>
                   <Select 
-                    value={editingUser?.role_id || ''} 
+                    value={editingUser?.role_id?.toString() || ''} 
                     onValueChange={(value) => setEditingUser(prev => prev ? {...prev, role_id: value} : null)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      {roles.map((role: Role) => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.name}
-                        </SelectItem>
-                      ))}
+                      {roles
+                        .filter((role: Role) => !editingUser?.company_id || role.companyId?.toString() === editingUser.company_id?.toString() || !role.companyId)
+                        .map((role: Role) => (
+                          <SelectItem key={role.id} value={role.id.toString()}>
+                            {role.name} {!role.companyId && '(Platform)'}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>

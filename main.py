@@ -1188,6 +1188,56 @@ async def update_user_status(user_id: str, request: Request):
         print(f"User update error: {e}")
         raise HTTPException(status_code=500, detail="Failed to update user")
 
+@app.post("/rbac/roles")
+async def create_role(request: Request):
+    """Create a new role"""
+    try:
+        data = await request.json()
+        
+        # Validate required fields
+        if not data.get('name'):
+            raise HTTPException(status_code=400, detail="Role name is required")
+        
+        current_time = datetime.utcnow()
+        
+        with DatabaseConnection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO roles (company_id, name, description, template_id, custom_permissions, is_template, is_active, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING *
+                """, (
+                    data.get('company_id'),
+                    data['name'],
+                    data.get('description', ''),
+                    data.get('template_id'),
+                    psycopg2.extras.Json(data.get('custom_permissions', [])) if data.get('custom_permissions') else None,
+                    data.get('is_template', False),
+                    data.get('is_active', True),
+                    current_time,
+                    current_time
+                ))
+                
+                new_role = cursor.fetchone()
+                if not new_role:
+                    raise HTTPException(status_code=500, detail="Failed to create role")
+                
+                # Convert to dict
+                role_dict = dict(zip([desc[0] for desc in cursor.description], new_role))
+                conn.commit()
+                
+                # Format response
+                role_dict['created_at'] = format_datetime_for_frontend(role_dict.get('created_at'))
+                role_dict['updated_at'] = format_datetime_for_frontend(role_dict.get('updated_at'))
+                
+                return role_dict
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Role creation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create role: {str(e)}")
+
 @app.post("/rbac/companies")
 async def create_company(request: Request):
     """Create a new company"""
