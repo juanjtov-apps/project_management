@@ -5,6 +5,8 @@ import ActiveProjects from "@/components/dashboard/active-projects";
 import TodaysTasks from "@/components/dashboard/todays-tasks";
 
 export default function Dashboard() {
+  console.log("Dashboard component rendering");
+  
   return (
     <div>
       {/* Quick Stats */}
@@ -15,7 +17,9 @@ export default function Dashboard() {
         <div className="lg:col-span-2">
           <RecentActivity />
         </div>
-        <QuickActions />
+        <div>
+          <QuickActions />
+        </div>
       </div>
 
       {/* Active Projects & Tasks */}

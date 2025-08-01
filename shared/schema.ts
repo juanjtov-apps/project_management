@@ -1,15 +1,45 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, jsonb } from "drizzle-orm/pg-core";
+import { sql } from 'drizzle-orm';
+import {
+  index,
+  jsonb,
+  pgTable,
+  timestamp,
+  varchar,
+  text,
+  integer,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Session storage table.
+// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// User storage table.
+// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  name: text("name").notNull(),
-  email: text("email").notNull(),
-  role: text("role").notNull().default("crew"), // crew, manager, admin
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  
+  // Additional fields for our construction app
+  username: text("username").unique(),
+  password: text("password"),
+  name: text("name"),
+  role: text("role").notNull().default("crew"), // crew, manager, admin, subcontractor
 });
 
 export const projects = pgTable("projects", {
@@ -29,12 +59,14 @@ export const tasks = pgTable("tasks", {
   description: text("description"),
   projectId: varchar("project_id").references(() => projects.id), // Optional - null for general/admin tasks
   assigneeId: varchar("assignee_id").references(() => users.id),
-  category: text("category").notNull().default("project"), // project, administrative, general
+  category: text("category").notNull().default("project"), // project, administrative, general, subcontractor
   status: text("status").notNull().default("pending"), // pending, in-progress, completed, blocked
   priority: text("priority").notNull().default("medium"), // low, medium, high, critical
   dueDate: timestamp("due_date"),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  isMilestone: boolean("is_milestone").notNull().default(false),
+  estimatedHours: integer("estimated_hours"), // For time tracking
 });
 
 export const projectLogs = pgTable("project_logs", {
@@ -82,19 +114,43 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const subcontractorAssignments = pgTable("subcontractor_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  subcontractorId: varchar("subcontractor_id").notNull().references(() => users.id),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  assignedBy: varchar("assigned_by").notNull().references(() => users.id), // PM who assigned
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  specialization: text("specialization"), // e.g., "Electrical", "Plumbing", "Flooring"
+  status: text("status").notNull().default("active"), // active, completed, terminated
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 // Insert schemas
-export const insertUserSchema = createInsertSchema(users).omit({ id: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
+export const upsertUserSchema = createInsertSchema(users).omit({ createdAt: true, updatedAt: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, completedAt: true }).extend({
   dueDate: z.union([z.date(), z.string(), z.null()]).optional().nullable(),
+}).refine((data) => {
+  // If category is "project", projectId must be provided and not null
+  if (data.category === "project" && (!data.projectId || data.projectId === null)) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Project selection is required when category is 'Project Related'",
+  path: ["projectId"], // This will show the error on the projectId field
 });
 export const insertProjectLogSchema = createInsertSchema(projectLogs).omit({ id: true, createdAt: true });
 export const insertPhotoSchema = createInsertSchema(photos).omit({ id: true, createdAt: true });
 export const insertScheduleChangeSchema = createInsertSchema(scheduleChanges).omit({ id: true, createdAt: true });
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+export const insertSubcontractorAssignmentSchema = createInsertSchema(subcontractorAssignments).omit({ id: true, createdAt: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type Project = typeof projects.$inferSelect;
@@ -108,3 +164,5 @@ export type InsertScheduleChange = z.infer<typeof insertScheduleChangeSchema>;
 export type ScheduleChange = typeof scheduleChanges.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+export type InsertSubcontractorAssignment = z.infer<typeof insertSubcontractorAssignmentSchema>;
+export type SubcontractorAssignment = typeof subcontractorAssignments.$inferSelect;

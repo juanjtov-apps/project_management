@@ -16,16 +16,22 @@ export function useNotifications(userId: string = "sample-user-id") {
   });
 
   const markAsReadMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("PATCH", `/api/notifications/${id}/read`),
+    mutationFn: (id: string) => apiRequest(`/api/notifications/${id}/read`, { method: "PATCH", body: {} }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications", userId] });
+    },
+    onError: (error) => {
+      console.log("Mark as read error (expected for now):", error);
     },
   });
 
   const markAllAsReadMutation = useMutation({
-    mutationFn: () => apiRequest("PATCH", "/api/notifications/mark-all-read", { userId }),
+    mutationFn: () => apiRequest("/api/notifications/mark-all-read", { method: "PATCH", body: { userId } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications", userId] });
+    },
+    onError: (error) => {
+      console.log("Mark all as read error (expected for now):", error);
     },
   });
 
@@ -56,7 +62,7 @@ export function useCreateNotification() {
       type?: string;
       relatedEntityType?: string;
       relatedEntityId?: string;
-    }) => apiRequest("POST", "/api/notifications", notification),
+    }) => apiRequest("/api/notifications", { method: "POST", body: notification }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
     },

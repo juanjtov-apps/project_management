@@ -8,7 +8,9 @@ import {
   Camera, 
   ClipboardList, 
   Users,
-  HardHat
+  HardHat,
+  Wrench,
+  Shield
 } from "lucide-react";
 
 const navigation = [
@@ -19,6 +21,8 @@ const navigation = [
   { name: "Photos", href: "/photos", icon: Camera },
   { name: "Project Logs", href: "/logs", icon: ClipboardList },
   { name: "Crew", href: "/crew", icon: Users },
+  { name: "Subs", href: "/subs", icon: Wrench },
+  { name: "RBAC Admin", href: "/rbac", icon: Shield },
 ];
 
 export default function Sidebar() {
@@ -32,7 +36,7 @@ export default function Sidebar() {
             <HardHat className="text-white text-lg" size={20} />
           </div>
           <div>
-            <h1 className="text-xl font-bold construction-secondary">ContractorPro</h1>
+            <h1 className="text-xl font-bold construction-secondary">Tower Flow</h1>
             <p className="text-sm text-gray-500">Project Management</p>
           </div>
         </div>
@@ -46,16 +50,17 @@ export default function Sidebar() {
             
             return (
               <li key={item.name}>
-                <Link href={item.href}>
-                  <a className={cn(
+                <Link 
+                  href={item.href}
+                  className={cn(
                     "flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors",
                     isActive 
                       ? "construction-primary text-white" 
                       : "text-gray-600 hover:bg-gray-100"
-                  )}>
-                    <Icon size={20} />
-                    <span>{item.name}</span>
-                  </a>
+                  )}
+                >
+                  <Icon size={20} />
+                  <span>{item.name}</span>
                 </Link>
               </li>
             );

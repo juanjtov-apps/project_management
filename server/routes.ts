@@ -1,400 +1,265 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { 
-  insertProjectSchema, insertTaskSchema, insertProjectLogSchema, 
-  insertPhotoSchema, insertScheduleChangeSchema, insertNotificationSchema 
-} from "@shared/schema";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
-
-// Configure multer for file uploads
-const uploadsDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-const upload = multer({
-  dest: uploadsDir,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'));
-    }
-  }
-});
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import bcrypt from "bcrypt";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Projects
-  app.get("/api/projects", async (req, res) => {
-    try {
-      const projects = await storage.getProjects();
-      res.json(projects);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch projects" });
-    }
+  // Session configuration
+  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const pgStore = connectPg(session);
+  const sessionStore = new pgStore({
+    conString: process.env.DATABASE_URL,
+    createTableIfMissing: false,
+    ttl: sessionTtl,
+    tableName: "sessions",
   });
 
-  app.get("/api/projects/:id", async (req, res) => {
-    try {
-      const project = await storage.getProject(req.params.id);
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-      res.json(project);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch project" });
-    }
-  });
+  app.use(session({
+    secret: process.env.SESSION_SECRET!,
+    store: sessionStore,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: false, // Set to true in production with HTTPS
+      maxAge: sessionTtl,
+    },
+  }));
 
-  app.post("/api/projects", async (req, res) => {
+  // Login route
+  app.post('/api/auth/login', async (req, res) => {
     try {
-      console.log("Received project data:", req.body);
-      const validatedData = insertProjectSchema.parse(req.body);
-      console.log("Validated data:", validatedData);
-      const project = await storage.createProject(validatedData);
-      res.status(201).json(project);
-    } catch (error) {
-      console.error("Project creation error:", error);
-      if (error instanceof Error) {
-        res.status(400).json({ message: "Invalid project data", error: error.message });
-      } else {
-        res.status(400).json({ message: "Invalid project data" });
-      }
-    }
-  });
-
-  app.patch("/api/projects/:id", async (req, res) => {
-    try {
-      const updates = insertProjectSchema.partial().parse(req.body);
-      const project = await storage.updateProject(req.params.id, updates);
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-      res.json(project);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid project data" });
-    }
-  });
-
-  app.delete("/api/projects/:id", async (req, res) => {
-    try {
-      const deleted = await storage.deleteProject(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete project" });
-    }
-  });
-
-  // Tasks
-  app.get("/api/tasks", async (req, res) => {
-    try {
-      const projectId = req.query.projectId as string;
-      const tasks = await storage.getTasks(projectId);
-      res.json(tasks);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch tasks" });
-    }
-  });
-
-  app.get("/api/tasks/:id", async (req, res) => {
-    try {
-      const task = await storage.getTask(req.params.id);
-      if (!task) {
-        return res.status(404).json({ message: "Task not found" });
-      }
-      res.json(task);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch task" });
-    }
-  });
-
-  app.post("/api/tasks", async (req, res) => {
-    try {
-      console.log("Received task data:", req.body);
+      const { email, password } = req.body;
       
-      // Pre-process the data to handle date conversion
-      const processedData = {
-        ...req.body,
-        dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null,
-        description: req.body.description?.trim() || null,
-      };
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user || !user.password) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Store user in session
+      (req.session as any).userId = user.id;
+      res.json({ user: { ...user, password: undefined } });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get current user route
+  app.get('/api/auth/user', async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      res.json({ ...user, password: undefined });
+    } catch (error) {
+      console.error("Get user error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Logout route
+  app.post('/api/auth/logout', (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Could not log out" });
+      }
+      res.json({ message: "Logged out successfully" });
+    });
+  });
+
+  // Add middleware to check authentication for protected routes
+  const requireAuth = (req: any, res: any, next: any) => {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    next();
+  };
+
+  // Get all projects route with authentication check
+  app.get('/api/projects', requireAuth, async (req, res) => {
+    try {
+      const response = await fetch('http://localhost:8000/api/projects');
+      const data = await response.json();
       
-      // Remove dueDate from validation if it causes issues
-      const { dueDate, ...dataWithoutDate } = processedData;
-      const validatedData = insertTaskSchema.omit({ dueDate: true }).parse(dataWithoutDate);
+      if (!response.ok) {
+        console.error('Python backend error:', data);
+        return res.status(response.status).json(data);
+      }
+
+      res.json(data);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      res.status(500).json({ message: 'Failed to fetch projects', error: error.message });
+    }
+  });
+
+  // Create project route with authentication check
+  app.post('/api/projects', requireAuth, async (req, res) => {
+    try {
+      console.log('Creating project via Express:', req.body);
+      const projectData = req.body;
       
-      // Add back the processed dueDate
-      const finalData = {
-        ...validatedData,
-        dueDate: dueDate,
-      };
-      
-      console.log("Final processed task data:", finalData);
-      const task = await storage.createTask(finalData);
-      res.status(201).json(task);
-    } catch (error) {
-      console.error("Task creation error:", error);
-      if (error instanceof Error) {
-        res.status(400).json({ message: "Invalid task data", error: error.message });
-      } else {
-        res.status(400).json({ message: "Invalid task data" });
-      }
-    }
-  });
-
-  app.patch("/api/tasks/:id", async (req, res) => {
-    try {
-      const updates = insertTaskSchema.partial().parse(req.body);
-      const task = await storage.updateTask(req.params.id, updates);
-      if (!task) {
-        return res.status(404).json({ message: "Task not found" });
-      }
-      res.json(task);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid task data" });
-    }
-  });
-
-  app.delete("/api/tasks/:id", async (req, res) => {
-    try {
-      const deleted = await storage.deleteTask(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ message: "Task not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete task" });
-    }
-  });
-
-  // Project Logs
-  app.get("/api/logs", async (req, res) => {
-    try {
-      const projectId = req.query.projectId as string;
-      const logs = await storage.getProjectLogs(projectId);
-      res.json(logs);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch logs" });
-    }
-  });
-
-  app.post("/api/logs", async (req, res) => {
-    try {
-      const validatedData = insertProjectLogSchema.parse(req.body);
-      const log = await storage.createProjectLog(validatedData);
-      res.status(201).json(log);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid log data" });
-    }
-  });
-
-  app.patch("/api/logs/:id", async (req, res) => {
-    try {
-      const updates = insertProjectLogSchema.partial().parse(req.body);
-      const log = await storage.updateProjectLog(req.params.id, updates);
-      if (!log) {
-        return res.status(404).json({ message: "Log not found" });
-      }
-      res.json(log);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid log data" });
-    }
-  });
-
-  // Photos
-  app.get("/api/photos", async (req, res) => {
-    try {
-      const projectId = req.query.projectId as string;
-      const photos = await storage.getPhotos(projectId);
-      res.json(photos);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch photos" });
-    }
-  });
-
-  app.post("/api/photos", upload.single('photo'), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: "No photo file provided" });
-      }
-
-      const photoData = {
-        projectId: req.body.projectId,
-        userId: req.body.userId,
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        description: req.body.description || "",
-        tags: req.body.tags ? JSON.parse(req.body.tags) : []
-      };
-
-      const validatedData = insertPhotoSchema.parse(photoData);
-      const photo = await storage.createPhoto(validatedData);
-      res.status(201).json(photo);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid photo data" });
-    }
-  });
-
-  app.delete("/api/photos/:id", async (req, res) => {
-    try {
-      const photo = await storage.getPhoto(req.params.id);
-      if (!photo) {
-        return res.status(404).json({ message: "Photo not found" });
-      }
-
-      // Delete the actual file
-      const filePath = path.join(uploadsDir, photo.filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-
-      const deleted = await storage.deletePhoto(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ message: "Photo not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete photo" });
-    }
-  });
-
-  // Serve uploaded files
-  app.get("/api/photos/:id/file", async (req, res) => {
-    try {
-      const photo = await storage.getPhoto(req.params.id);
-      if (!photo) {
-        return res.status(404).json({ message: "Photo not found" });
-      }
-
-      const filePath = path.join(uploadsDir, photo.filename);
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ message: "Photo file not found" });
-      }
-
-      res.sendFile(filePath);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to serve photo" });
-    }
-  });
-
-  // Schedule Changes
-  app.get("/api/schedule-changes", async (req, res) => {
-    try {
-      const taskId = req.query.taskId as string;
-      const changes = await storage.getScheduleChanges(taskId);
-      res.json(changes);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch schedule changes" });
-    }
-  });
-
-  app.post("/api/schedule-changes", async (req, res) => {
-    try {
-      const validatedData = insertScheduleChangeSchema.parse(req.body);
-      const change = await storage.createScheduleChange(validatedData);
-      
-      // Create notification for project manager
-      await storage.createNotification({
-        userId: "manager-id", // In a real app, this would be determined from the project
-        title: "Schedule Change Alert",
-        message: `Schedule change reported for task: ${validatedData.reason}`,
-        type: "warning",
-        isRead: false,
-        relatedEntityType: "schedule_change",
-        relatedEntityId: change.id
+      const response = await fetch('http://localhost:8000/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(projectData)
       });
 
-      res.status(201).json(change);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid schedule change data" });
-    }
-  });
-
-  app.patch("/api/schedule-changes/:id", async (req, res) => {
-    try {
-      const updates = insertScheduleChangeSchema.partial().parse(req.body);
-      const change = await storage.updateScheduleChange(req.params.id, updates);
-      if (!change) {
-        return res.status(404).json({ message: "Schedule change not found" });
-      }
-      res.json(change);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid schedule change data" });
-    }
-  });
-
-  // Notifications
-  app.get("/api/notifications", async (req, res) => {
-    try {
-      const userId = req.query.userId as string;
-      if (!userId) {
-        return res.status(400).json({ message: "User ID is required" });
-      }
-      const notifications = await storage.getNotifications(userId);
-      res.json(notifications);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch notifications" });
-    }
-  });
-
-  app.patch("/api/notifications/:id/read", async (req, res) => {
-    try {
-      const success = await storage.markNotificationAsRead(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: "Notification not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to mark notification as read" });
-    }
-  });
-
-  app.patch("/api/notifications/mark-all-read", async (req, res) => {
-    try {
-      const userId = req.body.userId;
-      if (!userId) {
-        return res.status(400).json({ message: "User ID is required" });
-      }
-      await storage.markAllNotificationsAsRead(userId);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to mark all notifications as read" });
-    }
-  });
-
-  // Dashboard stats
-  app.get("/api/dashboard/stats", async (req, res) => {
-    try {
-      const projects = await storage.getProjects();
-      const tasks = await storage.getTasks();
-      const photos = await storage.getPhotos();
+      const data = await response.json();
       
-      const activeProjects = projects.filter(p => p.status === 'active').length;
-      const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in-progress').length;
-      const photosUploadedToday = photos.filter(p => {
-        const today = new Date();
-        const photoDate = new Date(p.createdAt);
-        return photoDate.toDateString() === today.toDateString();
-      }).length;
+      if (!response.ok) {
+        console.error('Python backend error:', data);
+        return res.status(response.status).json(data);
+      }
 
-      res.json({
-        activeProjects,
-        pendingTasks,
-        photosUploaded: photos.length,
-        photosUploadedToday,
-        crewMembers: 28 // Static for demo
-      });
+      console.log('Project created successfully:', data);
+      res.status(201).json(data);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch dashboard stats" });
+      console.error('Error creating project:', error);
+      res.status(500).json({ message: 'Failed to create project', error: error.message });
+    }
+  });
+
+  // Get all tasks route with authentication check
+  app.get('/api/tasks', requireAuth, async (req, res) => {
+    try {
+      const response = await fetch('http://localhost:8000/api/tasks');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Python backend error:', data);
+        return res.status(response.status).json(data);
+      }
+
+      res.json(data);
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      res.status(500).json({ message: 'Failed to fetch tasks', error: error.message });
+    }
+  });
+
+  // Create task route with authentication check
+  app.post('/api/tasks', requireAuth, async (req, res) => {
+    try {
+      console.log('Creating task via Express:', req.body);
+      const taskData = req.body;
+      
+      const response = await fetch('http://localhost:8000/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(taskData)
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Python backend error:', data);
+        return res.status(response.status).json(data);
+      }
+
+      console.log('Task created successfully:', data);
+      res.status(201).json(data);
+    } catch (error) {
+      console.error('Error creating task:', error);
+      res.status(500).json({ message: 'Failed to create task', error: error.message });
+    }
+  });
+
+  // Get users/managers route with authentication check
+  app.get('/api/users/managers', requireAuth, async (req, res) => {
+    try {
+      const response = await fetch('http://localhost:8000/api/users/managers');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Python backend error:', data);
+        return res.status(response.status).json(data);
+      }
+
+      res.json(data);
+    } catch (error) {
+      console.error('Error fetching managers:', error);
+      res.status(500).json({ message: 'Failed to fetch managers', error: error.message });
+    }
+  });
+
+  // Task assignment route with authentication check
+  app.patch('/api/tasks/:taskId/assign', requireAuth, async (req, res) => {
+    try {
+      const { taskId } = req.params;
+      const assignmentData = req.body;
+      
+      const response = await fetch(`http://localhost:8000/api/tasks/${taskId}/assign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(assignmentData)
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Python backend error:', data);
+        return res.status(response.status).json(data);
+      }
+
+      res.json(data);
+    } catch (error) {
+      console.error('Error assigning task:', error);
+      res.status(500).json({ message: 'Failed to assign task', error: error.message });
+    }
+  });
+
+  // Manual task update handler to bypass proxy issues  
+  app.patch("/api/tasks/:id", requireAuth, async (req, res) => {
+    try {
+      console.log(`Manual PATCH handler for task ${req.params.id}:`, req.body);
+      
+      const response = await fetch(`http://localhost:8000/api/tasks/${req.params.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(req.body)
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error(`Python backend error: ${response.status}`, data);
+        return res.status(response.status).json(data);
+      }
+
+      console.log(`Task update successful:`, data);
+      res.json(data);
+    } catch (error) {
+      console.error('Manual task update error:', error);
+      res.status(500).json({ message: 'Failed to update task', error: error.message });
     }
   });
 
