@@ -548,7 +548,17 @@ export default function RBACAdmin() {
                                 size="sm" 
                                 variant="outline"
                                 onClick={() => {
-                                  setEditingUser(user);
+                                  // Map backend field names to frontend field names
+                                  const mappedUser = {
+                                    ...user,
+                                    first_name: user.firstName || user.first_name,
+                                    last_name: user.lastName || user.last_name,
+                                    company_id: user.companyId?.toString() || user.company_id,
+                                    role_id: user.roleId?.toString() || user.role_id,
+                                    is_active: user.isActive !== undefined ? user.isActive : user.is_active
+                                  };
+                                  console.log('Mapped user for editing:', mappedUser); // Debug
+                                  setEditingUser(mappedUser);
                                   setIsEditDialogOpen(true);
                                 }}
                               >
