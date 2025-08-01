@@ -1059,6 +1059,79 @@ async def get_company_users(company_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch company users")
 
+@app.post("/rbac/users")
+async def create_user(request: Request):
+    """Create a new user"""
+    try:
+        data = await request.json()
+        
+        # Validate required fields
+        required_fields = ['email', 'first_name', 'last_name', 'company_id', 'role_id']
+        for field in required_fields:
+            if not data.get(field):
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+        
+        # Hash password if provided, otherwise generate a temporary one
+        password = data.get('password', 'TempPassword123!')
+        import bcrypt
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        
+        # Generate username from email
+        username = data['email'].split('@')[0]
+        
+        # Generate user ID
+        import uuid
+        user_id = str(uuid.uuid4())[:8]
+        
+        current_time = datetime.utcnow()
+        
+        with DatabaseConnection() as conn:
+            with conn.cursor() as cursor:
+                # Create user
+                cursor.execute("""
+                    INSERT INTO users (id, username, password, name, email, first_name, last_name, is_active, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING *
+                """, (
+                    user_id,
+                    username,
+                    hashed_password,
+                    f"{data['first_name']} {data['last_name']}",
+                    data['email'],
+                    data['first_name'],
+                    data['last_name'],
+                    True,
+                    current_time,
+                    current_time
+                ))
+                
+                new_user = cursor.fetchone()
+                if not new_user:
+                    raise HTTPException(status_code=500, detail="Failed to create user")
+                
+                # Convert to dict
+                user_dict = dict(zip([desc[0] for desc in cursor.description], new_user))
+                
+                # Create company-user association
+                cursor.execute("""
+                    INSERT INTO company_users (user_id, company_id, role_id, created_at)
+                    VALUES (%s, %s, %s, %s)
+                """, (user_id, data['company_id'], data['role_id'], current_time))
+                
+                conn.commit()
+                
+                # Format response
+                user_dict['created_at'] = format_datetime_for_frontend(user_dict.get('created_at'))
+                user_dict['updated_at'] = format_datetime_for_frontend(user_dict.get('updated_at'))
+                
+                return user_dict
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"User creation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
+
 @app.patch("/rbac/users/{user_id}")
 async def update_user_status(user_id: str, request: Request):
     """Update user status or other properties"""
