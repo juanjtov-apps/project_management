@@ -858,9 +858,19 @@ async def get_notifications(userId: Optional[str] = None):
             # Return empty list if no user_id provided (matching TypeScript behavior)
             return []
         
-        query = "SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC"
-        notifications = execute_query(query, (userId,))
-        return notifications
+        # Use DatabaseConnection for proper connection handling
+        with DatabaseConnection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC", (userId,))
+                results = cursor.fetchall()
+                
+                # Convert to list of dicts
+                if results:
+                    notifications = [dict(zip([desc[0] for desc in cursor.description], row)) for row in results]
+                else:
+                    notifications = []
+                
+                return notifications
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch notifications")
 
@@ -1172,16 +1182,40 @@ async def update_user_status(user_id: str, request: Request):
             RETURNING *
         """
         
-        updated_user = execute_query(query, params)
-        if not updated_user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Format dates for frontend
-        user = updated_user[0] if isinstance(updated_user, list) else updated_user
-        user['created_at'] = format_datetime_for_frontend(user.get('createdAt'))
-        user['updated_at'] = format_datetime_for_frontend(user.get('updatedAt'))
-        
-        return user
+        # Use DatabaseConnection context manager for proper connection handling
+        with DatabaseConnection() as conn:
+            with conn.cursor() as cursor:
+                # First check if user exists
+                cursor.execute("SELECT id FROM users WHERE id = %s", (user_id,))
+                existing_user = cursor.fetchone()
+                if not existing_user:
+                    raise HTTPException(status_code=404, detail="User not found")
+                
+                # Execute update query
+                cursor.execute(query, params)
+                updated_user = cursor.fetchone()
+                
+                if not updated_user:
+                    raise HTTPException(status_code=500, detail="Failed to update user")
+                
+                # Convert to dict
+                user_dict = dict(zip([desc[0] for desc in cursor.description], updated_user))
+                
+                # Update company-user association if needed
+                if 'company_id' in data or 'role_id' in data:
+                    cursor.execute("DELETE FROM company_users WHERE user_id = %s", (user_id,))
+                    cursor.execute("""
+                        INSERT INTO company_users (user_id, company_id, role_id, created_at)
+                        VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                    """, (user_id, data.get('company_id', 1), data.get('role_id', 1)))
+                
+                conn.commit()
+                
+                # Format dates for frontend
+                user_dict['created_at'] = format_datetime_for_frontend(user_dict.get('created_at'))
+                user_dict['updated_at'] = format_datetime_for_frontend(user_dict.get('updated_at'))
+                
+                return user_dict
     except HTTPException:
         raise
     except Exception as e:
