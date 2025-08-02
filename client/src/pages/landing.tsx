@@ -36,14 +36,13 @@ export default function Landing() {
       <section className="container mx-auto px-6 py-20 text-center">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-5xl md:text-6xl font-bold text-[var(--proesphere-deep-blue)] mb-6 leading-tight">
-            Professional Construction
-            <span className="block text-[var(--proesphere-teal)]">
+            360° 
+            <span className="text-[var(--proesphere-teal)]">
               Project Management
             </span>
           </h2>
           <p className="text-xl text-[var(--proesphere-graphite)] mb-8 max-w-2xl mx-auto">
-            Streamline your construction projects with intelligent task tracking, 
-            real-time collaboration, and comprehensive resource management.
+            Build Smarter. Deliver On Time, On-Budget and with the highest quality.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
