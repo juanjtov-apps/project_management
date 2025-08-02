@@ -1,12 +1,12 @@
-# Tower Flow - Construction Project Management System
+# Proesphere - Construction Project Management System
 
 ## Overview
-Tower Flow is a comprehensive construction project management application. It provides tools for managing construction projects, tasks, crew members, photo documentation, project logs, and scheduling. The system aims to streamline construction workflows, enhance collaboration, and improve project oversight through a modern full-stack architecture.
+Proesphere is a comprehensive construction project management application. It provides tools for managing construction projects, tasks, crew members, photo documentation, project logs, and scheduling. The system aims to streamline construction workflows, enhance collaboration, and improve project oversight through a modern full-stack architecture.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
-## Recent Progress (July 31, 2025)
+## Recent Progress (August 2, 2025)
 ✅ **RBAC Edit Functionality Completed**: Fixed `editingRole` undefined variable error and implemented comprehensive edit dialogs
 ✅ **Variable Scoping Issues Resolved**: All edit state variables properly managed with cleanup on dialog close
 ✅ **Form Validation Enhanced**: Added required field checks and improved error handling with toast notifications
@@ -21,6 +21,10 @@ Preferred communication style: Simple, everyday language.
 ✅ **User Management Tab Fixed**: Added missing `/rbac/users` endpoint that was causing 404 errors in user management interface
 ✅ **User-Company Association Display Fixed**: Resolved field mapping issue where `companyName` (camelCase) from database was not properly mapped to `company_name` (snake_case) expected by frontend
 ✅ **Root Admin Creation Script**: Added secure console script (`create_root_admin.py`) for creating root user (ID 0) with full system access and bcrypt password hashing
+✅ **Proesphere Rebranding Complete**: Successfully rebranded from "Tower Flow" to "Proesphere" with new color palette implementation
+✅ **New Color Palette Applied**: Implemented Deep Space Blue (#1B2E4B), Sphere Teal (#1FA77C), Spark Coral (#FF7849), Cloud White (#F8FAFC), Mist Grey (#E5E7EB), and Graphite Ink (#111827)
+✅ **Logo and Branding Updated**: Updated all pages (landing, login, sidebar, header) with new Proesphere branding and color scheme
+✅ **API Documentation Updated**: FastAPI title changed to "Proesphere API" to reflect new branding
 
 ## System Architecture
 

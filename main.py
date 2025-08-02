@@ -51,7 +51,7 @@ def format_datetime_for_frontend(dt_value):
         return str(dt_value)
 
 # Create FastAPI app
-app = FastAPI(title="Tower Flow API", version="1.0.0")
+app = FastAPI(title="Proesphere API", version="1.0.0")
 
 # RBAC functionality integrated directly
 

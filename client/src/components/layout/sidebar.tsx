@@ -32,12 +32,12 @@ export default function Sidebar() {
     <aside className="w-64 bg-white shadow-lg border-r border-gray-200 hidden lg:block">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 construction-primary rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] rounded-lg flex items-center justify-center">
             <HardHat className="text-white text-lg" size={20} />
           </div>
           <div>
-            <h1 className="text-xl font-bold construction-secondary">Tower Flow</h1>
-            <p className="text-sm text-gray-500">Project Management</p>
+            <h1 className="text-xl font-bold text-[var(--proesphere-deep-blue)]">Proesphere</h1>
+            <p className="text-sm text-[var(--proesphere-graphite)] opacity-70">Construction Management</p>
           </div>
         </div>
       </div>
@@ -55,8 +55,8 @@ export default function Sidebar() {
                   className={cn(
                     "flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors",
                     isActive 
-                      ? "construction-primary text-white" 
-                      : "text-gray-600 hover:bg-gray-100"
+                      ? "bg-[var(--proesphere-deep-blue)] text-white" 
+                      : "text-[var(--proesphere-graphite)] hover:bg-[var(--proesphere-mist)]"
                   )}
                 >
                   <Icon size={20} />

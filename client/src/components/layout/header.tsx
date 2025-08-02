@@ -40,7 +40,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
             <Menu className="text-gray-600" size={20} />
           </Button>
           <div>
-            <h2 className="text-2xl font-bold construction-secondary">Dashboard</h2>
+            <h2 className="text-2xl font-bold text-[var(--proesphere-teal)]">Dashboard</h2>
             <p className="text-gray-500">Welcome back, <span className="font-medium">{user?.firstName || user?.name || user?.email || 'User'}</span></p>
           </div>
         </div>

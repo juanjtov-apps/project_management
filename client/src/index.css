@@ -3,44 +3,49 @@
 @tailwind utilities;
 
 :root {
-  --background: hsl(0, 0%, 100%);
-  --foreground: hsl(217, 100%, 14%);
-  --muted: hsl(217, 25%, 95%);
-  --muted-foreground: hsl(217, 35%, 45%);
-  --popover: hsl(0, 0%, 100%);
-  --popover-foreground: hsl(217, 100%, 14%);
-  --card: hsl(0, 0%, 100%);
-  --card-foreground: hsl(217, 100%, 14%);
-  --border: hsl(217, 20%, 85%);
-  --input: hsl(217, 20%, 90%);
-  --primary: hsl(217, 100%, 20%);
-  --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(140, 60%, 40%);
-  --secondary-foreground: hsl(0, 0%, 100%);
-  --accent: hsl(140, 50%, 92%);
-  --accent-foreground: hsl(217, 100%, 20%);
+  --background: var(--proesphere-cloud);
+  --foreground: var(--proesphere-graphite);
+  --muted: var(--proesphere-mist);
+  --muted-foreground: var(--proesphere-graphite);
+  --popover: var(--proesphere-cloud);
+  --popover-foreground: var(--proesphere-graphite);
+  --card: var(--proesphere-cloud);
+  --card-foreground: var(--proesphere-graphite);
+  --border: var(--proesphere-mist);
+  --input: var(--proesphere-mist);
+  --primary: var(--proesphere-deep-blue);
+  --primary-foreground: var(--proesphere-cloud);
+  --secondary: var(--proesphere-teal);
+  --secondary-foreground: var(--proesphere-cloud);
+  --accent: var(--proesphere-coral);
+  --accent-foreground: var(--proesphere-graphite);
   --destructive: hsl(0, 84.2%, 60.2%);
   --destructive-foreground: hsl(60, 9.1%, 97.8%);
-  --ring: hsl(217, 100%, 20%);
+  --ring: var(--proesphere-deep-blue);
   --radius: 0.5rem;
   
-  /* Custom Tower Flow sophisticated theme */
-  --tower-navy: hsl(217, 100%, 20%);
-  --tower-navy-light: hsl(217, 60%, 35%);
-  --tower-navy-dark: hsl(217, 100%, 15%);
-  --tower-emerald: hsl(140, 60%, 40%);
-  --tower-emerald-light: hsl(140, 50%, 55%);
-  --tower-emerald-dark: hsl(140, 65%, 30%);
-  --tower-surface: hsl(217, 25%, 98%);
-  --tower-surface-dark: hsl(217, 15%, 95%);
+  /* Proesphere Brand Colors */
+  --proesphere-deep-blue: hsl(226, 45%, 20%);     /* #1B2E4B - Deep Space Blue */
+  --proesphere-teal: hsl(174, 100%, 29%);         /* #1FA77C - Sphere Teal */
+  --proesphere-coral: hsl(14, 100%, 73%);         /* #FF7849 - Spark Coral */
+  --proesphere-cloud: hsl(210, 17%, 98%);         /* #F8FAFC - Cloud White */
+  --proesphere-mist: hsl(213, 20%, 91%);          /* #E5E7EB - Mist Grey */
+  --proesphere-graphite: hsl(210, 11%, 15%);      /* #111827 - Graphite Ink */
   
-  /* Legacy construction colors for compatibility */
-  --construction-primary: hsl(217, 100%, 20%);
-  --construction-secondary: hsl(140, 60%, 40%);
-  --construction-success: hsl(140, 60%, 40%);
-  --construction-warning: hsl(36, 100%, 50%);
-  --construction-error: hsl(4, 90%, 58%);
-  --construction-surface: hsl(217, 25%, 98%);
+  /* Updated Primary Variables with Proesphere palette */
+  --primary: var(--proesphere-deep-blue);
+  --primary-foreground: var(--proesphere-cloud);
+  --secondary: var(--proesphere-teal);
+  --secondary-foreground: var(--proesphere-cloud);
+  --accent: var(--proesphere-coral);
+  --accent-foreground: var(--proesphere-graphite);
+  --background: var(--proesphere-cloud);
+  --foreground: var(--proesphere-graphite);
+  --muted: var(--proesphere-mist);
+  --muted-foreground: var(--proesphere-graphite);
+  --border: var(--proesphere-mist);
+  --input: var(--proesphere-mist);
+  --ring: var(--proesphere-deep-blue);
 }
 
 .dark {
@@ -64,15 +69,13 @@
   --destructive-foreground: hsl(60, 9.1%, 97.8%);
   --ring: hsl(217, 100%, 30%);
   
-  /* Dark mode Tower Flow colors */
-  --tower-navy: hsl(217, 100%, 30%);
-  --tower-navy-light: hsl(217, 60%, 45%);
-  --tower-navy-dark: hsl(217, 100%, 20%);
-  --tower-emerald: hsl(140, 60%, 50%);
-  --tower-emerald-light: hsl(140, 50%, 65%);
-  --tower-emerald-dark: hsl(140, 65%, 35%);
-  --tower-surface: hsl(217, 25%, 8%);
-  --tower-surface-dark: hsl(217, 15%, 5%);
+  /* Dark mode Proesphere colors */
+  --proesphere-deep-blue: hsl(226, 45%, 30%);
+  --proesphere-teal: hsl(174, 100%, 39%);
+  --proesphere-coral: hsl(14, 100%, 83%);
+  --proesphere-cloud: hsl(210, 11%, 15%);
+  --proesphere-mist: hsl(213, 20%, 25%);
+  --proesphere-graphite: hsl(210, 17%, 98%);
   
   /* Legacy construction colors for compatibility */
   --construction-primary: hsl(217, 100%, 30%);
