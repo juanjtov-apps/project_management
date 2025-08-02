@@ -60,14 +60,14 @@ export default function Login() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center space-y-4">
           <div className="flex items-center justify-center space-x-3">
-            <div className="bg-gradient-to-br from-blue-800 to-blue-900 p-3 rounded-xl">
+            <div className="bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-graphite)] p-3 rounded-xl">
               <Building2 className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-800 to-blue-600 bg-clip-text text-transparent">
-              Tower Flow
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] bg-clip-text text-transparent">
+              Proesphere
             </h1>
           </div>
-          <CardTitle className="text-xl text-blue-900">
+          <CardTitle className="text-xl text-[var(--proesphere-deep-blue)]">
             Sign in to your account
           </CardTitle>
         </CardHeader>
