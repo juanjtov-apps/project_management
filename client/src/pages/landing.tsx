@@ -13,16 +13,16 @@ export default function Landing() {
       <header className="container mx-auto px-6 py-8">
         <nav className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="bg-gradient-to-br from-blue-800 to-blue-900 p-2 rounded-xl">
+            <div className="bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-graphite)] p-2 rounded-xl">
               <Building2 className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-800 to-blue-600 bg-clip-text text-transparent">
-              Tower Flow
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] bg-clip-text text-transparent">
+              Proesphere
             </h1>
           </div>
           <Button 
             onClick={handleSignIn}
-            className="bg-blue-800 hover:bg-blue-900 text-white font-semibold px-6 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="bg-[var(--proesphere-deep-blue)] hover:bg-[var(--proesphere-graphite)] text-white font-semibold px-6 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             Sign In
           </Button>
@@ -32,13 +32,13 @@ export default function Landing() {
       {/* Hero Section */}
       <section className="container mx-auto px-6 py-20 text-center">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-5xl md:text-6xl font-bold text-blue-900 mb-6 leading-tight">
-            Sophisticated Construction
-            <span className="block bg-gradient-to-r from-emerald-600 to-emerald-500 bg-clip-text text-transparent">
+          <h2 className="text-5xl md:text-6xl font-bold text-[var(--proesphere-deep-blue)] mb-6 leading-tight">
+            Professional Construction
+            <span className="block bg-gradient-to-r from-[var(--proesphere-teal)] to-[var(--proesphere-coral)] bg-clip-text text-transparent">
               Project Management
             </span>
           </h2>
-          <p className="text-xl text-blue-700 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-[var(--proesphere-graphite)] mb-8 max-w-2xl mx-auto">
             Streamline your construction projects with intelligent task tracking, 
             real-time collaboration, and comprehensive resource management.
           </p>
@@ -46,7 +46,7 @@ export default function Landing() {
             <Button 
               onClick={handleSignIn}
               size="lg"
-              className="bg-blue-800 hover:bg-blue-900 text-white font-semibold px-8 py-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-lg"
+              className="bg-[var(--proesphere-deep-blue)] hover:bg-[var(--proesphere-graphite)] text-white font-semibold px-8 py-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-lg"
             >
               Get Started
               <ArrowRight className="ml-2 h-5 w-5" />
@@ -54,7 +54,7 @@ export default function Landing() {
             <Button 
               variant="outline"
               size="lg"
-              className="border-2 border-emerald-600 text-emerald-600 hover:bg-emerald-600 hover:text-white font-semibold px-8 py-4 rounded-lg transition-all duration-200 text-lg"
+              className="border-2 border-[var(--proesphere-teal)] text-[var(--proesphere-teal)] hover:bg-[var(--proesphere-teal)] hover:text-white font-semibold px-8 py-4 rounded-lg transition-all duration-200 text-lg"
             >
               Learn More
             </Button>
@@ -65,7 +65,7 @@ export default function Landing() {
       {/* Features Section */}
       <section className="container mx-auto px-6 py-20">
         <div className="max-w-6xl mx-auto">
-          <h3 className="text-3xl md:text-4xl font-bold text-center text-blue-900 mb-16">
+          <h3 className="text-3xl md:text-4xl font-bold text-center text-[var(--proesphere-deep-blue)] mb-16">
             Built for Construction Excellence
           </h3>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
