@@ -32,8 +32,11 @@ export default function Sidebar() {
     <aside className="w-64 bg-white shadow-lg border-r border-gray-200 hidden lg:block">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] rounded-lg flex items-center justify-center">
-            <HardHat className="text-white text-lg" size={20} />
+          <div className="w-10 h-10 relative">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] shadow-lg flex items-center justify-center">
+              <div className="w-3 h-3 rounded-full bg-white opacity-30 absolute top-2 left-3"></div>
+              <div className="text-white font-bold text-xs">P</div>
+            </div>
           </div>
           <div>
             <h1 className="text-xl font-bold text-[var(--proesphere-deep-blue)]">Proesphere</h1>
