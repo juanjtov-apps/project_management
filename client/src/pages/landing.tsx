@@ -13,8 +13,11 @@ export default function Landing() {
       <header className="container mx-auto px-6 py-8">
         <nav className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-graphite)] p-2 rounded-xl">
-              <Building2 className="h-8 w-8 text-white" />
+            <div className="w-12 h-12 relative">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] shadow-lg flex items-center justify-center">
+                <div className="w-4 h-4 rounded-full bg-white opacity-30 absolute top-2 left-3"></div>
+                <div className="text-white font-bold text-lg">P</div>
+              </div>
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] bg-clip-text text-transparent">
               Proesphere
@@ -34,7 +37,7 @@ export default function Landing() {
         <div className="max-w-4xl mx-auto">
           <h2 className="text-5xl md:text-6xl font-bold text-[var(--proesphere-deep-blue)] mb-6 leading-tight">
             Professional Construction
-            <span className="block bg-gradient-to-r from-[var(--proesphere-teal)] to-[var(--proesphere-coral)] bg-clip-text text-transparent">
+            <span className="block text-[var(--proesphere-teal)]">
               Project Management
             </span>
           </h2>
