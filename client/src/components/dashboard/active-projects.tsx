@@ -22,7 +22,7 @@ const getStatusColor = (status: string) => {
 const getProgressColor = (status: string) => {
   switch (status) {
     case "active":
-      return "bg-orange-500";
+      return "bg-brand-teal";
     case "completed":
       return "bg-green-500";
     case "delayed":

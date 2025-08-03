@@ -27,7 +27,7 @@ const getStatusColor = (status: string) => {
     case "rejected":
       return "bg-red-100 text-red-800";
     case "pending":
-      return "bg-orange-100 text-orange-800";
+      return "bg-brand-coral/10 text-brand-coral";
     default:
       return "bg-gray-100 text-gray-800";
   }
@@ -40,7 +40,7 @@ const getStatusIcon = (status: string) => {
     case "rejected":
       return <XCircle size={16} className="text-red-600" />;
     case "pending":
-      return <Clock size={16} className="text-orange-600" />;
+      return <Clock size={16} className="text-brand-coral" />;
     default:
       return <AlertTriangle size={16} className="text-gray-600" />;
   }
