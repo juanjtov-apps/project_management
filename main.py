@@ -897,6 +897,42 @@ async def update_schedule_change(change_id: str, updates: ScheduleChangeUpdate):
     except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid schedule change data")
 
+# Project Logs 
+@app.get("/api/project-logs")
+async def get_project_logs(project_id: Optional[str] = None):
+    """Get project logs, optionally filtered by project ID"""
+    try:
+        if project_id:
+            query = "SELECT * FROM project_logs WHERE project_id = %s ORDER BY created_at DESC"
+            logs = execute_query(query, (project_id,))
+        else:
+            query = "SELECT * FROM project_logs ORDER BY created_at DESC LIMIT 100"
+            logs = execute_query(query)
+        return logs
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to fetch project logs")
+
+@app.post("/api/project-logs", status_code=201)
+async def create_project_log(log_data: dict):
+    """Create a new project log entry"""
+    try:
+        query = """
+        INSERT INTO project_logs (project_id, user_id, title, content, type, status)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        log = execute_insert(query, (
+            log_data.get("projectId"),
+            log_data.get("userId"),
+            log_data.get("title"),
+            log_data.get("description", log_data.get("content", "")),
+            log_data.get("type", log_data.get("log_type", "general")),
+            "active"
+        ))
+        return log
+    except Exception as e:
+        print(f"Project log creation error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create project log")
+
 # Notifications
 @app.get("/api/notifications", response_model=List[Notification])
 async def get_notifications(userId: Optional[str] = None):
