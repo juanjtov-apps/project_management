@@ -7,48 +7,60 @@ import { setupSecurityMiddleware, validateInput, csrfProtection } from "./securi
 const app = express();
 
 async function setupPythonBackend(app: express.Express): Promise<Server> {
-  // Start Python backend on port 8000 using main.py in root directory
-  console.log("Starting Python FastAPI backend...");
+  const isProduction = process.env.NODE_ENV === 'production';
+  const pythonPort = parseInt(process.env.PYTHON_PORT || '8000', 10);
   
-  const pythonProcess = spawn("python", ["-c", `
+  if (!isProduction) {
+    // Start Python backend on port 8000 using main.py in root directory  
+    console.log("Starting Python FastAPI backend...");
+    
+    // Get current working directory for production compatibility
+    const workingDir = process.cwd();
+    
+    const pythonProcess = spawn("python", ["-c", `
 import os
 import sys
-os.chdir('/home/runner/workspace')
-sys.path.insert(0, '/home/runner/workspace')
+os.chdir('${workingDir}')
+sys.path.insert(0, '${workingDir}')
 from main import app
 import uvicorn
-print("Python backend starting on port 8000...")
-uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+print("Python backend starting on port ${pythonPort}...")
+uvicorn.run(app, host="0.0.0.0", port=${pythonPort}, log_level="info")
 `], {
-    cwd: '/home/runner/workspace',
-    stdio: ["pipe", "pipe", "pipe"],
-    env: { ...process.env, PORT: "8000" }
-  });
+      cwd: workingDir,
+      stdio: ["pipe", "pipe", "pipe"],
+      env: { ...process.env, PORT: pythonPort.toString() }
+    });
 
-  pythonProcess.stdout?.on('data', (data) => {
-    console.log(`[python-backend] ${data.toString().trim()}`);
-  });
+    pythonProcess.stdout?.on('data', (data) => {
+      console.log(`[python-backend] ${data.toString().trim()}`);
+    });
 
-  pythonProcess.stderr?.on('data', (data) => {
-    console.error(`[python-backend] ${data.toString().trim()}`);
-  });
+    pythonProcess.stderr?.on('data', (data) => {
+      console.error(`[python-backend] ${data.toString().trim()}`);
+    });
 
-  pythonProcess.on("error", (error) => {
-    console.error("Failed to start Python backend:", error);
-    // Don't exit - let Express continue serving frontend
-  });
+    pythonProcess.on("error", (error) => {
+      console.error("Failed to start Python backend:", error);
+      // Don't exit - let Express continue serving frontend
+    });
 
-  pythonProcess.on("close", (code) => {
-    console.log(`[python-backend] Process exited with code ${code}`);
-    // Try to restart after 3 seconds
-    setTimeout(() => {
-      console.log("Attempting to restart Python backend...");
-      setupPythonBackend(app);
-    }, 3000);
-  });
+    pythonProcess.on("close", (code) => {
+      console.log(`[python-backend] Process exited with code ${code}`);
+      // Try to restart after 3 seconds only in development
+      if (!isProduction) {
+        setTimeout(() => {
+          console.log("Attempting to restart Python backend...");
+          setupPythonBackend(app);
+        }, 3000);
+      }
+    });
 
-  // Wait for Python server to start
-  await new Promise(resolve => setTimeout(resolve, 5000));
+    // Wait for Python server to start
+    await new Promise(resolve => setTimeout(resolve, 5000));
+  } else {
+    console.log(`Production mode: Expecting Python backend at localhost:${pythonPort}`);
+  }
 
   // Setup security middleware first
   setupSecurityMiddleware(app);
@@ -74,7 +86,7 @@ uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
   const { createProxyMiddleware } = await import('http-proxy-middleware');
   
   const proxy = createProxyMiddleware({
-    target: 'http://localhost:8000',
+    target: `http://localhost:${pythonPort}`,
     changeOrigin: true,
     ws: false,
     timeout: 10000,
@@ -125,7 +137,7 @@ uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
   // Direct RBAC proxy handler to avoid timeout issues
   app.all('/api/rbac/*', async (req, res) => {
     const targetPath = req.path.replace('/api', '');
-    const targetUrl = `http://localhost:8000${targetPath}`;
+    const targetUrl = `http://localhost:${pythonPort}${targetPath}`;
     
     console.log(`Direct RBAC proxy: ${req.method} ${req.path} -> ${targetUrl}`);
     
