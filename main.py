@@ -354,7 +354,10 @@ def execute_insert(query: str, params: tuple):
     """Execute insert query and return the inserted record"""
     with DatabaseConnection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute(query + " RETURNING *", params)
+            # Use proper parameterized query to avoid SQL injection
+            if not query.strip().upper().endswith('RETURNING *'):
+                query = query + " RETURNING *"
+            cursor.execute(query, params)
             conn.commit()
             row = cursor.fetchone()
             return row_to_dict(row, cursor.description) if row else None
@@ -363,7 +366,10 @@ def execute_update(query: str, params: tuple):
     """Execute update query and return the updated record"""
     with DatabaseConnection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute(query + " RETURNING *", params)
+            # Use proper parameterized query to avoid SQL injection
+            if not query.strip().upper().endswith('RETURNING *'):
+                query = query + " RETURNING *"
+            cursor.execute(query, params)
             conn.commit()
             row = cursor.fetchone()
             return row_to_dict(row, cursor.description) if row else None
@@ -423,20 +429,30 @@ async def create_project(project: ProjectCreate):
 async def update_project(project_id: str, updates: ProjectUpdate):
     """Update a project"""
     try:
-        # Build dynamic update query
+        # Whitelist of allowed fields to prevent SQL injection
+        allowed_fields = {
+            "name": "name",
+            "description": "description", 
+            "location": "location",
+            "status": "status",
+            "progress": "progress",
+            "dueDate": "due_date"
+        }
+        
+        # Build dynamic update query with field validation
         update_fields = []
         params = []
         
         update_data = updates.model_dump(exclude_unset=True)
         for field, value in update_data.items():
-            # Convert camelCase to snake_case
-            if field == "dueDate":
-                field = "due_date"
-            update_fields.append(f"{field} = %s")
+            if field not in allowed_fields:
+                continue  # Skip invalid fields
+            db_field = allowed_fields[field]
+            update_fields.append(f"{db_field} = %s")
             params.append(value)
         
         if not update_fields:
-            raise HTTPException(status_code=400, detail="No fields to update")
+            raise HTTPException(status_code=400, detail="No valid fields to update")
         
         params.append(project_id)
         query = f"UPDATE projects SET {', '.join(update_fields)} WHERE id = %s"
@@ -527,20 +543,28 @@ async def create_task(task: TaskCreate):
 async def update_task(task_id: str, updates: TaskUpdate):
     """Update a task"""
     try:
-        # Build dynamic update query
+        # Whitelist of allowed fields to prevent SQL injection
+        allowed_fields = {
+            "title": "title",
+            "description": "description",
+            "projectId": "project_id",
+            "assigneeId": "assignee_id", 
+            "category": "category",
+            "status": "status",
+            "priority": "priority",
+            "dueDate": "due_date"
+        }
+        
+        # Build dynamic update query with field validation
         update_fields = []
         params = []
         
         update_data = updates.model_dump(exclude_unset=True)
         
         for field, value in update_data.items():
-            # Convert camelCase to snake_case
-            if field == "projectId":
-                field = "project_id"
-            elif field == "assigneeId":
-                field = "assignee_id"
-            elif field == "dueDate":
-                field = "due_date"
+            if field not in allowed_fields:
+                continue  # Skip invalid fields
+            db_field = allowed_fields[field]
             
             # Handle description - convert empty string to None
             if field == "description" and isinstance(value, str):
@@ -548,11 +572,11 @@ async def update_task(task_id: str, updates: TaskUpdate):
                 if value == "":
                     value = None
             
-            update_fields.append(f"{field} = %s")
+            update_fields.append(f"{db_field} = %s")
             params.append(value)
         
         if not update_fields:
-            raise HTTPException(status_code=400, detail="No fields to update")
+            raise HTTPException(status_code=400, detail="No valid fields to update")
         
         params.append(task_id)
         query = f"UPDATE tasks SET {', '.join(update_fields)} WHERE id = %s"
@@ -622,16 +646,27 @@ async def create_project_log(log: ProjectLogCreate):
 async def update_project_log(log_id: str, updates: ProjectLogUpdate):
     """Update a project log"""
     try:
-        # Build dynamic update query
+        # Whitelist of allowed fields to prevent SQL injection
+        allowed_fields = {
+            "title": "title",
+            "content": "content",
+            "type": "type",
+            "status": "status"
+        }
+        
+        # Build dynamic update query with field validation
         update_fields = []
         params = []
         
         for field, value in updates.model_dump(exclude_unset=True).items():
-            update_fields.append(f"{field} = %s")
+            if field not in allowed_fields:
+                continue  # Skip invalid fields
+            db_field = allowed_fields[field]
+            update_fields.append(f"{db_field} = %s")
             params.append(value)
         
         if not update_fields:
-            raise HTTPException(status_code=400, detail="No fields to update")
+            raise HTTPException(status_code=400, detail="No valid fields to update")
         
         params.append(log_id)
         query = f"UPDATE project_logs SET {', '.join(update_fields)} WHERE id = %s"
@@ -818,24 +853,29 @@ async def create_schedule_change(change: ScheduleChangeCreate):
 async def update_schedule_change(change_id: str, updates: ScheduleChangeUpdate):
     """Update a schedule change"""
     try:
-        # Build dynamic update query
+        # Whitelist of allowed fields to prevent SQL injection
+        allowed_fields = {
+            "reason": "reason",
+            "originalDate": "original_date",
+            "newDate": "new_date",
+            "status": "status"
+        }
+        
+        # Build dynamic update query with field validation
         update_fields = []
         params = []
         
         update_data = updates.model_dump(exclude_unset=True)
         
         for field, value in update_data.items():
-            # Convert camelCase to snake_case
-            if field == "originalDate":
-                field = "original_date"
-            elif field == "newDate":
-                field = "new_date"
-            
-            update_fields.append(f"{field} = %s")
+            if field not in allowed_fields:
+                continue  # Skip invalid fields
+            db_field = allowed_fields[field]
+            update_fields.append(f"{db_field} = %s")
             params.append(value)
         
         if not update_fields:
-            raise HTTPException(status_code=400, detail="No fields to update")
+            raise HTTPException(status_code=400, detail="No valid fields to update")
         
         params.append(change_id)
         query = f"UPDATE schedule_changes SET {', '.join(update_fields)} WHERE id = %s"
