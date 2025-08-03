@@ -273,9 +273,9 @@ function TaskListItem({
   return (
     <Card 
       className={cn(
-        "transition-all cursor-pointer hover:bg-[#F7F9FC] border-l-2 border-l-transparent hover:border-l-blue-500",
-        isOverdue && "bg-red-50 border-red-200 hover:bg-red-50", // Enhancement #6 - Overdue highlight
-        isSelected && "bg-white border-l-blue-500"
+        "transition-all cursor-pointer border-l-2 border-l-transparent hover:shadow-[0_1px_4px_rgba(0,0,0,0.06)]",
+        isOverdue && "bg-[#FFF4F4] border-red-200", // Lighter overdue tint
+        isSelected && "bg-white border-l-blue-500 shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
       )}
       onClick={() => onScheduleChange?.(task)}
     >
@@ -312,12 +312,12 @@ function TaskListItem({
                 </h3>
                 
                 {/* Enhanced Priority Chip - Enhancement #5 */}
-                <Badge className={`${getPriorityColor(task.priority)} text-xs px-2 py-0`}>
+                <Badge variant="outline" className={`${getPriorityColor(task.priority)} text-xs font-medium h-5 rounded-lg px-2`}>
                   {task.priority}
                 </Badge>
                 
                 {/* Enhanced Status Chip - Enhancement #5 */}
-                <Badge className={`${getStatusColor(task.status)} text-xs px-2 py-0`}>
+                <Badge className={`${getStatusColor(task.status)} text-xs font-medium h-5 rounded-lg px-2`}>
                   {task.status.replace("-", " ")}
                 </Badge>
               </div>
@@ -814,16 +814,16 @@ export default function Tasks() {
       </div>
 
       {/* Global Summary Bar - Enhancement #1 */}
-      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4" style={{ marginBottom: '24px' }}>
+      <div className="bg-[#F8F9FB] border border-slate-200 rounded-lg p-4" style={{ marginBottom: '24px' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-6">
             <div className="text-sm text-slate-700">
               <span className="font-semibold">{taskStats.total} tasks</span>
-              <span className="mx-2">·</span>
+              <span className="mx-2 text-slate-400">|</span>
               <span className={taskStats.overdue > 0 ? "text-[#E53935] font-normal ml-1" : "text-slate-600 font-normal ml-1"}>{taskStats.overdue} overdue</span>
-              <span className="mx-2">·</span>
+              <span className="mx-2 text-slate-400">|</span>
               <span className="text-[#FB8C00] font-normal ml-1">{taskStats.dueThisWeek} due this week</span>
-              <span className="mx-2">·</span>
+              <span className="mx-2 text-slate-400">|</span>
               <span className="text-[#43A047] font-normal ml-1">{taskStats.completed} completed</span>
             </div>
           </div>
@@ -848,7 +848,7 @@ export default function Tasks() {
                   setCollapsedSections({});
                 }
               }}
-              className="text-xs rounded-lg"
+              className="text-sm h-9 rounded-lg"
             >
               {Object.keys(collapsedSections).length === 0 || Object.values(collapsedSections).every(v => !v) ? (
                 <>
@@ -871,7 +871,7 @@ export default function Tasks() {
                 setBulkActionMode(!bulkActionMode);
                 setSelectedTasks(new Set());
               }}
-              className="text-xs rounded-lg"
+              className="text-sm h-9 rounded-lg"
             >
               <CheckSquare size={14} className="mr-1" />
               Bulk Edit
@@ -895,7 +895,7 @@ export default function Tasks() {
             </div>
             
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px] h-9 rounded-lg">
+              <SelectTrigger className="w-[132px] h-9 rounded-lg">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -908,7 +908,7 @@ export default function Tasks() {
             </Select>
             
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-[140px] h-9 rounded-lg">
+              <SelectTrigger className="w-[132px] h-9 rounded-lg">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
               <SelectContent>
@@ -934,7 +934,7 @@ export default function Tasks() {
           
           <div className="flex items-center">
             {/* Keyboard shortcuts tooltip for empty space utilization */}
-            <div className="text-xs text-slate-400 mr-4 hidden md:block">
+            <div className="text-xs text-gray-500 mr-4 hidden md:block">
               ⌘F focuses search
             </div>
             
@@ -1113,7 +1113,7 @@ export default function Tasks() {
                         <ChevronRight size={16} className="mr-2" /> : 
                         <ChevronDown size={16} className="mr-2" />
                       }
-                      <Building size={16} className="mr-2" />
+                      <Building size={16} className="mr-2 text-brand-teal" />
                       <span className="text-md font-medium text-gray-700">{project.name}</span>
                       
                       {/* Project Progress Pill - Enhancement #4 */}
@@ -1123,11 +1123,29 @@ export default function Tasks() {
                         </Badge>
                         
                         <div className="flex items-center space-x-2">
-                          {/* Progress percentage pill */}
-                          <div className="bg-slate-100 rounded-full px-3 py-1 min-w-[40px] text-center">
-                            <span className="text-xs font-medium text-slate-700">
-                              {projectProgress.percentage}%
-                            </span>
+                          {/* Circular Progress Ring */}
+                          <div className="w-4 h-4 relative">
+                            <svg className="w-4 h-4 transform -rotate-90" viewBox="0 0 24 24">
+                              <circle
+                                cx="12"
+                                cy="12"
+                                r="8"
+                                stroke="#E5E7EB"
+                                strokeWidth="3"
+                                fill="none"
+                              />
+                              <circle
+                                cx="12"
+                                cy="12"
+                                r="8"
+                                stroke="#43A047"
+                                strokeWidth="3"
+                                fill="none"
+                                strokeDasharray={50.24}
+                                strokeDashoffset={50.24 - (50.24 * projectProgress.percentage) / 100}
+                                className="transition-all duration-300"
+                              />
+                            </svg>
                           </div>
                           
                           {/* Mini Progress Bar with gradient */}
