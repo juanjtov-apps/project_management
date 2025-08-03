@@ -66,9 +66,9 @@ function QuickActions() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-[var(--proesphere-mist)] w-full">
-      <div className="p-6 border-b border-[var(--proesphere-mist)]">
-        <h3 className="text-lg font-semibold text-[var(--proesphere-deep-blue)]">Quick Actions</h3>
+    <div className="elevated w-full">
+      <div className="p-6 border-b border-brand-grey">
+        <h3 className="text-lg font-semibold text-brand-blue">Quick Actions</h3>
       </div>
       <div className="p-6 grid grid-cols-2 gap-4">
         {actions.map((action, index) => {
@@ -78,10 +78,10 @@ function QuickActions() {
             <Button
               key={`action-${index}-${action.label}`}
               variant="outline"
-              className={`flex flex-col items-center justify-center gap-3 p-6 h-24 border border-[var(--proesphere-mist)] shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--proesphere-teal)]/40 focus:ring-offset-2 ${
+              className={`elevated flex flex-col items-center py-6 gap-2 h-24 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2 ${
                 action.isPrimary 
-                  ? "hover:bg-[var(--proesphere-coral)] hover:border-[var(--proesphere-coral)] hover:text-white hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]" 
-                  : "hover:bg-[var(--proesphere-teal)]/5 hover:border-[var(--proesphere-teal)] hover:text-[var(--proesphere-deep-blue)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]"
+                  ? "text-brand-coral hover:bg-brand-coral hover:border-brand-coral hover:text-white" 
+                  : "text-brand-blue hover:bg-brand-teal/10 hover:border-brand-teal"
               }`}
               onClick={(e) => {
                 e.preventDefault();
@@ -91,10 +91,10 @@ function QuickActions() {
               }}
             >
               <Icon 
-                className={action.isPrimary ? "text-[var(--proesphere-coral)]" : "text-[var(--proesphere-teal)]"} 
+                className={action.isPrimary ? "text-brand-coral group-hover:text-inherit" : "text-brand-teal group-hover:text-brand-teal"} 
                 size={24} 
               />
-              <span className="font-medium text-[var(--proesphere-graphite)] text-sm text-center leading-tight group-hover:text-inherit">
+              <span className="font-medium text-inherit text-sm text-center leading-tight">
                 {action.label}
               </span>
             </Button>

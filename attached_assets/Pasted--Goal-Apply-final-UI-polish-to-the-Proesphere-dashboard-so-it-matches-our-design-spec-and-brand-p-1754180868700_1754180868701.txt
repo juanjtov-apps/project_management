@@ -1,0 +1,58 @@
+### Goal
+Apply final UI polish to the Proesphere dashboard so it matches our design spec and brand palette.
+
+### Tasks
+1. **Tailwind config**
+   - Add brand tokens:
+     ```
+     theme.extend.colors = {
+       brand: {
+         blue:  '#1B2E4B',
+         teal:  '#1FA77C',
+         coral: '#FF7849',
+         grey:  '#E5E7EB',
+         white: '#F8FAFC',
+         text:  '#111827',
+       },
+     }
+     ```
+   - Enable `focus-within` and `focus-visible` variants.
+
+2. **Global styles**
+   - Set `body` bg `brand.white`.  
+   - Add `.elevated` utility: `@apply border border-brand-grey shadow-sm rounded-lg bg-white`.
+
+3. **KPI Card component**
+   - Import a consistent Lucide/Hero icon, set stroke `brand.teal` (remove yellow SVG fill).  
+   - Wrap card in `.elevated`.  
+   - On hover: `shadow-md translate-y-[-2px] transition`.
+
+4. **QuickActionButton component**
+   - Base: `.elevated flex flex-col items-center py-6 gap-2 text-brand-blue`.
+   - If `primary`, add `text-brand-coral`.  
+   - Hover: swap bg to `brand.teal/10` and icon stroke to `brand.teal`.  
+   - Focus: `outline outline-2 outline-brand-teal/40 outline-offset-2`.
+
+5. **Sidebar**
+   - Add class `bg-brand-blue/5` to the sidebar container.  
+   - Active link: left border `4px brand.teal`.
+
+6. **Top header**
+   - Remove the empty placeholder div under nav; tighten vertical margin (`mt-6`).
+
+7. **Layout rhythm**
+   - Ensure all paddings/margins are multiples of 8 px (`space-y-8`, `gap-8`, etc.).
+
+8. **Accessibility**
+   - Run `npm run lint:accessibility` (or Lighthouse) and fix any contrast failures.  
+   - Verify every interactive element has a visible `focus-visible` ring.
+
+9. **Optional polish**
+   - Replace static KPI numbers with `<ProgressRing percent={calcPercent()} />` using `react-circular-progressbar`, stroke `brand.teal`.  
+   - Add dark-mode support: toggle `dark:` variants, invert neutrals, keep teal as primary.
+
+### Deliverables
+- Updated Tailwind config (`tailwind.config.js`).
+- Refactored `Sidebar.tsx`, `KpiCard.tsx`, `QuickActionButton.tsx`.
+- Any new components (`ProgressRing.tsx`).
+- Screenshot of the final dashboard view at 1440 px width.
