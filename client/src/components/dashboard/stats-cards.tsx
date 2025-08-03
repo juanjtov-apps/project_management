@@ -31,7 +31,7 @@ export default function StatsCards() {
   if (!stats) return null;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
       <div className="elevated p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2">
         <div className="flex items-center justify-between">
           <div>
@@ -73,6 +73,21 @@ export default function StatsCards() {
           </div>
           <div className="w-12 h-12 bg-brand-teal/10 rounded-lg flex items-center justify-center">
             <CheckSquare className="text-brand-teal" size={24} />
+          </div>
+        </div>
+      </div>
+
+      <div className="elevated p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-brand-text/70 font-medium">Photos Uploaded</p>
+            <p className="text-2xl font-bold text-brand-blue tabular-nums">{stats.photosUploaded}</p>
+            <p className="text-sm text-brand-coral mt-1 font-medium">
+              <Camera size={12} className="inline mr-1" /> {stats.photosUploadedToday} today
+            </p>
+          </div>
+          <div className="w-12 h-12 bg-brand-teal/10 rounded-lg flex items-center justify-center">
+            <Camera className="text-brand-teal" size={24} />
           </div>
         </div>
       </div>
