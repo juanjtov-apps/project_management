@@ -1,0 +1,29 @@
+	1.	Summary bar hierarchy
+	•	Bolder task-count (“61 tasks”) in 600 weight; use lighter 400 weight for the three status counts so the eye hits total first.
+	•	Add 4 px between the colored numbers to reduce visual run-on.
+	2.	Color palette alignment
+	•	Overdue = solid red #E53935 text, Due-this-week = amber #FB8C00, Completed = green #43A047.
+	•	Match row accents and tiny progress bars to these exact hues for instant mapping.
+	3.	Spacing rhythm
+	•	Adopt an 8-pt scale: 24 px top margin after the summary bar, 16 px between filter row and list, 12 px between project groups.
+	•	Ensure equal padding inside each task row (e.g., 12 px y-axis, 16 px x-axis) for a tighter grid feel.
+	4.	Search & filter row
+	•	Reduce shadow on the search box to shadow-sm; heavier shadows clash with the flat list below.
+	•	Align all dropdowns to equal widths (e.g., 140 px) so the row feels like one component set.
+	5.	Progress chip styling
+	•	Replace “0/1 done · 0 %” text with a pill: 0 % inside a 40 px rounded badge, left-aligned before the micro-bar.
+	•	Use a subtle gradient in the micro-bar (starting with 30 % opacity of the project color) for depth.
+	6.	Hover + active states
+	•	On task row hover: light gray #F7F9FC background and cursor pointer.
+	•	On active (clicked) row: 2 px left border in project color and #FFFFFF background to show focus without a full inversion.
+	7.	Side-nav polish
+	•	Slightly condense icon + label spacing; 8 px between icon and text keeps rows compact.
+	•	Use a 4 px colored bar on the far left for the active section (same green as the check icon) rather than the filled pill, giving a slimmer profile.
+	8.	Buttons & chips
+	•	Standardize corner radius: 8 px on all buttons, chips, and summary pills for consistency.
+	•	Reduce the “New Task” button height to match the filter buttons; imbalance draws unnecessary attention.
+	9.	Typography scale
+	•	H1 “Task Management Canvas” at text-2xl font-semibold (currently reads slightly heavy against the nav title).
+	•	Use text-sm for secondary metadata (“Click for task details”, assignee line) to let task titles own the visual weight.
+	10.	Empty space utilization
+	•	If the right side of the filter row is empty at desktop widths, float an info tooltip (“⌘F focuses search”) there—keeps the bar visually anchored.
