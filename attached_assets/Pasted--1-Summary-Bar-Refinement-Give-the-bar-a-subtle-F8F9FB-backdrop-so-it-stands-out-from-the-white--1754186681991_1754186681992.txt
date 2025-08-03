@@ -1,0 +1,34 @@
+	1.	Summary Bar Refinement
+• Give the bar a subtle #F8F9FB backdrop so it stands out from the white canvas.
+• Increase weight on “61 tasks” (semibold) while keeping the colored counts regular weight—creates a clear scan path.
+• Swap centred “·” separators for vertical dividers | to tighten spacing and improve legibility.
+	2.	Consistent Chip System
+• Unify all pill shapes (priority, status, progress) to 20 px height, 8 px radius, text-xs font-medium.
+• Reserve fill chips for state (Pending, In Progress, Done) and outline chips for meta (Medium, 0 %). Reduces color noise.
+	3.	Task Row Contrast & Hover
+• Lighten the overdue tint to #FFF4F4—it still warns but doesn’t overpower text.
+• On row hover, apply a gentle shadow shadow-[0_1px_4px_rgba(0,0,0,0.06)] instead of background shift; feels modern and avoids color clashes.
+	4.	Progress Indicators
+• Replace the “0 %” text pill with a tiny circular progress ring (SVG, 16 px). The fill visually conveys completion without needing to read numbers.
+• Keep the micro-bar but align it right after the ring for a compact, at-a-glance combo.
+	5.	Filter Row Cohesion
+• Equalise dropdown widths (e.g. 132 px) and align their caret icons—gives the bar a single rhythm.
+• Lower the shadow on the search field to shadow-sm so it doesn’t compete with elevated buttons.
+	6.	Side-Nav Polish
+• Replace the filled green pill with a 4 px left accent bar (border-l-4 border-primary) for the active item—slimmer, more SaaS-standard.
+• Reduce icon–label gap to 6 px to tighten vertical stacking.
+	7.	Button Harmony
+• “New Task,” “Expand All,” and “Bulk Edit” should share the same 36 px height, 8 px radius, and text-sm label.
+• Add a subtle left icon (plus, arrows, layers) to “Expand All” and “Bulk Edit” so they feel like a cohesive action set.
+	8.	Typography Hierarchy
+• Drop “Task Management Canvas” from text-3xl to text-2xl—the page already has a dashboard H1, so an H2 suffices.
+• Use text-xs text-gray-500 for helper copy (“⌘F focuses search”) to avoid competing with functional text.
+	9.	Whitespace & Rhythm
+• Apply an 8-pt grid: 24 px margin under the header, 16 px between bar and filters, 12 px between project groups. The even cadence calms the eye.
+• Add 12 px vertical padding inside each task row; currently the assignee line feels cramped.
+	10.	Micro-Animations
+• Fade-and-slide list items (transition-[opacity,transform] duration-150) when tasks change state—adds perceived performance.
+• Animate arrow rotation on project collapse/expand for affordance.
+	11.	Accessibility Touches
+• Confirm all new colors meet WCAG 2.1 AA (≥ 4.5:1 contrast) on light theme.
+• Provide keyboard focus rings that differ from hover styling so tab users know where they are.

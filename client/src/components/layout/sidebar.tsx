@@ -61,13 +61,13 @@ export default function Sidebar() {
                   className={cn(
                     "flex items-center p-3 rounded-lg font-medium transition-all duration-200 relative focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2",
                     isActive 
-                      ? "bg-brand-teal/10 text-brand-blue ml-1" 
+                      ? "bg-brand-teal/10 text-brand-blue border-l-4 border-brand-teal ml-1" 
                       : "text-brand-text hover:bg-brand-teal/5 hover:text-brand-blue"
                   )}
                 >
                   <Icon size={20} className={isActive ? "text-brand-teal" : "opacity-60"} />
                   <span className={cn(
-                    "ml-2", // 8px spacing between icon and text
+                    "ml-1.5", // 6px spacing between icon and text
                     isActive ? "font-semibold text-brand-teal" : ""
                   )}>{item.name}</span>
                 </Link>
