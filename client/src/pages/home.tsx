@@ -73,8 +73,8 @@ export default function Home() {
                     <p className="text-sm text-tower-navy-light dark:text-gray-400">Active Projects</p>
                     <p className="text-2xl font-bold text-tower-navy dark:text-white">12</p>
                   </div>
-                  <div className="bg-tower-emerald/10 p-2 rounded-lg">
-                    <Building2 className="h-6 w-6 text-tower-emerald" />
+                  <div className="bg-brand-teal/10 p-2 rounded-lg">
+                    <Building2 className="h-6 w-6 text-brand-teal" />
                   </div>
                 </div>
               </CardContent>
@@ -103,8 +103,8 @@ export default function Home() {
                     <p className="text-sm text-tower-navy-light dark:text-gray-400">Completed Tasks</p>
                     <p className="text-2xl font-bold text-tower-navy dark:text-white">156</p>
                   </div>
-                  <div className="bg-tower-emerald/10 p-2 rounded-lg">
-                    <CheckCircle className="h-6 w-6 text-tower-emerald" />
+                  <div className="bg-brand-teal/10 p-2 rounded-lg">
+                    <CheckCircle className="h-6 w-6 text-brand-teal" />
                   </div>
                 </div>
               </CardContent>
