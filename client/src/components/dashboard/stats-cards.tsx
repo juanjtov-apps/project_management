@@ -41,8 +41,8 @@ export default function StatsCards() {
               <TrendingUp size={12} className="inline mr-1" /> 2 new this week
             </p>
           </div>
-          <div className="w-12 h-12 bg-brand-teal/10 rounded-lg flex items-center justify-center">
-            <Building className="text-brand-teal" size={24} style={{ color: '#1FA77C' }} />
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(31, 167, 124, 0.1)' }}>
+            <Building size={24} style={{ color: '#1FA77C', fill: 'none', stroke: '#1FA77C', strokeWidth: 2 }} />
           </div>
         </div>
       </div>
@@ -71,8 +71,8 @@ export default function StatsCards() {
               <TrendingUp size={12} className="inline mr-1" /> {stats.photosUploadedToday} today
             </p>
           </div>
-          <div className="w-12 h-12 bg-brand-teal/10 rounded-lg flex items-center justify-center">
-            <CheckSquare className="text-brand-teal" size={24} style={{ color: '#1FA77C' }} />
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(31, 167, 124, 0.1)' }}>
+            <CheckSquare size={24} style={{ color: '#1FA77C', fill: 'none', stroke: '#1FA77C', strokeWidth: 2 }} />
           </div>
         </div>
       </div>
