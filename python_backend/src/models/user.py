@@ -18,10 +18,15 @@ class User(BaseModel):
 class UserCreate(BaseModel):
     """User creation model"""
     username: str
-    name: str
+    name: Optional[str] = None
+    first_name: Optional[str] = None  # Support frontend sending first_name
     email: str
     role: str
     password: str
+    
+    def get_name(self) -> str:
+        """Get the name field, preferring name over first_name"""
+        return self.name or self.first_name or self.username
 
 class UserUpdate(BaseModel):
     """User update model"""

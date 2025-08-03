@@ -17,7 +17,17 @@ async def get_db_pool() -> asyncpg.Pool:
     """Get the database connection pool"""
     global _pool
     if _pool is None:
-        _pool = await asyncpg.create_pool(DATABASE_URL)
+        # Add SSL configuration for production Neon database
+        ssl_context = 'require' if 'neon.tech' in DATABASE_URL else None
+        _pool = await asyncpg.create_pool(
+            DATABASE_URL, 
+            ssl=ssl_context,
+            command_timeout=30,
+            server_settings={
+                'jit': 'off'  # Disable JIT for better connection stability
+            }
+        )
+        print("Database connection pool created successfully")
     return _pool
 
 async def close_db_pool():
