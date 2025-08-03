@@ -273,13 +273,13 @@ function TaskListItem({
   return (
     <Card 
       className={cn(
-        "hover:shadow-md transition-shadow cursor-pointer",
-        isOverdue && "bg-red-50 border-red-200", // Enhancement #6 - Overdue highlight
-        isSelected && "ring-2 ring-blue-500"
+        "transition-all cursor-pointer hover:bg-[#F7F9FC] border-l-2 border-l-transparent hover:border-l-blue-500",
+        isOverdue && "bg-red-50 border-red-200 hover:bg-red-50", // Enhancement #6 - Overdue highlight
+        isSelected && "bg-white border-l-blue-500"
       )}
       onClick={() => onScheduleChange?.(task)}
     >
-      <CardContent className="p-4">
+      <CardContent className="px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3 flex-1">
             {/* Bulk Selection Checkbox - Enhancement #2 */}
@@ -322,9 +322,9 @@ function TaskListItem({
                 </Badge>
               </div>
               
-              <p className="text-xs text-blue-600 mb-1">Click for task details</p>
+              <p className="text-sm text-blue-600 mb-1">Click for task details</p>
               
-              <div className="flex items-center space-x-4 text-xs text-gray-500">
+              <div className="flex items-center space-x-4 text-sm text-gray-500">
                 {projectName && (
                   <div className="flex items-center">
                     <FolderOpen size={12} className="mr-1" />
@@ -356,7 +356,7 @@ function TaskListItem({
               </div>
               
               {task.description && (
-                <p className="text-xs text-gray-600 mt-1 line-clamp-1">{task.description}</p>
+                <p className="text-sm text-gray-600 mt-1 line-clamp-1">{task.description}</p>
               )}
             </div>
           </div>
@@ -646,10 +646,10 @@ export default function Tasks() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold construction-secondary">Task Management Canvas</h1>
+        <h1 className="text-2xl font-semibold construction-secondary">Task Management Canvas</h1>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="construction-primary text-white">
+            <Button className="construction-primary text-white h-9 rounded-lg">
               <Plus size={16} className="mr-2" />
               New Task
             </Button>
@@ -814,14 +814,17 @@ export default function Tasks() {
       </div>
 
       {/* Global Summary Bar - Enhancement #1 */}
-      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6">
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4" style={{ marginBottom: '24px' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-6">
-            <div className="text-sm font-medium text-slate-700">
-              {taskStats.total} tasks · 
-              <span className={taskStats.overdue > 0 ? "text-red-600 font-semibold" : "text-slate-600"}> {taskStats.overdue} overdue</span> · 
-              <span className="text-amber-600"> {taskStats.dueThisWeek} due this week</span> · 
-              <span className="text-green-600"> {taskStats.completed} completed</span>
+            <div className="text-sm text-slate-700">
+              <span className="font-semibold">{taskStats.total} tasks</span>
+              <span className="mx-2">·</span>
+              <span className={taskStats.overdue > 0 ? "text-[#E53935] font-normal ml-1" : "text-slate-600 font-normal ml-1"}>{taskStats.overdue} overdue</span>
+              <span className="mx-2">·</span>
+              <span className="text-[#FB8C00] font-normal ml-1">{taskStats.dueThisWeek} due this week</span>
+              <span className="mx-2">·</span>
+              <span className="text-[#43A047] font-normal ml-1">{taskStats.completed} completed</span>
             </div>
           </div>
           
@@ -845,7 +848,7 @@ export default function Tasks() {
                   setCollapsedSections({});
                 }
               }}
-              className="text-xs"
+              className="text-xs rounded-lg"
             >
               {Object.keys(collapsedSections).length === 0 || Object.values(collapsedSections).every(v => !v) ? (
                 <>
@@ -868,7 +871,7 @@ export default function Tasks() {
                 setBulkActionMode(!bulkActionMode);
                 setSelectedTasks(new Set());
               }}
-              className="text-xs"
+              className="text-xs rounded-lg"
             >
               <CheckSquare size={14} className="mr-1" />
               Bulk Edit
@@ -878,7 +881,7 @@ export default function Tasks() {
       </div>
 
       {/* Sticky Filter & View Bar - Enhancement #8 */}
-      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 p-4 -mx-6 mb-6">
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 p-4 -mx-6" style={{ marginBottom: '16px' }}>
         <div className="flex gap-4 items-center justify-between">
           <div className="flex gap-4 items-center flex-1">
             <div className="flex items-center space-x-2 flex-1 max-w-sm">
@@ -887,12 +890,12 @@ export default function Tasks() {
                 placeholder="Search tasks..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="border-0 shadow-none focus-visible:ring-0 pl-0"
+                className="border-0 shadow-sm focus-visible:ring-0 pl-0 rounded-lg"
               />
             </div>
             
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-[140px] h-9 rounded-lg">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -905,7 +908,7 @@ export default function Tasks() {
             </Select>
             
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-[140px] h-9 rounded-lg">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
               <SelectContent>
@@ -922,32 +925,39 @@ export default function Tasks() {
               variant="outline"
               size="sm"
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className="text-xs"
+              className="text-xs h-9 rounded-lg"
             >
               <SlidersHorizontal size={14} className="mr-1" />
               Filters
             </Button>
           </div>
           
-          <div className="flex items-center border rounded-lg">
-            <Button
-              variant={viewMode === "canvas" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("canvas")}
-              className="border-0 rounded-r-none"
-            >
-              <Grid3X3 size={16} className="mr-1" />
-              Canvas
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("list")}
-              className="border-0 rounded-l-none"
-            >
-              <List size={16} className="mr-1" />
-              List
-            </Button>
+          <div className="flex items-center">
+            {/* Keyboard shortcuts tooltip for empty space utilization */}
+            <div className="text-xs text-slate-400 mr-4 hidden md:block">
+              ⌘F focuses search
+            </div>
+            
+            <div className="flex items-center border rounded-lg">
+              <Button
+                variant={viewMode === "canvas" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("canvas")}
+                className="border-0 rounded-r-none h-9 rounded-lg"
+              >
+                <Grid3X3 size={16} className="mr-1" />
+                Canvas
+              </Button>
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("list")}
+                className="border-0 rounded-l-none h-9 rounded-lg"
+              >
+                <List size={16} className="mr-1" />
+                List
+              </Button>
+            </div>
           </div>
         </div>
         
@@ -1069,7 +1079,7 @@ export default function Tasks() {
 
       {viewMode === "list" ? (
         // List View
-        <div className="space-y-6">
+        <div className="space-y-3">
           {/* Project Tasks Section */}
           {Object.values(tasksByProject).length > 0 && (
             <div className="space-y-4">
@@ -1112,20 +1122,22 @@ export default function Tasks() {
                           {tasks.length} task{tasks.length !== 1 ? 's' : ''}
                         </Badge>
                         
-                        <div className="flex items-center space-x-2 bg-slate-100 rounded-full px-2 py-1">
-                          <span className="text-xs font-medium text-slate-600">
-                            {projectProgress.completed}/{projectProgress.total} done
-                          </span>
-                          <span className="text-xs text-slate-500">·</span>
-                          <span className="text-xs font-medium text-slate-700">
-                            {projectProgress.percentage}%
-                          </span>
+                        <div className="flex items-center space-x-2">
+                          {/* Progress percentage pill */}
+                          <div className="bg-slate-100 rounded-full px-3 py-1 min-w-[40px] text-center">
+                            <span className="text-xs font-medium text-slate-700">
+                              {projectProgress.percentage}%
+                            </span>
+                          </div>
                           
-                          {/* Mini Progress Bar */}
+                          {/* Mini Progress Bar with gradient */}
                           <div className="w-8 h-1.5 bg-slate-200 rounded-full overflow-hidden">
                             <div 
-                              className="h-full bg-green-500 transition-all duration-300"
-                              style={{ width: `${projectProgress.percentage}%` }}
+                              className="h-full transition-all duration-300 rounded-full"
+                              style={{ 
+                                width: `${projectProgress.percentage}%`,
+                                background: `linear-gradient(90deg, rgba(67, 160, 71, 0.3) 0%, #43A047 100%)`
+                              }}
                             />
                           </div>
                         </div>
