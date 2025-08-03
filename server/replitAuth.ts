@@ -130,7 +130,7 @@ export async function setupAuth(app: Express) {
     console.log('Registered localhost strategy for development');
   }
   
-  console.log('All registered strategies:', Object.keys(passport._strategies));
+  console.log('All registered strategies:', Object.keys((passport as any)._strategies));
 
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
@@ -142,11 +142,11 @@ export async function setupAuth(app: Express) {
     console.log(`Login attempt for hostname: ${hostname}, strategy: ${strategyName}`);
     
     // Check if strategy exists, otherwise use fallback
-    const strategy = passport._strategies[strategyName];
+    const strategy = (passport as any)._strategies[strategyName];
     if (!strategy) {
-      console.error(`Strategy ${strategyName} not found. Available strategies:`, Object.keys(passport._strategies));
+      console.error(`Strategy ${strategyName} not found. Available strategies:`, Object.keys((passport as any)._strategies));
       // Try the first available replit strategy
-      const availableStrategy = Object.keys(passport._strategies).find(s => s.startsWith('replitauth:'));
+      const availableStrategy = Object.keys((passport as any)._strategies).find(s => s.startsWith('replitauth:'));
       if (availableStrategy) {
         console.log(`Using fallback strategy: ${availableStrategy}`);
         return passport.authenticate(availableStrategy, {
@@ -170,10 +170,10 @@ export async function setupAuth(app: Express) {
     console.log(`Callback for hostname: ${hostname}, strategy: ${strategyName}`);
     
     // Check if strategy exists, otherwise use fallback
-    const strategy = passport._strategies[strategyName];
+    const strategy = (passport as any)._strategies[strategyName];
     if (!strategy) {
-      console.error(`Strategy ${strategyName} not found. Available strategies:`, Object.keys(passport._strategies));
-      const availableStrategy = Object.keys(passport._strategies).find(s => s.startsWith('replitauth:'));
+      console.error(`Strategy ${strategyName} not found. Available strategies:`, Object.keys((passport as any)._strategies));
+      const availableStrategy = Object.keys((passport as any)._strategies).find(s => s.startsWith('replitauth:'));
       if (availableStrategy) {
         console.log(`Using fallback strategy: ${availableStrategy}`);
         return passport.authenticate(availableStrategy, {
