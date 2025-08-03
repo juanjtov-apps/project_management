@@ -130,8 +130,8 @@ class EndpointTester:
         }
         self.test_http_endpoint("POST", f"{self.api_base}/api/tasks", data=task_data, expected_codes=[201], description="Create task")
         
-        # User endpoints
-        self.test_http_endpoint("GET", f"{self.api_base}/api/users", expected_codes=[200], description="List users")
+        # User endpoints (RBAC)
+        self.test_http_endpoint("GET", f"{self.api_base}/api/rbac/users", expected_codes=[200], description="List users")
         
         # Photo endpoints
         self.test_http_endpoint("GET", f"{self.api_base}/api/photos", expected_codes=[200], description="List photos")
