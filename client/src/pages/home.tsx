@@ -39,9 +39,6 @@ export default function Home() {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="text-right">
-
-              </div>
               {user?.profileImageUrl && (
                 <img 
                   src={user.profileImageUrl} 
@@ -49,14 +46,6 @@ export default function Home() {
                   className="w-10 h-10 rounded-full object-cover"
                 />
               )}
-              <Button 
-                onClick={handleLogout}
-                variant="outline"
-                className="border-tower-navy text-tower-navy hover:bg-tower-navy hover:text-white"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
             </div>
           </div>
         </div>
