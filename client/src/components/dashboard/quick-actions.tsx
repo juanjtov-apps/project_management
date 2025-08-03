@@ -15,7 +15,7 @@ function QuickActions() {
     {
       icon: Plus,
       label: "Add Project",
-      isPrimary: false,
+      isPrimary: true,
       onClick: () => {
         console.log("Navigating to projects");
         setLocation("/projects");
@@ -78,10 +78,10 @@ function QuickActions() {
             <Button
               key={`action-${index}-${action.label}`}
               variant="outline"
-              className={`elevated flex flex-col items-center py-6 gap-2 h-24 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2 ${
+              className={`border border-gray-200 shadow-sm flex flex-col items-center py-6 gap-2 h-24 transition-all duration-200 cursor-pointer hover:shadow-md hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-teal/40 focus-visible:outline-offset-2 ${
                 action.isPrimary 
-                  ? "text-brand-coral hover:bg-brand-coral hover:border-brand-coral hover:text-white" 
-                  : "text-brand-blue hover:bg-brand-teal/10 hover:border-brand-teal"
+                  ? "bg-brand-coral text-white hover:bg-brand-coral/90 border-brand-coral" 
+                  : "bg-white text-brand-blue hover:bg-brand-teal/10 hover:border-brand-teal"
               }`}
               onClick={(e) => {
                 e.preventDefault();
@@ -91,7 +91,7 @@ function QuickActions() {
               }}
             >
               <Icon 
-                className={action.isPrimary ? "text-brand-coral group-hover:text-inherit" : "text-brand-teal group-hover:text-brand-teal"} 
+                className={`transition-all duration-200 ${action.isPrimary ? "text-white" : "text-brand-teal hover:-translate-y-0.5"}`}
                 size={24} 
               />
               <span className="font-medium text-inherit text-sm text-center leading-tight">

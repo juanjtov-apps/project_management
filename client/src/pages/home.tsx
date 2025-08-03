@@ -52,11 +52,11 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-6 py-8">
+      <main className="container mx-auto px-6 pt-6 pb-8">
         <div className="max-w-6xl mx-auto">
           {/* Welcome Section */}
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-tower-navy dark:text-white mb-2">
+            <h2 className="text-2xl font-semibold text-tower-navy dark:text-white mb-2">
               Dashboard
             </h2>
             <p className="text-tower-navy-light dark:text-gray-300">
@@ -65,13 +65,13 @@ export default function Home() {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <Card className="border-0 shadow-md bg-white dark:bg-tower-surface-dark">
+          <div className="grid md:grid-cols-3 gap-6 mb-8 animate-fade-up">
+            <Card className="border border-gray-200 shadow-sm bg-white dark:bg-tower-surface-dark hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-teal/40 focus-visible:outline-offset-2">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-tower-navy-light dark:text-gray-400">Active Projects</p>
-                    <p className="text-2xl font-bold text-tower-navy dark:text-white">12</p>
+                    <p className="text-sm text-slate-500 dark:text-gray-400">Active Projects</p>
+                    <p className="text-2xl font-bold text-tower-navy dark:text-white tabular-nums">12</p>
                   </div>
                   <div className="bg-brand-teal/10 p-2 rounded-lg">
                     <Building2 className="h-6 w-6 text-brand-teal" />
@@ -82,12 +82,12 @@ export default function Home() {
 
 
 
-            <Card className="border-0 shadow-md bg-white dark:bg-tower-surface-dark">
+            <Card className="border border-gray-200 shadow-sm bg-white dark:bg-tower-surface-dark hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-teal/40 focus-visible:outline-offset-2">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-tower-navy-light dark:text-gray-400">Tasks Due Today</p>
-                    <p className="text-2xl font-bold text-tower-navy dark:text-white">7</p>
+                    <p className="text-sm text-slate-500 dark:text-gray-400">Tasks Due Today</p>
+                    <p className="text-2xl font-bold text-tower-navy dark:text-white tabular-nums">7</p>
                   </div>
                   <div className="bg-brand-teal/10 p-2 rounded-lg">
                     <Calendar className="h-6 w-6 text-brand-teal" />
@@ -96,12 +96,12 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-md bg-white dark:bg-tower-surface-dark">
+            <Card className="border border-gray-200 shadow-sm bg-white dark:bg-tower-surface-dark hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-teal/40 focus-visible:outline-offset-2">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-tower-navy-light dark:text-gray-400">Completed Tasks</p>
-                    <p className="text-2xl font-bold text-tower-navy dark:text-white">156</p>
+                    <p className="text-sm text-slate-500 dark:text-gray-400">Completed Tasks</p>
+                    <p className="text-2xl font-bold text-tower-navy dark:text-white tabular-nums">156</p>
                   </div>
                   <div className="bg-brand-teal/10 p-2 rounded-lg">
                     <CheckCircle className="h-6 w-6 text-brand-teal" />
@@ -112,18 +112,18 @@ export default function Home() {
           </div>
 
           {/* Main Actions */}
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid md:grid-cols-2 gap-8 animate-fade-up" style={{ animationDelay: '0.2s' }}>
             <QuickActions />
 
-            <Card className="border-0 shadow-lg bg-white dark:bg-tower-surface-dark">
+            <Card className="border border-gray-200 shadow-sm bg-white dark:bg-tower-surface-dark hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-teal/40 focus-visible:outline-offset-2">
               <CardHeader>
                 <CardTitle className="text-tower-navy dark:text-white">Recent Activity</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3 p-3 bg-tower-surface dark:bg-tower-surface-dark rounded-lg">
-                    <div className="bg-tower-emerald/10 p-2 rounded-full">
-                      <CheckCircle className="h-4 w-4 text-tower-emerald" />
+                    <div className="bg-brand-teal/10 p-2 rounded-full">
+                      <CheckCircle className="h-4 w-4 text-brand-teal" />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-tower-navy dark:text-white">Task Completed</p>
@@ -133,8 +133,8 @@ export default function Home() {
                   </div>
                   
                   <div className="flex items-center space-x-3 p-3 bg-tower-surface dark:bg-tower-surface-dark rounded-lg">
-                    <div className="bg-tower-navy/10 p-2 rounded-full">
-                      <Users className="h-4 w-4 text-tower-navy" />
+                    <div className="bg-brand-teal/10 p-2 rounded-full">
+                      <Users className="h-4 w-4 text-brand-teal" />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-tower-navy dark:text-white">New Team Member</p>
