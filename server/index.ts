@@ -77,13 +77,20 @@ uvicorn.run(app, host="0.0.0.0", port=${pythonPort}, log_level="info")
   app.use(validateInput);
   app.use(csrfProtection);
 
-  // Register authentication routes first
+  // Register authentication routes first BEFORE any middleware that might interfere
   try {
+    // Import and setup Replit Auth (OIDC-based authentication)
+    const { setupAuth } = await import('./replitAuth');
+    await setupAuth(app);
+    console.log('Replit OIDC authentication routes registered successfully');
+    
+    // Also register basic auth routes as fallback
     const { registerRoutes } = await import('./routes');
     await registerRoutes(app);
-    console.log('Authentication routes registered successfully');
+    console.log('Basic authentication routes registered successfully');
   } catch (error) {
     console.error('Failed to register authentication routes:', error);
+    console.error('Authentication will not work properly:', error);
   }
 
   // Use http-proxy-middleware for remaining API routes only
@@ -177,6 +184,7 @@ uvicorn.run(app, host="0.0.0.0", port=${pythonPort}, log_level="info")
   app.use('/api', (req, res, next) => {
     // Skip proxy for routes that we handle locally in Express or handle directly
     if (req.path.startsWith('/auth') || req.path === '/login' || req.path === '/logout' || req.path === '/callback' || req.path.startsWith('/rbac')) {
+      console.log(`Skipping proxy for auth route: ${req.method} ${req.path}`);
       return next();
     }
     
