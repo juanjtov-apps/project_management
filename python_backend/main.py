@@ -14,7 +14,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src.core.config import settings
-from src.database.connection import db_manager
+from src.database.connection import db_manager, get_db_pool, close_db_pool
 from src.api import create_api_router
 
 
@@ -22,10 +22,19 @@ from src.api import create_api_router
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    print("Database connection pool created successfully")
+    try:
+        await get_db_pool()
+        print("Database connection pool created successfully")
+    except Exception as e:
+        print(f"Failed to create database connection pool: {e}")
+        raise
     yield
     # Shutdown
-    print("Shutting down database connections")
+    try:
+        await close_db_pool()
+        print("Database connections closed successfully")
+    except Exception as e:
+        print(f"Error closing database connections: {e}")
 
 
 # Create FastAPI app
