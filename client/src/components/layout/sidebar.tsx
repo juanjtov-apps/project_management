@@ -29,7 +29,7 @@ export default function Sidebar() {
   const [location] = useLocation();
 
   return (
-    <aside className="w-64 bg-[var(--proesphere-deep-blue)]/5 shadow-lg border-r border-[var(--proesphere-mist)] hidden lg:block">
+    <aside className="w-64 bg-[#1B2E4B0D] shadow-lg border-r border-[var(--proesphere-mist)] hidden lg:block">
       <div className="p-6 border-b border-[var(--proesphere-mist)]">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 relative">
@@ -59,7 +59,7 @@ export default function Sidebar() {
                 <Link 
                   href={item.href}
                   className={cn(
-                    "flex items-center space-x-3 p-3 rounded-lg font-medium transition-all duration-200 relative",
+                    "flex items-center space-x-3 p-3 rounded-lg font-medium transition-all duration-200 relative focus:outline-none focus:ring-2 focus:ring-[var(--proesphere-teal)]/40 focus:ring-offset-2",
                     isActive 
                       ? "bg-[var(--proesphere-teal)]/10 text-[var(--proesphere-deep-blue)] border-l-4 border-[var(--proesphere-teal)] ml-1" 
                       : "text-[var(--proesphere-graphite)] hover:bg-[var(--proesphere-teal)]/5 hover:text-[var(--proesphere-deep-blue)]"

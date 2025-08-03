@@ -32,7 +32,7 @@ export default function StatsCards() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-[var(--proesphere-mist)] hover:shadow-md transition-shadow">
+      <div className="bg-white p-6 rounded-lg border border-[var(--proesphere-mist)] shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:bg-gray-50/30 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--proesphere-teal)]/40 focus:ring-offset-2">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-[var(--proesphere-graphite)] opacity-70 font-medium">Active Projects</p>
@@ -47,7 +47,7 @@ export default function StatsCards() {
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-[var(--proesphere-mist)] hover:shadow-md transition-shadow">
+      <div className="bg-white p-6 rounded-lg border border-[var(--proesphere-mist)] shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:bg-gray-50/30 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--proesphere-teal)]/40 focus:ring-offset-2">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-[var(--proesphere-graphite)] opacity-70 font-medium">Tasks Due Today</p>
@@ -56,13 +56,13 @@ export default function StatsCards() {
               <Clock size={12} className="inline mr-1" /> 8 due today
             </p>
           </div>
-          <div className="w-12 h-12 bg-[var(--proesphere-coral)]/10 rounded-lg flex items-center justify-center">
-            <CheckSquare className="text-[var(--proesphere-coral)]" size={24} />
+          <div className="w-12 h-12 bg-[var(--proesphere-teal)]/10 rounded-lg flex items-center justify-center">
+            <Clock className="text-[var(--proesphere-teal)]" size={24} />
           </div>
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-[var(--proesphere-mist)] hover:shadow-md transition-shadow">
+      <div className="bg-white p-6 rounded-lg border border-[var(--proesphere-mist)] shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:bg-gray-50/30 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--proesphere-teal)]/40 focus:ring-offset-2">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-[var(--proesphere-graphite)] opacity-70 font-medium">Completed Tasks</p>
