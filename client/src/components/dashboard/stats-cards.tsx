@@ -42,7 +42,7 @@ export default function StatsCards() {
             </p>
           </div>
           <div className="w-12 h-12 bg-brand-teal/10 rounded-lg flex items-center justify-center">
-            <Building className="text-brand-teal" size={24} />
+            <Building className="text-brand-teal" size={24} style={{ color: '#1FA77C' }} />
           </div>
         </div>
       </div>
@@ -57,7 +57,7 @@ export default function StatsCards() {
             </p>
           </div>
           <div className="w-12 h-12 bg-brand-teal/10 rounded-lg flex items-center justify-center">
-            <Clock className="text-brand-teal" size={24} />
+            <Clock className="text-brand-teal" size={24} style={{ color: '#1FA77C' }} />
           </div>
         </div>
       </div>
@@ -72,7 +72,7 @@ export default function StatsCards() {
             </p>
           </div>
           <div className="w-12 h-12 bg-brand-teal/10 rounded-lg flex items-center justify-center">
-            <CheckSquare className="text-brand-teal" size={24} />
+            <CheckSquare className="text-brand-teal" size={24} style={{ color: '#1FA77C' }} />
           </div>
         </div>
       </div>
@@ -87,7 +87,7 @@ export default function StatsCards() {
             </p>
           </div>
           <div className="w-12 h-12 bg-brand-teal/10 rounded-lg flex items-center justify-center">
-            <Camera className="text-brand-teal" size={24} />
+            <Camera className="text-brand-teal" size={24} style={{ color: '#1FA77C' }} />
           </div>
         </div>
       </div>
