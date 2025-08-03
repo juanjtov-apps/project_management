@@ -182,8 +182,8 @@ export default function Schedule() {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "high": return "bg-red-500";
-      case "medium": return "bg-yellow-500";
+      case "high": return "bg-brand-coral";
+      case "medium": return "bg-brand-teal";
       case "low": return "bg-green-500";
       default: return "bg-gray-500";
     }

@@ -144,8 +144,8 @@ export default function Home() {
                   </div>
                   
                   <div className="flex items-center space-x-3 p-3 bg-tower-surface dark:bg-tower-surface-dark rounded-lg">
-                    <div className="bg-amber-100 p-2 rounded-full">
-                      <Calendar className="h-4 w-4 text-amber-600" />
+                    <div className="bg-brand-teal/10 p-2 rounded-full">
+                      <Calendar className="h-4 w-4 text-brand-teal" />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-tower-navy dark:text-white">Schedule Update</p>
