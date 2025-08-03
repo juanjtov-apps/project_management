@@ -51,7 +51,7 @@ export default function Landing() {
         <div className="container mx-auto px-6">
           <div className="text-center">
             <p className="text-lg font-semibold text-[var(--proesphere-deep-blue)] mb-4">
-              "Proesphere cut our scheduling calls by 40%" — Summit Construction
+              "Client calls dropped by half because everyone sees the same live schedule." — Skyline Renovations
             </p>
             <div className="flex items-center justify-center space-x-6 opacity-60">
               <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium">Summit Construction</div>
