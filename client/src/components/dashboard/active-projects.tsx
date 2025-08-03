@@ -7,7 +7,7 @@ import type { Project } from "@shared/schema";
 const getStatusColor = (status: string) => {
   switch (status) {
     case "active":
-      return "bg-orange-100 text-orange-800";
+      return "bg-brand-teal/10 text-brand-teal";
     case "completed":
       return "bg-green-100 text-green-800";
     case "delayed":
