@@ -10,7 +10,8 @@ import {
   Users,
   HardHat,
   X,
-  Wrench
+  Wrench,
+  Shield
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -23,6 +24,7 @@ const navigation = [
   { name: "Project Logs", href: "/logs", icon: ClipboardList },
   { name: "Crew", href: "/crew", icon: Users },
   { name: "Subs", href: "/subs", icon: Wrench },
+  { name: "RBAC Admin", href: "/rbac", icon: Shield },
 ];
 
 interface MobileMenuProps {

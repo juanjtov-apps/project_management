@@ -27,6 +27,9 @@ const navigation = [
 
 export default function Sidebar() {
   const [location] = useLocation();
+  
+  // Debug logging to check navigation items
+  console.log('Sidebar navigation items:', navigation.length, navigation.map(item => item.name));
 
   return (
     <aside className="w-64 bg-brand-blue/5 shadow-lg border-r border-brand-grey hidden lg:block">
