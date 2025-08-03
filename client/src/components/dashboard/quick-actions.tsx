@@ -15,6 +15,7 @@ function QuickActions() {
     {
       icon: Plus,
       label: "Add Project",
+      isPrimary: true,
       onClick: () => {
         console.log("Navigating to projects");
         setLocation("/projects");
@@ -23,6 +24,7 @@ function QuickActions() {
     {
       icon: ClipboardList,
       label: "Add Tasks",
+      isPrimary: false,
       onClick: () => {
         console.log("Navigating to tasks");
         setLocation("/tasks");
@@ -31,6 +33,7 @@ function QuickActions() {
     {
       icon: Camera,
       label: "Upload Photos",
+      isPrimary: false,
       onClick: () => {
         console.log("Navigating to photos");
         setLocation("/photos");
@@ -39,6 +42,7 @@ function QuickActions() {
     {
       icon: UserPlus,
       label: "Assign Task",
+      isPrimary: false,
       onClick: () => {
         console.log("Navigating to subs");
         setLocation("/subs");
@@ -62,9 +66,9 @@ function QuickActions() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 w-full">
-      <div className="p-6 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-800">Quick Actions</h3>
+    <div className="bg-white rounded-lg shadow-sm border border-[var(--proesphere-mist)] w-full">
+      <div className="p-6 border-b border-[var(--proesphere-mist)]">
+        <h3 className="text-lg font-semibold text-[var(--proesphere-deep-blue)]">Quick Actions</h3>
       </div>
       <div className="p-6 grid grid-cols-2 gap-4">
         {actions.map((action, index) => {
@@ -74,7 +78,11 @@ function QuickActions() {
             <Button
               key={`action-${index}-${action.label}`}
               variant="outline"
-              className="flex flex-col items-center justify-center gap-2 p-4 h-20 border-2 border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all bg-white"
+              className={`flex flex-col items-center justify-center gap-3 p-6 h-24 border border-[var(--proesphere-mist)] transition-all duration-200 cursor-pointer ${
+                action.isPrimary 
+                  ? "hover:bg-[var(--proesphere-coral)] hover:border-[var(--proesphere-coral)] hover:text-white" 
+                  : "hover:bg-[var(--proesphere-teal)]/5 hover:border-[var(--proesphere-teal)] hover:text-[var(--proesphere-deep-blue)]"
+              }`}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -82,8 +90,13 @@ function QuickActions() {
                 action.onClick();
               }}
             >
-              <Icon className="text-blue-600" size={20} />
-              <span className="font-medium text-gray-700 text-xs text-center leading-tight">{action.label}</span>
+              <Icon 
+                className={action.isPrimary ? "text-[var(--proesphere-coral)]" : "text-[var(--proesphere-teal)]"} 
+                size={24} 
+              />
+              <span className="font-medium text-[var(--proesphere-graphite)] text-sm text-center leading-tight group-hover:text-inherit">
+                {action.label}
+              </span>
             </Button>
           );
         })}

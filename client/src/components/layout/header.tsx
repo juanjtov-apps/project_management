@@ -28,47 +28,55 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="lg:hidden p-2"
-            onClick={onToggleMobileMenu}
-          >
-            <Menu className="text-gray-600" size={20} />
-          </Button>
-          <div>
-            <h2 className="text-2xl font-bold text-[var(--proesphere-teal)]">Dashboard</h2>
-            <p className="text-gray-500">Welcome back, <span className="font-medium">{user?.firstName || user?.name || user?.email || 'User'}</span></p>
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          {/* Notifications */}
-          <div className="relative">
+    <header className="bg-white border-b border-[var(--proesphere-mist)] px-6 py-6">
+      <div className="max-w-[1440px] mx-auto">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
             <Button
               variant="ghost"
               size="sm"
-              className="p-2 relative"
-              onClick={onToggleNotifications}
+              className="lg:hidden p-2"
+              onClick={onToggleMobileMenu}
             >
-              <Bell className="text-gray-600" size={20} />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
+              <Menu className="text-[var(--proesphere-graphite)]" size={20} />
             </Button>
+            <div>
+              <h2 className="text-xl font-semibold text-[var(--proesphere-deep-blue)]">Dashboard</h2>
+              <p className="text-[var(--proesphere-graphite)] opacity-70">Manage your construction projects with precision and efficiency.</p>
+            </div>
           </div>
           
-          {/* User Profile */}
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 construction-primary rounded-full flex items-center justify-center">
-              <span className="text-white font-semibold">{getUserInitials(user)}</span>
+          <div className="flex items-center space-x-6">
+            {/* Notifications */}
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-2 relative hover:bg-[var(--proesphere-teal)]/5"
+                onClick={onToggleNotifications}
+              >
+                <Bell className="text-[var(--proesphere-graphite)]" size={20} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--proesphere-coral)] text-white text-xs rounded-full flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </Button>
             </div>
-            <span className="hidden md:block font-medium construction-secondary">{user?.firstName || user?.name || user?.email || 'User'}</span>
+            
+            {/* User Profile */}
+            <div className="flex items-center space-x-3">
+              <span className="text-[var(--proesphere-graphite)] opacity-70 text-sm">Welcome back,</span>
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] rounded-full flex items-center justify-center">
+                  <span className="text-white font-semibold text-sm">{getUserInitials(user)}</span>
+                </div>
+                <span className="hidden md:block font-medium text-[var(--proesphere-deep-blue)]">{user?.firstName || user?.name || 'Root'}</span>
+              </div>
+              <button className="text-[var(--proesphere-graphite)] opacity-60 hover:text-[var(--proesphere-coral)] text-sm transition-colors">
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </div>

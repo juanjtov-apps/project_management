@@ -29,8 +29,8 @@ export default function Sidebar() {
   const [location] = useLocation();
 
   return (
-    <aside className="w-64 bg-white shadow-lg border-r border-gray-200 hidden lg:block">
-      <div className="p-6 border-b border-gray-200">
+    <aside className="w-64 bg-[var(--proesphere-deep-blue)]/5 shadow-lg border-r border-[var(--proesphere-mist)] hidden lg:block">
+      <div className="p-6 border-b border-[var(--proesphere-mist)]">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 relative">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] shadow-lg flex items-center justify-center">
@@ -52,17 +52,20 @@ export default function Sidebar() {
             const Icon = item.icon;
             
             return (
-              <li key={item.name}>
+              <li key={item.name} className="relative">
+                {isActive && (
+                  <div className="absolute left-0 top-0 w-1 h-full bg-[var(--proesphere-teal)] rounded-r-full"></div>
+                )}
                 <Link 
                   href={item.href}
                   className={cn(
-                    "flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors",
+                    "flex items-center space-x-3 p-3 rounded-lg font-medium transition-all duration-200 relative",
                     isActive 
-                      ? "bg-[var(--proesphere-deep-blue)] text-white" 
-                      : "text-[var(--proesphere-graphite)] hover:bg-[var(--proesphere-mist)]"
+                      ? "bg-[var(--proesphere-teal)]/10 text-[var(--proesphere-deep-blue)] border-l-4 border-[var(--proesphere-teal)] ml-1" 
+                      : "text-[var(--proesphere-graphite)] hover:bg-[var(--proesphere-teal)]/5 hover:text-[var(--proesphere-deep-blue)]"
                   )}
                 >
-                  <Icon size={20} />
+                  <Icon size={20} className={isActive ? "text-[var(--proesphere-teal)]" : ""} />
                   <span>{item.name}</span>
                 </Link>
               </li>
