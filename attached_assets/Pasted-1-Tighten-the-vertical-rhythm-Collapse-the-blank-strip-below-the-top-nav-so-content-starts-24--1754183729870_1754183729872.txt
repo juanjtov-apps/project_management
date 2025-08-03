@@ -1,0 +1,39 @@
+1. Tighten the vertical rhythm
+	•	​Collapse the blank strip below the top nav so content starts ~24 px lower.
+	•	​Ensure all gaps follow the 8-pt grid (8 / 16 / 24 / 32 px) for perfect alignment.
+
+2. Elevation & hover feedback
+	•	​Add a subtle shadow (shadow-sm) and 1 px neutral border to all pressable cards (KPIs + Quick-Action tiles).
+	•	​On hover: raise shadow to shadow-md and translate Y -2 px—gives a tactile feel.
+
+3. Primary CTA emphasis
+	•	​“Add Project” still looks passive. Fill its icon + label with brand coral and give the tile a very light coral tint on hover (bg-brand-coral/10). Reserve this treatment for that one CTA so it pops.
+
+4. Active-link clarity in sidebar
+	•	​The teal left rail is great, but the link text could turn bold + brand-teal to reinforce “you’re here.”
+	•	​Consider shrinking icon opacity on inactive items (opacity-60) so the active one stands out even more.
+
+5. Typography polish
+	•	​Bump page title to text-2xl font-semibold.
+	•	​Set KPI labels (Active Projects, etc.) to text-sm text-slate-500 so the numbers dominate visually.
+	•	​Enable tabular-nums on all numeric displays for perfect vertical alignment.
+
+6. Keyboard & focus states
+	•	​Add focus-visible:outline outline-2 outline-brand-teal/40 outline-offset-2 to every interactive element. This is an easy WCAG win.
+
+7. Micro-interactions
+	•	​Fade-in cards on first render (@keyframes fadeUp).
+	•	​Slight icon “nudge” (translateY -1 px) on Quick-Action hover—subtle but delightful.
+
+8. Dark-mode readiness (optional, but future-proof)
+	•	​Invert neutrals, keep teal as primary, coral as accent.
+	•	​Wrap all hard-coded colors in dark: variants now so the switch is trivial later.
+
+9. KPI progress cues (nice-to-have)
+	•	​Swap static numbers for small circular progress bars (e.g., 156 / 200 tasks → 78 %). Users grasp progress faster than raw counts.
+
+10. Performance & accessibility audit
+	•	​Run Lighthouse; aim for Performance ≥ 90 and Accessibility ≥ 95.
+	•	​Make any contrast tweaks it flags (usually just bumping the teal 3-4 % darker on white).
+
+Implementing these tweaks will move the UI from “consistent” to “polished flagship” status for Proesphere.
