@@ -8,7 +8,7 @@ export default function Dashboard() {
   console.log("Dashboard component rendering");
   
   return (
-    <div className="max-w-[1440px] mx-auto space-y-8">
+    <div className="max-w-[1440px] mx-auto space-y-6 pt-6">
       {/* Quick Stats */}
       <StatsCards />
 
