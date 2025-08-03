@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { spawn } from "child_process";
 import { setupVite, serveStatic, log } from "./vite";
+import { setupSecurityMiddleware, validateInput, csrfProtection } from "./security";
 
 const app = express();
 
@@ -49,9 +50,16 @@ uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
   // Wait for Python server to start
   await new Promise(resolve => setTimeout(resolve, 5000));
 
-  // Add JSON parsing first for auth routes
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
+  // Setup security middleware first
+  setupSecurityMiddleware(app);
+  
+  // Add JSON parsing for auth routes
+  app.use(express.json({ limit: '10mb' })); // Limit payload size for security
+  app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+  
+  // Add input validation and CSRF protection
+  app.use(validateInput);
+  app.use(csrfProtection);
 
   // Register authentication routes first
   try {

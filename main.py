@@ -53,6 +53,14 @@ def format_datetime_for_frontend(dt_value):
 # Create FastAPI app
 app = FastAPI(title="Proesphere API", version="1.0.0")
 
+# Setup security middleware first
+try:
+    from python_backend.src.middleware.security import setup_security_middleware
+    setup_security_middleware(app)
+    print("✅ Security middleware enabled")
+except ImportError:
+    print("⚠️  Security middleware not found, using basic CORS only")
+
 # RBAC functionality integrated directly
 
 # Add CORS middleware
@@ -334,7 +342,7 @@ def row_to_dict(row, cursor_description):
     
     return result
 
-def execute_query(query: str, params: tuple = None, fetch_one: bool = False, fetch_all: bool = True):
+def execute_query(query: str, params: tuple = (), fetch_one: bool = False, fetch_all: bool = True):
     """Execute database query and return results"""
     with DatabaseConnection() as conn:
         with conn.cursor() as cursor:

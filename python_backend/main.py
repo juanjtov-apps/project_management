@@ -39,10 +39,14 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="Tower Flow API", 
+    title="Proesphere API", 
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Setup security middleware first
+from src.middleware.security import setup_security_middleware
+setup_security_middleware(app)
 
 # Add CORS middleware
 app.add_middleware(
