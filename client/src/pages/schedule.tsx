@@ -597,7 +597,7 @@ export default function Schedule() {
                         </div>
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`}></div>
-                          <Badge className={task.status === "completed" ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"}>
+                          <Badge className={task.status === "completed" ? "bg-green-100 text-green-800" : "bg-brand-coral/10 text-brand-coral"}>
                             {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                           </Badge>
                         </div>
@@ -716,7 +716,7 @@ export default function Schedule() {
                                     </div>
                                     <div className="flex items-center gap-1">
                                       <div className={`w-2 h-2 rounded-full ${getPriorityColor(item.priority)}`}></div>
-                                      <Badge className={`text-xs ${item.status === "completed" ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"}`}>
+                                      <Badge className={`text-xs ${item.status === "completed" ? "bg-green-100 text-green-800" : "bg-brand-coral/10 text-brand-coral"}`}>
                                         {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
                                       </Badge>
                                     </div>
@@ -725,7 +725,7 @@ export default function Schedule() {
                                     {item.daysFromNow < 0 
                                       ? <span className="text-red-500 font-medium">{Math.abs(item.daysFromNow)} days overdue</span>
                                       : item.daysFromNow === 0 
-                                      ? <span className="text-orange-500 font-medium">Due today</span>
+                                      ? <span className="text-brand-coral font-medium">Due today</span>
                                       : `${item.daysFromNow} days remaining`
                                     }
                                   </div>
@@ -852,7 +852,7 @@ export default function Schedule() {
                           <span>High Priority</span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <div className="w-3 h-3 bg-yellow-500 rounded"></div>
+                          <div className="w-3 h-3 bg-blue-500 rounded"></div>
                           <span>Medium Priority</span>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -953,7 +953,7 @@ export default function Schedule() {
                             "text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 transition-opacity",
                             task.status === "completed" 
                               ? "bg-green-100 text-green-800" 
-                              : "bg-orange-100 text-orange-800"
+                              : "bg-brand-coral/10 text-brand-coral"
                           )}
                           title={`${task.title} - Click to request schedule change`}
                           onClick={() => {
