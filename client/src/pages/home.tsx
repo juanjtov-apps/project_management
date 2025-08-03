@@ -16,11 +16,11 @@ export default function Home() {
         method: "POST",
         credentials: "include",
       });
-      window.location.href = "/";
+      window.location.href = "/login";
     } catch (error) {
       console.error("Logout error:", error);
       // Force redirect anyway
-      window.location.href = "/";
+      window.location.href = "/login";
     }
   };
 
