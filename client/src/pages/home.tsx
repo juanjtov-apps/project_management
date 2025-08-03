@@ -40,10 +40,7 @@ export default function Home() {
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-sm text-tower-navy-light dark:text-gray-300">Welcome back,</p>
-                <p className="font-semibold text-tower-navy dark:text-white">
-                  {user?.firstName || user?.name || user?.email || 'User'}
-                </p>
+
               </div>
               {user?.profileImageUrl && (
                 <img 
