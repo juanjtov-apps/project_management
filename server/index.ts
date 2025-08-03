@@ -65,6 +65,10 @@ uvicorn.run(app, host="0.0.0.0", port=${pythonPort}, log_level="info")
   // Setup security middleware first
   setupSecurityMiddleware(app);
   
+  // Add security logging
+  const { securityLogging } = await import('./security');
+  securityLogging(app);
+  
   // Add JSON parsing for auth routes
   app.use(express.json({ limit: '10mb' })); // Limit payload size for security
   app.use(express.urlencoded({ extended: false, limit: '10mb' }));

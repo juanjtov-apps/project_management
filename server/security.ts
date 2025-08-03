@@ -7,22 +7,47 @@ import express from "express";
 export function setupSecurityMiddleware(app: express.Express) {
   // Security Headers
   app.use((req, res, next) => {
+    // Generate nonce for CSP (fallback for ESM compatibility)
+    res.locals.nonce = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    
     // Prevent XSS attacks
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("X-XSS-Protection", "1; mode=block");
     
-    // Content Security Policy
-    res.setHeader(
-      "Content-Security-Policy",
+    // Additional security headers
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    res.setHeader("X-Download-Options", "noopen");
+    res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
+    
+    // Content Security Policy - Hardened with stricter rules
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cspPolicy = isProduction ? 
+      // Production: Very strict CSP
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+      "script-src 'self' 'nonce-" + res.locals.nonce + "'; " +
+      "style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data: https:; " +
+      "font-src 'self' data:; " +
+      "connect-src 'self'; " +
+      "object-src 'none'; " +
+      "base-uri 'self'; " +
+      "form-action 'self'; " +
+      "frame-ancestors 'none'; " +
+      "upgrade-insecure-requests;"
+      :
+      // Development: Slightly relaxed for dev tools
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' ws: wss:; " +
       "style-src 'self' 'unsafe-inline'; " +
       "img-src 'self' data: https:; " +
       "font-src 'self' data:; " +
       "connect-src 'self' ws: wss:; " +
-      "frame-ancestors 'none';"
-    );
+      "object-src 'none'; " +
+      "base-uri 'self'; " +
+      "frame-ancestors 'none';";
+    
+    res.setHeader("Content-Security-Policy", cspPolicy);
     
     // Referrer Policy
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -58,12 +83,17 @@ export function setupSecurityMiddleware(app: express.Express) {
     };
   };
 
-  // Apply rate limiting to all API routes (100 requests per 15 minutes)
-  app.use("/api", rateLimit(100, 15 * 60 * 1000));
-
-  // Stricter rate limiting for authentication endpoints (5 requests per 15 minutes)
-  app.use("/auth", rateLimit(5, 15 * 60 * 1000));
-  app.use("/api/auth", rateLimit(5, 15 * 60 * 1000));
+  // Progressive rate limiting with stricter limits
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Stricter rate limiting for authentication endpoints (3 requests per 15 minutes in production)
+  const authLimit = isProduction ? 3 : 5;
+  app.use("/auth", rateLimit(authLimit, 15 * 60 * 1000));
+  app.use("/api/auth", rateLimit(authLimit, 15 * 60 * 1000));
+  
+  // Apply rate limiting to all API routes (50 requests per 15 minutes in production)
+  const apiLimit = isProduction ? 50 : 100;
+  app.use("/api", rateLimit(apiLimit, 15 * 60 * 1000));
 
   // Hide Express server information
   app.disable("x-powered-by");
@@ -76,14 +106,23 @@ export function validateInput(req: express.Request, res: express.Response, next:
   // Basic input sanitization for common XSS patterns
   const sanitizeValue = (value: any): any => {
     if (typeof value === "string") {
-      // Remove basic XSS patterns
+      // Enhanced XSS pattern removal
       return value
         .replace(/<script[^>]*>.*?<\/script>/gi, "")
         .replace(/<iframe[^>]*>.*?<\/iframe>/gi, "")
         .replace(/<object[^>]*>.*?<\/object>/gi, "")
         .replace(/<embed[^>]*>/gi, "")
+        .replace(/<link[^>]*>/gi, "")
+        .replace(/<meta[^>]*>/gi, "")
         .replace(/javascript:/gi, "")
-        .replace(/on\w+\s*=/gi, "");
+        .replace(/vbscript:/gi, "")
+        .replace(/data:/gi, "")
+        .replace(/on\w+\s*=/gi, "")
+        .replace(/style\s*=/gi, "")
+        .replace(/expression\s*\(/gi, "")
+        .replace(/url\s*\(/gi, "")
+        .replace(/import\s*\(/gi, "")
+        .trim();
     }
     if (typeof value === "object" && value !== null) {
       const sanitized: any = Array.isArray(value) ? [] : {};
@@ -141,9 +180,46 @@ export function csrfProtection(req: express.Request, res: express.Response, next
     });
 
     if (!isValidOrigin) {
-      return res.status(403).json({ error: "Invalid origin" });
+      console.warn(`Blocked request from invalid origin: ${origin}`);
+      return res.status(403).json({ 
+        error: "Invalid origin",
+        timestamp: new Date().toISOString()
+      });
     }
   }
 
   next();
+}
+
+/**
+ * Enhanced security logging middleware
+ */
+export function securityLogging(app: express.Express) {
+  app.use((req, res, next) => {
+    // Log suspicious patterns
+    const suspiciousPatterns = [
+      /\.\./,  // Path traversal
+      /\/etc\/passwd/,  // System file access
+      /<script/i,  // XSS attempts
+      /union.*select/i,  // SQL injection
+      /javascript:/i,  // JavaScript injection
+      /eval\(/i,  // Code execution
+      /exec\(/i,  // Command execution
+    ];
+
+    const fullUrl = req.originalUrl || req.url;
+    const isSuspicious = suspiciousPatterns.some(pattern => 
+      pattern.test(fullUrl) || 
+      pattern.test(JSON.stringify(req.body || {})) ||
+      pattern.test(JSON.stringify(req.query || {}))
+    );
+
+    if (isSuspicious) {
+      console.warn(`🚨 Suspicious request detected: ${req.method} ${fullUrl} from ${req.ip}`);
+      console.warn(`   Headers: ${JSON.stringify(req.headers)}`);
+      console.warn(`   Body: ${JSON.stringify(req.body)}`);
+    }
+
+    next();
+  });
 }

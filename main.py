@@ -63,13 +63,40 @@ except ImportError:
 
 # RBAC functionality integrated directly
 
-# Add CORS middleware
+# Add CORS middleware with security hardening
+is_development = os.getenv("NODE_ENV") == "development"
+
+# Secure CORS configuration
+allowed_origins = []
+if is_development:
+    allowed_origins = [
+        "http://localhost:5000",
+        "http://localhost:3000",
+        "http://127.0.0.1:5000",
+        "http://127.0.0.1:3000"
+    ]
+else:
+    # Production origins
+    replit_domains = os.getenv("REPLIT_DOMAINS", "").split(",")
+    allowed_origins = [f"https://{domain.strip()}" for domain in replit_domains if domain.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=[
+        "Accept",
+        "Accept-Language", 
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "X-CSRF-Token",
+        "Cache-Control"
+    ],
+    expose_headers=["X-Total-Count", "X-Page-Count"],
+    max_age=86400,  # 24 hours
 )
 
 # Check if we're in development mode
