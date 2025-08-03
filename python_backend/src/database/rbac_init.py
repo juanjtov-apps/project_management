@@ -303,12 +303,13 @@ class RBACInitializer:
         ]
         
         for table in tables_with_rls:
-            await self.conn.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY;")
+            # Use quoted identifier to prevent any potential issues with table names
+            await self.conn.execute(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY;')
             
             # Create policy that filters by company_id
             await self.conn.execute(f"""
-                DROP POLICY IF EXISTS {table}_company_isolation ON {table};
-                CREATE POLICY {table}_company_isolation ON {table}
+                DROP POLICY IF EXISTS "{table}_company_isolation" ON "{table}";
+                CREATE POLICY "{table}_company_isolation" ON "{table}"
                     FOR ALL
                     USING (company_id::text = current_setting('app.current_company', true));
             """)
