@@ -25,7 +25,7 @@ import { ProjectGallery } from "@/components/ProjectGallery";
 const getStatusColor = (status: string) => {
   switch (status) {
     case "active":
-      return "bg-orange-100 text-orange-800";
+      return "bg-brand-teal/10 text-brand-teal";
     case "completed":
       return "bg-green-100 text-green-800";
     case "delayed":
@@ -40,7 +40,7 @@ const getStatusColor = (status: string) => {
 const getProgressColor = (status: string) => {
   switch (status) {
     case "active":
-      return "bg-orange-500";
+      return "bg-brand-teal";
     case "completed":
       return "bg-green-500";
     case "delayed":
