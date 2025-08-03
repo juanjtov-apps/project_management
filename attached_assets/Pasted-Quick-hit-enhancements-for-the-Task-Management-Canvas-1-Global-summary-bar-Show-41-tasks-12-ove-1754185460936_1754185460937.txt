@@ -1,0 +1,33 @@
+Quick-hit enhancements for the Task Management Canvas
+	1.	Global summary bar
+Show “41 tasks · 12 overdue · 6 due this week” above the search box so users see workload at a glance.
+	2.	Bulk actions
+Add check-boxes down the left edge and a sticky bulk-action toolbar (change status, assign, delete) to speed up mass edits.
+	3.	Inline editing & keyboard shortcuts
+Let users hit E to edit the task title, S to cycle status, and ←/→ to move between fields—cuts mouse travel.
+	4.	Project progress pill
+Next to each project header, display “3/10 done · 30 %” with a thin progress bar; collapses still show completion at a glance.
+	5.	Priority & status chips with color logic
+• Low = soft green, Medium = amber, High = red.
+• Pending = gray, In-Progress = blue, Blocked = red outline, Done = green outline.
+Consistent hues improve scannability.
+	6.	Overdue highlight
+If the due date < today, tint the task row light red and prepend a ⏰ icon.
+	7.	Assignee avatars
+Replace the text “Assigned” with a small circular photo (or initials) to add a human cue and save space.
+	8.	Sticky filter & view bar
+Keep the search, status dropdown, and Canvas/List toggle fixed at the top when scrolling long lists.
+	9.	Advanced multi-filter panel
+A slide-down sheet for filtering by project, assignee, due range, priority, and tag—then save presets (“My tasks this week”).
+	10.	Drag-to-reorder within a project
+Enable vertical drag-and-drop so superintendents can prioritize on the fly.
+	11.	Expand/Collapse All shortcut
+One chevron icon next to “Project Tasks” that toggles every group; saves clicks on large portfolios.
+	12.	Empty-state & zero-results messaging
+Friendly prompts (“No tasks match these filters. Try clearing priority or date.”) prevent dead-end screens.
+	13.	Right-side details drawer
+Clicking a task slides in a drawer for notes, attachments, and comment history—instead of a separate edit page.
+	14.	Virtualized list rendering
+Use react-window or similar to keep scrolling buttery smooth when projects scale to hundreds of tasks.
+	15.	Accessibility & contrast checks
+Ensure navy text and teal chips meet WCAG 2.1 AA, add ARIA labels to icons, and support full keyboard navigation.
