@@ -16,6 +16,7 @@ import Logs from "@/pages/logs";
 import Crew from "@/pages/crew";
 import Subs from "@/pages/subs";
 import RBACAdmin from "@/pages/RBACAdmin";
+import ProjectHealth from "@/pages/project-health";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
@@ -39,6 +40,7 @@ function Router() {
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/projects" component={Projects} />
           <Route path="/tasks" component={Tasks} />
+          <Route path="/project-health" component={ProjectHealth} />
           <Route path="/schedule" component={Schedule} />
           <Route path="/photos" component={Photos} />
           <Route path="/logs" component={Logs} />

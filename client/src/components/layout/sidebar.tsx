@@ -10,13 +10,15 @@ import {
   Users,
   HardHat,
   Wrench,
-  Shield
+  Shield,
+  TrendingUp
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Projects", href: "/projects", icon: Building },
   { name: "Tasks", href: "/tasks", icon: CheckSquare },
+  { name: "Project Health", href: "/project-health", icon: TrendingUp },
   { name: "Schedule", href: "/schedule", icon: Calendar },
   { name: "Photos", href: "/photos", icon: Camera },
   { name: "Project Logs", href: "/logs", icon: ClipboardList },

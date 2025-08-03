@@ -126,6 +126,46 @@ export const subcontractorAssignments = pgTable("subcontractor_assignments", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+// Project Health and Risk Assessment Tables
+export const projectHealthMetrics = pgTable("project_health_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  overallHealthScore: integer("overall_health_score").notNull().default(0), // 0-100
+  scheduleHealth: integer("schedule_health").notNull().default(0), // 0-100
+  budgetHealth: integer("budget_health").notNull().default(0), // 0-100
+  qualityHealth: integer("quality_health").notNull().default(0), // 0-100
+  resourceHealth: integer("resource_health").notNull().default(0), // 0-100
+  riskLevel: text("risk_level").notNull().default("low"), // low, medium, high, critical
+  calculatedAt: timestamp("calculated_at").notNull().default(sql`now()`),
+});
+
+export const riskAssessments = pgTable("risk_assessments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  riskType: text("risk_type").notNull(), // schedule, budget, quality, resource, weather, safety
+  riskTitle: text("risk_title").notNull(),
+  riskDescription: text("risk_description").notNull(),
+  probability: text("probability").notNull().default("medium"), // low, medium, high
+  impact: text("impact").notNull().default("medium"), // low, medium, high
+  riskScore: integer("risk_score").notNull().default(0), // 1-25 (probability * impact)
+  status: text("status").notNull().default("identified"), // identified, assessed, mitigated, closed
+  mitigationPlan: text("mitigation_plan"),
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  identifiedBy: varchar("identified_by").notNull().references(() => users.id),
+  dueDate: timestamp("due_date"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const healthCheckTemplates = pgTable("health_check_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  criteria: text("criteria").notNull(), // JSON string of health check criteria
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
 export const upsertUserSchema = createInsertSchema(users).omit({ createdAt: true, updatedAt: true });
@@ -147,6 +187,9 @@ export const insertPhotoSchema = createInsertSchema(photos).omit({ id: true, cre
 export const insertScheduleChangeSchema = createInsertSchema(scheduleChanges).omit({ id: true, createdAt: true });
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 export const insertSubcontractorAssignmentSchema = createInsertSchema(subcontractorAssignments).omit({ id: true, createdAt: true });
+export const insertProjectHealthMetricsSchema = createInsertSchema(projectHealthMetrics).omit({ id: true, calculatedAt: true });
+export const insertRiskAssessmentSchema = createInsertSchema(riskAssessments).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertHealthCheckTemplateSchema = createInsertSchema(healthCheckTemplates).omit({ id: true, createdAt: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -166,3 +209,9 @@ export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertSubcontractorAssignment = z.infer<typeof insertSubcontractorAssignmentSchema>;
 export type SubcontractorAssignment = typeof subcontractorAssignments.$inferSelect;
+export type InsertProjectHealthMetrics = z.infer<typeof insertProjectHealthMetricsSchema>;
+export type ProjectHealthMetrics = typeof projectHealthMetrics.$inferSelect;
+export type InsertRiskAssessment = z.infer<typeof insertRiskAssessmentSchema>;
+export type RiskAssessment = typeof riskAssessments.$inferSelect;
+export type InsertHealthCheckTemplate = z.infer<typeof insertHealthCheckTemplateSchema>;
+export type HealthCheckTemplate = typeof healthCheckTemplates.$inferSelect;

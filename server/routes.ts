@@ -263,6 +263,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Import and register project health routes
+  const projectHealthRoutes = await import("./routes/project-health");
+  app.use("/api", projectHealthRoutes.default);
+
   const httpServer = createServer(app);
   return httpServer;
 }
