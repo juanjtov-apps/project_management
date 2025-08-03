@@ -73,13 +73,13 @@ export default function Landing() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
               <CardContent className="p-8 text-center">
-                <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+                <div className="bg-gradient-to-br from-[var(--proesphere-teal)] to-[var(--proesphere-deep-blue)] p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
                   <Shield className="h-8 w-8 text-white" />
                 </div>
-                <h4 className="text-xl font-semibold text-blue-900 mb-4">
+                <h4 className="text-xl font-semibold text-[var(--proesphere-deep-blue)] mb-4">
                   Advanced Security
                 </h4>
-                <p className="text-blue-700">
+                <p className="text-[var(--proesphere-graphite)] opacity-80">
                   Enterprise-grade security with role-based access control for your team and projects.
                 </p>
               </CardContent>
@@ -87,13 +87,13 @@ export default function Landing() {
 
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
               <CardContent className="p-8 text-center">
-                <div className="bg-gradient-to-br from-blue-800 to-blue-900 p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+                <div className="bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-graphite)] p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
                   <Users className="h-8 w-8 text-white" />
                 </div>
-                <h4 className="text-xl font-semibold text-blue-900 mb-4">
+                <h4 className="text-xl font-semibold text-[var(--proesphere-deep-blue)] mb-4">
                   Team Collaboration
                 </h4>
-                <p className="text-blue-700">
+                <p className="text-[var(--proesphere-graphite)] opacity-80">
                   Real-time collaboration tools for crews, managers, and subcontractors.
                 </p>
               </CardContent>
@@ -101,13 +101,13 @@ export default function Landing() {
 
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
               <CardContent className="p-8 text-center">
-                <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+                <div className="bg-gradient-to-br from-[var(--proesphere-teal)] to-[var(--proesphere-deep-blue)] p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
                   <BarChart3 className="h-8 w-8 text-white" />
                 </div>
-                <h4 className="text-xl font-semibold text-blue-900 mb-4">
+                <h4 className="text-xl font-semibold text-[var(--proesphere-deep-blue)] mb-4">
                   Analytics & Insights
                 </h4>
-                <p className="text-blue-700">
+                <p className="text-[var(--proesphere-graphite)] opacity-80">
                   Comprehensive project analytics and performance tracking.
                 </p>
               </CardContent>
@@ -115,13 +115,13 @@ export default function Landing() {
 
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
               <CardContent className="p-8 text-center">
-                <div className="bg-gradient-to-br from-blue-800 to-blue-900 p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+                <div className="bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-graphite)] p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
                   <CheckCircle className="h-8 w-8 text-white" />
                 </div>
-                <h4 className="text-xl font-semibold text-blue-900 mb-4">
+                <h4 className="text-xl font-semibold text-[var(--proesphere-deep-blue)] mb-4">
                   Task Management
                 </h4>
-                <p className="text-blue-700">
+                <p className="text-[var(--proesphere-graphite)] opacity-80">
                   Intelligent task assignment and progress tracking for all project phases.
                 </p>
               </CardContent>
@@ -131,33 +131,33 @@ export default function Landing() {
       </section>
 
       {/* Benefits Section */}
-      <section className="bg-gradient-to-r from-blue-800 to-blue-900 py-20">
+      <section className="bg-gradient-to-r from-[var(--proesphere-deep-blue)] to-[var(--proesphere-graphite)] py-20">
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto text-center">
             <h3 className="text-3xl md:text-4xl font-bold text-white mb-8">
-              Why Construction Professionals Choose Tower Flow
+              Why Construction Professionals Choose Proesphere
             </h3>
             <div className="grid md:grid-cols-3 gap-8 mt-12">
               <div className="text-center">
-                <div className="bg-emerald-600 p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+                <div className="bg-[var(--proesphere-teal)] p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
                   <span className="text-2xl font-bold text-white">95%</span>
                 </div>
                 <h4 className="text-xl font-semibold text-white mb-2">Project Efficiency</h4>
-                <p className="text-gray-300">Average improvement in project completion times</p>
+                <p className="text-[var(--proesphere-mist)] opacity-90">Average improvement in project completion times</p>
               </div>
               <div className="text-center">
-                <div className="bg-emerald-600 p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+                <div className="bg-[var(--proesphere-teal)] p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
                   <span className="text-2xl font-bold text-white">24/7</span>
                 </div>
                 <h4 className="text-xl font-semibold text-white mb-2">Real-time Updates</h4>
-                <p className="text-gray-300">Continuous project monitoring and notifications</p>
+                <p className="text-[var(--proesphere-mist)] opacity-90">Continuous project monitoring and notifications</p>
               </div>
               <div className="text-center">
-                <div className="bg-emerald-600 p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+                <div className="bg-[var(--proesphere-teal)] p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
                   <span className="text-2xl font-bold text-white">100%</span>
                 </div>
                 <h4 className="text-xl font-semibold text-white mb-2">Secure & Reliable</h4>
-                <p className="text-gray-300">Enterprise-grade security and 99.9% uptime</p>
+                <p className="text-[var(--proesphere-mist)] opacity-90">Enterprise-grade security and 99.9% uptime</p>
               </div>
             </div>
           </div>
@@ -167,16 +167,16 @@ export default function Landing() {
       {/* CTA Section */}
       <section className="container mx-auto px-6 py-20 text-center">
         <div className="max-w-3xl mx-auto">
-          <h3 className="text-3xl md:text-4xl font-bold text-blue-900 mb-6">
+          <h3 className="text-3xl md:text-4xl font-bold text-[var(--proesphere-deep-blue)] mb-6">
             Ready to Transform Your Construction Projects?
           </h3>
-          <p className="text-xl text-blue-700 mb-8">
-            Join thousands of construction professionals who trust Tower Flow for their project management needs.
+          <p className="text-xl text-[var(--proesphere-graphite)] opacity-80 mb-8">
+            Join thousands of construction professionals who trust Proesphere for their project management needs.
           </p>
           <Button 
             onClick={handleSignIn}
             size="lg"
-            className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-600 text-white font-semibold px-12 py-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-lg"
+            className="bg-gradient-to-r from-[var(--proesphere-teal)] to-[var(--proesphere-deep-blue)] hover:from-[var(--proesphere-deep-blue)] hover:to-[var(--proesphere-teal)] text-white font-semibold px-12 py-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-lg"
           >
             Start Your Free Trial
             <ArrowRight className="ml-2 h-5 w-5" />
@@ -185,18 +185,21 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-100 py-12">
+      <footer className="bg-[var(--proesphere-mist)] py-12">
         <div className="container mx-auto px-6 text-center">
           <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="bg-gradient-to-br from-blue-800 to-blue-900 p-2 rounded-xl">
-              <Building2 className="h-6 w-6 text-white" />
+            <div className="w-8 h-8 relative">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] shadow-lg flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-white opacity-30 absolute top-1 left-2"></div>
+                <div className="text-white font-bold text-sm">P</div>
+              </div>
             </div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-800 to-blue-600 bg-clip-text text-transparent">
-              Tower Flow
+            <h1 className="text-xl font-bold bg-gradient-to-r from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] bg-clip-text text-transparent">
+              Proesphere
             </h1>
           </div>
-          <p className="text-blue-700">
-            © 2025 Tower Flow. All rights reserved. Built for construction excellence.
+          <p className="text-[var(--proesphere-graphite)] opacity-80">
+            © 2025 Proesphere. All rights reserved. Built for construction excellence.
           </p>
         </div>
       </footer>
