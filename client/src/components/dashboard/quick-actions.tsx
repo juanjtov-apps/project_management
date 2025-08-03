@@ -15,7 +15,7 @@ function QuickActions() {
     {
       icon: Plus,
       label: "Add Project",
-      isPrimary: true,
+      isPrimary: false,
       onClick: () => {
         console.log("Navigating to projects");
         setLocation("/projects");
