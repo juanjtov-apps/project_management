@@ -6,6 +6,22 @@
   .elevated {
     @apply border border-brand-grey shadow-sm rounded-lg bg-white;
   }
+  
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fade-up {
+    animation: fadeUp 0.5s ease-out forwards;
+    opacity: 0;
+  }
 }
 
 @layer base {

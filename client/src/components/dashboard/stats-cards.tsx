@@ -35,7 +35,7 @@ export default function StatsCards() {
       <div className="elevated p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-brand-text/70 font-medium">Active Projects</p>
+            <p className="text-sm text-slate-500 font-medium">Active Projects</p>
             <p className="text-2xl font-bold text-brand-blue tabular-nums">{stats.activeProjects}</p>
             <p className="text-sm text-brand-teal mt-1 font-medium">
               <TrendingUp size={12} className="inline mr-1" /> 2 new this week
@@ -50,7 +50,7 @@ export default function StatsCards() {
       <div className="elevated p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-brand-text/70 font-medium">Tasks Due Today</p>
+            <p className="text-sm text-slate-500 font-medium">Tasks Due Today</p>
             <p className="text-2xl font-bold text-brand-blue tabular-nums">{stats.pendingTasks}</p>
             <p className="text-sm text-brand-coral mt-1 font-medium">
               <Clock size={12} className="inline mr-1" /> 8 due today
@@ -65,7 +65,7 @@ export default function StatsCards() {
       <div className="elevated p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-brand-text/70 font-medium">Completed Tasks</p>
+            <p className="text-sm text-slate-500 font-medium">Completed Tasks</p>
             <p className="text-2xl font-bold text-brand-blue tabular-nums">156</p>
             <p className="text-sm text-brand-teal mt-1 font-medium">
               <TrendingUp size={12} className="inline mr-1" /> {stats.photosUploadedToday} today
@@ -80,7 +80,7 @@ export default function StatsCards() {
       <div className="elevated p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-brand-text/70 font-medium">Photos Uploaded</p>
+            <p className="text-sm text-slate-500 font-medium">Photos Uploaded</p>
             <p className="text-2xl font-bold text-brand-blue tabular-nums">{stats.photosUploaded}</p>
             <p className="text-sm text-brand-coral mt-1 font-medium">
               <Camera size={12} className="inline mr-1" /> {stats.photosUploadedToday} today

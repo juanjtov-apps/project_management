@@ -65,8 +65,8 @@ export default function Sidebar() {
                       : "text-brand-text hover:bg-brand-teal/5 hover:text-brand-blue"
                   )}
                 >
-                  <Icon size={20} className={isActive ? "text-brand-teal" : ""} />
-                  <span>{item.name}</span>
+                  <Icon size={20} className={isActive ? "text-brand-teal" : "opacity-60"} />
+                  <span className={isActive ? "font-semibold text-brand-teal" : ""}>{item.name}</span>
                 </Link>
               </li>
             );
