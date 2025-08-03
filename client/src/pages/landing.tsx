@@ -51,10 +51,10 @@ export default function Landing() {
         <div className="container mx-auto px-6">
           <div className="text-center">
             <p className="text-lg font-semibold text-[var(--proesphere-deep-blue)] mb-4">
-              "Proesphere cut our scheduling calls by 40%" — ACME Builders
+              "Proesphere cut our scheduling calls by 40%" — Summit Construction
             </p>
             <div className="flex items-center justify-center space-x-6 opacity-60">
-              <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium">ACME Builders</div>
+              <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium">Summit Construction</div>
               <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium">Peak Construction</div>
               <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium">Elite Properties</div>
               <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium">Metro Contractors</div>
@@ -409,7 +409,7 @@ export default function Landing() {
                   </div>
                   <div className="ml-3">
                     <div className="font-semibold">John Smith</div>
-                    <div className="text-sm text-slate-500">Project Manager, ACME Builders</div>
+                    <div className="text-sm text-slate-500">Project Manager, Summit Construction</div>
                   </div>
                 </div>
                 <p className="text-slate-600 italic">"Proesphere reduced our project delays by 60%. Game-changer for our scheduling."</p>
