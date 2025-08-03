@@ -303,13 +303,19 @@ class RBACInitializer:
         ]
         
         for table in tables_with_rls:
+            # Validate table name is from our allowed list for extra safety
+            if table not in ['roles', 'company_users', 'role_permissions', 
+                           'user_effective_permissions', 'project_assignments', 'audit_logs']:
+                raise ValueError(f"Invalid table name for RLS policy: {table}")
+            
             # Use quoted identifier to prevent any potential issues with table names
             await self.conn.execute(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY;')
             
             # Create policy that filters by company_id
+            policy_name = f"{table}_company_isolation"
             await self.conn.execute(f"""
-                DROP POLICY IF EXISTS "{table}_company_isolation" ON "{table}";
-                CREATE POLICY "{table}_company_isolation" ON "{table}"
+                DROP POLICY IF EXISTS "{policy_name}" ON "{table}";
+                CREATE POLICY "{policy_name}" ON "{table}"
                     FOR ALL
                     USING (company_id::text = current_setting('app.current_company', true));
             """)
