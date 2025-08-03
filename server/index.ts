@@ -73,7 +73,7 @@ uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
     proxyTimeout: 10000,
     // Don't rewrite the path at all - by default express strips /api when mounting at /api
     // So we need to add it back
-    pathRewrite: (path, req) => {
+    pathRewrite: (path: string, req: any) => {
       // For RBAC endpoints, don't double-add /api prefix
       if (path.startsWith('/rbac/')) {
         console.log(`Path rewrite: ${path} -> ${path} (RBAC endpoint)`);
@@ -84,31 +84,33 @@ uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
       console.log(`Path rewrite: ${path} -> ${fullPath}`);
       return fullPath;
     },
-    onError: (err, req, res) => {
-      console.error('API Proxy error:', err.message);
-      if (!res.headersSent) {
-        res.status(502).json({ message: 'Backend service unavailable', error: err.message });
-      }
-    },
-    onProxyReq: (proxyReq, req, res) => {
-      console.log(`Proxying ${req.method} request to: ${proxyReq.path}`);
-      
-      // For PATCH/PUT/POST with body, properly handle the request body
-      if (req.body && Object.keys(req.body).length > 0 && ['PATCH', 'PUT', 'POST'].includes(req.method)) {
-        const bodyData = JSON.stringify(req.body);
-        console.log(`Forwarding body:`, bodyData);
+    on: {
+      error: (err: any, req: any, res: any) => {
+        console.error('API Proxy error:', err.message);
+        if (!res.headersSent) {
+          res.status(502).json({ message: 'Backend service unavailable', error: err.message });
+        }
+      },
+      proxyReq: (proxyReq: any, req: any, res: any) => {
+        console.log(`Proxying ${req.method} request to: ${proxyReq.path}`);
         
-        // Remove any existing content-length header and set new one
-        proxyReq.removeHeader('content-length');
-        proxyReq.setHeader('Content-Type', 'application/json');
-        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData, 'utf8'));
-        
-        // Write the body
-        proxyReq.write(bodyData);
+        // For PATCH/PUT/POST with body, properly handle the request body
+        if (req.body && Object.keys(req.body).length > 0 && ['PATCH', 'PUT', 'POST'].includes(req.method)) {
+          const bodyData = JSON.stringify(req.body);
+          console.log(`Forwarding body:`, bodyData);
+          
+          // Remove any existing content-length header and set new one
+          proxyReq.removeHeader('content-length');
+          proxyReq.setHeader('Content-Type', 'application/json');
+          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData, 'utf8'));
+          
+          // Write the body
+          proxyReq.write(bodyData);
+        }
+      },
+      proxyRes: (proxyRes: any, req: any, res: any) => {
+        console.log(`API Proxy Response: ${req.method} ${req.originalUrl} ${proxyRes.statusCode}`);
       }
-    },
-    onProxyRes: (proxyRes, req, res) => {
-      console.log(`API Proxy Response: ${req.method} ${req.originalUrl} ${proxyRes.statusCode}`);
     }
   });
   
@@ -120,21 +122,30 @@ uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
     console.log(`Direct RBAC proxy: ${req.method} ${req.path} -> ${targetUrl}`);
     
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Only copy specific headers that are safe to proxy
+      if (req.headers.authorization) {
+        headers.authorization = req.headers.authorization;
+      }
+      if (req.headers['user-agent']) {
+        headers['user-agent'] = req.headers['user-agent'];
+      }
+      
       const response = await fetch(targetUrl, {
         method: req.method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...req.headers
-        },
+        headers,
         body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined,
         signal: AbortSignal.timeout(8000) // 8 second timeout
       });
       
       const data = await response.json();
       res.status(response.status).json(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Direct RBAC proxy error:', error);
-      res.status(500).json({ message: 'Backend service error', error: error.message });
+      res.status(500).json({ message: 'Backend service error', error: error?.message || 'Unknown error' });
     }
   });
 

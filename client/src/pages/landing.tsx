@@ -236,7 +236,7 @@ export default function Landing() {
                   
                   <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border">
                     <div className="flex items-center space-x-3">
-                      <input type="checkbox" checked readOnly className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                      <input type="checkbox" defaultChecked readOnly className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       <div className="text-green-500 text-sm">✔️</div>
                       <div>
