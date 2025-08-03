@@ -58,7 +58,7 @@ const getPriorityColor = (priority: string) => {
     case "critical":
       return "bg-red-100 text-red-800";
     case "medium":
-      return "bg-yellow-100 text-yellow-800";
+      return "bg-blue-100 text-blue-800";
     case "low":
       return "bg-blue-100 text-blue-800";
     default:
@@ -583,12 +583,12 @@ export default function Projects() {
                 className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
               >
                 {collapsedSections['active'] ? 
-                  <ChevronRight size={20} className="text-orange-600" /> : 
-                  <ChevronDown size={20} className="text-orange-600" />
+                  <ChevronRight size={20} className="text-brand-teal" /> : 
+                  <ChevronDown size={20} className="text-brand-teal" />
                 }
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                  <h2 className="text-lg font-semibold text-orange-600">Active Projects</h2>
+                  <div className="w-3 h-3 bg-brand-teal rounded-full"></div>
+                  <h2 className="text-lg font-semibold text-brand-teal">Active Projects</h2>
                 </div>
                 <Badge variant="outline" className="ml-2 text-xs">
                   {activeProjects.length} projects

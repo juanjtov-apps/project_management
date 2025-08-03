@@ -289,8 +289,8 @@ export default function Subs() {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "critical": return "bg-red-500";
-      case "high": return "bg-orange-500";
-      case "medium": return "bg-yellow-500";
+      case "high": return "bg-brand-coral";
+      case "medium": return "bg-blue-500";
       default: return "bg-green-500";
     }
   };

@@ -23,7 +23,7 @@ const getTypeColor = (type: string) => {
     case "milestone":
       return "bg-green-100 text-green-800";
     case "safety":
-      return "bg-orange-100 text-orange-800";
+      return "bg-brand-coral/10 text-brand-coral";
     case "general":
       return "bg-blue-100 text-blue-800";
     default:
@@ -36,7 +36,7 @@ const getStatusColor = (status: string) => {
     case "open":
       return "bg-blue-100 text-blue-800";
     case "in-progress":
-      return "bg-orange-100 text-orange-800";
+      return "bg-brand-coral/10 text-brand-coral";
     case "resolved":
       return "bg-green-100 text-green-800";
     case "closed":
@@ -53,7 +53,7 @@ const getTypeIcon = (type: string) => {
     case "milestone":
       return <CheckCircle size={16} className="text-green-600" />;
     case "safety":
-      return <AlertTriangle size={16} className="text-orange-600" />;
+      return <AlertTriangle size={16} className="text-brand-coral" />;
     case "general":
       return <FileText size={16} className="text-blue-600" />;
     default:

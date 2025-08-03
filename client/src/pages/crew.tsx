@@ -25,7 +25,7 @@ const getPriorityColor = (priority: string) => {
     case "critical":
       return "bg-red-100 text-red-800";
     case "high":
-      return "bg-orange-100 text-orange-800";
+      return "bg-brand-coral/10 text-brand-coral";
     case "medium":
       return "bg-blue-100 text-blue-800";
     case "low":
@@ -193,8 +193,8 @@ export default function Crew() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <CalendarIcon className="text-orange-600" size={24} />
+              <div className="w-12 h-12 bg-brand-teal/10 rounded-lg flex items-center justify-center">
+                <CalendarIcon className="text-brand-teal" size={24} />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Upcoming Tasks</p>
@@ -352,7 +352,7 @@ export default function Crew() {
                   <Badge className={
                     change.status === "approved" ? "bg-green-100 text-green-800" :
                     change.status === "rejected" ? "bg-red-100 text-red-800" :
-                    "bg-orange-100 text-orange-800"
+                    "bg-brand-coral/10 text-brand-coral"
                   }>
                     {change.status.charAt(0).toUpperCase() + change.status.slice(1)}
                   </Badge>

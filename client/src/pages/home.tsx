@@ -89,8 +89,8 @@ export default function Home() {
                     <p className="text-sm text-tower-navy-light dark:text-gray-400">Tasks Due Today</p>
                     <p className="text-2xl font-bold text-tower-navy dark:text-white">7</p>
                   </div>
-                  <div className="bg-amber-100 p-2 rounded-lg">
-                    <Calendar className="h-6 w-6 text-amber-600" />
+                  <div className="bg-brand-teal/10 p-2 rounded-lg">
+                    <Calendar className="h-6 w-6 text-brand-teal" />
                   </div>
                 </div>
               </CardContent>

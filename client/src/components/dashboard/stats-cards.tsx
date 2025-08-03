@@ -56,8 +56,8 @@ export default function StatsCards() {
               <Clock size={12} className="inline mr-1" /> 8 due today
             </p>
           </div>
-          <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
-            <Clock className="text-teal-600" size={24} />
+          <div className="w-12 h-12 bg-brand-teal/10 rounded-lg flex items-center justify-center">
+            <Clock className="text-brand-teal" size={24} />
           </div>
         </div>
       </div>
