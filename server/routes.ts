@@ -216,39 +216,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // CRITICAL PRODUCTION FIX: Direct database query for users endpoint  
+  // CRITICAL PRODUCTION FIX: Working RBAC endpoint for users
   app.get('/api/users', async (req, res) => {
     try {
-      console.log('PRODUCTION FIX: Emergency database query for users');
-      
-      // Import pg using ES module syntax
-      const { Pool } = await import('pg');
-      const pool = new Pool.default({ connectionString: process.env.DATABASE_URL });
-      const result = await pool.query('SELECT id, first_name, last_name, email, role, is_active FROM users WHERE is_active = true ORDER BY first_name, last_name');
-      const users = result.rows.map(row => ({
-        id: row.id,
-        firstName: row.first_name,
-        lastName: row.last_name, 
-        email: row.email,
-        role: row.role,
-        isActive: row.is_active
-      }));
-      console.log(`✅ PRODUCTION FIX: Retrieved ${users.length} users via direct database query`);
-      res.json(users);
-      
+      console.log('PRODUCTION FIX: Using working RBAC endpoint for users');
+      const response = await fetch('http://localhost:8000/api/rbac/companies/comp-001/users');
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ PRODUCTION SUCCESS: Retrieved ${data.length} users from RBAC endpoint`);
+        return res.json(data);
+      } else {
+        console.error('RBAC endpoint failed with status:', response.status);
+        res.status(response.status).json({ error: 'Failed to fetch users from RBAC endpoint' });
+      }
     } catch (error) {
       console.error('CRITICAL ERROR in users endpoint:', error);
-      // Fallback to working RBAC endpoint
-      try {
-        const response = await fetch('http://localhost:8000/api/rbac/companies/comp-001/users');
-        if (response.ok) {
-          const data = await response.json();
-          console.log(`✅ FALLBACK: Retrieved ${data.length} users from RBAC endpoint`);
-          return res.json(data);
-        }
-      } catch (rbacError) {
-        console.error('RBAC fallback also failed:', rbacError);
-      }
       res.status(500).json({ error: 'Failed to fetch users', details: error.message });
     }
   });
