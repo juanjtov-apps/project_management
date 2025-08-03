@@ -12,7 +12,7 @@ interface NotificationModalProps {
 const getNotificationIcon = (type: string) => {
   switch (type) {
     case "warning":
-      return <AlertTriangle className="text-amber-500" size={16} />;
+      return <AlertTriangle className="text-brand-coral" size={16} />;
     case "success":
       return <CheckCircle className="text-green-500" size={16} />;
     case "error":
