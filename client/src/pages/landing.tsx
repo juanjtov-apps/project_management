@@ -10,7 +10,7 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
       {/* Sticky Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/50">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/50 shadow-sm">
         <div className="container mx-auto px-6 py-4">
           <nav className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -53,11 +53,11 @@ export default function Landing() {
             <p className="text-lg font-semibold text-[var(--proesphere-deep-blue)] mb-4">
               "Proesphere cut our scheduling calls by 40%" — ACME Builders
             </p>
-            <div className="flex items-center justify-center space-x-8 opacity-60">
-              <div className="bg-slate-200 px-6 py-2 rounded text-sm font-medium">ACME Builders</div>
-              <div className="bg-slate-200 px-6 py-2 rounded text-sm font-medium">Peak Construction</div>
-              <div className="bg-slate-200 px-6 py-2 rounded text-sm font-medium">Elite Properties</div>
-              <div className="bg-slate-200 px-6 py-2 rounded text-sm font-medium">Metro Contractors</div>
+            <div className="flex items-center justify-center space-x-6 opacity-60">
+              <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium">ACME Builders</div>
+              <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium">Peak Construction</div>
+              <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium">Elite Properties</div>
+              <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium">Metro Contractors</div>
             </div>
           </div>
         </div>
@@ -66,6 +66,7 @@ export default function Landing() {
       {/* Hero Section */}
       <section className="container mx-auto px-6 py-20 text-center" id="product">
         <div className="max-w-4xl mx-auto">
+          <p className="text-lg font-medium text-[var(--proesphere-teal)] mb-4">Your Construction Command Center</p>
           <h2 className="text-5xl md:text-6xl font-bold text-[var(--proesphere-deep-blue)] mb-6 leading-tight">
             360° 
             <span className="text-[var(--proesphere-teal)]">
@@ -85,20 +86,30 @@ export default function Landing() {
                 Get Started
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <p className="text-sm text-slate-500 mt-2">Free 14-day trial. No credit card.</p>
+              <p className="text-sm text-slate-600 mt-2 font-medium">Free 14-day trial. No credit card.</p>
             </div>
             <Button 
               variant="outline"
               size="lg"
-              className="border-2 border-[var(--proesphere-teal)] text-[var(--proesphere-teal)] hover:bg-[var(--proesphere-teal)] hover:text-white font-semibold px-8 py-4 rounded-lg transition-all duration-200 text-lg"
+              className="border-2 border-[var(--proesphere-teal)] text-[var(--proesphere-teal)] hover:bg-[var(--proesphere-teal)] hover:text-white font-semibold px-8 py-4 rounded-lg transition-all duration-200 text-lg hover:shadow-md"
             >
               Learn More
             </Button>
           </div>
           
+          {/* Scroll Cue */}
+          <div className="mt-12 animate-bounce">
+            <p className="text-sm text-slate-600 mb-2">Scroll to see it in action</p>
+            <div className="flex justify-center">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--proesphere-teal)]">
+                <polyline points="6,9 12,15 18,9"></polyline>
+              </svg>
+            </div>
+          </div>
+          
           {/* Hero Visual - Task Dashboard */}
           <div className="mt-16 max-w-5xl mx-auto">
-            <div className="relative bg-white rounded-xl shadow-2xl border border-slate-200/50 overflow-hidden">
+            <div className="relative bg-white rounded-xl shadow-2xl border border-slate-200/50 overflow-hidden" style={{boxShadow: '0 16px 32px rgba(0,0,0,0.06)'}}>
               <div className="bg-gradient-to-r from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] h-2"></div>
               <div className="p-6">
                 {/* Dashboard Header */}
@@ -173,7 +184,7 @@ export default function Landing() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-l-red-500 border-l-2">
                     <div className="flex items-center space-x-3">
-                      <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                      <input type="checkbox" readOnly className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                       <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                       <div className="text-red-500 text-sm">⏰</div>
                       <div>
@@ -191,7 +202,7 @@ export default function Landing() {
                   
                   <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border">
                     <div className="flex items-center space-x-3">
-                      <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                      <input type="checkbox" readOnly className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                       <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                       <div>
                         <div className="font-medium text-sm text-slate-800">Bridge Deck Reinforcement Inspection</div>
@@ -208,7 +219,7 @@ export default function Landing() {
                   
                   <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border">
                     <div className="flex items-center space-x-3">
-                      <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                      <input type="checkbox" readOnly className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                       <div>
                         <div className="font-medium text-sm text-slate-800">Residential HVAC System Install - Building C</div>
@@ -225,7 +236,7 @@ export default function Landing() {
                   
                   <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border">
                     <div className="flex items-center space-x-3">
-                      <input type="checkbox" checked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                      <input type="checkbox" checked readOnly className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       <div className="text-green-500 text-sm">✔️</div>
                       <div>
@@ -246,7 +257,7 @@ export default function Landing() {
                 <div className="mt-6 flex items-center justify-between">
                   <div className="flex space-x-3">
                     <button className="bg-[var(--proesphere-teal)] text-white text-xs px-4 py-2 rounded-lg font-medium shadow-sm hover:shadow-md transition-shadow">+ Add Task</button>
-                    <button className="bg-slate-100 text-slate-700 text-xs px-4 py-2 rounded-lg font-medium hover:bg-slate-200 transition-colors">View Calendar</button>
+                    <button className="bg-slate-100 text-[var(--proesphere-teal)] border border-[var(--proesphere-teal)] text-xs px-4 py-2 rounded-lg font-medium hover:bg-[var(--proesphere-teal)] hover:text-white transition-colors">View Calendar</button>
                     <button className="bg-slate-100 text-slate-700 text-xs px-4 py-2 rounded-lg font-medium hover:bg-slate-200 transition-colors">Export Report</button>
                   </div>
                   <div className="text-xs text-[#6B7280]">⌘F focuses search</div>
