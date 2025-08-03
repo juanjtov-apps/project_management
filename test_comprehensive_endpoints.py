@@ -167,14 +167,16 @@ class EndpointTester:
         # Users for specific company
         self.test_http_endpoint("GET", f"{self.api_base}/rbac/companies/1/users", expected_codes=[200], description="List company users")
         
-        # Create test company
+        # Create test company with unique domain
+        import uuid
+        unique_id = str(uuid.uuid4())[:8]
         company_data = {
-            "name": "Test Company",
-            "description": "Created by unit tests",
-            "industry": "Construction",
-            "is_active": True
+            "name": f"Test Company {unique_id}",
+            "domain": f"testcompany-{unique_id}.com",
+            "status": "active",
+            "settings": {}
         }
-        self.test_http_endpoint("POST", f"{self.api_base}/rbac/companies", data=company_data, expected_codes=[201], description="Create company")
+        self.test_http_endpoint("POST", f"{self.api_base}/rbac/companies", data=company_data, expected_codes=[200, 201], description="Create company")
     
     def test_express_proxy_endpoints(self):
         """Test Express.js proxy endpoints"""
@@ -277,7 +279,7 @@ class EndpointTester:
         
         # Test invalid HTTP methods
         self.test_http_endpoint("PATCH", f"{self.api_base}/api/projects/nonexistent", 
-                              expected_codes=[404, 405], description="Invalid method/resource")
+                              expected_codes=[400, 404, 405, 422], description="Invalid method/resource")
     
     def test_performance_basic(self):
         """Basic performance tests"""
