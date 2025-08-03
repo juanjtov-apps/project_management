@@ -11,12 +11,17 @@ user_repo = UserRepository()
 @router.get("/", response_model=List[User])
 async def get_users():
     """Get all users"""
+    print("🔍 DEBUG: /api/users endpoint called")
     try:
+        print("🔍 DEBUG: Attempting to get users from repository")
         users = await user_repo.get_all()
+        print(f"🔍 DEBUG: Retrieved {len(users)} users successfully")
         return users
     except Exception as e:
-        print(f"Error getting users: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get users")
+        print(f"❌ ERROR in get_users: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to get users: {str(e)}")
 
 @router.get("/managers", response_model=List[User])
 async def get_managers():
