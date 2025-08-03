@@ -1,4 +1,4 @@
-import { Bell, Menu } from "lucide-react";
+import { Bell, Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -65,16 +65,16 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
             </div>
             
             {/* User Profile */}
-            <div className="flex items-center space-x-3">
-              <span className="text-[var(--proesphere-graphite)] opacity-70 text-sm">Welcome back,</span>
+            <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] rounded-full flex items-center justify-center">
                   <span className="text-white font-semibold text-sm">{getUserInitials(user)}</span>
                 </div>
                 <span className="hidden md:block font-medium text-[var(--proesphere-deep-blue)]">{user?.firstName || user?.name || 'Root'}</span>
               </div>
-              <button className="text-[var(--proesphere-graphite)] opacity-60 hover:text-[var(--proesphere-coral)] hover:underline text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--proesphere-teal)]/40 focus:ring-offset-2 rounded px-1">
-                Sign Out
+              <button className="flex items-center space-x-1 text-[var(--proesphere-graphite)] opacity-60 hover:text-[var(--proesphere-coral)] hover:underline text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--proesphere-teal)]/40 focus:ring-offset-2 rounded px-1">
+                <LogOut size={14} />
+                <span>Sign Out</span>
               </button>
             </div>
           </div>
