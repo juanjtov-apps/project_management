@@ -8,12 +8,12 @@ export default function Dashboard() {
   console.log("Dashboard component rendering");
   
   return (
-    <div className="max-w-[1440px] mx-auto space-y-6 pt-6">
+    <div className="max-w-[1440px] mx-auto space-y-8 mt-6">
       {/* Quick Stats */}
       <StatsCards />
 
       {/* Recent Activity & Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           <RecentActivity />
         </div>
@@ -23,7 +23,7 @@ export default function Dashboard() {
       </div>
 
       {/* Active Projects & Tasks */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         <ActiveProjects />
         <TodaysTasks />
       </div>

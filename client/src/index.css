@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .elevated {
+    @apply border border-brand-grey shadow-sm rounded-lg bg-white;
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-brand-white;
+  }
+}
+
 :root {
   --background: var(--proesphere-cloud);
   --foreground: var(--proesphere-graphite);

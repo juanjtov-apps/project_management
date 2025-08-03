@@ -28,7 +28,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
   };
 
   return (
-    <header className="bg-white border-b border-[var(--proesphere-mist)] px-6 py-4">
+    <header className="bg-white border-b border-brand-grey px-6 py-4">
       <div className="max-w-[1440px] mx-auto">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -38,11 +38,11 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
               className="lg:hidden p-2"
               onClick={onToggleMobileMenu}
             >
-              <Menu className="text-[var(--proesphere-graphite)]" size={20} />
+              <Menu className="text-brand-text" size={20} />
             </Button>
             <div>
-              <h2 className="text-xl font-semibold text-[var(--proesphere-deep-blue)]">Dashboard</h2>
-              <p className="text-base text-[var(--proesphere-graphite)] opacity-60">Manage your construction projects with precision and efficiency.</p>
+              <h2 className="text-xl font-semibold text-brand-blue">Dashboard</h2>
+              <p className="text-base text-brand-text opacity-60">Manage your construction projects with precision and efficiency.</p>
             </div>
           </div>
           
@@ -52,12 +52,12 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
               <Button
                 variant="ghost"
                 size="sm"
-                className="p-2 relative hover:bg-[var(--proesphere-teal)]/5"
+                className="p-2 relative hover:bg-brand-teal/5 focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2"
                 onClick={onToggleNotifications}
               >
-                <Bell className="text-[var(--proesphere-graphite)]" size={20} />
+                <Bell className="text-brand-text" size={20} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--proesphere-coral)] text-white text-xs rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-brand-coral text-white text-xs rounded-full flex items-center justify-center">
                     {unreadCount}
                   </span>
                 )}
@@ -67,12 +67,12 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
             {/* User Profile */}
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-gradient-to-br from-brand-blue to-brand-teal rounded-full flex items-center justify-center">
                   <span className="text-white font-semibold text-sm">{getUserInitials(user)}</span>
                 </div>
-                <span className="hidden md:block font-medium text-[var(--proesphere-deep-blue)]">{user?.firstName || user?.name || 'Root'}</span>
+                <span className="hidden md:block font-medium text-brand-blue">{user?.firstName || user?.name || 'Root'}</span>
               </div>
-              <button className="flex items-center space-x-1 text-[var(--proesphere-graphite)] opacity-60 hover:text-[var(--proesphere-coral)] hover:underline text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--proesphere-teal)]/40 focus:ring-offset-2 rounded px-1">
+              <button className="flex items-center space-x-1 text-brand-text opacity-60 hover:text-brand-coral hover:underline text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2 rounded px-1">
                 <LogOut size={14} />
                 <span>Sign Out</span>
               </button>

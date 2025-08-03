@@ -45,11 +45,11 @@ const activityItems = [
 
 export default function RecentActivity() {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-[var(--proesphere-mist)]">
-      <div className="p-6 border-b border-[var(--proesphere-mist)]">
+    <div className="elevated">
+      <div className="p-6 border-b border-brand-grey">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-[var(--proesphere-deep-blue)]">Recent Activity</h3>
-          <button className="text-sm text-[var(--proesphere-coral)] hover:text-[var(--proesphere-coral)]/80 font-medium">
+          <h3 className="text-lg font-semibold text-brand-blue">Recent Activity</h3>
+          <button className="text-sm text-brand-coral hover:text-brand-coral/80 font-medium focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2 rounded px-1">
             View all
           </button>
         </div>
@@ -59,16 +59,16 @@ export default function RecentActivity() {
           {activityItems.slice(0, 5).map((activity) => {
             const Icon = activity.icon;
             return (
-              <div key={activity.id} className="flex items-start space-x-3 pb-4 border-b border-[var(--proesphere-mist)]/50 last:border-b-0 relative">
-                <div className="w-2 h-2 bg-[var(--proesphere-teal)] rounded-full mt-2 flex-shrink-0"></div>
+              <div key={activity.id} className="flex items-start space-x-3 pb-4 border-b border-brand-grey/50 last:border-b-0 relative">
+                <div className="w-2 h-2 bg-brand-teal rounded-full mt-2 flex-shrink-0"></div>
                 <div className="flex-1">
-                  <p className="text-sm text-[var(--proesphere-deep-blue)] font-medium">
+                  <p className="text-sm text-brand-blue font-medium">
                     {activity.user}
                   </p>
-                  <p className="text-sm text-[var(--proesphere-graphite)] opacity-80 mt-1">
+                  <p className="text-sm text-brand-text opacity-80 mt-1">
                     {activity.action}
                   </p>
-                  <p className="text-xs text-[var(--proesphere-graphite)] opacity-50 mt-1">{activity.timestamp}</p>
+                  <p className="text-xs text-brand-text opacity-50 mt-1">{activity.timestamp}</p>
                 </div>
               </div>
             );
