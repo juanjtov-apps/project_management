@@ -3,57 +3,72 @@ import { Camera, CheckCircle, AlertTriangle } from "lucide-react";
 const activityItems = [
   {
     id: 1,
-    icon: Camera,
-    iconColor: "text-blue-600",
-    iconBg: "bg-blue-100",
-    user: "Sarah Chen",
-    action: "uploaded 5 photos to",
-    project: "Downtown Office Complex",
-    timestamp: "2 hours ago"
+    icon: CheckCircle,
+    user: "Task Completed",
+    action: "Foundation inspection completed",
+    timestamp: "2h ago",
+    type: "completed"
   },
   {
     id: 2,
-    icon: CheckCircle,
-    iconColor: "text-green-600",
-    iconBg: "bg-green-100",
-    user: "Team Alpha",
-    action: "completed task",
-    project: "Electrical Installation - Floor 3",
-    timestamp: "4 hours ago"
+    icon: Camera,
+    user: "New Team Member",
+    action: "Sarah Johnson joined the team",
+    timestamp: "4h ago",
+    type: "member"
   },
   {
     id: 3,
     icon: AlertTriangle,
-    iconColor: "text-orange-600",
-    iconBg: "bg-orange-100",
-    user: "Mike Rodriguez",
-    action: "reported schedule delay for",
-    project: "Residential Complex A",
-    timestamp: "6 hours ago"
+    user: "Schedule Update",
+    action: "Project deadline extended by 2 days",
+    timestamp: "1d ago",
+    type: "schedule"
+  },
+  {
+    id: 4,
+    icon: CheckCircle,
+    user: "Task Completed",
+    action: "Electrical work phase completed",
+    timestamp: "2d ago",
+    type: "completed"
+  },
+  {
+    id: 5,
+    icon: Camera,
+    user: "Photo Upload",
+    action: "Site progress photos uploaded",
+    timestamp: "3d ago",
+    type: "photo"
   }
 ];
 
 export default function RecentActivity() {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      <div className="p-6 border-b border-gray-200">
-        <h3 className="text-lg font-semibold construction-secondary">Recent Activity</h3>
+    <div className="bg-white rounded-lg shadow-sm border border-[var(--proesphere-mist)]">
+      <div className="p-6 border-b border-[var(--proesphere-mist)]">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-[var(--proesphere-deep-blue)]">Recent Activity</h3>
+          <button className="text-sm text-[var(--proesphere-coral)] hover:text-[var(--proesphere-coral)]/80 font-medium">
+            View all
+          </button>
+        </div>
       </div>
       <div className="p-6">
         <div className="space-y-4">
-          {activityItems.map((activity) => {
+          {activityItems.slice(0, 5).map((activity) => {
             const Icon = activity.icon;
             return (
-              <div key={activity.id} className="flex items-start space-x-3 pb-4 border-b border-gray-100 last:border-b-0">
-                <div className={`w-8 h-8 ${activity.iconBg} rounded-full flex items-center justify-center flex-shrink-0 mt-1`}>
-                  <Icon className={activity.iconColor} size={16} />
-                </div>
+              <div key={activity.id} className="flex items-start space-x-3 pb-4 border-b border-[var(--proesphere-mist)]/50 last:border-b-0 relative">
+                <div className="w-2 h-2 bg-[var(--proesphere-teal)] rounded-full mt-2 flex-shrink-0"></div>
                 <div className="flex-1">
-                  <p className="text-sm construction-secondary">
-                    <span className="font-medium">{activity.user}</span> {activity.action}{" "}
-                    <span className="font-medium text-blue-600">{activity.project}</span>
+                  <p className="text-sm text-[var(--proesphere-deep-blue)] font-medium">
+                    {activity.user}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">{activity.timestamp}</p>
+                  <p className="text-sm text-[var(--proesphere-graphite)] opacity-80 mt-1">
+                    {activity.action}
+                  </p>
+                  <p className="text-xs text-[var(--proesphere-graphite)] opacity-50 mt-1">{activity.timestamp}</p>
                 </div>
               </div>
             );

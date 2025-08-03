@@ -1,0 +1,78 @@
+1. Global color hierarchy
+	•	Issue: Screen looks mostly monochrome; off-brand yellow icons feel random.
+	•	Fix:
+	•	Primary chrome (sidebar background, top-nav text) → Deep Space Blue #1B2E4B.
+	•	Active/selected states → Sphere Teal #1FA77C.
+	•	High-priority CTAs → Spark Coral #FF7849.
+	•	Replace yellow calendar/check icons with teal or coral versions that match their purpose.
+
+2. Sidebar
+	•	Issue: Active link is just a navy pill; no clear context rail.
+	•	Fix:
+	•	Give the entire sidebar a 5 % tint of Deep Space Blue to separate it from content.
+	•	Add a 4 px Sphere Teal bar (or full-width pill) beside the active link so users always know where they are.
+
+3. Metrics cards (Active Projects / Tasks Due / Completed)
+	•	Issue: Counts feel light and icons float awkwardly.
+	•	Fix:
+	•	Add a subtle 1 px #E5E7EB border and soft shadow so cards feel touchable.
+	•	Boost numbers to bold 2 xl, dim the labels slightly.
+	•	Re-color icons in Sphere Teal for visual consistency.
+
+4. Quick-Actions grid
+	•	Issue: Buttons look like empty cards; nothing signals a primary action.
+	•	Fix:
+	•	Treat every tile as a real button: on hover, invert to Deep Space Blue text on Sphere Teal ghost background.
+	•	Use Spark Coral for the single most critical action (e.g., “Add Project”).
+	•	Stack icon above label and keep icon stroke weight uniform.
+
+5. Recent Activity panel
+	•	Issue: Feels sparse and text-heavy.
+	•	Fix:
+	•	Add a 2 px Sphere Teal border-left (or dot) beside each item to signal status.
+	•	Dim relative time (“2 h ago”) to slate-500 and smaller text so the description pops.
+	•	Limit to five items with a View all link in Coral.
+
+6. Whitespace & rhythm
+	•	Issue: Giant empty band above the dashboard header; inconsistent gutters.
+	•	Fix:
+	•	Constrain overall width (max-w-[1440px] mx-auto).
+	•	Adopt an 8-pt spacing system (8/16/24/32) for predictable gaps.
+	•	Drop the blank space above “Dashboard” so hero cards sit 24 px below the nav.
+
+7. Typography
+	•	Issue: Headers and body text share similar weight.
+	•	Fix:
+	•	Page titles → font-semibold text-xl.
+	•	Numeric data → tabular-nums for easy scanning.
+	•	Establish a clear h1→h4 scale for accessibility.
+
+8. Sign-out & profile section
+	•	Issue: “Sign Out” button carries the same weight as CTAs.
+	•	Fix:
+	•	Make it a text link (text-slate-600, Coral underline on hover).
+	•	Swap the plain “Root” text for an avatar chip to humanize the UI.
+
+9. Accessibility & interaction states
+	•	Issue: Hover/focus indicators are faint; some contrast may fail.
+	•	Fix:
+	•	Check all key pairs for ≥ 4.5:1 contrast.
+	•	Use a clear Sphere Teal/40 focus ring for keyboard navigation.
+
+10. Future polish ideas
+	•	Inject micro-animations: cards fade in, Quick-Action icons nudge on hover.
+	•	Offer a dark-mode toggle (invert neutrals, keep Teal as primary).
+	•	Replace static counts with subtle progress rings—project managers love instant signal.
+
+⸻
+
+Brand tokens for quick reference
+	•	--p-blue:  #1B2E4B   /* nav, headings */
+	•	--p-teal:  #1FA77C   /* active, info */
+	•	--p-coral: #FF7849   /* CTA accent */
+	•	--n-white: #F8FAFC   /* base background */
+	•	--n-card:  #FFFFFF   /* card surface */
+	•	--n-grey:  #E5E7EB   /* borders */
+	•	--n-text:  #111827   /* primary copy */
+
+Implement the color tokens in your Tailwind (or CSS-in-JS) config first, then refactor sidebar and buttons—the quickest wins for a cohesive Proesphere look.
