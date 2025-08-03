@@ -315,7 +315,7 @@ class RBACTester:
         endpoints_to_test = [
             ("/api/projects", "GET"),
             ("/api/tasks", "GET"),
-            ("/api/users", "GET"),
+            ("/api/rbac/users", "GET"),
             ("/api/notifications", "GET"),
         ]
         

@@ -69,11 +69,17 @@ async def create_company(
         if not is_platform:
             raise HTTPException(status_code=403, detail="Platform admin access required")
         
-        company = await conn.fetchrow("""
-            INSERT INTO companies (name, domain, status, settings)
-            VALUES ($1, $2, $3, $4)
-            RETURNING *
-        """, company_data.name, company_data.domain, company_data.status, company_data.settings)
+        try:
+            company = await conn.fetchrow("""
+                INSERT INTO companies (name, domain, status, settings)
+                VALUES ($1, $2, $3, $4)
+                RETURNING *
+            """, company_data.name, company_data.domain, company_data.status, company_data.settings)
+        except asyncpg.exceptions.UniqueViolationError as e:
+            if "companies_domain_key" in str(e):
+                raise HTTPException(status_code=400, detail=f"Company with domain '{company_data.domain}' already exists")
+            else:
+                raise HTTPException(status_code=400, detail="Company with this information already exists")
         
         # Log audit event
         await conn.execute("""

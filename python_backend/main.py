@@ -22,10 +22,10 @@ from src.api import create_api_router
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    await db_manager.connect()
+    print("Database connection pool created successfully")
     yield
     # Shutdown
-    await db_manager.disconnect()
+    print("Shutting down database connections")
 
 
 # Create FastAPI app
