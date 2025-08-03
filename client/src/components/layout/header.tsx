@@ -28,7 +28,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
   };
 
   return (
-    <header className="bg-white border-b border-[var(--proesphere-mist)] px-6 py-6">
+    <header className="bg-white border-b border-[var(--proesphere-mist)] px-6 py-4">
       <div className="max-w-[1440px] mx-auto">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -42,7 +42,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
             </Button>
             <div>
               <h2 className="text-xl font-semibold text-[var(--proesphere-deep-blue)]">Dashboard</h2>
-              <p className="text-[var(--proesphere-graphite)] opacity-70">Manage your construction projects with precision and efficiency.</p>
+              <p className="text-base text-[var(--proesphere-graphite)] opacity-60">Manage your construction projects with precision and efficiency.</p>
             </div>
           </div>
           
@@ -73,7 +73,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
                 </div>
                 <span className="hidden md:block font-medium text-[var(--proesphere-deep-blue)]">{user?.firstName || user?.name || 'Root'}</span>
               </div>
-              <button className="text-[var(--proesphere-graphite)] opacity-60 hover:text-[var(--proesphere-coral)] text-sm transition-colors">
+              <button className="text-[var(--proesphere-graphite)] opacity-60 hover:text-[var(--proesphere-coral)] hover:underline text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--proesphere-teal)]/40 focus:ring-offset-2 rounded px-1">
                 Sign Out
               </button>
             </div>

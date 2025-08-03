@@ -78,10 +78,10 @@ function QuickActions() {
             <Button
               key={`action-${index}-${action.label}`}
               variant="outline"
-              className={`flex flex-col items-center justify-center gap-3 p-6 h-24 border border-[var(--proesphere-mist)] transition-all duration-200 cursor-pointer ${
+              className={`flex flex-col items-center justify-center gap-3 p-6 h-24 border border-[var(--proesphere-mist)] shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--proesphere-teal)]/40 focus:ring-offset-2 ${
                 action.isPrimary 
-                  ? "hover:bg-[var(--proesphere-coral)] hover:border-[var(--proesphere-coral)] hover:text-white" 
-                  : "hover:bg-[var(--proesphere-teal)]/5 hover:border-[var(--proesphere-teal)] hover:text-[var(--proesphere-deep-blue)]"
+                  ? "hover:bg-[var(--proesphere-coral)] hover:border-[var(--proesphere-coral)] hover:text-white hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]" 
+                  : "hover:bg-[var(--proesphere-teal)]/5 hover:border-[var(--proesphere-teal)] hover:text-[var(--proesphere-deep-blue)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]"
               }`}
               onClick={(e) => {
                 e.preventDefault();
