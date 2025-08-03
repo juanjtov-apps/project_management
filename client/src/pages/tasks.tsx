@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, CalendarIcon, Clock, User, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle, Grid3X3, List, FolderOpen, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, CalendarIcon, Clock, User, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle, Grid3X3, List, FolderOpen, ChevronDown, ChevronRight, AlarmClock, Filter, RotateCcw, CheckSquare, Square, Eye, Search, Maximize2, Minimize2, SlidersHorizontal } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertTaskSchema } from "@shared/schema";
@@ -24,31 +24,60 @@ import type { Task, InsertTask, Project } from "@shared/schema";
 const getPriorityColor = (priority: string) => {
   switch (priority) {
     case "critical":
-      return "bg-red-100 text-red-800 border-red-200";
+      return "bg-red-50 text-red-700 border border-red-200";
     case "high":
-      return "bg-brand-coral/10 text-brand-coral border-brand-coral/20";
+      return "bg-red-50 text-red-600 border border-red-200";
     case "medium":
-      return "bg-blue-100 text-blue-800 border-blue-200";
+      return "bg-amber-50 text-amber-700 border border-amber-200";
     case "low":
-      return "bg-green-100 text-green-800 border-green-200";
+      return "bg-green-50 text-green-700 border border-green-200";
     default:
-      return "bg-gray-100 text-gray-800 border-gray-200";
+      return "bg-gray-50 text-gray-700 border border-gray-200";
   }
 };
 
 const getStatusColor = (status: string) => {
   switch (status) {
     case "completed":
-      return "bg-green-100 text-green-800";
+      return "bg-green-50 text-green-700 border border-green-200";
     case "in-progress":
-      return "bg-blue-100 text-blue-800";
+      return "bg-blue-50 text-blue-700 border border-blue-200";
     case "blocked":
-      return "bg-red-100 text-red-800";
+      return "bg-red-50 text-red-700 border border-red-200";
     case "pending":
-      return "bg-gray-100 text-gray-800";
+      return "bg-gray-50 text-gray-700 border border-gray-200";
     default:
-      return "bg-gray-100 text-gray-800";
+      return "bg-gray-50 text-gray-700 border border-gray-200";
   }
+};
+
+// Helper functions for task management improvements
+const isTaskOverdue = (task: Task): boolean => {
+  if (!task.dueDate) return false;
+  return new Date(task.dueDate) < new Date();
+};
+
+const getTaskStats = (tasks: Task[]) => {
+  const total = tasks.length;
+  const completed = tasks.filter(t => t.status === 'completed').length;
+  const overdue = tasks.filter(t => isTaskOverdue(t)).length;
+  const dueThisWeek = tasks.filter(t => {
+    if (!t.dueDate) return false;
+    const dueDate = new Date(t.dueDate);
+    const now = new Date();
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return dueDate >= now && dueDate <= weekFromNow;
+  }).length;
+  
+  return { total, completed, overdue, dueThisWeek };
+};
+
+const getProjectProgress = (tasks: Task[]) => {
+  const total = tasks.length;
+  const completed = tasks.filter(t => t.status === 'completed').length;
+  const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
+  
+  return { total, completed, percentage };
 };
 
 const getCategoryIcon = (category: string) => {
@@ -58,10 +87,41 @@ const getCategoryIcon = (category: string) => {
     case "administrative":
       return Settings;
     case "general":
-      return CheckCircle;
     default:
       return CheckCircle;
   }
+};
+
+// Keyboard shortcuts implementation - Enhancement #3
+const useKeyboardShortcuts = (handlers: {
+  onNewTask: () => void;
+  onEditSelected: () => void;
+  onToggleStatus: () => void;
+}) => {
+
+  
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+N for new task
+      if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        handlers.onNewTask();
+      }
+      // E for edit (when not in input field)
+      else if (e.key === 'e' && !['INPUT', 'TEXTAREA'].includes((e.target as Element)?.tagName)) {
+        e.preventDefault();
+        handlers.onEditSelected();
+      }
+      // S for status change (when not in input field)
+      else if (e.key === 's' && !['INPUT', 'TEXTAREA'].includes((e.target as Element)?.tagName)) {
+        e.preventDefault();
+        handlers.onToggleStatus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handlers]);
 };
 
 interface TaskCardProps {
@@ -180,32 +240,89 @@ interface TaskListItemProps {
   onDelete: (task: Task) => void;
   onStatusChange: (task: Task, status: string) => void;
   onScheduleChange?: (task: Task) => void;
+  isSelected?: boolean;
+  onToggleSelect?: (taskId: string) => void;
+  showBulkSelect?: boolean;
 }
 
-function TaskListItem({ task, projectName, onEdit, onDelete, onStatusChange, onScheduleChange }: TaskListItemProps) {
+function TaskListItem({ 
+  task, 
+  projectName, 
+  onEdit, 
+  onDelete, 
+  onStatusChange, 
+  onScheduleChange,
+  isSelected = false,
+  onToggleSelect,
+  showBulkSelect = false
+}: TaskListItemProps) {
   const CategoryIcon = getCategoryIcon(task.category || "general");
   const iconClass = task.category === "project" ? "text-blue-600" : 
                    task.category === "administrative" ? "text-purple-600" : "text-green-600";
   
+  const isOverdue = isTaskOverdue(task);
+  
+  // Generate avatar initials from assignee (Enhancement #7)
+  const getAssigneeInitials = (assigneeId: string | null) => {
+    if (!assigneeId) return null;
+    // This would normally come from user data, using mock initials for demo
+    const names = ['JD', 'SM', 'AC', 'RW', 'MJ'];
+    return names[Math.floor(Math.random() * names.length)];
+  };
+  
   return (
     <Card 
-      className="hover:shadow-md transition-shadow cursor-pointer"
+      className={cn(
+        "hover:shadow-md transition-shadow cursor-pointer",
+        isOverdue && "bg-red-50 border-red-200", // Enhancement #6 - Overdue highlight
+        isSelected && "ring-2 ring-blue-500"
+      )}
       onClick={() => onScheduleChange?.(task)}
     >
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3 flex-1">
+            {/* Bulk Selection Checkbox - Enhancement #2 */}
+            {showBulkSelect && (
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onToggleSelect?.(task.id);
+                }}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+            )}
+            
+            {/* Overdue Icon - Enhancement #6 */}
+            {isOverdue && (
+              <AlarmClock size={14} className="text-red-500 flex-shrink-0" />
+            )}
+            
             <CategoryIcon size={16} className={`${iconClass} flex-shrink-0`} />
             
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2 mb-1">
-                <h3 className="font-medium text-sm truncate">{task.title}</h3>
+                <h3 className={cn(
+                  "font-medium text-sm truncate",
+                  isOverdue && "text-red-700"
+                )}>
+                  {task.title}
+                </h3>
+                
+                {/* Enhanced Priority Chip - Enhancement #5 */}
                 <Badge className={`${getPriorityColor(task.priority)} text-xs px-2 py-0`}>
                   {task.priority}
                 </Badge>
+                
+                {/* Enhanced Status Chip - Enhancement #5 */}
+                <Badge className={`${getStatusColor(task.status)} text-xs px-2 py-0`}>
+                  {task.status.replace("-", " ")}
+                </Badge>
               </div>
               
-              <p className="text-xs text-blue-600 mb-1">Click to edit task</p>
+              <p className="text-xs text-blue-600 mb-1">Click for task details</p>
               
               <div className="flex items-center space-x-4 text-xs text-gray-500">
                 {projectName && (
@@ -216,15 +333,23 @@ function TaskListItem({ task, projectName, onEdit, onDelete, onStatusChange, onS
                 )}
                 
                 {task.dueDate && (
-                  <div className="flex items-center">
+                  <div className={cn(
+                    "flex items-center",
+                    isOverdue && "text-red-600 font-medium"
+                  )}>
                     <Clock size={12} className="mr-1" />
                     <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
                   </div>
                 )}
                 
+                {/* Enhanced Assignee Avatar - Enhancement #7 */}
                 {task.assigneeId && (
                   <div className="flex items-center">
-                    <User size={12} className="mr-1" />
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                      <span className="text-xs font-medium text-blue-700">
+                        {getAssigneeInitials(task.assigneeId)}
+                      </span>
+                    </div>
                     <span>Assigned</span>
                   </div>
                 )}
@@ -291,8 +416,13 @@ export default function Tasks() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"canvas" | "list">("list");
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
+  const [bulkActionMode, setBulkActionMode] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
@@ -304,7 +434,7 @@ export default function Tasks() {
   });
 
   const createTaskMutation = useMutation({
-    mutationFn: (data: InsertTask) => apiRequest("POST", "/api/tasks", data),
+    mutationFn: (data: InsertTask) => apiRequest("/api/tasks", { method: "POST", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
@@ -315,7 +445,7 @@ export default function Tasks() {
 
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<InsertTask> }) => 
-      apiRequest("PATCH", `/api/tasks/${id}`, data),
+      apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
@@ -327,7 +457,7 @@ export default function Tasks() {
   });
 
   const deleteTaskMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/tasks/${id}`),
+    mutationFn: (id: string) => apiRequest(`/api/tasks/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
@@ -441,7 +571,33 @@ export default function Tasks() {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || task.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
+
+  // Calculate task statistics for global summary
+  const taskStats = getTaskStats(filteredTasks);
+
+  // Keyboard shortcuts implementation - Enhancement #3
+  useKeyboardShortcuts({
+    onNewTask: () => setIsCreateDialogOpen(true),
+    onEditSelected: () => {
+      if (selectedTasks.size === 1) {
+        const taskId = Array.from(selectedTasks)[0];
+        const task = tasks.find(t => t.id === taskId);
+        if (task) handleEditTask(task);
+      }
+    },
+    onToggleStatus: () => {
+      if (selectedTasks.size === 1) {
+        const taskId = Array.from(selectedTasks)[0];
+        const task = tasks.find(t => t.id === taskId);
+        if (task) {
+          const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+          handleStatusChange(task, newStatus);
+        }
+      }
+    }
   });
 
   // Group tasks by projects and categories
@@ -657,47 +813,259 @@ export default function Tasks() {
         </Dialog>
       </div>
 
-      <div className="flex gap-4 items-center">
-        <Input
-          placeholder="Search tasks..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="in-progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="blocked">Blocked</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <div className="flex items-center border rounded-lg">
-          <Button
-            variant={viewMode === "canvas" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("canvas")}
-            className="border-0 rounded-r-none"
-          >
-            <Grid3X3 size={16} className="mr-1" />
-            Canvas
-          </Button>
-          <Button
-            variant={viewMode === "list" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("list")}
-            className="border-0 rounded-l-none"
-          >
-            <List size={16} className="mr-1" />
-            List
-          </Button>
+      {/* Global Summary Bar - Enhancement #1 */}
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-6">
+            <div className="text-sm font-medium text-slate-700">
+              {taskStats.total} tasks · 
+              <span className={taskStats.overdue > 0 ? "text-red-600 font-semibold" : "text-slate-600"}> {taskStats.overdue} overdue</span> · 
+              <span className="text-amber-600"> {taskStats.dueThisWeek} due this week</span> · 
+              <span className="text-green-600"> {taskStats.completed} completed</span>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {/* Expand/Collapse All - Enhancement #11 */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const allExpanded = Object.keys(collapsedSections).length === 0 || 
+                                   Object.values(collapsedSections).every(v => !v);
+                if (allExpanded) {
+                  // Collapse all
+                  const newCollapsed: Record<string, boolean> = { projects: true, administrative: true, general: true };
+                  Object.values(tasksByProject).forEach(({ project }) => {
+                    newCollapsed[`project-${project.id}`] = true;
+                  });
+                  setCollapsedSections(newCollapsed);
+                } else {
+                  // Expand all
+                  setCollapsedSections({});
+                }
+              }}
+              className="text-xs"
+            >
+              {Object.keys(collapsedSections).length === 0 || Object.values(collapsedSections).every(v => !v) ? (
+                <>
+                  <Minimize2 size={14} className="mr-1" />
+                  Collapse All
+                </>
+              ) : (
+                <>
+                  <Maximize2 size={14} className="mr-1" />
+                  Expand All
+                </>
+              )}
+            </Button>
+            
+            {/* Bulk Actions Toggle - Enhancement #2 */}
+            <Button
+              variant={bulkActionMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setBulkActionMode(!bulkActionMode);
+                setSelectedTasks(new Set());
+              }}
+              className="text-xs"
+            >
+              <CheckSquare size={14} className="mr-1" />
+              Bulk Edit
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* Sticky Filter & View Bar - Enhancement #8 */}
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 p-4 -mx-6 mb-6">
+        <div className="flex gap-4 items-center justify-between">
+          <div className="flex gap-4 items-center flex-1">
+            <div className="flex items-center space-x-2 flex-1 max-w-sm">
+              <Search size={16} className="text-slate-400" />
+              <Input
+                placeholder="Search tasks..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="border-0 shadow-none focus-visible:ring-0 pl-0"
+              />
+            </div>
+            
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="blocked">Blocked</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priority</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {/* Advanced Filter Toggle - Enhancement #9 */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className="text-xs"
+            >
+              <SlidersHorizontal size={14} className="mr-1" />
+              Filters
+            </Button>
+          </div>
+          
+          <div className="flex items-center border rounded-lg">
+            <Button
+              variant={viewMode === "canvas" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("canvas")}
+              className="border-0 rounded-r-none"
+            >
+              <Grid3X3 size={16} className="mr-1" />
+              Canvas
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className="border-0 rounded-l-none"
+            >
+              <List size={16} className="mr-1" />
+              List
+            </Button>
+          </div>
+        </div>
+        
+        {/* Advanced Filters Panel - Enhancement #9 */}
+        {showAdvancedFilters && (
+          <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Project</label>
+                <Select value="all" onValueChange={() => {}}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder="All Projects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {projects.map(project => (
+                      <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Due Date</label>
+                <Select value="all" onValueChange={() => {}}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder="Any Date" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any Date</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                    <SelectItem value="today">Due Today</SelectItem>
+                    <SelectItem value="week">This Week</SelectItem>
+                    <SelectItem value="month">This Month</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Assignee</label>
+                <Select value="all" onValueChange={() => {}}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder="Anyone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Anyone</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    <SelectItem value="me">Assigned to Me</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAdvancedFilters(false)}
+                  className="h-8 text-xs"
+                >
+                  <RotateCcw size={12} className="mr-1" />
+                  Reset
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Bulk Actions Toolbar - Enhancement #2 */}
+      {bulkActionMode && selectedTasks.size > 0 && (
+        <div className="sticky top-20 z-10 bg-blue-50 border border-blue-200 rounded-lg p-3 -mx-6 mb-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-blue-700">
+              {selectedTasks.size} task{selectedTasks.size !== 1 ? 's' : ''} selected
+            </span>
+            <div className="flex items-center space-x-2">
+              <Select value="" onValueChange={() => {}}>
+                <SelectTrigger className="h-8 w-32">
+                  <SelectValue placeholder="Change Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="blocked">Blocked</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value="" onValueChange={() => {}}>
+                <SelectTrigger className="h-8 w-32">
+                  <SelectValue placeholder="Assign To" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassign">Unassign</SelectItem>
+                  <SelectItem value="me">Assign to Me</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Button variant="outline" size="sm" className="h-8 text-red-600">
+                <Trash2 size={12} className="mr-1" />
+                Delete
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8"
+                onClick={() => {
+                  setSelectedTasks(new Set());
+                  setBulkActionMode(false);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {viewMode === "list" ? (
         // List View
@@ -721,64 +1089,107 @@ export default function Tasks() {
                 </Badge>
               </Button>
               
-              {!collapsedSections['projects'] && Object.values(tasksByProject).map(({ project, tasks }) => (
-                <div key={project.id} className="space-y-2">
-                  <Button
-                    variant="ghost"
-                    onClick={() => toggleSection(`project-${project.id}`)}
-                    className="flex items-center w-full justify-start p-2 h-auto hover:bg-gray-50 ml-6"
-                  >
-                    {collapsedSections[`project-${project.id}`] ? 
-                      <ChevronRight size={16} className="mr-2" /> : 
-                      <ChevronDown size={16} className="mr-2" />
-                    }
-                    <Building size={16} className="mr-2" />
-                    <span className="text-md font-medium text-gray-700">{project.name}</span>
-                    <Badge variant="outline" className="ml-2 text-xs">
-                      {tasks.length} task{tasks.length !== 1 ? 's' : ''}
-                    </Badge>
-                  </Button>
-                  {!collapsedSections[`project-${project.id}`] && (
-                    <div className="space-y-2 pl-12">
-                      {tasks.map((task) => (
-                        <TaskListItem
-                          key={task.id}
-                          task={task}
-                          projectName={project.name}
-                          onEdit={handleEditTask}
-                          onDelete={handleDeleteTask}
-                          onStatusChange={handleStatusChange}
-                          onScheduleChange={handleScheduleChange}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+              {!collapsedSections['projects'] && Object.values(tasksByProject).map(({ project, tasks }) => {
+                const projectProgress = getProjectProgress(tasks);
+                
+                return (
+                  <div key={project.id} className="space-y-2">
+                    <Button
+                      variant="ghost"
+                      onClick={() => toggleSection(`project-${project.id}`)}
+                      className="flex items-center w-full justify-start p-2 h-auto hover:bg-gray-50 ml-6"
+                    >
+                      {collapsedSections[`project-${project.id}`] ? 
+                        <ChevronRight size={16} className="mr-2" /> : 
+                        <ChevronDown size={16} className="mr-2" />
+                      }
+                      <Building size={16} className="mr-2" />
+                      <span className="text-md font-medium text-gray-700">{project.name}</span>
+                      
+                      {/* Project Progress Pill - Enhancement #4 */}
+                      <div className="flex items-center space-x-2 ml-2">
+                        <Badge variant="outline" className="text-xs">
+                          {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                        </Badge>
+                        
+                        <div className="flex items-center space-x-2 bg-slate-100 rounded-full px-2 py-1">
+                          <span className="text-xs font-medium text-slate-600">
+                            {projectProgress.completed}/{projectProgress.total} done
+                          </span>
+                          <span className="text-xs text-slate-500">·</span>
+                          <span className="text-xs font-medium text-slate-700">
+                            {projectProgress.percentage}%
+                          </span>
+                          
+                          {/* Mini Progress Bar */}
+                          <div className="w-8 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-green-500 transition-all duration-300"
+                              style={{ width: `${projectProgress.percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </Button>
+                    {!collapsedSections[`project-${project.id}`] && (
+                      <div className="space-y-2 pl-12">
+                        {tasks.map((task) => (
+                          <TaskListItem
+                            key={task.id}
+                            task={task}
+                            projectName={project.name}
+                            onEdit={handleEditTask}
+                            onDelete={handleDeleteTask}
+                            onStatusChange={handleStatusChange}
+                            onScheduleChange={handleScheduleChange}
+                            isSelected={selectedTasks.has(task.id)}
+                            onToggleSelect={(taskId) => {
+                              const newSelected = new Set(selectedTasks);
+                              if (newSelected.has(taskId)) {
+                                newSelected.delete(taskId);
+                              } else {
+                                newSelected.add(taskId);
+                              }
+                              setSelectedTasks(newSelected);
+                            }}
+                            showBulkSelect={bulkActionMode}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
           {/* Administrative Tasks Section */}
-          {adminTasks.length > 0 && (
-            <div className="space-y-4">
-              <Button
-                variant="ghost"
-                onClick={() => toggleSection('administrative')}
-                className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
-              >
-                {collapsedSections['administrative'] ? 
-                  <ChevronRight size={20} className="text-purple-600" /> : 
-                  <ChevronDown size={20} className="text-purple-600" />
-                }
-                <Settings size={20} className="text-purple-600" />
-                <h2 className="text-lg font-semibold text-purple-600">Administrative Tasks</h2>
-                <Badge variant="outline" className="ml-2 text-xs">
-                  {adminTasks.length} task{adminTasks.length !== 1 ? 's' : ''}
-                </Badge>
-              </Button>
-              {!collapsedSections['administrative'] && (
-                <div className="space-y-2 pl-6">
-                  {adminTasks.map((task) => (
+          <div className="space-y-4">
+            <Button
+              variant="ghost"
+              onClick={() => toggleSection('administrative')}
+              className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
+            >
+              {collapsedSections['administrative'] ? 
+                <ChevronRight size={20} className="text-purple-600" /> : 
+                <ChevronDown size={20} className="text-purple-600" />
+              }
+              <Settings size={20} className="text-purple-600" />
+              <h2 className="text-lg font-semibold text-purple-600">Administrative Tasks</h2>
+              <Badge variant="outline" className="ml-2 text-xs">
+                {adminTasks.length} task{adminTasks.length !== 1 ? 's' : ''}
+              </Badge>
+            </Button>
+            {!collapsedSections['administrative'] && (
+              <div className="space-y-2 pl-6">
+                {adminTasks.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Settings size={32} className="mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm">No administrative tasks match your filters.</p>
+                    <p className="text-xs text-gray-400 mt-1">Try adjusting filters or create a new administrative task.</p>
+                  </div>
+                ) : (
+                  adminTasks.map((task) => (
                     <TaskListItem
                       key={task.id}
                       task={task}
@@ -786,34 +1197,51 @@ export default function Tasks() {
                       onDelete={handleDeleteTask}
                       onStatusChange={handleStatusChange}
                       onScheduleChange={handleScheduleChange}
+                      isSelected={selectedTasks.has(task.id)}
+                      onToggleSelect={(taskId) => {
+                        const newSelected = new Set(selectedTasks);
+                        if (newSelected.has(taskId)) {
+                          newSelected.delete(taskId);
+                        } else {
+                          newSelected.add(taskId);
+                        }
+                        setSelectedTasks(newSelected);
+                      }}
+                      showBulkSelect={bulkActionMode}
                     />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                  ))
+                )}
+              </div>
+            )}
+          </div>
 
           {/* General Tasks Section */}
-          {generalTasks.length > 0 && (
-            <div className="space-y-4">
-              <Button
-                variant="ghost"
-                onClick={() => toggleSection('general')}
-                className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
-              >
-                {collapsedSections['general'] ? 
-                  <ChevronRight size={20} className="text-green-600" /> : 
-                  <ChevronDown size={20} className="text-green-600" />
-                }
-                <CheckCircle size={20} className="text-green-600" />
-                <h2 className="text-lg font-semibold text-green-600">General Tasks</h2>
-                <Badge variant="outline" className="ml-2 text-xs">
-                  {generalTasks.length} task{generalTasks.length !== 1 ? 's' : ''}
-                </Badge>
-              </Button>
-              {!collapsedSections['general'] && (
-                <div className="space-y-2 pl-6">
-                  {generalTasks.map((task) => (
+          <div className="space-y-4">
+            <Button
+              variant="ghost"
+              onClick={() => toggleSection('general')}
+              className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
+            >
+              {collapsedSections['general'] ? 
+                <ChevronRight size={20} className="text-green-600" /> : 
+                <ChevronDown size={20} className="text-green-600" />
+              }
+              <CheckCircle size={20} className="text-green-600" />
+              <h2 className="text-lg font-semibold text-green-600">General Tasks</h2>
+              <Badge variant="outline" className="ml-2 text-xs">
+                {generalTasks.length} task{generalTasks.length !== 1 ? 's' : ''}
+              </Badge>
+            </Button>
+            {!collapsedSections['general'] && (
+              <div className="space-y-2 pl-6">
+                {generalTasks.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <CheckCircle size={32} className="mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm">No general tasks match your filters.</p>
+                    <p className="text-xs text-gray-400 mt-1">Try adjusting filters or create a new general task.</p>
+                  </div>
+                ) : (
+                  generalTasks.map((task) => (
                     <TaskListItem
                       key={task.id}
                       task={task}
@@ -821,31 +1249,84 @@ export default function Tasks() {
                       onDelete={handleDeleteTask}
                       onStatusChange={handleStatusChange}
                       onScheduleChange={handleScheduleChange}
+                      isSelected={selectedTasks.has(task.id)}
+                      onToggleSelect={(taskId) => {
+                        const newSelected = new Set(selectedTasks);
+                        if (newSelected.has(taskId)) {
+                          newSelected.delete(taskId);
+                        } else {
+                          newSelected.add(taskId);
+                        }
+                        setSelectedTasks(newSelected);
+                      }}
+                      showBulkSelect={bulkActionMode}
                     />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                  ))
+                )}
+              </div>
+            )}
+          </div>
 
-          {/* Empty State */}
+          {/* Enhanced Empty State - Enhancement #12 */}
           {filteredTasks.length === 0 && (
             <Card className="text-center py-12">
               <CardContent>
                 <List size={48} className="mx-auto text-gray-400 mb-4" />
                 <h3 className="text-lg font-medium text-gray-600 mb-2">No tasks found</h3>
                 <p className="text-gray-500 mb-4">
-                  {searchTerm || statusFilter !== "all" 
-                    ? "Try adjusting your search or filter criteria" 
-                    : "Create your first task to get started"}
+                  {searchTerm && statusFilter !== "all" && priorityFilter !== "all"
+                    ? `No tasks match "${searchTerm}" with status "${statusFilter}" and priority "${priorityFilter}". Try clearing some filters.`
+                    : searchTerm && statusFilter !== "all"
+                    ? `No tasks match "${searchTerm}" with status "${statusFilter}". Try clearing the status filter or adjusting your search.`
+                    : searchTerm && priorityFilter !== "all"
+                    ? `No tasks match "${searchTerm}" with priority "${priorityFilter}". Try clearing the priority filter or adjusting your search.`
+                    : searchTerm
+                    ? `No tasks match "${searchTerm}". Try a different search term or clear the search.`
+                    : statusFilter !== "all" && priorityFilter !== "all"
+                    ? `No tasks have status "${statusFilter}" and priority "${priorityFilter}". Try clearing some filters.`
+                    : statusFilter !== "all"
+                    ? `No tasks have status "${statusFilter}". Try clearing the status filter.`
+                    : priorityFilter !== "all"
+                    ? `No tasks have priority "${priorityFilter}". Try clearing the priority filter.`
+                    : "Create your first task to get started with project management"
+                  }
                 </p>
-                <Button 
-                  onClick={() => setIsCreateDialogOpen(true)}
-                  className="construction-primary text-white"
-                >
-                  <Plus size={16} className="mr-2" />
-                  Create Task
-                </Button>
+                
+                <div className="flex justify-center space-x-3">
+                  {(searchTerm || statusFilter !== "all" || priorityFilter !== "all") && (
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        setSearchTerm("");
+                        setStatusFilter("all");
+                        setPriorityFilter("all");
+                        setShowAdvancedFilters(false);
+                      }}
+                      className="text-sm"
+                    >
+                      <RotateCcw size={14} className="mr-2" />
+                      Clear All Filters
+                    </Button>
+                  )}
+                  
+                  <Button 
+                    onClick={() => setIsCreateDialogOpen(true)}
+                    className="construction-primary text-white"
+                  >
+                    <Plus size={16} className="mr-2" />
+                    Create Task
+                  </Button>
+                </div>
+                
+                {/* Keyboard Shortcuts Hint - Enhancement #3 */}
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <p className="text-xs text-gray-400 mb-2">Keyboard shortcuts:</p>
+                  <div className="flex justify-center space-x-4 text-xs text-gray-500">
+                    <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs">Ctrl+N</kbd> New task</span>
+                    <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs">E</kbd> Edit selected</span>
+                    <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs">S</kbd> Change status</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
