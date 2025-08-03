@@ -6,11 +6,11 @@ from typing import Optional
 class User(BaseModel):
     """User model"""
     id: str
-    username: str
-    name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     email: str
     role: str
-    password: Optional[str] = None  # Exclude from responses
+    is_active: Optional[bool] = True
     
     class Config:
         from_attributes = True

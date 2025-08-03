@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status
 from src.models import Project, ProjectCreate, ProjectUpdate
 from src.database.repositories import ProjectRepository
 
-router = APIRouter(prefix="/projects", tags=["projects"])
+router = APIRouter()
 project_repo = ProjectRepository()
 
 

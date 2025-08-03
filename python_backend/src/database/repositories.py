@@ -516,21 +516,21 @@ class UserRepository(BaseRepository):
     async def get_all(self) -> List["User"]:
         """Get all users."""
         from ..models.user import User
-        query = f"SELECT id, username, name, email, role FROM {self.table_name} ORDER BY name"
+        query = f"SELECT id, first_name, last_name, email, role, is_active FROM {self.table_name} ORDER BY first_name, last_name"
         rows = await db_manager.execute_query(query)
         return [User(**self._convert_to_camel_case(dict(row))) for row in rows]
     
     async def get_by_role(self, role: str) -> List["User"]:
         """Get users by role."""
         from ..models.user import User
-        query = f"SELECT id, username, name, email, role FROM {self.table_name} WHERE role = $1 ORDER BY name"
+        query = f"SELECT id, first_name, last_name, email, role, is_active FROM {self.table_name} WHERE role = $1 ORDER BY first_name, last_name"
         rows = await db_manager.execute_query(query, role)
         return [User(**self._convert_to_camel_case(dict(row))) for row in rows]
     
     async def get_by_id(self, user_id: str) -> Optional["User"]:
         """Get user by ID."""
         from ..models.user import User
-        query = f"SELECT id, username, name, email, role FROM {self.table_name} WHERE id = $1"
+        query = f"SELECT id, first_name, last_name, email, role, is_active FROM {self.table_name} WHERE id = $1"
         row = await db_manager.execute_one(query, user_id)
         if row:
             return User(**self._convert_to_camel_case(dict(row)))

@@ -5,8 +5,14 @@ from typing import List
 from ..database.repositories import UserRepository
 from ..models.user import User
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter()
 user_repo = UserRepository()
+
+# Add route without trailing slash to handle both /api/users and /api/users/
+@router.get("", response_model=List[User])
+async def get_users_no_slash():
+    """Get all users (without trailing slash)"""
+    return await get_users()
 
 @router.get("/", response_model=List[User])
 async def get_users():

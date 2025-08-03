@@ -80,44 +80,44 @@ def create_api_router() -> APIRouter:
     print("🔍 DEBUG: Including API routers...")
     
     if projects_router:
-        api_router.include_router(projects_router)
+        api_router.include_router(projects_router, prefix="/projects", tags=["projects"])
         print("✅ Projects router included")
     else:
         print("⚠️  Projects router skipped (import failed)")
         
     if tasks_router:
-        api_router.include_router(tasks_router)
+        api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
         print("✅ Tasks router included")
     else:
         print("⚠️  Tasks router skipped (import failed)")
         
     if photos_router:
-        api_router.include_router(photos_router)
+        api_router.include_router(photos_router, prefix="/photos", tags=["photos"])
         print("✅ Photos router included")
     else:
         print("⚠️  Photos router skipped (import failed)")
         
     if dashboard_router:
-        api_router.include_router(dashboard_router)
+        api_router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
         print("✅ Dashboard router included")
     else:
         print("⚠️  Dashboard router skipped (import failed)")
         
     if notifications_router:
-        api_router.include_router(notifications_router)
+        api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
         print("✅ Notifications router included")
     else:
         print("⚠️  Notifications router skipped (import failed)")
         
     if schedule_router:
-        api_router.include_router(schedule_router)
+        api_router.include_router(schedule_router, prefix="/schedule-changes", tags=["schedule"])
         print("✅ Schedule router included")
     else:
         print("⚠️  Schedule router skipped (import failed)")
     
     if users_router:
         try:
-            api_router.include_router(users_router)
+            api_router.include_router(users_router, prefix="/users", tags=["users"])
             print("✅ Users router included successfully")
         except Exception as e:
             print(f"❌ ERROR including users router: {e}")
