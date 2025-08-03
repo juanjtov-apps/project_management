@@ -1,0 +1,36 @@
+	1.	Hero headline hierarchy
+“360° Project Management” is clear, but a short benefit-first line above it (e.g., “Your Construction Command Center”) can hook scanners before they process the angle + descriptor.
+	2.	Micro-copy under CTA
+The “Free 14-day trial. No credit card.” note is excellent—raise it one step up (closer to the buttons) and bump to text-sm so it isn’t lost.
+	3.	Primary vs. secondary buttons
+Visually, Get Started (filled navy) and Learn More (outlined teal) feel balanced—good. Add a subtle hover shadow to both for tactile feedback and keep the outline width identical (the teal outline looks 0.5 px lighter).
+	4.	Social-proof strip
+• Love the single testimonial quote + muted logo chips.
+• Tighten vertical space: shrink chip padding so the testimonial and logos feel like one band, not two separate sections.
+• Consider fading logos to 60 % opacity to keep focus on the quote.
+	5.	Sticky / disappearing nav
+The nav currently stays static and white; adding a slight drop shadow once the user scrolls 24 px makes it distinct from body content and anchors the eye.
+	6.	Subtle background texture
+The large white expanse above the fold can feel empty on wide monitors. A faint blueprint grid or diagonal dot pattern at 4 % opacity behind the hero adds construction flavor without weight.
+	7.	Scroll cue
+A down-chevron or “Scroll to see it in action” micro-animation beneath the CTAs nudges visitors to the Task-Canvas preview.
+	8.	Task-Canvas preview card
+• The embedded dashboard card looks crisp; add a soft 16 px blur shadow (rgba(0,0,0,0.06)) so it floats.
+• Try a gentle 3-sec autoplay GIF (or Lottie) that cycles a status change—motion sells “live” better than static.
+	9.	Section padding consistency
+Ensure equal top/bottom padding for each horizontal band (hero, proof, canvas). The proof strip feels 16 px tighter than the others.
+	10.	Button color reuse
+The teal outline on Learn More matches the progress bars below—nice. Repeat that teal for other outline buttons further down (e.g., View Calendar) to strengthen brand identity.
+	11.	Font-weight alignment
+In the scrolled view, project names (cards) are font-medium but task titles are regular. Making both medium creates a consistent reading rhythm.
+	12.	State chips contrast
+The red Critical chip passes contrast but the amber Medium chip borders on WCAG minimum. Darken amber slightly or switch chip text to dark grey.
+	13.	Card gutters on large screens
+On ≥1440 px width, the canvas card floats in lots of whitespace. Consider a max-width container (e.g., 1180 px) and center it so eyes aren’t tracking too far horizontally.
+	14.	Footer prompt
+Even a slim “Have questions? → Chat with us” sticky bubble (bottom-right) increases conversion for undecided visitors without cluttering hero real estate.
+	15.	Mobile check
+• Verify logo chips wrap to two rows gracefully.
+• Stack CTAs vertically with equal width; outline teal button often feels too small when shrunk.
+
+Apply 3–4 of these (nav shadow, scroll cue, chip contrast, GIF in dashboard preview) and the page will feel both more alive and more polished—without re-architecting the layout.
