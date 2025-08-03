@@ -1188,36 +1188,37 @@ async def update_user_status(user_id: str, request: Request):
     try:
         data = await request.json()
         
-        # Build dynamic update query based on provided fields
-        update_fields = []
+        # Build safe update query with explicit field mapping
+        update_assignments = []
         params = []
         
         if 'is_active' in data:
-            update_fields.append("is_active = %s")
+            update_assignments.append("is_active = %s")
             params.append(data['is_active'])
         
         if 'email' in data:
-            update_fields.append("email = %s")
+            update_assignments.append("email = %s")
             params.append(data['email'])
             
         if 'first_name' in data:
-            update_fields.append("first_name = %s")
+            update_assignments.append("first_name = %s")
             params.append(data['first_name'])
             
         if 'last_name' in data:
-            update_fields.append("last_name = %s")
+            update_assignments.append("last_name = %s")
             params.append(data['last_name'])
         
-        if not update_fields:
+        if not update_assignments:
             raise HTTPException(status_code=400, detail="No valid fields to update")
         
-        # Add updated timestamp and user ID
-        update_fields.append("updated_at = CURRENT_TIMESTAMP")
+        # Add updated timestamp
+        update_assignments.append("updated_at = CURRENT_TIMESTAMP")
         params.append(user_id)
         
-        query = f"""
+        # Use safe parameterized query construction
+        query = """
             UPDATE users 
-            SET {', '.join(update_fields)}
+            SET """ + ", ".join(update_assignments) + """
             WHERE id = %s
             RETURNING *
         """
