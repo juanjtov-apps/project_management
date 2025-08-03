@@ -35,7 +35,7 @@ Preferred communication style: Simple, everyday language.
 ✅ **Sign Out Button Fixed**: Connected onClick handler to logout functionality in header component - users can now properly sign out
 ✅ **Landing Page Comprehensive Overhaul**: Implemented all 11 requested improvements including sticky navigation, hero visual, social proof, enhanced features, testimonials, pricing teaser, and professional footer
 ✅ **Sticky Navigation Bar**: Added Product/Pricing/Customers/Resources links with blur effect and teal hover states
-✅ **Hero Visual Enhancement**: Created lightweight dashboard mockup showing real-time stats and activity feed
+✅ **Hero Visual Enhancement**: Created comprehensive task management dashboard mockup showing construction-specific workflow with color-coded priorities, real team assignments, and project context
 ✅ **CTA Micro-copy Added**: Included "Free 14-day trial. No credit card." beneath Get Started button
 ✅ **Social Proof Strip**: Featured testimonial "Proesphere cut our scheduling calls by 40%" with client logos (ACME Builders, Peak Construction, Elite Properties, Metro Contractors)
 ✅ **Feature Cards Redesign**: Enlarged icons to 56px (20x20 containers), shortened copy to single benefit lines, added "Learn more →" links
