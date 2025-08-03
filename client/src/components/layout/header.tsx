@@ -27,6 +27,20 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
     return name[0].toUpperCase();
   };
 
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Force redirect anyway
+      window.location.href = "/";
+    }
+  };
+
   return (
     <header className="bg-white border-b border-brand-grey px-6 py-4">
       <div className="max-w-[1440px] mx-auto">
@@ -72,7 +86,10 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
                 </div>
                 <span className="hidden md:block font-medium text-brand-blue">{user?.firstName || user?.name || 'Root'}</span>
               </div>
-              <button className="flex items-center space-x-1 text-brand-text opacity-60 hover:text-brand-coral hover:underline text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2 rounded px-1">
+              <button 
+                onClick={handleLogout}
+                className="flex items-center space-x-1 text-brand-text opacity-60 hover:text-brand-coral hover:underline text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2 rounded px-1"
+              >
                 <LogOut size={14} />
                 <span>Sign Out</span>
               </button>
