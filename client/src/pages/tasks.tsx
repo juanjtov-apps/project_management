@@ -24,30 +24,30 @@ import type { Task, InsertTask, Project } from "@shared/schema";
 const getPriorityColor = (priority: string) => {
   switch (priority) {
     case "critical":
-      return "bg-red-50 text-red-700 border border-red-200";
+      return "bg-red-50 text-red-700 border-red-300 border-[1.5px]";
     case "high":
-      return "bg-red-50 text-red-600 border border-red-200";
+      return "bg-orange-50 text-orange-700 border-orange-300 border-[1.5px]";
     case "medium":
-      return "bg-amber-50 text-amber-700 border border-amber-200";
+      return "bg-amber-50 text-[#212121] border-amber-300 border-[1.5px]";
     case "low":
-      return "bg-green-50 text-green-700 border border-green-200";
+      return "bg-green-50 text-green-700 border-green-300 border-[1.5px]";
     default:
-      return "bg-gray-50 text-gray-700 border border-gray-200";
+      return "bg-gray-50 text-gray-700 border-gray-300 border-[1.5px]";
   }
 };
 
 const getStatusColor = (status: string) => {
   switch (status) {
     case "completed":
-      return "bg-green-50 text-green-700 border border-green-200";
+      return "bg-green-50 text-green-700 border-green-300 border-[1.5px]";
     case "in-progress":
-      return "bg-blue-50 text-blue-700 border border-blue-200";
+      return "bg-blue-50 text-blue-700 border-blue-300 border-[1.5px]";
     case "blocked":
-      return "bg-red-50 text-red-700 border border-red-200";
+      return "bg-red-50 text-red-700 border-red-300 border-[1.5px]";
     case "pending":
-      return "bg-gray-50 text-gray-700 border border-gray-200";
+      return "bg-gray-50 text-gray-700 border-gray-300 border-[1.5px]";
     default:
-      return "bg-gray-50 text-gray-700 border border-gray-200";
+      return "bg-gray-50 text-gray-700 border-gray-300 border-[1.5px]";
   }
 };
 
@@ -75,9 +75,18 @@ const getTaskStats = (tasks: Task[]) => {
 const getProjectProgress = (tasks: Task[]) => {
   const total = tasks.length;
   const completed = tasks.filter(t => t.status === 'completed').length;
+  const overdue = tasks.filter(t => isTaskOverdue(t)).length;
   const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
   
-  return { total, completed, percentage };
+  // Color-coded progress bars based on project health
+  let progressColor = '#43A047'; // Green - on track
+  if (overdue > 0) {
+    progressColor = '#E53935'; // Red - has overdue tasks
+  } else if (percentage < 50 && total > 0) {
+    progressColor = '#FB8C00'; // Amber - slipping behind
+  }
+  
+  return { total, completed, percentage, progressColor };
 };
 
 const getCategoryIcon = (category: string) => {
@@ -274,7 +283,7 @@ function TaskListItem({
     <Card 
       className={cn(
         "transition-all cursor-pointer border-l-2 border-l-transparent hover:shadow-[0_1px_4px_rgba(0,0,0,0.06)]",
-        isOverdue && "bg-[#FFF4F4] border-red-200", // Lighter overdue tint
+        isOverdue && "border-l-red-500 border-l-2", // Red left accent bar for overdue
         isSelected && "bg-white border-l-blue-500 shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
       )}
       onClick={() => onScheduleChange?.(task)}
@@ -295,9 +304,12 @@ function TaskListItem({
               />
             )}
             
-            {/* Overdue Icon - Enhancement #6 */}
+            {/* Status Icons for Accessibility - Enhancement #7 */}
             {isOverdue && (
               <AlarmClock size={14} className="text-red-500 flex-shrink-0" />
+            )}
+            {task.status === "completed" && (
+              <CheckCircle size={14} className="text-green-500 flex-shrink-0" />
             )}
             
             <CategoryIcon size={16} className={`${iconClass} flex-shrink-0`} />
@@ -934,7 +946,7 @@ export default function Tasks() {
           
           <div className="flex items-center">
             {/* Keyboard shortcuts tooltip for empty space utilization */}
-            <div className="text-xs text-gray-500 mr-4 hidden md:block">
+            <div className="text-xs text-[#6B7280] mr-4 hidden md:block">
               ⌘F focuses search
             </div>
             
@@ -1138,7 +1150,7 @@ export default function Tasks() {
                                 cx="12"
                                 cy="12"
                                 r="8"
-                                stroke="#43A047"
+                                stroke={projectProgress.progressColor}
                                 strokeWidth="3"
                                 fill="none"
                                 strokeDasharray={50.24}
@@ -1154,7 +1166,7 @@ export default function Tasks() {
                               className="h-full transition-all duration-300 rounded-full"
                               style={{ 
                                 width: `${projectProgress.percentage}%`,
-                                background: `linear-gradient(90deg, rgba(67, 160, 71, 0.3) 0%, #43A047 100%)`
+                                background: `linear-gradient(90deg, ${projectProgress.progressColor}30 0%, ${projectProgress.progressColor} 100%)`
                               }}
                             />
                           </div>

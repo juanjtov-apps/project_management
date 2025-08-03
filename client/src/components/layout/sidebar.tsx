@@ -53,15 +53,13 @@ export default function Sidebar() {
             
             return (
               <li key={item.name} className="relative">
-                {isActive && (
-                  <div className="absolute left-0 top-0 w-1 h-full bg-brand-teal rounded-r-full"></div>
-                )}
+
                 <Link 
                   href={item.href}
                   className={cn(
                     "flex items-center p-3 rounded-lg font-medium transition-all duration-200 relative focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2",
                     isActive 
-                      ? "bg-brand-teal/10 text-brand-blue border-l-4 border-brand-teal ml-1" 
+                      ? "bg-brand-teal/5 text-brand-blue border-l-4 border-brand-teal" 
                       : "text-brand-text hover:bg-brand-teal/5 hover:text-brand-blue"
                   )}
                 >
