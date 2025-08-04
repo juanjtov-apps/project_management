@@ -355,13 +355,20 @@ export default function RBACAdmin() {
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      {roles
-                        .filter((role: Role) => !newUser.company_id || role.company_id?.toString() === newUser.company_id || !role.company_id)
-                        .map((role: Role) => (
-                          <SelectItem key={role.id} value={role.id.toString()}>
-                            {role.name} {!role.company_id && '(Platform)'}
-                          </SelectItem>
-                        ))}
+                      {roles && roles.length > 0 ? (
+                        roles
+                          .filter((role: Role) => {
+                            // Show platform roles (no company_id) and roles from selected company
+                            return !role.company_id || role.company_id?.toString() === newUser.company_id || role.is_template;
+                          })
+                          .map((role: Role) => (
+                            <SelectItem key={role.id} value={role.id.toString()}>
+                              {role.name} {(!role.company_id || role.is_template) && '(Global)'}
+                            </SelectItem>
+                          ))
+                      ) : (
+                        <SelectItem value="none" disabled>No roles available</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -468,13 +475,20 @@ export default function RBACAdmin() {
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      {roles
-                        .filter((role: Role) => !editingUser?.company_id || role.company_id?.toString() === editingUser.company_id?.toString() || !role.company_id)
-                        .map((role: Role) => (
-                          <SelectItem key={role.id} value={role.id.toString()}>
-                            {role.name} {!role.company_id && '(Platform)'}
-                          </SelectItem>
-                        ))}
+                      {roles && roles.length > 0 ? (
+                        roles
+                          .filter((role: Role) => {
+                            // Show platform roles (no company_id) and roles from user's company
+                            return !role.company_id || role.company_id?.toString() === editingUser?.company_id?.toString() || role.is_template;
+                          })
+                          .map((role: Role) => (
+                            <SelectItem key={role.id} value={role.id.toString()}>
+                              {role.name} {(!role.company_id || role.is_template) && '(Global)'}
+                            </SelectItem>
+                          ))
+                      ) : (
+                        <SelectItem value="none" disabled>No roles available</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

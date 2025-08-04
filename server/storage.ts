@@ -323,11 +323,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRoles(): Promise<any[]> {
-    return [
-      { id: '1', name: 'Admin', description: 'Administrator', company_id: '1', permissions: ['1', '2'], is_template: false, created_at: new Date(), updated_at: new Date() },
-      { id: '2', name: 'Manager', description: 'Project Manager', company_id: '1', permissions: ['1'], is_template: false, created_at: new Date(), updated_at: new Date() },
-      { id: '3', name: 'User', description: 'Regular User', company_id: '1', permissions: [], is_template: false, created_at: new Date(), updated_at: new Date() }
-    ];
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        SELECT r.id, r.name, r.description, r.company_id, r.is_template, r.created_at, r.updated_at,
+               ARRAY_AGG(DISTINCT rp.permission_id) FILTER (WHERE rp.permission_id IS NOT NULL) as permissions
+        FROM roles r
+        LEFT JOIN role_permissions rp ON r.id = rp.role_id
+        GROUP BY r.id, r.name, r.description, r.company_id, r.is_template, r.created_at, r.updated_at
+        ORDER BY r.company_id NULLS FIRST, r.name
+      `);
+      
+      return result.rows.map(row => ({
+        id: row.id.toString(),
+        name: row.name,
+        description: row.description,
+        company_id: row.company_id?.toString() || null,
+        permissions: row.permissions || [],
+        is_template: row.is_template || false,
+        created_at: row.created_at,
+        updated_at: row.updated_at
+      }));
+    } finally {
+      await pool.end();
+    }
   }
 
   async createRole(roleData: any): Promise<any> {
