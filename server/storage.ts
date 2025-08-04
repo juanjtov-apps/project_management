@@ -656,9 +656,11 @@ export class DatabaseStorage implements IStorage {
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
       const result = await pool.query(`
-        SELECT id, username, name, email, role, is_active, created_at 
-        FROM users 
-        ORDER BY name
+        SELECT u.id, u.username, u.name, u.email, u.role, u.is_active, u.created_at, 
+               u.company_id, c.name as company_name
+        FROM users u 
+        LEFT JOIN companies c ON u.company_id = c.id::text
+        ORDER BY c.name, u.name
       `);
       return result.rows.map(row => ({
         id: row.id,
@@ -666,8 +668,12 @@ export class DatabaseStorage implements IStorage {
         name: row.name,
         email: row.email,
         role: row.role,
+        role_id: row.role === 'admin' ? '1' : row.role === 'manager' ? '2' : '3',
         isActive: row.is_active,
-        createdAt: row.created_at
+        is_active: row.is_active,
+        createdAt: row.created_at,
+        company_id: row.company_id || '0',
+        company_name: row.company_name || 'Platform Administration'
       }));
     } finally {
       await pool.end();
