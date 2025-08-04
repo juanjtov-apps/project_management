@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -151,11 +152,14 @@ export default function RBACAdmin() {
   const deleteUserMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/users/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
+      // Invalidate both user endpoints to ensure proper cache refresh
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
       toast({ title: 'Success', description: 'User deleted successfully' });
     },
     onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      console.error('Delete user error:', error);
+      toast({ title: 'Error', description: error.message || 'Failed to delete user', variant: 'destructive' });
     }
   });
 
@@ -629,13 +633,35 @@ export default function RBACAdmin() {
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => deleteUserMutation.mutate(user.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className="text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete user "{user.name || user.email}"? This action cannot be undone and will remove all associated data.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => deleteUserMutation.mutate(user.id)}
+                                      className="bg-red-600 hover:bg-red-700"
+                                      disabled={deleteUserMutation.isPending}
+                                    >
+                                      {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </div>
                           </div>
                         ))}
