@@ -167,6 +167,8 @@ export function csrfProtection(req: express.Request, res: express.Response, next
     "http://localhost:5000",
     "http://localhost:3000", 
     "https://*.replit.app",
+    "https://*.replit.dev",
+    "https://*.picard.replit.dev",
     "https://proesphere.com",
     "https://*.proesphere.com",
     ...(process.env.REPLIT_DOMAINS?.split(",") || [])
