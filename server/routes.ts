@@ -124,24 +124,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
 
 
-  // PRODUCTION FIX: Companies endpoint using correct database schema
+  // PRODUCTION RBAC: Direct Node.js RBAC endpoints bypassing Python backend completely
+  
+  // Companies endpoints
+  app.get('/api/rbac/companies', async (req, res) => {
+    try {
+      console.log('PRODUCTION RBAC: Fetching companies directly from Node.js backend');
+      const companies = await storage.getCompanies();
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${companies.length} companies`);
+      res.json(companies);
+    } catch (error: any) {
+      console.error('Error fetching companies:', error);
+      res.status(500).json({ message: 'Failed to fetch companies', error: error.message });
+    }
+  });
+
+  app.post('/api/rbac/companies', async (req, res) => {
+    try {
+      console.log('PRODUCTION RBAC: Creating company via Node.js backend:', req.body);
+      const company = await storage.createCompany(req.body);
+      console.log('✅ NODE.JS SUCCESS: Company created:', company);
+      res.status(201).json(company);
+    } catch (error: any) {
+      console.error('Error creating company:', error);
+      res.status(500).json({ message: 'Failed to create company', error: error.message });
+    }
+  });
+
+  app.patch('/api/rbac/companies/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Updating company ${req.params.id} via Node.js backend:`, req.body);
+      const company = await storage.updateCompany(req.params.id, req.body);
+      if (!company) {
+        return res.status(404).json({ message: 'Company not found' });
+      }
+      console.log('✅ NODE.JS SUCCESS: Company updated:', company);
+      res.json(company);
+    } catch (error: any) {
+      console.error('Error updating company:', error);
+      res.status(500).json({ message: 'Failed to update company', error: error.message });
+    }
+  });
+
+  app.delete('/api/rbac/companies/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Deleting company ${req.params.id} via Node.js backend`);
+      const success = await storage.deleteCompany(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: 'Company not found' });
+      }
+      console.log('✅ NODE.JS SUCCESS: Company deleted');
+      res.json({ message: 'Company deleted successfully' });
+    } catch (error: any) {
+      console.error('Error deleting company:', error);
+      res.status(500).json({ message: 'Failed to delete company', error: error.message });
+    }
+  });
+
+  // Users endpoints
+  app.get('/api/rbac/users', async (req, res) => {
+    try {
+      console.log('PRODUCTION RBAC: Fetching users directly from Node.js backend');
+      const users = await storage.getUsers();
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${users.length} users`);
+      res.json(users);
+    } catch (error: any) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ message: 'Failed to fetch users', error: error.message });
+    }
+  });
+
+  // Roles endpoints
+  app.get('/api/rbac/roles', async (req, res) => {
+    try {
+      console.log('PRODUCTION RBAC: Fetching roles directly from Node.js backend');
+      const roles = await storage.getRoles();
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${roles.length} roles`);
+      res.json(roles);
+    } catch (error: any) {
+      console.error('Error fetching roles:', error);
+      res.status(500).json({ message: 'Failed to fetch roles', error: error.message });
+    }
+  });
+
+  // Permissions endpoints
+  app.get('/api/rbac/permissions', async (req, res) => {
+    try {
+      console.log('PRODUCTION RBAC: Fetching permissions directly from Node.js backend');
+      const permissions = await storage.getPermissions();
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${permissions.length} permissions`);
+      res.json(permissions);
+    } catch (error: any) {
+      console.error('Error fetching permissions:', error);
+      res.status(500).json({ message: 'Failed to fetch permissions', error: error.message });
+    }
+  });
+
+  // PRODUCTION FIX: Companies endpoint using correct database schema (keeping for backward compatibility)
   app.get('/api/companies', async (req, res) => {
     try {
       console.log('PRODUCTION FIX: Fetching companies from database');
-      const pg = await import('pg');
-      const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-      const result = await pool.query('SELECT id, name, domain, status, settings, created_at FROM companies ORDER BY name');
-      const companies = result.rows.map((row: any) => ({
-        id: row.id,
-        name: row.name,
-        domain: row.domain,
-        status: row.status,
-        settings: row.settings,
-        createdAt: row.created_at
-      }));
+      const companies = await storage.getCompanies();
       console.log(`✅ PRODUCTION SUCCESS: Retrieved ${companies.length} companies from database`);
       res.json(companies);
-      await pool.end();
     } catch (error: any) {
       console.error('Error fetching companies:', error);
       res.status(500).json({ error: 'Failed to fetch companies', details: error.message });

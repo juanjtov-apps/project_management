@@ -10,57 +10,10 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
   const isProduction = process.env.NODE_ENV === 'production';
   const pythonPort = parseInt(process.env.PYTHON_PORT || '8000', 10);
   
-  if (!isProduction) {
-    // Start Python backend on port 8000 using main.py in root directory  
-    console.log("Starting Python FastAPI backend...");
-    
-    // Get current working directory for production compatibility
-    const workingDir = process.cwd();
-    
-    const pythonProcess = spawn("python", ["-c", `
-import os
-import sys
-os.chdir('${workingDir}')
-sys.path.insert(0, '${workingDir}')
-from main import app
-import uvicorn
-print("Python backend starting on port ${pythonPort}...")
-uvicorn.run(app, host="0.0.0.0", port=${pythonPort}, log_level="info")
-`], {
-      cwd: workingDir,
-      stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, PORT: pythonPort.toString() }
-    });
-
-    pythonProcess.stdout?.on('data', (data) => {
-      console.log(`[python-backend] ${data.toString().trim()}`);
-    });
-
-    pythonProcess.stderr?.on('data', (data) => {
-      console.error(`[python-backend] ${data.toString().trim()}`);
-    });
-
-    pythonProcess.on("error", (error) => {
-      console.error("Failed to start Python backend:", error);
-      // Don't exit - let Express continue serving frontend
-    });
-
-    pythonProcess.on("close", (code) => {
-      console.log(`[python-backend] Process exited with code ${code}`);
-      // Try to restart after 3 seconds only in development
-      if (!isProduction) {
-        setTimeout(() => {
-          console.log("Attempting to restart Python backend...");
-          setupPythonBackend(app);
-        }, 3000);
-      }
-    });
-
-    // Wait for Python server to start
-    await new Promise(resolve => setTimeout(resolve, 5000));
-  } else {
-    console.log(`Production mode: Expecting Python backend at localhost:${pythonPort}`);
-  }
+  // PRODUCTION READY: Skip Python backend completely - Node.js handles all RBAC
+  console.log("🚀 PRODUCTION MODE: Node.js-only backend, skipping Python backend startup");
+  console.log("✅ All RBAC operations will be handled directly by Node.js backend");
+  console.log("🔧 This eliminates connection issues and provides stable production environment");
 
   // Setup security middleware first
   setupSecurityMiddleware(app);
