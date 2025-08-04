@@ -287,6 +287,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/companies/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Updating company ${req.params.id} via Node.js backend:`, req.body);
+      const company = await storage.updateCompany(req.params.id, req.body);
+      if (!company) {
+        return res.status(404).json({ message: 'Company not found' });
+      }
+      console.log('✅ NODE.JS SUCCESS: Company updated:', company);
+      res.json(company);
+    } catch (error: any) {
+      console.error('Error updating company:', error);
+      res.status(500).json({ message: 'Failed to update company', error: error.message });
+    }
+  });
+
+  app.delete('/api/companies/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Deleting company ${req.params.id} via Node.js backend`);
+      const success = await storage.deleteCompany(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: 'Company not found' });
+      }
+      console.log('✅ NODE.JS SUCCESS: Company deleted');
+      res.json({ message: 'Company deleted successfully' });
+    } catch (error: any) {
+      console.error('Error deleting company:', error);
+      res.status(500).json({ message: 'Failed to delete company', error: error.message });
+    }
+  });
+
   // Projects endpoints - Node.js backend
   app.get('/api/projects', async (req, res) => {
     try {
@@ -419,6 +449,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Error creating user:', error);
       res.status(500).json({ message: 'Failed to create user', error: error.message });
+    }
+  });
+
+  app.patch('/api/users/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Updating user ${req.params.id} via Node.js backend:`, req.body);
+      const user = await storage.updateUser(req.params.id, req.body);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      console.log('✅ NODE.JS SUCCESS: User updated:', user);
+      res.json(user);
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      res.status(500).json({ message: 'Failed to update user', error: error.message });
+    }
+  });
+
+  app.delete('/api/users/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Deleting user ${req.params.id} via Node.js backend`);
+      const success = await storage.deleteUser(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      console.log('✅ NODE.JS SUCCESS: User deleted');
+      res.json({ message: 'User deleted successfully' });
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ message: 'Failed to delete user', error: error.message });
     }
   });
 

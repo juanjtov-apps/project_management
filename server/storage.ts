@@ -640,6 +640,46 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async updateUser(id: string, data: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const { username, name, email, role, isActive } = data;
+      const result = await pool.query(`
+        UPDATE users 
+        SET username = $1, name = $2, email = $3, role = $4, is_active = $5, updated_at = NOW()
+        WHERE id = $6
+        RETURNING id, username, name, email, role, is_active, created_at
+      `, [username, name, email, role, isActive, id]);
+      
+      if (result.rows.length === 0) return null;
+      
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        username: row.username,
+        name: row.name,
+        email: row.email,
+        role: row.role,
+        isActive: row.is_active,
+        createdAt: row.created_at
+      };
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query('DELETE FROM users WHERE id = $1', [id]);
+      return result.rowCount > 0;
+    } finally {
+      await pool.end();
+    }
+  }
+
   // Company CRUD operations
   async getCompanies(): Promise<any[]> {
     const pg = await import('pg');
@@ -689,6 +729,45 @@ export class DatabaseStorage implements IStorage {
         settings: row.settings,
         createdAt: row.created_at
       };
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async updateCompany(id: string, data: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const { name, domain, status, settings } = data;
+      const result = await pool.query(`
+        UPDATE companies 
+        SET name = $1, domain = $2, status = $3, settings = $4, updated_at = NOW()
+        WHERE id = $5
+        RETURNING id, name, domain, status, settings, created_at
+      `, [name, domain, status, JSON.stringify(settings), id]);
+      
+      if (result.rows.length === 0) return null;
+      
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        name: row.name,
+        domain: row.domain,
+        status: row.status,
+        settings: row.settings,
+        createdAt: row.created_at
+      };
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async deleteCompany(id: string): Promise<boolean> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query('DELETE FROM companies WHERE id = $1', [id]);
+      return result.rowCount > 0;
     } finally {
       await pool.end();
     }
