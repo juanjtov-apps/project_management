@@ -96,8 +96,13 @@ export async function setupAuth(app: Express) {
     verified(null, user);
   };
 
-  for (const domain of process.env
-    .REPLIT_DOMAINS!.split(",")) {
+  // Add proesphere.com domain support
+  const domains = [
+    ...process.env.REPLIT_DOMAINS!.split(","),
+    "proesphere.com"
+  ];
+  
+  for (const domain of domains) {
     const cleanDomain = domain.trim();
     const strategyName = `replitauth:${cleanDomain}`;
     
