@@ -336,8 +336,21 @@ export default function RBACAdmin() {
                       toast({ title: 'Error', description: 'All fields are required', variant: 'destructive' });
                       return;
                     }
-                    console.log('Creating user with data:', newUser); // Debug logging
-                    createUserMutation.mutate(newUser);
+                    
+                    // Map frontend fields to backend expected format
+                    const userPayload = {
+                      email: newUser.email,
+                      username: newUser.email, // Use email as username
+                      name: `${newUser.first_name} ${newUser.last_name}`.trim(), // Combine first and last name
+                      first_name: newUser.first_name,
+                      last_name: newUser.last_name,
+                      company_id: newUser.company_id,
+                      role_id: newUser.role_id,
+                      password: newUser.password || 'defaultpassword123' // Ensure password is included
+                    };
+                    
+                    console.log('Creating user with mapped data:', userPayload); // Debug logging
+                    createUserMutation.mutate(userPayload);
                     setIsCreateDialogOpen(false);
                     setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '' });
                   }}
