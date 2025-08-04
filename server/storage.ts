@@ -782,11 +782,21 @@ export class DatabaseStorage implements IStorage {
         throw new Error('Company name is required');
       }
 
+      // Generate unique domain if not provided or empty
+      let finalDomain = domain;
+      if (!finalDomain || finalDomain.trim() === '') {
+        const timestamp = Date.now().toString().slice(-8);
+        const nameSlug = name.toLowerCase()
+          .replace(/[^a-z0-9]/g, '')
+          .slice(0, 12);
+        finalDomain = `${nameSlug}-${timestamp}.com`;
+      }
+
       const result = await pool.query(`
         INSERT INTO companies (name, domain, status, settings, created_at)
         VALUES ($1, $2, $3, $4, NOW())
         RETURNING id, name, domain, status, settings, created_at
-      `, [name, domain, status, JSON.stringify(settings)]);
+      `, [name, finalDomain, status, JSON.stringify(settings)]);
       
       const row = result.rows[0];
 

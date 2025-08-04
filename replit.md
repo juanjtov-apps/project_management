@@ -36,7 +36,7 @@ Preferred communication style: Simple, everyday language.
 - **Disabled Python backend proxy completely** ✅
 
 **Database Verified**: All core tables operational with production data
-- Companies: 26 records (increased from 21) ✅
+- Companies: 28+ records (with automatic domain generation) ✅
 - Users: 25+ records ✅  
 - Projects: 42 records (with cascade deletion capability) ✅
 - Tasks: 92+ records ✅

@@ -975,7 +975,19 @@ export default function RBACAdmin() {
                       toast({ title: 'Error', description: 'Company name is required', variant: 'destructive' });
                       return;
                     }
-                    createCompanyMutation.mutate(newCompany);
+                    
+                    // Generate unique domain if not provided or empty
+                    const companyToCreate = { ...newCompany };
+                    if (!companyToCreate.domain || companyToCreate.domain.trim() === '') {
+                      // Generate unique domain from company name + timestamp
+                      const timestamp = Date.now().toString().slice(-8);
+                      const nameSlug = companyToCreate.name.toLowerCase()
+                        .replace(/[^a-z0-9]/g, '')
+                        .slice(0, 12);
+                      companyToCreate.domain = `${nameSlug}-${timestamp}.com`;
+                    }
+                    
+                    createCompanyMutation.mutate(companyToCreate);
                     setIsCreateDialogOpen(false);
                     setNewCompany({ 
                       name: '', 
