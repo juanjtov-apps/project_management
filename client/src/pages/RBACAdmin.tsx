@@ -128,17 +128,7 @@ export default function RBACAdmin() {
     }
   });
 
-  // Company delete mutation
-  const deleteCompanyMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/companies/${id}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/rbac/companies'] });
-      toast({ title: 'Success', description: 'Company deleted successfully' });
-    },
-    onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    }
-  });
+
 
   const createRoleMutation = useMutation({
     mutationFn: (roleData: any) => apiRequest('/api/rbac/roles', { method: 'POST', body: roleData }),
@@ -829,6 +819,8 @@ export default function RBACAdmin() {
     const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
     const [isViewUsersDialogOpen, setIsViewUsersDialogOpen] = useState(false);
     const [showOnlyWithUsers, setShowOnlyWithUsers] = useState(false);
+    const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
+    const [isDeleteConfirmDialogOpen, setIsDeleteConfirmDialogOpen] = useState(false);
     const [newCompany, setNewCompany] = useState({
       name: '',
       domain: '',
@@ -874,6 +866,24 @@ export default function RBACAdmin() {
       },
       onError: (error: any) => {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      }
+    });
+
+    // Company delete mutation
+    const deleteCompanyMutation = useMutation({
+      mutationFn: (id: string) => apiRequest(`/api/companies/${id}`, { method: 'DELETE' }),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['/api/rbac/companies'] });
+        toast({ title: 'Success', description: 'Company deleted successfully' });
+        // Close the delete confirmation dialog
+        setIsDeleteConfirmDialogOpen(false);
+        setCompanyToDelete(null);
+      },
+      onError: (error: any) => {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        // Close the delete confirmation dialog on error too
+        setIsDeleteConfirmDialogOpen(false);
+        setCompanyToDelete(null);
       }
     });
 
@@ -1189,6 +1199,87 @@ export default function RBACAdmin() {
           </DialogContent>
         </Dialog>
 
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={isDeleteConfirmDialogOpen} onOpenChange={setIsDeleteConfirmDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <Trash2 className="w-5 h-5" />
+                Delete Company
+              </DialogTitle>
+              <DialogDescription>
+                This action cannot be undone. This will permanently delete the company and remove all associated data.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="bg-muted/50 p-4 rounded-lg border">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center flex-shrink-0">
+                    <Building className="w-5 h-5 text-destructive" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-foreground">{companyToDelete?.name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {companyToDelete?.domain && `Domain: ${companyToDelete.domain}`}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Type: {companyToDelete?.settings?.type} • {companyToDelete?.settings?.subscription_tier}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Users: {companyToDelete ? (userCountsByCompany[companyToDelete.name] || 0) : 0}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-lg">
+                <div className="flex gap-2">
+                  <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <div className="font-medium text-destructive">Warning</div>
+                    <div className="text-destructive/80">
+                      All projects, tasks, users, and associated data will be permanently removed.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsDeleteConfirmDialogOpen(false);
+                  setCompanyToDelete(null);
+                }}
+                disabled={deleteCompanyMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => {
+                  if (companyToDelete) {
+                    deleteCompanyMutation.mutate(companyToDelete.id.toString());
+                  }
+                }}
+                disabled={deleteCompanyMutation.isPending}
+                className="min-w-20"
+              >
+                {deleteCompanyMutation.isPending ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                    Deleting...
+                  </div>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Company
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {companiesLoading ? (
             <Card>
@@ -1249,9 +1340,8 @@ export default function RBACAdmin() {
                         size="sm" 
                         variant="destructive"
                         onClick={() => {
-                          if (window.confirm(`Are you sure you want to delete "${company.name}"? This action cannot be undone and will remove all associated data.`)) {
-                            deleteCompanyMutation.mutate(company.id.toString());
-                          }
+                          setCompanyToDelete(company);
+                          setIsDeleteConfirmDialogOpen(true);
                         }}
                         disabled={deleteCompanyMutation.isPending}
                       >
