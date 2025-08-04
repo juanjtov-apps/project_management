@@ -242,10 +242,16 @@ export default function RBACAdmin() {
       }
     });
 
-    // Group filtered users by company
+    // Group filtered users by company, including companies with no users
     const usersByCompany = React.useMemo(() => {
       const grouped: { [key: string]: UserProfile[] } = {};
       
+      // First, initialize all companies with empty arrays
+      filteredCompanies.forEach((company: Company) => {
+        grouped[company.name] = [];
+      });
+      
+      // Then add users to their respective companies
       filteredUsers.forEach((user: UserProfile) => {
         const companyKey = user.company_name || 'Unassigned';
         if (!grouped[companyKey]) {
@@ -255,7 +261,7 @@ export default function RBACAdmin() {
       });
       
       return grouped;
-    }, [filteredUsers]);
+    }, [filteredUsers, filteredCompanies]);
 
     const toggleCompanyExpansion = (companyName: string) => {
       const newExpanded = new Set(expandedCompanies);
