@@ -431,8 +431,37 @@ export class DatabaseStorage implements IStorage {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
+      // Start transaction for atomic operation
+      await pool.query('BEGIN');
+      
+      // 1. Delete schedule changes related to tasks in this project
+      await pool.query(`
+        DELETE FROM schedule_changes 
+        WHERE task_id IN (SELECT id FROM tasks WHERE project_id = $1)
+      `, [id]);
+      
+      // 2. Delete subcontractor assignments for this project
+      await pool.query('DELETE FROM subcontractor_assignments WHERE project_id = $1', [id]);
+      
+      // 3. Delete all tasks associated with this project
+      await pool.query('DELETE FROM tasks WHERE project_id = $1', [id]);
+      
+      // 4. Delete any photos associated with this project
+      await pool.query('DELETE FROM photos WHERE project_id = $1', [id]);
+      
+      // 5. Delete any project logs associated with this project
+      await pool.query('DELETE FROM project_logs WHERE project_id = $1', [id]);
+      
+      // 6. Finally delete the project
       const result = await pool.query('DELETE FROM projects WHERE id = $1', [id]);
+      
+      // Commit transaction
+      await pool.query('COMMIT');
       return result.rowCount > 0;
+    } catch (error) {
+      // Rollback on error
+      await pool.query('ROLLBACK');
+      throw error;
     } finally {
       await pool.end();
     }

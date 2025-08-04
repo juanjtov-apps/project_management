@@ -86,7 +86,7 @@ export default function RBACAdmin() {
   });
 
   const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
-    queryKey: ['/api/rbac/companies'],
+    queryKey: ['/api/companies'],
   });
 
   const { data: users = [], isLoading: usersLoading } = useQuery<UserProfile[]>({
@@ -163,9 +163,9 @@ export default function RBACAdmin() {
   });
 
   const createCompanyMutation = useMutation({
-    mutationFn: (companyData: any) => apiRequest('/api/rbac/companies', { method: 'POST', body: companyData }),
+    mutationFn: (companyData: any) => apiRequest('/api/companies', { method: 'POST', body: companyData }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/rbac/companies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/companies'] });
       toast({ title: 'Success', description: 'Company created successfully' });
     },
     onError: (error: any) => {
