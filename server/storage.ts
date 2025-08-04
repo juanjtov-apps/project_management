@@ -576,6 +576,123 @@ export class DatabaseStorage implements IStorage {
       await pool.end();
     }
   }
+
+  // User CRUD operations
+  async getUsers(): Promise<any[]> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        SELECT id, username, name, email, role, is_active, created_at 
+        FROM users 
+        ORDER BY name
+      `);
+      return result.rows.map(row => ({
+        id: row.id,
+        username: row.username,
+        name: row.name,
+        email: row.email,
+        role: row.role,
+        isActive: row.is_active,
+        createdAt: row.created_at
+      }));
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async createUser(userData: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const { username, name, email, role = 'crew', password, isActive = true } = userData;
+      
+      if (!username || !name || !email) {
+        throw new Error('Username, name, and email are required');
+      }
+
+      // Hash password if provided
+      let hashedPassword = null;
+      if (password) {
+        const bcrypt = await import('bcrypt');
+        hashedPassword = await bcrypt.hash(password, 10);
+      }
+
+      const result = await pool.query(`
+        INSERT INTO users (username, name, email, role, password, is_active, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        RETURNING id, username, name, email, role, is_active, created_at
+      `, [username, name, email, role, hashedPassword, isActive]);
+      
+      const row = result.rows[0];
+
+      return {
+        id: row.id,
+        username: row.username,
+        name: row.name,
+        email: row.email,
+        role: row.role,
+        isActive: row.is_active,
+        createdAt: row.created_at
+      };
+    } finally {
+      await pool.end();
+    }
+  }
+
+  // Company CRUD operations
+  async getCompanies(): Promise<any[]> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        SELECT id, name, domain, status, settings, created_at 
+        FROM companies 
+        ORDER BY name
+      `);
+      return result.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        domain: row.domain,
+        status: row.status,
+        settings: row.settings,
+        createdAt: row.created_at
+      }));
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async createCompany(companyData: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const { name, domain, status = 'active', settings = {}, isActive = true } = companyData;
+      
+      if (!name) {
+        throw new Error('Company name is required');
+      }
+
+      const result = await pool.query(`
+        INSERT INTO companies (name, domain, status, settings, created_at)
+        VALUES ($1, $2, $3, $4, NOW())
+        RETURNING id, name, domain, status, settings, created_at
+      `, [name, domain, status, JSON.stringify(settings)]);
+      
+      const row = result.rows[0];
+
+      return {
+        id: row.id,
+        name: row.name,
+        domain: row.domain,
+        status: row.status,
+        settings: row.settings,
+        createdAt: row.created_at
+      };
+    } finally {
+      await pool.end();
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();

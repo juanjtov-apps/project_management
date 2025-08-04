@@ -262,16 +262,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PRODUCTION FIX: Companies endpoint using correct database schema (keeping for backward compatibility)
+  // Companies endpoints - Node.js backend
   app.get('/api/companies', async (req, res) => {
     try {
-      console.log('PRODUCTION FIX: Fetching companies from database');
+      console.log('PRODUCTION RBAC: Fetching companies directly from Node.js backend');
       const companies = await storage.getCompanies();
-      console.log(`✅ PRODUCTION SUCCESS: Retrieved ${companies.length} companies from database`);
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${companies.length} companies`);
       res.json(companies);
     } catch (error: any) {
       console.error('Error fetching companies:', error);
-      res.status(500).json({ error: 'Failed to fetch companies', details: error.message });
+      res.status(500).json({ message: 'Failed to fetch companies', error: error.message });
+    }
+  });
+
+  app.post('/api/companies', async (req, res) => {
+    try {
+      console.log('PRODUCTION RBAC: Creating company via Node.js backend:', req.body);
+      const company = await storage.createCompany(req.body);
+      console.log('✅ NODE.JS SUCCESS: Company created:', company);
+      res.status(201).json(company);
+    } catch (error: any) {
+      console.error('Error creating company:', error);
+      res.status(500).json({ message: 'Failed to create company', error: error.message });
     }
   });
 
@@ -385,44 +397,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PRODUCTION FIX: Users endpoint using correct database schema
+  // Users endpoints - Node.js backend
   app.get('/api/users', async (req, res) => {
     try {
-      console.log('PRODUCTION FIX: Fetching users from database');
-      const pg = await import('pg');
-      const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-      const result = await pool.query('SELECT id, username, name, email, role, is_active, created_at FROM users ORDER BY name');
-      const users = result.rows.map((row: any) => ({
-        id: row.id,
-        username: row.username,
-        name: row.name,
-        email: row.email,
-        role: row.role,
-        isActive: row.is_active,
-        createdAt: row.created_at
-      }));
-      console.log(`✅ PRODUCTION SUCCESS: Retrieved ${users.length} users from database`);
+      console.log('PRODUCTION RBAC: Fetching users directly from Node.js backend');
+      const users = await storage.getUsers();
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${users.length} users`);
       res.json(users);
-      await pool.end();
     } catch (error: any) {
       console.error('Error fetching users:', error);
-      res.status(500).json({ error: 'Failed to fetch users', details: error.message });
+      res.status(500).json({ message: 'Failed to fetch users', error: error.message });
     }
   });
 
-  // PRODUCTION CRITICAL: Add POST route for users
   app.post('/api/users', async (req, res) => {
     try {
-      const response = await fetch('http://localhost:8000/api/rbac/companies/comp-001/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(req.body)
-      });
-      const data = await response.json();
-      res.status(response.status).json(data);
-    } catch (error) {
+      console.log('PRODUCTION RBAC: Creating user via Node.js backend:', req.body);
+      const user = await storage.createUser(req.body);
+      console.log('✅ NODE.JS SUCCESS: User created:', user);
+      res.status(201).json(user);
+    } catch (error: any) {
       console.error('Error creating user:', error);
-      res.status(500).json({ error: 'Failed to create user' });
+      res.status(500).json({ message: 'Failed to create user', error: error.message });
     }
   });
 
