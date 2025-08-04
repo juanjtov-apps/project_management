@@ -87,31 +87,30 @@ export default function RBACAdmin() {
     queryKey: ['/api/rbac/permissions'],
   });
 
+  // Block access for non-root users - RBAC admin is only for system administrators
+  const isRootAdmin = currentUser?.email?.includes('admin') || currentUser?.email?.includes('chacjjlegacy') || currentUser?.role === 'admin';
+
   const { data: roles = [], isLoading: rolesLoading } = useQuery<Role[]>({
     queryKey: ['/api/rbac/roles'],
   });
 
-  // Only admins can see all companies and users
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.email?.includes('admin');
-  
   const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
     queryKey: ['/api/companies'],
-    enabled: isAdmin, // Only load for admins
+    enabled: isRootAdmin, // Only load for root admins
   });
 
   const { data: users = [], isLoading: usersLoading } = useQuery<UserProfile[]>({
     queryKey: ['/api/rbac/users'],
-    enabled: isAdmin, // Only load for admins  
+    enabled: isRootAdmin, // Only load for root admins  
   });
-
-  // Block access for non-admin users
-  if (!isAdmin && !currentUser?.email?.includes('chacjjlegacy')) {
+  
+  if (!isRootAdmin) {
     return (
       <div className="container mx-auto p-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-destructive mb-4">Access Denied</h1>
-          <p className="text-muted-foreground">You don't have permission to access this admin panel.</p>
-          <p className="text-sm text-muted-foreground mt-2">Contact your administrator for access.</p>
+          <p className="text-muted-foreground">RBAC Administration is restricted to system administrators only.</p>
+          <p className="text-sm text-muted-foreground mt-2">Regular users can only access their company's projects and tasks.</p>
         </div>
       </div>
     );

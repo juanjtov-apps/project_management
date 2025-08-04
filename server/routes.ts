@@ -359,13 +359,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Projects endpoints - Node.js backend
+  // Projects endpoints - Node.js backend with multi-tenant security
   app.get('/api/projects', async (req, res) => {
     try {
       console.log('PRODUCTION RBAC: Fetching projects directly from Node.js backend');
+      
+      // Get current user session to apply company filtering
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Only root admins can see all projects, regular users see their company's projects only
+      const isRootAdmin = user.email?.includes('admin') || user.email?.includes('chacjjlegacy') || user.role === 'admin';
+      
       const projects = await storage.getProjects();
-      console.log(`✅ NODE.JS SUCCESS: Retrieved ${projects.length} projects`);
-      res.json(projects);
+      
+      // Filter projects by company for non-admin users
+      const filteredProjects = isRootAdmin ? projects : projects.filter(project => 
+        project.company_id === user.company_id || project.company_id === '0'
+      );
+      
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredProjects.length} projects for user ${user.email} (${isRootAdmin ? 'admin' : 'company-filtered'})`);
+      res.json(filteredProjects);
     } catch (error: any) {
       console.error('Error fetching projects:', error);
       res.status(500).json({ message: 'Failed to fetch projects', error: error.message });
@@ -414,13 +435,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Tasks endpoints - Node.js backend
+  // Tasks endpoints - Node.js backend with multi-tenant security
   app.get('/api/tasks', async (req, res) => {
     try {
       console.log('PRODUCTION RBAC: Fetching tasks directly from Node.js backend');
+      
+      // Get current user session to apply company filtering
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Only root admins can see all tasks, regular users see their company's tasks only
+      const isRootAdmin = user.email?.includes('admin') || user.email?.includes('chacjjlegacy') || user.role === 'admin';
+      
       const tasks = await storage.getTasks();
-      console.log(`✅ NODE.JS SUCCESS: Retrieved ${tasks.length} tasks`);
-      res.json(tasks);
+      
+      // Filter tasks by company for non-admin users
+      const filteredTasks = isRootAdmin ? tasks : tasks.filter(task => 
+        task.company_id === user.company_id || task.company_id === '0'
+      );
+      
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredTasks.length} tasks for user ${user.email} (${isRootAdmin ? 'admin' : 'company-filtered'})`);
+      res.json(filteredTasks);
     } catch (error: any) {
       console.error('Error fetching tasks:', error);
       res.status(500).json({ message: 'Failed to fetch tasks', error: error.message });

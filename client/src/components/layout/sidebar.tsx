@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import { 
   LayoutDashboard, 
   Building, 
@@ -30,8 +31,25 @@ const navigation = [
 export default function Sidebar() {
   const [location] = useLocation();
   
+  // Get current user to check admin access
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ['/api/auth/user'],
+    retry: false
+  });
+  
+  // Only show RBAC Admin to root admins
+  const isRootAdmin = currentUser?.email?.includes('admin') || currentUser?.email?.includes('chacjjlegacy') || currentUser?.role === 'admin';
+  
+  // Filter navigation based on user role
+  const filteredNavigation = navigation.filter(item => {
+    if (item.name === 'RBAC Admin') {
+      return isRootAdmin;
+    }
+    return true;
+  });
+  
   // Debug logging to check navigation items
-  console.log('Sidebar navigation items:', navigation.length, navigation.map(item => item.name));
+  console.log('Sidebar navigation items:', filteredNavigation.length, filteredNavigation.map(item => item.name));
 
   return (
     <aside className="w-64 bg-brand-blue/5 shadow-lg border-r border-brand-grey hidden lg:block">
@@ -52,7 +70,7 @@ export default function Sidebar() {
       
       <nav className="p-4">
         <ul className="space-y-2">
-          {navigation.map((item) => {
+          {filteredNavigation.map((item) => {
             const isActive = location === item.href;
             const Icon = item.icon;
             
