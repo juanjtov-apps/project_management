@@ -128,6 +128,18 @@ export default function RBACAdmin() {
     }
   });
 
+  // Company delete mutation
+  const deleteCompanyMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/companies/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/companies'] });
+      toast({ title: 'Success', description: 'Company deleted successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  });
+
   const createRoleMutation = useMutation({
     mutationFn: (roleData: any) => apiRequest('/api/rbac/roles', { method: 'POST', body: roleData }),
     onSuccess: () => {
@@ -1232,6 +1244,19 @@ export default function RBACAdmin() {
                       >
                         <Eye className="w-4 h-4 mr-2" />
                         View Users
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        onClick={() => {
+                          if (window.confirm(`Are you sure you want to delete "${company.name}"? This action cannot be undone and will remove all associated data.`)) {
+                            deleteCompanyMutation.mutate(company.id.toString());
+                          }
+                        }}
+                        disabled={deleteCompanyMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
                       </Button>
                     </div>
                   </div>
