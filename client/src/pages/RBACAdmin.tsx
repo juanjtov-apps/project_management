@@ -43,8 +43,13 @@ interface Role {
 interface Company {
   id: string;
   name: string;
-  type: string;
-  subscription_tier: string;
+  domain?: string;
+  status: 'active' | 'suspended' | 'pending';
+  settings: {
+    type: string;
+    subscription_tier: string;
+    [key: string]: any;
+  };
   created_at: string;
   is_active: boolean;
 }
@@ -814,8 +819,9 @@ export default function RBACAdmin() {
     const [showOnlyWithUsers, setShowOnlyWithUsers] = useState(false);
     const [newCompany, setNewCompany] = useState({
       name: '',
-      type: 'customer',
-      subscription_tier: 'basic'
+      domain: '',
+      status: 'active',
+      settings: { type: 'customer', subscription_tier: 'basic' }
     });
 
     // Calculate user counts per company
@@ -905,8 +911,20 @@ export default function RBACAdmin() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="domain">Domain (optional)</Label>
+                  <Input
+                    id="domain"
+                    value={newCompany.domain}
+                    placeholder="company.example.com"
+                    onChange={(e) => setNewCompany({ ...newCompany, domain: e.target.value })}
+                  />
+                </div>
+                <div>
                   <Label htmlFor="type">Company Type</Label>
-                  <Select value={newCompany.type} onValueChange={(value) => setNewCompany({ ...newCompany, type: value })}>
+                  <Select value={newCompany.settings.type} onValueChange={(value) => setNewCompany({ 
+                    ...newCompany, 
+                    settings: { ...newCompany.settings, type: value }
+                  })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -919,7 +937,10 @@ export default function RBACAdmin() {
                 </div>
                 <div>
                   <Label htmlFor="subscription">Subscription Tier</Label>
-                  <Select value={newCompany.subscription_tier} onValueChange={(value) => setNewCompany({ ...newCompany, subscription_tier: value })}>
+                  <Select value={newCompany.settings.subscription_tier} onValueChange={(value) => setNewCompany({ 
+                    ...newCompany, 
+                    settings: { ...newCompany.settings, subscription_tier: value }
+                  })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -927,6 +948,19 @@ export default function RBACAdmin() {
                       <SelectItem value="basic">Basic</SelectItem>
                       <SelectItem value="professional">Professional</SelectItem>
                       <SelectItem value="enterprise">Enterprise</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={newCompany.status} onValueChange={(value) => setNewCompany({ ...newCompany, status: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -943,7 +977,12 @@ export default function RBACAdmin() {
                     }
                     createCompanyMutation.mutate(newCompany);
                     setIsCreateDialogOpen(false);
-                    setNewCompany({ name: '', type: 'customer', subscription_tier: 'basic' });
+                    setNewCompany({ 
+                      name: '', 
+                      domain: '', 
+                      status: 'active', 
+                      settings: { type: 'customer', subscription_tier: 'basic' } 
+                    });
                   }}
                   disabled={createCompanyMutation.isPending}
                 >
@@ -972,10 +1011,37 @@ export default function RBACAdmin() {
                 />
               </div>
               <div>
+                <Label htmlFor="edit_domain">Domain</Label>
+                <Input
+                  id="edit_domain"
+                  value={editingCompany?.domain || ''}
+                  onChange={(e) => setEditingCompany(prev => prev ? {...prev, domain: e.target.value} : null)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_status">Status</Label>
+                <Select 
+                  value={editingCompany?.status || 'active'} 
+                  onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, status: value as 'active' | 'suspended' | 'pending'} : null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label htmlFor="edit_type">Company Type</Label>
                 <Select 
-                  value={editingCompany?.type || ''} 
-                  onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, type: value} : null)}
+                  value={editingCompany?.settings?.type || ''} 
+                  onValueChange={(value) => setEditingCompany(prev => prev ? {
+                    ...prev, 
+                    settings: { ...prev.settings, type: value }
+                  } : null)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -990,8 +1056,11 @@ export default function RBACAdmin() {
               <div>
                 <Label htmlFor="edit_subscription">Subscription Tier</Label>
                 <Select 
-                  value={editingCompany?.subscription_tier || ''} 
-                  onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, subscription_tier: value} : null)}
+                  value={editingCompany?.settings?.subscription_tier || ''} 
+                  onValueChange={(value) => setEditingCompany(prev => prev ? {
+                    ...prev, 
+                    settings: { ...prev.settings, subscription_tier: value }
+                  } : null)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -1026,9 +1095,9 @@ export default function RBACAdmin() {
                       id: editingCompany.id, 
                       data: {
                         name: editingCompany.name,
-                        type: editingCompany.type,
-                        subscription_tier: editingCompany.subscription_tier,
-                        is_active: editingCompany.is_active
+                        domain: editingCompany.domain,
+                        status: editingCompany.status,
+                        settings: editingCompany.settings
                       }
                     });
                     // Don't close dialog here - let onSuccess handle it
@@ -1111,11 +1180,11 @@ export default function RBACAdmin() {
                     <div>
                       <CardTitle>{company.name}</CardTitle>
                       <CardDescription>
-                        {company.type} • {company.subscription_tier}
+                        {company.settings?.type || 'Unknown'} • {company.settings?.subscription_tier || 'Unknown'}
                       </CardDescription>
                     </div>
-                    <Badge variant={company.is_active ? 'default' : 'destructive'}>
-                      {company.is_active ? 'Active' : 'Inactive'}
+                    <Badge variant={company.status === 'active' ? 'default' : 'destructive'}>
+                      {company.status === 'active' ? 'Active' : company.status || 'Unknown'}
                     </Badge>
                   </div>
                 </CardHeader>
