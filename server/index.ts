@@ -98,40 +98,8 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
     }
   });
   
-  // Direct RBAC proxy handler to avoid timeout issues
-  app.all('/api/rbac/*', async (req, res) => {
-    const targetPath = req.path.replace('/api', '');
-    const targetUrl = `http://localhost:${pythonPort}${targetPath}`;
-    
-    console.log(`Direct RBAC proxy: ${req.method} ${req.path} -> ${targetUrl}`);
-    
-    try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-      
-      // Only copy specific headers that are safe to proxy
-      if (req.headers.authorization) {
-        headers.authorization = req.headers.authorization;
-      }
-      if (req.headers['user-agent']) {
-        headers['user-agent'] = req.headers['user-agent'];
-      }
-      
-      const response = await fetch(targetUrl, {
-        method: req.method,
-        headers,
-        body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined,
-        signal: AbortSignal.timeout(8000) // 8 second timeout
-      });
-      
-      const data = await response.json();
-      res.status(response.status).json(data);
-    } catch (error: any) {
-      console.error('Direct RBAC proxy error:', error);
-      res.status(500).json({ message: 'Backend service error', error: error?.message || 'Unknown error' });
-    }
-  });
+  // DISABLED: Direct RBAC proxy handler - now using Node.js backend only
+  // All RBAC operations are handled by Node.js backend via routes.ts
 
   // Apply proxy to other API routes, but skip auth routes and RBAC routes
   app.use('/api', (req, res, next) => {

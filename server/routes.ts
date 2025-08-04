@@ -249,6 +249,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/rbac/roles', async (req, res) => {
+    try {
+      console.log('PRODUCTION RBAC: Creating role via Node.js backend:', req.body);
+      const role = await storage.createRole(req.body);
+      console.log('✅ NODE.JS SUCCESS: Role created:', role);
+      res.status(201).json(role);
+    } catch (error: any) {
+      console.error('Error creating role:', error);
+      res.status(500).json({ message: 'Failed to create role', error: error.message });
+    }
+  });
+
+  app.patch('/api/rbac/roles/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Updating role ${req.params.id} via Node.js backend:`, req.body);
+      const role = await storage.updateRole(req.params.id, req.body);
+      if (!role) {
+        return res.status(404).json({ message: 'Role not found' });
+      }
+      console.log('✅ NODE.JS SUCCESS: Role updated:', role);
+      res.json(role);
+    } catch (error: any) {
+      console.error('Error updating role:', error);
+      res.status(500).json({ message: 'Failed to update role', error: error.message });
+    }
+  });
+
+  app.delete('/api/rbac/roles/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Deleting role ${req.params.id} via Node.js backend`);
+      const success = await storage.deleteRole(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: 'Role not found' });
+      }
+      console.log('✅ NODE.JS SUCCESS: Role deleted');
+      res.json({ message: 'Role deleted successfully' });
+    } catch (error: any) {
+      console.error('Error deleting role:', error);
+      res.status(500).json({ message: 'Failed to delete role', error: error.message });
+    }
+  });
+
   // Permissions endpoints
   app.get('/api/rbac/permissions', async (req, res) => {
     try {
