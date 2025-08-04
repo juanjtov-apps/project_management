@@ -30,6 +30,12 @@ export interface IStorage {
   deleteUser(id: string): Promise<boolean>;
   getRoles(): Promise<any[]>;
   getPermissions(): Promise<any[]>;
+  
+  // Projects operations
+  getProjects(): Promise<any[]>;
+  createProject(project: any): Promise<any>;
+  updateProject(id: string, data: any): Promise<any>;
+  deleteProject(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -330,6 +336,106 @@ export class DatabaseStorage implements IStorage {
       { id: '2', name: 'Manage Users', description: 'Can manage users', category: 'user', resource_type: 'user', action: 'manage', created_at: new Date() },
       { id: '3', name: 'View Reports', description: 'Can view reports', category: 'report', resource_type: 'report', action: 'read', created_at: new Date() }
     ];
+  }
+
+  async getProjects(): Promise<any[]> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        SELECT p.id, p.name, p.description, p.location, p.status, p.progress, p.due_date, 
+               p.created_at
+        FROM projects p 
+        ORDER BY p.name
+      `);
+      return result.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        location: row.location,
+        status: row.status,
+        progress: row.progress || 0,
+        dueDate: row.due_date,
+        createdAt: row.created_at
+      }));
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async createProject(projectData: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const { name, description, location, status = 'active', dueDate } = projectData;
+      
+      if (!name) {
+        throw new Error('Project name is required');
+      }
+
+      const result = await pool.query(`
+        INSERT INTO projects (name, description, location, status, progress, due_date, created_at)
+        VALUES ($1, $2, $3, $4, 0, $5, NOW())
+        RETURNING id, name, description, location, status, progress, due_date, created_at
+      `, [name, description, location, status, dueDate]);
+      
+      const row = result.rows[0];
+
+      return {
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        location: row.location,
+        status: row.status,
+        progress: row.progress || 0,
+        dueDate: row.due_date,
+        createdAt: row.created_at
+      };
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async updateProject(id: string, data: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const { name, description, location, status, progress, dueDate } = data;
+      const result = await pool.query(`
+        UPDATE projects 
+        SET name = $1, description = $2, location = $3, status = $4, progress = $5, due_date = $6
+        WHERE id = $7
+        RETURNING id, name, description, location, status, progress, due_date, created_at
+      `, [name, description, location, status, progress, dueDate, id]);
+      
+      if (result.rows.length === 0) return null;
+      
+      const row = result.rows[0];
+
+      return {
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        location: row.location,
+        status: row.status,
+        progress: row.progress || 0,
+        dueDate: row.due_date,
+        createdAt: row.created_at
+      };
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async deleteProject(id: string): Promise<boolean> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query('DELETE FROM projects WHERE id = $1', [id]);
+      return result.rowCount > 0;
+    } finally {
+      await pool.end();
+    }
   }
 }
 

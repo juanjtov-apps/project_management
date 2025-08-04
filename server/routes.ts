@@ -275,46 +275,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PRODUCTION CRITICAL: Ensure all CRUD operations work without authentication blocking
+  // Projects endpoints - Node.js backend
   app.get('/api/projects', async (req, res) => {
     try {
-      console.log('PRODUCTION FIX: Fetching projects from Python backend');
-      const response = await fetch('http://localhost:8000/api/projects');
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`✅ PRODUCTION SUCCESS: Retrieved ${data.length} projects`);
-        res.json(data);
-      } else {
-        const errorText = await response.text();
-        console.error('Python backend error:', response.status, errorText);
-        res.status(response.status).json({ error: 'Failed to fetch projects from backend' });
-      }
+      console.log('PRODUCTION RBAC: Fetching projects directly from Node.js backend');
+      const projects = await storage.getProjects();
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${projects.length} projects`);
+      res.json(projects);
     } catch (error: any) {
       console.error('Error fetching projects:', error);
-      res.status(500).json({ error: 'Failed to fetch projects', details: error.message });
+      res.status(500).json({ message: 'Failed to fetch projects', error: error.message });
     }
   });
 
   app.post('/api/projects', async (req, res) => {
     try {
-      console.log('PRODUCTION FIX: Creating project via Python backend');
-      const response = await fetch('http://localhost:8000/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(req.body)
-      });
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`✅ PRODUCTION SUCCESS: Created project ${data.id}`);
-        res.status(201).json(data);
-      } else {
-        const errorText = await response.text();
-        console.error('Python backend error:', response.status, errorText);
-        res.status(response.status).json({ error: 'Failed to create project' });
-      }
+      console.log('PRODUCTION RBAC: Creating project via Node.js backend:', req.body);
+      const project = await storage.createProject(req.body);
+      console.log('✅ NODE.JS SUCCESS: Project created:', project);
+      res.status(201).json(project);
     } catch (error: any) {
       console.error('Error creating project:', error);
-      res.status(500).json({ error: 'Failed to create project', details: error.message });
+      res.status(500).json({ message: 'Failed to create project', error: error.message });
+    }
+  });
+
+  app.patch('/api/projects/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Updating project ${req.params.id} via Node.js backend:`, req.body);
+      const project = await storage.updateProject(req.params.id, req.body);
+      if (!project) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
+      console.log('✅ NODE.JS SUCCESS: Project updated:', project);
+      res.json(project);
+    } catch (error: any) {
+      console.error('Error updating project:', error);
+      res.status(500).json({ message: 'Failed to update project', error: error.message });
+    }
+  });
+
+  app.delete('/api/projects/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Deleting project ${req.params.id} via Node.js backend`);
+      const success = await storage.deleteProject(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
+      console.log('✅ NODE.JS SUCCESS: Project deleted');
+      res.json({ message: 'Project deleted successfully' });
+    } catch (error: any) {
+      console.error('Error deleting project:', error);
+      res.status(500).json({ message: 'Failed to delete project', error: error.message });
     }
   });
 
