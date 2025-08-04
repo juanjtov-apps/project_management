@@ -194,6 +194,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/rbac/users', async (req, res) => {
+    try {
+      console.log('PRODUCTION RBAC: Creating user via Node.js backend:', req.body);
+      const user = await storage.createRBACUser(req.body);
+      console.log('✅ NODE.JS SUCCESS: User created:', user);
+      res.status(201).json(user);
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      res.status(500).json({ message: 'Failed to create user', error: error.message });
+    }
+  });
+
+  app.patch('/api/rbac/users/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Updating user ${req.params.id} via Node.js backend:`, req.body);
+      const user = await storage.updateUser(req.params.id, req.body);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      console.log('✅ NODE.JS SUCCESS: User updated:', user);
+      res.json(user);
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      res.status(500).json({ message: 'Failed to update user', error: error.message });
+    }
+  });
+
+  app.delete('/api/rbac/users/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Deleting user ${req.params.id} via Node.js backend`);
+      const success = await storage.deleteUser(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      console.log('✅ NODE.JS SUCCESS: User deleted');
+      res.json({ message: 'User deleted successfully' });
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ message: 'Failed to delete user', error: error.message });
+    }
+  });
+
   // Roles endpoints
   app.get('/api/rbac/roles', async (req, res) => {
     try {

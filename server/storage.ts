@@ -25,6 +25,9 @@ export interface IStorage {
   updateCompany(id: string, data: any): Promise<any>;
   deleteCompany(id: string): Promise<boolean>;
   getUsers(): Promise<any[]>;
+  createRBACUser(user: any): Promise<any>;
+  updateUser(id: string, data: any): Promise<any>;
+  deleteUser(id: string): Promise<boolean>;
   getRoles(): Promise<any[]>;
   getPermissions(): Promise<any[]>;
 }
@@ -168,26 +171,146 @@ export class DatabaseStorage implements IStorage {
     try {
       const result = await pool.query(`
         SELECT u.id, u.email, u.first_name, u.last_name, u.is_active, u.last_login_at, u.mfa_enabled,
-               u.created_at, 'Unknown' as company_name, 'Unknown' as role_name
+               u.created_at, u.username, u.name,
+               COALESCE(u.role, 'User') as role_name,
+               CASE 
+                  WHEN u.role = 'admin' THEN 'Platform Administration'
+                  WHEN u.role = 'manager' THEN 'Management Team'
+                  WHEN u.role = 'crew' THEN 'Construction Crew'
+                  WHEN u.role = 'subcontractor' THEN 'Subcontractors'
+                  ELSE 'General Users'
+               END as company_name
         FROM users u 
         ORDER BY u.email
       `);
       return result.rows.map(row => ({
         id: row.id,
-        name: `${row.first_name || ''} ${row.last_name || ''}`.trim() || row.email,
+        name: row.name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || row.email,
         email: row.email,
         first_name: row.first_name,
         last_name: row.last_name,
-        company_id: '1',
+        company_id: '0', // Default company since no relationship exists
         role_id: '1',
         is_active: row.is_active,
         created_at: row.created_at,
         last_login: row.last_login_at,
         role_name: row.role_name,
         company_name: row.company_name,
-        username: row.email,
+        username: row.username || row.email,
         isActive: row.is_active
       }));
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async createRBACUser(userData: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const { email, first_name, last_name, role, is_active = true, username } = userData;
+      
+      if (!email) {
+        throw new Error('Email is required');
+      }
+
+      const userUsername = username || email.split('@')[0]; // Generate username from email if not provided
+      const userRole = role || 'crew'; // Default role
+
+      // Use a simple default password for now - in production this should be properly hashed
+      const defaultPassword = 'password123';
+      
+      const result = await pool.query(`
+        INSERT INTO users (email, first_name, last_name, username, role, is_active, password, created_at, updated_at, name)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8)
+        RETURNING id, email, first_name, last_name, username, role, is_active, created_at, name
+      `, [
+        email, 
+        first_name, 
+        last_name, 
+        userUsername, 
+        userRole, 
+        is_active,
+        defaultPassword,
+        `${first_name || ''} ${last_name || ''}`.trim() || email
+      ]);
+      
+      const row = result.rows[0];
+
+      return {
+        id: row.id,
+        name: row.name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || row.email,
+        email: row.email,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        company_id: '0', // Default since no company relationship exists
+        role_id: '1',
+        is_active: row.is_active,
+        created_at: row.created_at,
+        role_name: row.role,
+        company_name: 
+          row.role === 'admin' ? 'Platform Administration' :
+          row.role === 'manager' ? 'Management Team' :
+          row.role === 'crew' ? 'Construction Crew' :
+          row.role === 'subcontractor' ? 'Subcontractors' :
+          'General Users',
+        username: row.username,
+        isActive: row.is_active
+      };
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async updateUser(id: string, data: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const { email, first_name, last_name, role, is_active, username } = data;
+      const userName = `${first_name || ''} ${last_name || ''}`.trim() || email;
+      
+      const result = await pool.query(`
+        UPDATE users 
+        SET email = $1, first_name = $2, last_name = $3, role = $4, is_active = $5, updated_at = NOW(), name = $6, username = $7
+        WHERE id = $8
+        RETURNING id, email, first_name, last_name, username, role, is_active, created_at, name
+      `, [email, first_name, last_name, role, is_active, userName, username || email.split('@')[0], id]);
+      
+      if (result.rows.length === 0) return null;
+      
+      const row = result.rows[0];
+
+      return {
+        id: row.id,
+        name: row.name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || row.email,
+        email: row.email,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        company_id: '0', // Default since no company relationship exists
+        role_id: '1',
+        is_active: row.is_active,
+        created_at: row.created_at,
+        role_name: row.role,
+        company_name: 
+          row.role === 'admin' ? 'Platform Administration' :
+          row.role === 'manager' ? 'Management Team' :
+          row.role === 'crew' ? 'Construction Crew' :
+          row.role === 'subcontractor' ? 'Subcontractors' :
+          'General Users',
+        username: row.username,
+        isActive: row.is_active
+      };
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query('DELETE FROM users WHERE id = $1', [id]);
+      return result.rowCount > 0;
     } finally {
       await pool.end();
     }
