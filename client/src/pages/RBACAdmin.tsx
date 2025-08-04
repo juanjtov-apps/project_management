@@ -93,10 +93,16 @@ export default function RBACAdmin() {
   const isCompanyAdmin = currentUser?.role === 'admin' || currentUser?.email?.includes('admin');
   const hasRBACAccess = isRootAdmin || isCompanyAdmin;
 
-  const { data: roles = [], isLoading: rolesLoading } = useQuery<Role[]>({
+  const { data: roles = [], isLoading: rolesLoading, error: rolesError } = useQuery<Role[]>({
     queryKey: ['/api/rbac/roles'],
     enabled: hasRBACAccess,
   });
+  
+  // Debug roles data
+  console.log('RBAC Debug - Roles data:', roles);
+  console.log('RBAC Debug - Roles loading:', rolesLoading);
+  console.log('RBAC Debug - Roles error:', rolesError);
+  console.log('RBAC Debug - Has RBAC access:', hasRBACAccess);
 
   const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
     queryKey: ['/api/companies'],
@@ -355,20 +361,39 @@ export default function RBACAdmin() {
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      {roles && roles.length > 0 ? (
-                        roles
-                          .filter((role: Role) => {
-                            // Show platform roles (no company_id) and roles from selected company
-                            return !role.company_id || role.company_id?.toString() === newUser.company_id || role.is_template;
-                          })
-                          .map((role: Role) => (
-                            <SelectItem key={role.id} value={role.id.toString()}>
-                              {role.name} {(!role.company_id || role.is_template) && '(Global)'}
-                            </SelectItem>
-                          ))
-                      ) : (
-                        <SelectItem value="none" disabled>No roles available</SelectItem>
-                      )}
+                      {(() => {
+                        console.log('User creation - Available roles:', roles);
+                        console.log('User creation - Selected company:', newUser.company_id);
+                        console.log('User creation - Roles loading:', rolesLoading);
+                        
+                        if (rolesLoading) {
+                          return <SelectItem value="loading" disabled>Loading roles...</SelectItem>;
+                        }
+                        
+                        if (!roles || roles.length === 0) {
+                          return <SelectItem value="none" disabled>No roles available</SelectItem>;
+                        }
+                        
+                        const filteredRoles = roles.filter((role: Role) => {
+                          // Show platform roles (company_id 0 or null) and roles from selected company
+                          const isGlobal = !role.company_id || role.company_id === '0' || role.company_id === 0;
+                          const isFromCompany = role.company_id?.toString() === newUser.company_id;
+                          console.log(`Role ${role.name}: company_id=${role.company_id}, isGlobal=${isGlobal}, isFromCompany=${isFromCompany}`);
+                          return isGlobal || isFromCompany || role.is_template;
+                        });
+                        
+                        console.log('Filtered roles for user creation:', filteredRoles);
+                        
+                        if (filteredRoles.length === 0) {
+                          return <SelectItem value="none" disabled>No roles for selected company</SelectItem>;
+                        }
+                        
+                        return filteredRoles.map((role: Role) => (
+                          <SelectItem key={role.id} value={role.id.toString()}>
+                            {role.name} {(!role.company_id || role.company_id === '0' || role.is_template) && '(Global)'}
+                          </SelectItem>
+                        ));
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>
