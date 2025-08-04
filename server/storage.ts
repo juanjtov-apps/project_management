@@ -177,7 +177,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const result = await pool.query(`
         SELECT u.id, u.email, u.first_name, u.last_name, u.is_active, u.last_login_at, u.mfa_enabled,
-               u.created_at, u.username, u.name,
+               u.created_at, u.username, u.name, u.company_id,
                COALESCE(u.role, 'User') as role_name,
                CASE 
                   WHEN u.role = 'admin' THEN 'Platform Administration'
@@ -195,7 +195,7 @@ export class DatabaseStorage implements IStorage {
         email: row.email,
         first_name: row.first_name,
         last_name: row.last_name,
-        company_id: '0', // Default company since no relationship exists
+        companyId: row.company_id || '0', // Use actual company_id from database
         role_id: '1',
         is_active: row.is_active,
         created_at: row.created_at,
@@ -384,7 +384,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const result = await pool.query(`
         SELECT p.id, p.name, p.description, p.location, p.status, p.progress, p.due_date, 
-               p.created_at
+               p.created_at, p.company_id
         FROM projects p 
         ORDER BY p.name
       `);
@@ -396,7 +396,8 @@ export class DatabaseStorage implements IStorage {
         status: row.status,
         progress: row.progress || 0,
         dueDate: row.due_date,
-        createdAt: row.created_at
+        createdAt: row.created_at,
+        companyId: row.company_id || '0'
       }));
     } finally {
       await pool.end();
@@ -407,17 +408,17 @@ export class DatabaseStorage implements IStorage {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
-      const { name, description, location, status = 'active', dueDate } = projectData;
+      const { name, description, location, status = 'active', dueDate, companyId } = projectData;
       
       if (!name) {
         throw new Error('Project name is required');
       }
 
       const result = await pool.query(`
-        INSERT INTO projects (name, description, location, status, progress, due_date, created_at)
-        VALUES ($1, $2, $3, $4, 0, $5, NOW())
-        RETURNING id, name, description, location, status, progress, due_date, created_at
-      `, [name, description, location, status, dueDate]);
+        INSERT INTO projects (name, description, location, status, progress, due_date, created_at, company_id)
+        VALUES ($1, $2, $3, $4, 0, $5, NOW(), $6)
+        RETURNING id, name, description, location, status, progress, due_date, created_at, company_id
+      `, [name, description, location, status, dueDate, companyId || '0']);
       
       const row = result.rows[0];
 
@@ -429,7 +430,9 @@ export class DatabaseStorage implements IStorage {
         status: row.status,
         progress: row.progress || 0,
         dueDate: row.due_date,
-        createdAt: row.created_at
+        createdAt: row.created_at,
+        companyId: row.company_id || '0',
+        companyId: row.company_id || '0'
       };
     } finally {
       await pool.end();
