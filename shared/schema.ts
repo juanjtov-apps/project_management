@@ -40,6 +40,7 @@ export const users = pgTable("users", {
   password: text("password"),
   name: text("name"),
   role: text("role").notNull().default("crew"), // crew, manager, admin, subcontractor
+  companyId: varchar("company_id").default("0"), // Links user to a company for multi-tenancy
 });
 
 export const projects = pgTable("projects", {
@@ -51,6 +52,7 @@ export const projects = pgTable("projects", {
   progress: integer("progress").notNull().default(0), // 0-100
   dueDate: timestamp("due_date"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  companyId: varchar("company_id").default("0"), // Links project to a company for multi-tenancy
 });
 
 export const tasks = pgTable("tasks", {

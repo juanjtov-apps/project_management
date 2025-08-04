@@ -209,7 +209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Filter users by company for company admins
       const filteredUsers = isRootAdmin ? users : users.filter(user => 
-        user.company_id === currentUser.company_id || user.company_id === '0'
+        user.companyId === currentUser.companyId || user.companyId === '0'
       );
       
       console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredUsers.length} users for ${currentUser.email} (${isRootAdmin ? 'root admin' : 'company admin'})`);
@@ -408,7 +408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Filter projects by company for non-admin users
       const filteredProjects = isRootAdmin ? projects : projects.filter(project => 
-        project.company_id === user.company_id || project.company_id === '0'
+        project.companyId === user.companyId || project.companyId === '0'
       );
       
       console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredProjects.length} projects for user ${user.email} (${isRootAdmin ? 'admin' : 'company-filtered'})`);
@@ -422,8 +422,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/projects', async (req, res) => {
     try {
       console.log('PRODUCTION RBAC: Creating project via Node.js backend:', req.body);
-      const project = await storage.createProject(req.body);
-      console.log('✅ NODE.JS SUCCESS: Project created:', project);
+      
+      // Get current user to assign project to their company
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Ensure project is assigned to user's company
+      const projectData = {
+        ...req.body,
+        companyId: currentUser.companyId || '0' // Default to company 0 if none assigned
+      };
+
+      const project = await storage.createProject(projectData);
+      console.log('✅ NODE.JS SUCCESS: Project created with company assignment:', project);
       res.status(201).json(project);
     } catch (error: any) {
       console.error('Error creating project:', error);
@@ -484,7 +502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Filter tasks by company for non-admin users
       const filteredTasks = isRootAdmin ? tasks : tasks.filter(task => 
-        task.company_id === user.company_id || task.company_id === '0'
+        task.companyId === user.companyId || task.companyId === '0'
       );
       
       console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredTasks.length} tasks for user ${user.email} (${isRootAdmin ? 'admin' : 'company-filtered'})`);

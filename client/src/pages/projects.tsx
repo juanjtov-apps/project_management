@@ -4,7 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -451,6 +461,14 @@ export default function Projects() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+
+  // Get current user for company context
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ['/api/auth/user'],
+    retry: false
+  });
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -487,24 +505,26 @@ export default function Projects() {
     setIsAddTaskOpen(true);
   };
 
-  const handleDeleteProject = async (project: Project) => {
-    const projectTasks = getProjectTasks(project.id);
-    const warningMessage = projectTasks.length > 0 
-      ? `This project has ${projectTasks.length} associated tasks. Delete project "${project.name}" and all its tasks?`
-      : `Delete project "${project.name}"?`;
+  const handleDeleteProject = (project: Project) => {
+    setProjectToDelete(project);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!projectToDelete) return;
     
-    if (confirm(warningMessage)) {
-      try {
-        await apiRequest(`/api/projects/${project.id}`, {
-          method: "DELETE",
-        });
-        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      } catch (error: any) {
-        console.error("Error deleting project:", error);
-        const errorMessage = error?.message || "Failed to delete project. It may have associated data that needs to be removed first.";
-        alert(`Error: ${errorMessage}`);
-      }
+    try {
+      await apiRequest(`/api/projects/${projectToDelete.id}`, {
+        method: "DELETE",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      setDeleteDialogOpen(false);
+      setProjectToDelete(null);
+    } catch (error: any) {
+      console.error("Error deleting project:", error);
+      const errorMessage = error?.message || "Failed to delete project. It may have associated data that needs to be removed first.";
+      alert(`Error: ${errorMessage}`);
     }
   };
 
@@ -532,7 +552,14 @@ export default function Projects() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Projects</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Projects</h1>
+          {currentUser?.company_name && (
+            <p className="text-sm text-gray-600 mt-1">
+              {currentUser.company_name}
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center border rounded-md">
             <Button
@@ -1007,6 +1034,54 @@ export default function Projects() {
           }} />}
         </DialogContent>
       </Dialog>
+
+      {/* Enhanced Project Deletion Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-600" />
+              Delete Project
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <div className="text-sm">
+                Are you sure you want to delete the project <strong>"{projectToDelete?.name}"</strong>?
+              </div>
+              
+              {projectToDelete && getProjectTasks(projectToDelete.id).length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3 space-y-2">
+                  <div className="font-medium text-red-800">⚠️ This will also delete:</div>
+                  <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+                    <li>{getProjectTasks(projectToDelete.id).length} associated tasks</li>
+                    <li>All project photos and documentation</li>
+                    <li>Project logs and progress history</li>
+                    <li>Any schedule changes related to this project</li>
+                  </ul>
+                </div>
+              )}
+              
+              <div className="text-sm text-gray-600">
+                This action cannot be undone. All data associated with this project will be permanently removed.
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setDeleteDialogOpen(false);
+              setProjectToDelete(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteProject}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Project
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -3,10 +3,25 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, LogOut, Calendar, CheckCircle, Users } from "lucide-react";
 import QuickActions from "@/components/dashboard/quick-actions";
+import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
 
 export default function Home() {
   const { user } = useAuth() as { user: User | undefined };
+  
+  // Get current user with company details
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ['/api/auth/user'],
+    retry: false
+  });
+
+  // Get companies to display company name
+  const { data: companies = [] } = useQuery<any[]>({
+    queryKey: ['/api/companies'],
+    retry: false
+  });
+
+  const userCompany = companies.find(c => c.id === currentUser?.companyId);
   
   console.log("Home component rendering - Quick Actions should appear here");
 
@@ -59,6 +74,11 @@ export default function Home() {
             <h2 className="text-2xl font-semibold text-tower-navy dark:text-white mb-2">
               Dashboard
             </h2>
+            {userCompany && (
+              <p className="text-sm text-gray-600 mb-2">
+                {userCompany.name}
+              </p>
+            )}
             <p className="text-tower-navy-light dark:text-gray-300">
               Manage your construction projects with precision and efficiency.
             </p>
