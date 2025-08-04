@@ -717,13 +717,24 @@ export class DatabaseStorage implements IStorage {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
-      const { username, name, email, role, isActive } = data;
+      const { username, name, email, role, role_id, is_active, isActive } = data;
+      
+      // Handle role mapping - frontend sends role_id but we need role for the database
+      let finalRole = role;
+      if (role_id && !role) {
+        // Map role_id to role name
+        const roleMapping = { '1': 'admin', '2': 'manager', '3': 'crew' };
+        finalRole = roleMapping[role_id] || 'crew';
+      }
+      
+      const finalIsActive = is_active !== undefined ? is_active : isActive;
+      
       const result = await pool.query(`
         UPDATE users 
         SET username = $1, name = $2, email = $3, role = $4, is_active = $5, updated_at = NOW()
         WHERE id = $6
-        RETURNING id, username, name, email, role, is_active, created_at
-      `, [username, name, email, role, isActive, id]);
+        RETURNING id, username, name, email, role, is_active, created_at, company_id
+      `, [username, name, email, finalRole, finalIsActive, id]);
       
       if (result.rows.length === 0) return null;
       
@@ -735,7 +746,8 @@ export class DatabaseStorage implements IStorage {
         email: row.email,
         role: row.role,
         isActive: row.is_active,
-        createdAt: row.created_at
+        createdAt: row.created_at,
+        companyId: row.company_id || '0'
       };
     } finally {
       await pool.end();

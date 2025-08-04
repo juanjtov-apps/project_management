@@ -433,9 +433,10 @@ export default function RBACAdmin() {
                   <Select 
                     value={editingUser?.company_id?.toString() || ''} 
                     onValueChange={(value) => setEditingUser(prev => prev ? {...prev, company_id: value} : null)}
+                    disabled={true}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select company" />
+                    <SelectTrigger className="opacity-60">
+                      <SelectValue placeholder="Company (read-only)" />
                     </SelectTrigger>
                     <SelectContent>
                       {filteredCompanies.map((company: Company) => (
@@ -445,6 +446,7 @@ export default function RBACAdmin() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Users cannot change companies</p>
                 </div>
                 <div>
                   <Label htmlFor="edit_role">Role</Label>
@@ -604,16 +606,17 @@ export default function RBACAdmin() {
                                 size="sm" 
                                 variant="outline"
                                 onClick={() => {
-                                  // Map backend field names to frontend field names
+                                  // Properly map user data for editing, parsing name into first/last
+                                  const nameParts = (user.name || '').split(' ');
                                   const mappedUser = {
                                     ...user,
-                                    first_name: user.first_name || user.first_name,
-                                    last_name: user.last_name || user.last_name,
-                                    company_id: user.company_id?.toString() || user.company_id,
-                                    role_id: user.role_id?.toString() || user.role_id,
-                                    is_active: user.isActive !== undefined ? user.isActive : user.is_active
+                                    first_name: user.first_name || nameParts[0] || '',
+                                    last_name: user.last_name || nameParts.slice(1).join(' ') || '',
+                                    company_id: user.company_id?.toString() || '1',
+                                    role_id: user.role_id?.toString() || (user.role === 'admin' ? '1' : user.role === 'manager' ? '2' : '3'),
+                                    is_active: user.is_active !== undefined ? user.is_active : user.isActive
                                   };
-                                  console.log('Mapped user for editing:', mappedUser); // Debug
+                                  console.log('Mapped user for editing:', mappedUser);
                                   setEditingUser(mappedUser);
                                   setIsEditDialogOpen(true);
                                 }}
