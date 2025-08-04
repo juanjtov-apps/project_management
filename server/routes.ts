@@ -330,45 +330,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Tasks endpoints - Node.js backend
   app.get('/api/tasks', async (req, res) => {
     try {
-      console.log('PRODUCTION FIX: Fetching tasks from Python backend');
-      const response = await fetch('http://localhost:8000/api/tasks');
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`✅ PRODUCTION SUCCESS: Retrieved ${data.length} tasks`);
-        res.json(data);
-      } else {
-        const errorText = await response.text();
-        console.error('Python backend error:', response.status, errorText);
-        res.status(response.status).json({ error: 'Failed to fetch tasks from backend' });
-      }
+      console.log('PRODUCTION RBAC: Fetching tasks directly from Node.js backend');
+      const tasks = await storage.getTasks();
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${tasks.length} tasks`);
+      res.json(tasks);
     } catch (error: any) {
       console.error('Error fetching tasks:', error);
-      res.status(500).json({ error: 'Failed to fetch tasks', details: error.message });
+      res.status(500).json({ message: 'Failed to fetch tasks', error: error.message });
     }
   });
 
   app.post('/api/tasks', async (req, res) => {
     try {
-      console.log('PRODUCTION FIX: Creating task via Python backend');
-      const response = await fetch('http://localhost:8000/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(req.body)
-      });
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`✅ PRODUCTION SUCCESS: Created task ${data.id}`);
-        res.status(201).json(data);
-      } else {
-        const errorText = await response.text();
-        console.error('Python backend error:', response.status, errorText);
-        res.status(response.status).json({ error: 'Failed to create task' });
-      }
+      console.log('PRODUCTION RBAC: Creating task via Node.js backend:', req.body);
+      const task = await storage.createTask(req.body);
+      console.log('✅ NODE.JS SUCCESS: Task created:', task);
+      res.status(201).json(task);
     } catch (error: any) {
       console.error('Error creating task:', error);
-      res.status(500).json({ error: 'Failed to create task', details: error.message });
+      res.status(500).json({ message: 'Failed to create task', error: error.message });
+    }
+  });
+
+  app.patch('/api/tasks/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Updating task ${req.params.id} via Node.js backend:`, req.body);
+      const task = await storage.updateTask(req.params.id, req.body);
+      if (!task) {
+        return res.status(404).json({ message: 'Task not found' });
+      }
+      console.log('✅ NODE.JS SUCCESS: Task updated:', task);
+      res.json(task);
+    } catch (error: any) {
+      console.error('Error updating task:', error);
+      res.status(500).json({ message: 'Failed to update task', error: error.message });
+    }
+  });
+
+  app.delete('/api/tasks/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Deleting task ${req.params.id} via Node.js backend`);
+      const success = await storage.deleteTask(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: 'Task not found' });
+      }
+      console.log('✅ NODE.JS SUCCESS: Task deleted');
+      res.json({ message: 'Task deleted successfully' });
+    } catch (error: any) {
+      console.error('Error deleting task:', error);
+      res.status(500).json({ message: 'Failed to delete task', error: error.message });
     }
   });
 

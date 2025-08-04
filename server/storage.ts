@@ -437,6 +437,145 @@ export class DatabaseStorage implements IStorage {
       await pool.end();
     }
   }
+
+  // Task CRUD operations
+  async getTasks(): Promise<any[]> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        SELECT t.id, t.title, t.description, t.project_id, t.assignee_id, t.status, 
+               t.priority, t.due_date, t.completed_at, t.created_at, t.category, 
+               t.is_milestone, t.estimated_hours,
+               p.name as project_name,
+               u.name as assignee_name
+        FROM tasks t 
+        LEFT JOIN projects p ON t.project_id = p.id
+        LEFT JOIN users u ON t.assignee_id = u.id
+        ORDER BY t.created_at DESC
+      `);
+      return result.rows.map(row => ({
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        projectId: row.project_id,
+        projectName: row.project_name,
+        assigneeId: row.assignee_id,
+        assigneeName: row.assignee_name,
+        status: row.status,
+        priority: row.priority,
+        dueDate: row.due_date,
+        completedAt: row.completed_at,
+        createdAt: row.created_at,
+        category: row.category,
+        isMilestone: row.is_milestone,
+        estimatedHours: row.estimated_hours
+      }));
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async createTask(taskData: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const { 
+        title, 
+        description, 
+        projectId, 
+        assigneeId, 
+        status = 'pending',
+        priority = 'medium',
+        dueDate,
+        category = 'General',
+        isMilestone = false,
+        estimatedHours 
+      } = taskData;
+      
+      if (!title) {
+        throw new Error('Task title is required');
+      }
+
+      const result = await pool.query(`
+        INSERT INTO tasks (title, description, project_id, assignee_id, status, priority, 
+                          due_date, category, is_milestone, estimated_hours, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+        RETURNING id, title, description, project_id, assignee_id, status, priority, 
+                  due_date, completed_at, created_at, category, is_milestone, estimated_hours
+      `, [title, description, projectId, assigneeId, status, priority, dueDate, category, isMilestone, estimatedHours]);
+      
+      const row = result.rows[0];
+
+      return {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        projectId: row.project_id,
+        assigneeId: row.assignee_id,
+        status: row.status,
+        priority: row.priority,
+        dueDate: row.due_date,
+        completedAt: row.completed_at,
+        createdAt: row.created_at,
+        category: row.category,
+        isMilestone: row.is_milestone,
+        estimatedHours: row.estimated_hours
+      };
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async updateTask(id: string, data: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const { title, description, projectId, assigneeId, status, priority, dueDate, category, isMilestone, estimatedHours } = data;
+      const result = await pool.query(`
+        UPDATE tasks 
+        SET title = $1, description = $2, project_id = $3, assignee_id = $4, status = $5, 
+            priority = $6, due_date = $7, category = $8, is_milestone = $9, estimated_hours = $10,
+            completed_at = CASE WHEN $5 = 'completed' AND completed_at IS NULL THEN NOW() ELSE completed_at END
+        WHERE id = $11
+        RETURNING id, title, description, project_id, assignee_id, status, priority, 
+                  due_date, completed_at, created_at, category, is_milestone, estimated_hours
+      `, [title, description, projectId, assigneeId, status, priority, dueDate, category, isMilestone, estimatedHours, id]);
+      
+      if (result.rows.length === 0) return null;
+      
+      const row = result.rows[0];
+
+      return {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        projectId: row.project_id,
+        assigneeId: row.assignee_id,
+        status: row.status,
+        priority: row.priority,
+        dueDate: row.due_date,
+        completedAt: row.completed_at,
+        createdAt: row.created_at,
+        category: row.category,
+        isMilestone: row.is_milestone,
+        estimatedHours: row.estimated_hours
+      };
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async deleteTask(id: string): Promise<boolean> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query('DELETE FROM tasks WHERE id = $1', [id]);
+      return result.rowCount > 0;
+    } finally {
+      await pool.end();
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
