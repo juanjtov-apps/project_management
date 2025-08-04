@@ -122,36 +122,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PRODUCTION EMERGENCY: Create completely separate endpoints that bypass all middleware
   // This prevents security middleware from interfering with API calls
   
-  // Companies endpoint - bypass all middleware
-  app.use('/api/companies-direct', express.json());
-  app.get('/api/companies-direct', async (req, res) => {
-    try {
-      const response = await fetch('http://localhost:8000/api/rbac/companies');
-      const data = await response.json();
-      res.status(response.status).json(data);
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-      res.status(500).json({ error: 'Failed to fetch companies' });
-    }
-  });
 
-  // PRODUCTION FIX: Companies endpoint using direct database access  
+
+  // PRODUCTION FIX: Companies endpoint using correct database schema
   app.get('/api/companies', async (req, res) => {
     try {
       console.log('PRODUCTION FIX: Fetching companies from database');
-      const { Pool } = require('pg');
-      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-      const result = await pool.query('SELECT id, name, type, subscription_tier, created_at, is_active FROM companies ORDER BY name');
+      const pg = await import('pg');
+      const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+      const result = await pool.query('SELECT id, name, domain, status, settings, created_at FROM companies ORDER BY name');
       const companies = result.rows.map((row: any) => ({
         id: row.id,
         name: row.name,
-        type: row.type,
-        subscriptionTier: row.subscription_tier,
-        createdAt: row.created_at,
-        isActive: row.is_active
+        domain: row.domain,
+        status: row.status,
+        settings: row.settings,
+        createdAt: row.created_at
       }));
       console.log(`✅ PRODUCTION SUCCESS: Retrieved ${companies.length} companies from database`);
       res.json(companies);
+      await pool.end();
     } catch (error: any) {
       console.error('Error fetching companies:', error);
       res.status(500).json({ error: 'Failed to fetch companies', details: error.message });
@@ -243,22 +233,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PRODUCTION FIX: Users endpoint using direct database access
+  // PRODUCTION FIX: Users endpoint using correct database schema
   app.get('/api/users', async (req, res) => {
     try {
       console.log('PRODUCTION FIX: Fetching users from database');
-      const { Pool } = require('pg');
-      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-      const result = await pool.query('SELECT id, name, email, role, company_id FROM users ORDER BY name');
+      const pg = await import('pg');
+      const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+      const result = await pool.query('SELECT id, username, name, email, role, is_active, created_at FROM users ORDER BY name');
       const users = result.rows.map((row: any) => ({
         id: row.id,
+        username: row.username,
         name: row.name,
         email: row.email,
         role: row.role,
-        companyId: row.company_id
+        isActive: row.is_active,
+        createdAt: row.created_at
       }));
       console.log(`✅ PRODUCTION SUCCESS: Retrieved ${users.length} users from database`);
       res.json(users);
+      await pool.end();
     } catch (error: any) {
       console.error('Error fetching users:', error);
       res.status(500).json({ error: 'Failed to fetch users', details: error.message });
