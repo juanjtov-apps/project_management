@@ -519,7 +519,7 @@ export class DatabaseStorage implements IStorage {
         SELECT t.id, t.title, t.description, t.project_id, t.assignee_id, t.status, 
                t.priority, t.due_date, t.completed_at, t.created_at, t.category, 
                t.is_milestone, t.estimated_hours,
-               p.name as project_name,
+               p.name as project_name, p.company_id,
                u.name as assignee_name
         FROM tasks t 
         LEFT JOIN projects p ON t.project_id = p.id
@@ -541,7 +541,8 @@ export class DatabaseStorage implements IStorage {
         createdAt: row.created_at,
         category: row.category,
         isMilestone: row.is_milestone,
-        estimatedHours: row.estimated_hours
+        estimatedHours: row.estimated_hours,
+        companyId: row.company_id || '0' // Inherit company from project
       }));
     } finally {
       await pool.end();

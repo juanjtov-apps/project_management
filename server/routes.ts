@@ -500,9 +500,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const tasks = await storage.getTasks();
       
-      // Filter tasks by company for non-admin users
+      // Filter tasks by company for non-admin users (tasks inherit company from projects)
       const filteredTasks = isRootAdmin ? tasks : tasks.filter(task => 
-        task.companyId === user.companyId || task.companyId === '0'
+        task.companyId === user.companyId || task.companyId === '0' || task.projectId === null
       );
       
       console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredTasks.length} tasks for user ${user.email} (${isRootAdmin ? 'admin' : 'company-filtered'})`);
