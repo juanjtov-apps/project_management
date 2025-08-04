@@ -41,12 +41,14 @@ Preferred communication style: Simple, everyday language.
 - Projects: 42 records (with cascade deletion capability) ✅
 - Tasks: 92+ records ✅
 
-**RBAC System**: Fully operational through Node.js backend
-- User management with role-based company grouping ✅
-- Collapsible user lists by company ✅
-- Complete user creation and management ✅
-- **Role management with full CRUD operations** ✅
-- **Permissions system integrated and functional** ✅
+**Three-Tier RBAC System**: Fully operational with multi-tenant security
+- **Root Admin Access**: Complete access to all companies and data ✅
+- **Company Admin Access**: Manage users/roles within own company only ✅
+- **Regular User Access**: View own company's projects and tasks only ✅
+- User management with company-filtered data ✅
+- Role management with company-specific filtering ✅
+- **Multi-tenant security enforced at API level** ✅
+- **RBAC admin panel hidden from non-admin users** ✅
 
 ## System Architecture
 

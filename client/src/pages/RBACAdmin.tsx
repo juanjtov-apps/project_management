@@ -87,34 +87,42 @@ export default function RBACAdmin() {
     queryKey: ['/api/rbac/permissions'],
   });
 
-  // Block access for non-root users - RBAC admin is only for system administrators
-  const isRootAdmin = currentUser?.email?.includes('admin') || currentUser?.email?.includes('chacjjlegacy') || currentUser?.role === 'admin';
+  // Three-tier access control
+  const isRootAdmin = currentUser?.email?.includes('chacjjlegacy') || currentUser?.email === 'admin@proesphere.com';
+  const isCompanyAdmin = currentUser?.role === 'admin' || currentUser?.email?.includes('admin');
+  const hasRBACAccess = isRootAdmin || isCompanyAdmin;
 
   const { data: roles = [], isLoading: rolesLoading } = useQuery<Role[]>({
     queryKey: ['/api/rbac/roles'],
+    enabled: hasRBACAccess,
   });
 
   const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
     queryKey: ['/api/companies'],
-    enabled: isRootAdmin, // Only load for root admins
+    enabled: hasRBACAccess,
   });
 
   const { data: users = [], isLoading: usersLoading } = useQuery<UserProfile[]>({
     queryKey: ['/api/rbac/users'],
-    enabled: isRootAdmin, // Only load for root admins  
+    enabled: hasRBACAccess,
   });
   
-  if (!isRootAdmin) {
+  if (!hasRBACAccess) {
     return (
       <div className="container mx-auto p-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-destructive mb-4">Access Denied</h1>
-          <p className="text-muted-foreground">RBAC Administration is restricted to system administrators only.</p>
-          <p className="text-sm text-muted-foreground mt-2">Regular users can only access their company's projects and tasks.</p>
+          <p className="text-muted-foreground">RBAC Administration requires admin privileges.</p>
+          <p className="text-sm text-muted-foreground mt-2">Contact your system administrator for access.</p>
         </div>
       </div>
     );
   }
+
+  // Filter data based on admin level
+  const filteredCompanies = isRootAdmin ? companies : companies.filter(c => c.id === currentUser?.company_id);
+  const filteredUsers = isRootAdmin ? users : users.filter(u => u.company_id === currentUser?.company_id);
+  const filteredRoles = isRootAdmin ? roles : roles.filter(r => !r.company_id || r.company_id === currentUser?.company_id);
 
   // Mutations
   const createUserMutation = useMutation({
@@ -234,11 +242,11 @@ export default function RBACAdmin() {
       }
     });
 
-    // Group users by company
+    // Group filtered users by company
     const usersByCompany = React.useMemo(() => {
       const grouped: { [key: string]: UserProfile[] } = {};
       
-      users.forEach((user: UserProfile) => {
+      filteredUsers.forEach((user: UserProfile) => {
         const companyKey = user.company_name || 'Unassigned';
         if (!grouped[companyKey]) {
           grouped[companyKey] = [];
@@ -247,7 +255,7 @@ export default function RBACAdmin() {
       });
       
       return grouped;
-    }, [users]);
+    }, [filteredUsers]);
 
     const toggleCompanyExpansion = (companyName: string) => {
       const newExpanded = new Set(expandedCompanies);
@@ -430,7 +438,7 @@ export default function RBACAdmin() {
                       <SelectValue placeholder="Select company" />
                     </SelectTrigger>
                     <SelectContent>
-                      {companies.map((company: Company) => (
+                      {filteredCompanies.map((company: Company) => (
                         <SelectItem key={company.id} value={company.id.toString()}>
                           {company.name}
                         </SelectItem>

@@ -37,13 +37,15 @@ export default function Sidebar() {
     retry: false
   });
   
-  // Only show RBAC Admin to root admins
-  const isRootAdmin = currentUser?.email?.includes('admin') || currentUser?.email?.includes('chacjjlegacy') || currentUser?.role === 'admin';
+  // Three-tier access control - only show RBAC Admin to admin users
+  const isRootAdmin = currentUser?.email?.includes('chacjjlegacy') || currentUser?.email === 'admin@proesphere.com';
+  const isCompanyAdmin = currentUser?.role === 'admin' || currentUser?.email?.includes('admin');
+  const hasRBACAccess = isRootAdmin || isCompanyAdmin;
   
   // Filter navigation based on user role
   const filteredNavigation = navigation.filter(item => {
     if (item.name === 'RBAC Admin') {
-      return isRootAdmin;
+      return hasRBACAccess;
     }
     return true;
   });
