@@ -76,6 +76,12 @@ export default function RBACAdmin() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('users');
 
+  // Get current user for RBAC checks
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ['/api/auth/user'],
+    retry: false
+  });
+
   // Data fetching
   const { data: permissions = [], isLoading: permissionsLoading } = useQuery<Permission[]>({
     queryKey: ['/api/rbac/permissions'],
@@ -85,13 +91,31 @@ export default function RBACAdmin() {
     queryKey: ['/api/rbac/roles'],
   });
 
+  // Only admins can see all companies and users
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.email?.includes('admin');
+  
   const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
     queryKey: ['/api/companies'],
+    enabled: isAdmin, // Only load for admins
   });
 
   const { data: users = [], isLoading: usersLoading } = useQuery<UserProfile[]>({
-    queryKey: ['/api/users'],
+    queryKey: ['/api/rbac/users'],
+    enabled: isAdmin, // Only load for admins  
   });
+
+  // Block access for non-admin users
+  if (!isAdmin && !currentUser?.email?.includes('chacjjlegacy')) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-destructive mb-4">Access Denied</h1>
+          <p className="text-muted-foreground">You don't have permission to access this admin panel.</p>
+          <p className="text-sm text-muted-foreground mt-2">Contact your administrator for access.</p>
+        </div>
+      </div>
+    );
+  }
 
   // Mutations
   const createUserMutation = useMutation({
@@ -315,10 +339,10 @@ export default function RBACAdmin() {
                     </SelectTrigger>
                     <SelectContent>
                       {roles
-                        .filter((role: Role) => !newUser.company_id || role.companyId?.toString() === newUser.company_id || !role.companyId)
+                        .filter((role: Role) => !newUser.company_id || role.company_id?.toString() === newUser.company_id || !role.company_id)
                         .map((role: Role) => (
                           <SelectItem key={role.id} value={role.id.toString()}>
-                            {role.name} {!role.companyId && '(Platform)'}
+                            {role.name} {!role.company_id && '(Platform)'}
                           </SelectItem>
                         ))}
                     </SelectContent>
@@ -426,10 +450,10 @@ export default function RBACAdmin() {
                     </SelectTrigger>
                     <SelectContent>
                       {roles
-                        .filter((role: Role) => !editingUser?.company_id || role.companyId?.toString() === editingUser.company_id?.toString() || !role.companyId)
+                        .filter((role: Role) => !editingUser?.company_id || role.company_id?.toString() === editingUser.company_id?.toString() || !role.company_id)
                         .map((role: Role) => (
                           <SelectItem key={role.id} value={role.id.toString()}>
-                            {role.name} {!role.companyId && '(Platform)'}
+                            {role.name} {!role.company_id && '(Platform)'}
                           </SelectItem>
                         ))}
                     </SelectContent>
@@ -454,16 +478,21 @@ export default function RBACAdmin() {
                 <Button 
                   onClick={() => {
                     if (editingUser) {
-                      updateUserMutation.mutate({ 
+                      // Map fields properly for backend
+                      const updatePayload = {
+                        email: editingUser.email,
+                        username: editingUser.email, // Use email as username
+                        name: `${editingUser.first_name || ''} ${editingUser.last_name || ''}`.trim(),
+                        first_name: editingUser.first_name,
+                        last_name: editingUser.last_name,
+                        company_id: editingUser.company_id,
+                        role_id: editingUser.role_id,
+                        is_active: editingUser.is_active
+                      };
+                      
+                      updateUserMutation.mutate({
                         id: editingUser.id, 
-                        data: {
-                          email: editingUser.email,
-                          first_name: editingUser.first_name,
-                          last_name: editingUser.last_name,
-                          company_id: editingUser.company_id,
-                          role_id: editingUser.role_id,
-                          is_active: editingUser.is_active
-                        }
+                        data: updatePayload
                       });
                       setIsEditDialogOpen(false);
                       setEditingUser(null);
@@ -571,10 +600,10 @@ export default function RBACAdmin() {
                                   // Map backend field names to frontend field names
                                   const mappedUser = {
                                     ...user,
-                                    first_name: user.firstName || user.first_name,
-                                    last_name: user.lastName || user.last_name,
-                                    company_id: user.companyId?.toString() || user.company_id,
-                                    role_id: user.roleId?.toString() || user.role_id,
+                                    first_name: user.first_name || user.first_name,
+                                    last_name: user.last_name || user.last_name,
+                                    company_id: user.company_id?.toString() || user.company_id,
+                                    role_id: user.role_id?.toString() || user.role_id,
                                     is_active: user.isActive !== undefined ? user.isActive : user.is_active
                                   };
                                   console.log('Mapped user for editing:', mappedUser); // Debug
@@ -844,14 +873,27 @@ export default function RBACAdmin() {
     // Calculate user counts per company
     const userCountsByCompany = React.useMemo(() => {
       const counts: { [key: string]: number } = {};
-      users.forEach((user: UserProfile) => {
-        const companyName = user.company_name;
-        if (companyName) {
-          counts[companyName] = (counts[companyName] || 0) + 1;
-        }
-      });
+      if (users && Array.isArray(users)) {
+        users.forEach((user: UserProfile) => {
+          // Try multiple field variations for company identification
+          const companyName = user.company_name || user.company_name;
+          const companyId = user.company_id || user.company_id;
+          
+          if (companyName) {
+            counts[companyName] = (counts[companyName] || 0) + 1;
+          }
+          
+          // Also count by company ID for backup matching
+          if (companyId && companies) {
+            const company = companies.find((c: Company) => c.id.toString() === companyId.toString());
+            if (company) {
+              counts[company.name] = (counts[company.name] || 0) + 1;
+            }
+          }
+        });
+      }
       return counts;
-    }, [users]);
+    }, [users, companies]);
 
     // Filter companies based on user preference
     const filteredCompanies = React.useMemo(() => {
@@ -886,7 +928,9 @@ export default function RBACAdmin() {
     const deleteCompanyMutation = useMutation({
       mutationFn: (id: string) => apiRequest(`/api/companies/${id}`, { method: 'DELETE' }),
       onSuccess: () => {
+        // Invalidate BOTH endpoints to ensure UI updates
         queryClient.invalidateQueries({ queryKey: ['/api/rbac/companies'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/companies'] });
         toast({ title: 'Success', description: 'Company deleted successfully' });
         // Close the delete confirmation dialog
         setIsDeleteConfirmDialogOpen(false);

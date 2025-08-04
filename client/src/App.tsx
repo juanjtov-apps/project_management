@@ -47,6 +47,7 @@ function Router() {
           <Route path="/crew" component={Crew} />
           <Route path="/subs" component={Subs} />
           <Route path="/rbac" component={RBACAdmin} />
+          <Route path="/rbac-admin" component={RBACAdmin} />
         </>
       )}
       <Route component={NotFound} />
