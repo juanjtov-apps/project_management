@@ -208,9 +208,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const users = await storage.getUsers();
       
       // Filter users by company for company admins
-      const filteredUsers = isRootAdmin ? users : users.filter(user => 
-        user.companyId === currentUser.companyId || user.companyId === '0'
-      );
+      // Handle both company_id and companyId field formats for compatibility
+      const currentUserCompanyId = currentUser.company_id || currentUser.companyId;
+      const filteredUsers = isRootAdmin ? users : users.filter(user => {
+        const userCompanyId = user.company_id || user.companyId;
+        return userCompanyId === currentUserCompanyId || userCompanyId === '0';
+      });
       
       console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredUsers.length} users for ${currentUser.email} (${isRootAdmin ? 'root admin' : 'company admin'})`);
       res.json(filteredUsers);
