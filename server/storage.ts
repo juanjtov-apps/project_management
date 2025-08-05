@@ -980,6 +980,11 @@ export class DatabaseStorage implements IStorage {
       await pool.end();
     }
   }
+
+  async getUserEmailById(userId: string): Promise<string | undefined> {
+    const user = await this.getUser(userId);
+    return user?.email;
+  }
 }
 
 export const storage = new DatabaseStorage();

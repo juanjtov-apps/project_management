@@ -344,11 +344,16 @@ export default function RBACAdmin() {
                       <SelectValue placeholder="Select company" />
                     </SelectTrigger>
                     <SelectContent>
-                      {companies.map((company: Company) => (
-                        <SelectItem key={company.id} value={company.id}>
-                          {company.name}
-                        </SelectItem>
-                      ))}
+                      {(() => {
+                        // Company admins can only create users in their own company
+                        const availableCompanies = isRootAdmin ? companies : companies.filter(c => c.id === currentUser?.company_id);
+                        
+                        return availableCompanies.map((company: Company) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.name}
+                          </SelectItem>
+                        ));
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>

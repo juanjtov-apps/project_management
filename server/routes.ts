@@ -223,8 +223,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/rbac/users', async (req, res) => {
     try {
       console.log('PRODUCTION RBAC: Creating user via Node.js backend:', req.body);
+      
+      // Get current user session to enforce company restrictions
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Check admin access and company restrictions
+      const isRootAdmin = currentUser.email?.includes('chacjjlegacy') || currentUser.email === 'admin@proesphere.com';
+      const isCompanyAdmin = currentUser.role === 'admin' || currentUser.email?.includes('admin');
+      
+      if (!isRootAdmin && !isCompanyAdmin) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      // Company admin can only create users in their own company
+      if (!isRootAdmin && req.body.company_id !== currentUser.companyId) {
+        return res.status(403).json({ 
+          message: "Company admins can only create users within their own company." 
+        });
+      }
+
       const user = await storage.createRBACUser(req.body);
-      console.log('✅ NODE.JS SUCCESS: User created:', user);
+      console.log('✅ NODE.JS SUCCESS: User created with company restrictions enforced:', user);
       res.status(201).json(user);
     } catch (error: any) {
       console.error('Error creating user:', error);
@@ -402,7 +429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only root admins can see all projects, regular users see their company's projects only
-      const isRootAdmin = user.email?.includes('admin') || user.email?.includes('chacjjlegacy') || user.role === 'admin';
+      const isRootAdmin = user.email?.includes('chacjjlegacy') || user.email === 'admin@proesphere.com';
       
       const projects = await storage.getProjects();
       
@@ -496,7 +523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only root admins can see all tasks, regular users see their company's tasks only
-      const isRootAdmin = user.email?.includes('admin') || user.email?.includes('chacjjlegacy') || user.role === 'admin';
+      const isRootAdmin = user.email?.includes('chacjjlegacy') || user.email === 'admin@proesphere.com';
       
       const tasks = await storage.getTasks();
       
