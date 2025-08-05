@@ -375,6 +375,11 @@ export default function RBACAdmin() {
                         }
                         
                         const filteredRoles = roles.filter((role: Role) => {
+                          // If no company selected, show all roles
+                          if (!newUser.company_id || newUser.company_id === '') {
+                            return true;
+                          }
+                          
                           // Show platform roles (company_id 0 or null) and roles from selected company
                           const isGlobal = !role.company_id || role.company_id === '0' || role.company_id === 0;
                           const isFromCompany = role.company_id?.toString() === newUser.company_id;
@@ -390,7 +395,7 @@ export default function RBACAdmin() {
                         
                         return filteredRoles.map((role: Role) => (
                           <SelectItem key={role.id} value={role.id.toString()}>
-                            {role.name} {(!role.company_id || role.company_id === '0' || role.is_template) && '(Global)'}
+                            {role.name} {(!role.company_id || role.company_id === '0' || role.is_template) ? '(Global)' : '(Company)'}
                           </SelectItem>
                         ));
                       })()}
@@ -504,11 +509,13 @@ export default function RBACAdmin() {
                         roles
                           .filter((role: Role) => {
                             // Show platform roles (no company_id) and roles from user's company
-                            return !role.company_id || role.company_id?.toString() === editingUser?.company_id?.toString() || role.is_template;
+                            const isGlobal = !role.company_id || role.company_id === '0' || role.company_id === 0;
+                            const isFromCompany = role.company_id?.toString() === editingUser?.company_id?.toString();
+                            return isGlobal || isFromCompany || role.is_template;
                           })
                           .map((role: Role) => (
                             <SelectItem key={role.id} value={role.id.toString()}>
-                              {role.name} {(!role.company_id || role.is_template) && '(Global)'}
+                              {role.name} {(!role.company_id || role.company_id === '0' || role.is_template) ? '(Global)' : '(Company)'}
                             </SelectItem>
                           ))
                       ) : (
