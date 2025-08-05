@@ -358,7 +358,7 @@ export default function RBACAdmin() {
                   <div>
                     <Label>Company</Label>
                     <div className="p-2 bg-gray-50 rounded border text-sm text-gray-600">
-                      {companies.find(c => c.id === currentUser?.company_id)?.name || 'Your Company'}
+                      {companies.find(c => c.id.toString() === currentUser?.company_id?.toString())?.name || 'Your Company'}
                     </div>
                   </div>
                 )}
@@ -427,8 +427,15 @@ export default function RBACAdmin() {
                 </Button>
                 <Button 
                   onClick={() => {
-                    // Auto-assign company for non-root admins
-                    const effectiveCompanyId = isRootAdmin ? newUser.company_id : currentUser?.company_id || '0';
+                    // Auto-assign company for non-root admins - ensure it's the actual company ID, not '0'
+                    const effectiveCompanyId = isRootAdmin ? newUser.company_id : currentUser?.company_id?.toString();
+                    
+                    console.log('User creation debug:', {
+                      isRootAdmin,
+                      currentUserCompanyId: currentUser?.company_id,
+                      newUserCompanyId: newUser.company_id,
+                      effectiveCompanyId
+                    });
                     
                     // Validate required fields
                     if (!newUser.email || !newUser.first_name || !newUser.last_name || !effectiveCompanyId || !newUser.role_id) {

@@ -244,7 +244,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Company admin can only create users in their own company
-      if (!isRootAdmin && req.body.company_id !== currentUser.companyId) {
+      if (!isRootAdmin && req.body.company_id != currentUser.company_id) {
+        console.log('Company admin validation failed:', {
+          isRootAdmin,
+          requestCompanyId: req.body.company_id,
+          currentUserCompanyId: currentUser.company_id,
+          currentUserEmail: currentUser.email
+        });
         return res.status(403).json({ 
           message: "Company admins can only create users within their own company." 
         });
