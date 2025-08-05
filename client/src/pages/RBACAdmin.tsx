@@ -126,10 +126,23 @@ export default function RBACAdmin() {
     );
   }
 
-  // Filter data based on admin level
-  const filteredCompanies = isRootAdmin ? companies : companies.filter(c => c.id === currentUser?.company_id);
-  const filteredUsers = isRootAdmin ? users : users.filter(u => u.company_id === currentUser?.company_id);
-  const filteredRoles = isRootAdmin ? roles : roles.filter(r => !r.company_id || r.company_id === currentUser?.company_id);
+  // Filter data based on admin level with field name compatibility
+  const currentUserCompanyId = currentUser?.company_id || currentUser?.companyId;
+  const filteredCompanies = isRootAdmin ? companies : companies.filter(c => c.id === currentUserCompanyId);
+  const filteredUsers = isRootAdmin ? users : users.filter(u => {
+    const userCompanyId = u.company_id || u.companyId;
+    return userCompanyId === currentUserCompanyId;
+  });
+  const filteredRoles = isRootAdmin ? roles : roles.filter(r => !r.company_id || r.company_id === currentUserCompanyId);
+  
+  // Debug user filtering
+  console.log('User filtering debug:', {
+    isRootAdmin,
+    currentUserCompanyId,
+    totalUsers: users.length,
+    filteredUsers: filteredUsers.length,
+    usersData: users.slice(0, 3).map(u => ({ id: u.id, email: u.email, company_id: u.company_id, companyId: u.companyId }))
+  });
 
   // Mutations
   const createUserMutation = useMutation({
@@ -259,17 +272,26 @@ export default function RBACAdmin() {
         grouped[company.name] = [];
       });
       
-      // Then add users to their respective companies
+      // Then add users to their respective companies with proper company name mapping
       filteredUsers.forEach((user: UserProfile) => {
-        const companyKey = user.company_name || 'Unassigned';
+        const userCompanyId = user.company_id || user.companyId;
+        const company = companies.find(c => c.id === userCompanyId || c.id.toString() === userCompanyId?.toString());
+        const companyKey = company?.name || user.company_name || 'Unassigned';
+        
         if (!grouped[companyKey]) {
           grouped[companyKey] = [];
         }
         grouped[companyKey].push(user);
       });
       
+      console.log('UsersByCompany debug:', {
+        filteredUsersCount: filteredUsers.length,
+        groupedKeys: Object.keys(grouped),
+        groupedCounts: Object.fromEntries(Object.entries(grouped).map(([k, v]) => [k, v.length]))
+      });
+      
       return grouped;
-    }, [filteredUsers, filteredCompanies]);
+    }, [filteredUsers, filteredCompanies, companies]);
 
     const toggleCompanyExpansion = (companyName: string) => {
       const newExpanded = new Set(expandedCompanies);
@@ -1651,7 +1673,7 @@ export default function RBACAdmin() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className={`grid w-full ${isRootAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             Users
@@ -1660,14 +1682,18 @@ export default function RBACAdmin() {
             <UserCheck className="w-4 h-4" />
             Roles
           </TabsTrigger>
-          <TabsTrigger value="companies" className="flex items-center gap-2">
-            <Building className="w-4 h-4" />
-            Companies
-          </TabsTrigger>
-          <TabsTrigger value="permissions" className="flex items-center gap-2">
-            <Key className="w-4 h-4" />
-            Permissions
-          </TabsTrigger>
+          {isRootAdmin && (
+            <TabsTrigger value="companies" className="flex items-center gap-2">
+              <Building className="w-4 h-4" />
+              Companies
+            </TabsTrigger>
+          )}
+          {isRootAdmin && (
+            <TabsTrigger value="permissions" className="flex items-center gap-2">
+              <Key className="w-4 h-4" />
+              Permissions
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="users" className="mt-6">
@@ -1678,13 +1704,17 @@ export default function RBACAdmin() {
           <RoleManagement />
         </TabsContent>
 
-        <TabsContent value="companies" className="mt-6">
-          <CompanyManagement />
-        </TabsContent>
+        {isRootAdmin && (
+          <TabsContent value="companies" className="mt-6">
+            <CompanyManagement />
+          </TabsContent>
+        )}
 
-        <TabsContent value="permissions" className="mt-6">
-          <PermissionsOverview />
-        </TabsContent>
+        {isRootAdmin && (
+          <TabsContent value="permissions" className="mt-6">
+            <PermissionsOverview />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
