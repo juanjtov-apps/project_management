@@ -240,6 +240,11 @@ export class DatabaseStorage implements IStorage {
       const userName = name || `${first_name || ''} ${last_name || ''}`.trim() || email;
       const userPassword = password || 'password123';
 
+      // Hash the password before storing
+      const bcrypt = await import('bcrypt');
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(userPassword, saltRounds);
+
       // Get role name from role_id
       const roleResult = await pool.query('SELECT name FROM roles WHERE id = $1', [role_id]);
       if (roleResult.rows.length === 0) {
@@ -275,7 +280,7 @@ export class DatabaseStorage implements IStorage {
         userRole,
         company_id,
         is_active,
-        userPassword
+        hashedPassword
       ]);
       
       const row = result.rows[0];
@@ -302,15 +307,37 @@ export class DatabaseStorage implements IStorage {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
-      const { email, first_name, last_name, role, is_active, username } = data;
+      const { email, first_name, last_name, role, is_active, username, password } = data;
       const userName = `${first_name || ''} ${last_name || ''}`.trim() || email;
       
-      const result = await pool.query(`
-        UPDATE users 
-        SET email = $1, first_name = $2, last_name = $3, role = $4, is_active = $5, updated_at = NOW(), name = $6, username = $7
-        WHERE id = $8
-        RETURNING id, email, first_name, last_name, username, role, is_active, created_at, name
-      `, [email, first_name, last_name, role, is_active, userName, username || email.split('@')[0], id]);
+      let queryText;
+      let queryParams;
+      
+      if (password && password.trim() !== '') {
+        // Hash the new password if provided
+        const bcrypt = await import('bcrypt');
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        
+        queryText = `
+          UPDATE users 
+          SET email = $1, first_name = $2, last_name = $3, role = $4, is_active = $5, updated_at = NOW(), name = $6, username = $7, password = $8
+          WHERE id = $9
+          RETURNING id, email, first_name, last_name, username, role, is_active, created_at, name
+        `;
+        queryParams = [email, first_name, last_name, role, is_active, userName, username || email.split('@')[0], hashedPassword, id];
+      } else {
+        // Don't update password if not provided
+        queryText = `
+          UPDATE users 
+          SET email = $1, first_name = $2, last_name = $3, role = $4, is_active = $5, updated_at = NOW(), name = $6, username = $7
+          WHERE id = $8
+          RETURNING id, email, first_name, last_name, username, role, is_active, created_at, name
+        `;
+        queryParams = [email, first_name, last_name, role, is_active, userName, username || email.split('@')[0], id];
+      }
+      
+      const result = await pool.query(queryText, queryParams);
       
       if (result.rows.length === 0) return null;
       

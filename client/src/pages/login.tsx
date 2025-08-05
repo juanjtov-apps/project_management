@@ -32,9 +32,20 @@ export default function Login() {
       window.location.href = "/";
     },
     onError: (error: any) => {
+      // Better user-friendly error messages
+      let errorMessage = "Please check your email and password and try again.";
+      
+      if (error.message?.includes("Invalid credentials")) {
+        errorMessage = "Email or password is incorrect. Please try again.";
+      } else if (error.message?.includes("required")) {
+        errorMessage = "Both email and password are required.";
+      } else if (error.message?.includes("server")) {
+        errorMessage = "Unable to connect to the server. Please try again later.";
+      }
+      
       toast({
-        title: "Login Failed",
-        description: error.message || "Invalid credentials",
+        title: "Unable to Sign In",
+        description: errorMessage,
         variant: "destructive",
       });
     },

@@ -496,6 +496,17 @@ export default function RBACAdmin() {
                   <p className="text-xs text-muted-foreground mt-1">Users cannot change companies</p>
                 </div>
                 <div>
+                  <Label htmlFor="edit_password">New Password (Optional)</Label>
+                  <Input
+                    id="edit_password"
+                    type="password"
+                    placeholder="Leave empty to keep current password"
+                    value={editingUser?.password || ''}
+                    onChange={(e) => setEditingUser(prev => prev ? {...prev, password: e.target.value} : null)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Only change if user needs a new password</p>
+                </div>
+                <div>
                   <Label htmlFor="edit_role">Role</Label>
                   <Select 
                     value={editingUser?.role_id?.toString() || ''} 
@@ -552,7 +563,8 @@ export default function RBACAdmin() {
                         last_name: editingUser.last_name,
                         company_id: editingUser.company_id,
                         role_id: editingUser.role_id,
-                        is_active: editingUser.is_active
+                        is_active: editingUser.is_active,
+                        password: editingUser.password // Include password if provided
                       };
                       
                       updateUserMutation.mutate({
