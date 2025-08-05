@@ -214,54 +214,84 @@ export class DatabaseStorage implements IStorage {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
-      const { email, first_name, last_name, role, is_active = true, username } = userData;
+      const { 
+        email, 
+        first_name, 
+        last_name, 
+        name,
+        company_id,
+        role_id,
+        password,
+        is_active = true, 
+        username 
+      } = userData;
       
       if (!email) {
         throw new Error('Email is required');
       }
+      if (!company_id) {
+        throw new Error('Company is required');
+      }
+      if (!role_id) {
+        throw new Error('Role is required');
+      }
 
-      const userUsername = username || email.split('@')[0]; // Generate username from email if not provided
-      const userRole = role || 'crew'; // Default role
+      const userUsername = username || email;
+      const userName = name || `${first_name || ''} ${last_name || ''}`.trim() || email;
+      const userPassword = password || 'password123';
 
-      // Use a simple default password for now - in production this should be properly hashed
-      const defaultPassword = 'password123';
+      // Get role name from role_id
+      const roleResult = await pool.query('SELECT name FROM roles WHERE id = $1', [role_id]);
+      if (roleResult.rows.length === 0) {
+        throw new Error('Invalid role selected');
+      }
+      const roleName = roleResult.rows[0].name;
+
+      // Map role names to simple role codes for backwards compatibility
+      const roleMapping: any = {
+        'Platform Administrator': 'admin',
+        'Company Administrator': 'admin', 
+        'Project Manager': 'manager',
+        'Office Manager': 'manager',
+        'Client': 'crew',
+        'Subcontractor': 'subcontractor',
+        'Viewer': 'crew'
+      };
+      const userRole = roleMapping[roleName] || 'crew';
       
       const result = await pool.query(`
-        INSERT INTO users (email, first_name, last_name, username, role, is_active, password, created_at, updated_at, name)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8)
-        RETURNING id, email, first_name, last_name, username, role, is_active, created_at, name
+        INSERT INTO users (
+          email, first_name, last_name, username, name, role, 
+          company_id, is_active, password, created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+        RETURNING id, email, first_name, last_name, username, name, role, company_id, is_active, created_at
       `, [
         email, 
         first_name, 
         last_name, 
-        userUsername, 
-        userRole, 
+        userUsername,
+        userName,
+        userRole,
+        company_id,
         is_active,
-        defaultPassword,
-        `${first_name || ''} ${last_name || ''}`.trim() || email
+        userPassword
       ]);
       
       const row = result.rows[0];
 
+      // Get company name for response
+      const companyResult = await pool.query('SELECT name FROM companies WHERE id = $1', [company_id]);
+      const companyName = companyResult.rows[0]?.name || 'Unknown Company';
+
       return {
         id: row.id,
-        name: row.name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || row.email,
-        email: row.email,
-        first_name: row.first_name,
-        last_name: row.last_name,
-        company_id: '0', // Default since no company relationship exists
-        role_id: '1',
-        is_active: row.is_active,
-        created_at: row.created_at,
-        role_name: row.role,
-        company_name: 
-          row.role === 'admin' ? 'Platform Administration' :
-          row.role === 'manager' ? 'Management Team' :
-          row.role === 'crew' ? 'Construction Crew' :
-          row.role === 'subcontractor' ? 'Subcontractors' :
-          'General Users',
         username: row.username,
-        isActive: row.is_active
+        name: row.name,
+        email: row.email,
+        role: row.role,
+        isActive: row.is_active,
+        createdAt: row.created_at
       };
     } finally {
       await pool.end();

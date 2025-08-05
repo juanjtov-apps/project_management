@@ -133,9 +133,9 @@ export default function RBACAdmin() {
 
   // Mutations
   const createUserMutation = useMutation({
-    mutationFn: (userData: any) => apiRequest('/api/users', { method: 'POST', body: userData }),
+    mutationFn: (userData: any) => apiRequest('/api/rbac/users', { method: 'POST', body: userData }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
       toast({ title: 'Success', description: 'User created successfully' });
     },
     onError: (error: any) => {
@@ -145,9 +145,9 @@ export default function RBACAdmin() {
 
   const updateUserMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => 
-      apiRequest(`/api/users/${id}`, { method: 'PATCH', body: data }),
+      apiRequest(`/api/rbac/users/${id}`, { method: 'PATCH', body: data }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
       toast({ title: 'Success', description: 'User updated successfully' });
     },
     onError: (error: any) => {
@@ -156,10 +156,8 @@ export default function RBACAdmin() {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/users/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => apiRequest(`/api/rbac/users/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
-      // Invalidate both user endpoints to ensure proper cache refresh
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
       toast({ title: 'Success', description: 'User deleted successfully' });
     },
