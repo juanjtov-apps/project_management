@@ -360,11 +360,20 @@ export default function RBACAdmin() {
                     <div className="p-2 bg-gray-50 rounded border text-sm text-gray-600">
                       {(() => {
                         console.log('Company display debug:', {
-                          companies: companies.map(c => ({ id: c.id, name: c.name })),
-                          currentUserCompanyId: currentUser?.company_id,
-                          matchedCompany: companies.find(c => c.id.toString() === currentUser?.company_id?.toString())
+                          companies: companies.length,
+                          companiesLoading,
+                          currentUser: currentUser,
+                          currentUserCompanyId: currentUser?.company_id || currentUser?.companyId,
+                          companiesList: companies.map(c => ({ id: c.id, name: c.name }))
                         });
-                        return companies.find(c => c.id.toString() === currentUser?.company_id?.toString())?.name || 'Loading company...';
+                        
+                        if (companiesLoading) return 'Loading company...';
+                        if (!companies.length) return 'No companies available';
+                        
+                        // Try both company_id and companyId for compatibility
+                        const userCompanyId = currentUser?.company_id || currentUser?.companyId;
+                        const matchedCompany = companies.find(c => c.id.toString() === userCompanyId?.toString());
+                        return matchedCompany?.name || `Company ID ${userCompanyId} not found`;
                       })()}
                     </div>
                   </div>
@@ -435,13 +444,16 @@ export default function RBACAdmin() {
                 <Button 
                   onClick={() => {
                     // Auto-assign company for non-root admins - ensure it's the actual company ID, not '0'
-                    const effectiveCompanyId = isRootAdmin ? newUser.company_id : currentUser?.company_id?.toString();
+                    const userCompanyId = currentUser?.company_id || currentUser?.companyId;
+                    const effectiveCompanyId = isRootAdmin ? newUser.company_id : userCompanyId?.toString();
                     
                     console.log('User creation debug:', {
                       isRootAdmin,
-                      currentUserCompanyId: currentUser?.company_id,
+                      currentUser: currentUser,
+                      currentUserCompanyId: userCompanyId,
                       newUserCompanyId: newUser.company_id,
-                      effectiveCompanyId
+                      effectiveCompanyId,
+                      companiesAvailable: companies.length
                     });
                     
                     // Validate required fields (company_id is auto-assigned for non-root admins)
