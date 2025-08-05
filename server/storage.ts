@@ -36,6 +36,9 @@ export interface IStorage {
   createProject(project: any): Promise<any>;
   updateProject(id: string, data: any): Promise<any>;
   deleteProject(id: string): Promise<boolean>;
+  
+  // Task operations
+  assignTask(taskId: string, assigneeId: string | null): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -752,6 +755,41 @@ export class DatabaseStorage implements IStorage {
     try {
       const result = await pool.query('DELETE FROM tasks WHERE id = $1', [id]);
       return result.rowCount > 0;
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async assignTask(taskId: string, assigneeId: string | null): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        UPDATE tasks 
+        SET assignee_id = $1
+        WHERE id = $2
+        RETURNING id, title, description, project_id, assignee_id, status, priority, 
+                  due_date, completed_at, created_at, category, is_milestone, estimated_hours
+      `, [assigneeId, taskId]);
+      
+      if (result.rows.length === 0) return null;
+      
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        projectId: row.project_id,
+        assigneeId: row.assignee_id,
+        status: row.status,
+        priority: row.priority,
+        dueDate: row.due_date,
+        completedAt: row.completed_at,
+        createdAt: row.created_at,
+        category: row.category,
+        isMilestone: row.is_milestone,
+        estimatedHours: row.estimated_hours
+      };
     } finally {
       await pool.end();
     }

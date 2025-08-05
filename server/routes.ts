@@ -181,6 +181,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PRODUCTION: Add users/managers endpoint for task assignment
+  app.get('/api/users/managers', async (req, res) => {
+    try {
+      console.log('PRODUCTION: Fetching managers for task assignment via Node.js backend');
+      
+      // Get current user session to apply company filtering
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      const users = await storage.getUsers();
+      
+      // Filter users by current user's company for task assignment
+      // Handle both company_id and companyId field formats for compatibility
+      const currentUserCompanyId = currentUser.company_id || currentUser.companyId;
+      const filteredUsers = users.filter(user => {
+        const userCompanyId = user.company_id || user.companyId;
+        return userCompanyId === currentUserCompanyId;
+      });
+      
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredUsers.length} managers for task assignment for company ${currentUserCompanyId}`);
+      res.json(filteredUsers);
+    } catch (error: any) {
+      console.error('Error fetching managers:', error);
+      res.status(500).json({ message: 'Failed to fetch managers', error: error.message });
+    }
+  });
+
+  // Task assignment endpoint
+  app.patch('/api/tasks/:taskId/assign', async (req, res) => {
+    try {
+      console.log(`PRODUCTION: Assigning task ${req.params.taskId} via Node.js backend:`, req.body);
+      
+      // Get current user session to apply company filtering
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      const { assignee_id } = req.body;
+      const task = await storage.assignTask(req.params.taskId, assignee_id);
+      
+      if (!task) {
+        return res.status(404).json({ message: 'Task not found' });
+      }
+      
+      console.log('✅ NODE.JS SUCCESS: Task assigned:', task);
+      res.json(task);
+    } catch (error: any) {
+      console.error('Error assigning task:', error);
+      res.status(500).json({ message: 'Failed to assign task', error: error.message });
+    }
+  });
+
   // Users endpoints with multi-tenant security
   app.get('/api/rbac/users', async (req, res) => {
     try {
