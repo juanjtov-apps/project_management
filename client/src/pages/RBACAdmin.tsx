@@ -380,11 +380,13 @@ export default function RBACAdmin() {
                             return true;
                           }
                           
-                          // Show platform roles (company_id 0 or null) and roles from selected company
-                          const isGlobal = !role.company_id || role.company_id === '0' || role.company_id === 0;
-                          const isFromCompany = role.company_id?.toString() === newUser.company_id;
-                          console.log(`Role ${role.name}: company_id=${role.company_id}, isGlobal=${isGlobal}, isFromCompany=${isFromCompany}`);
-                          return isGlobal || isFromCompany || role.is_template;
+                          // Show platform roles (company_id 0) and treat all other roles as templates available to any company
+                          const isPlatformRole = role.company_id === '0' || role.company_id === 0;
+                          const isCompanyRole = role.company_id === '1' || role.company_id === 1; // These are role templates
+                          console.log(`Role ${role.name}: company_id=${role.company_id}, isPlatform=${isPlatformRole}, isTemplate=${isCompanyRole}`);
+                          
+                          // Platform roles and company role templates are available to all companies
+                          return isPlatformRole || isCompanyRole || role.is_template;
                         });
                         
                         console.log('Filtered roles for user creation:', filteredRoles);
@@ -395,7 +397,7 @@ export default function RBACAdmin() {
                         
                         return filteredRoles.map((role: Role) => (
                           <SelectItem key={role.id} value={role.id.toString()}>
-                            {role.name} {(!role.company_id || role.company_id === '0' || role.is_template) ? '(Global)' : '(Company)'}
+                            {role.name} {(role.company_id === '0' || role.company_id === 0) ? '(Platform)' : '(Standard)'}
                           </SelectItem>
                         ));
                       })()}
@@ -508,14 +510,14 @@ export default function RBACAdmin() {
                       {roles && roles.length > 0 ? (
                         roles
                           .filter((role: Role) => {
-                            // Show platform roles (no company_id) and roles from user's company
-                            const isGlobal = !role.company_id || role.company_id === '0' || role.company_id === 0;
-                            const isFromCompany = role.company_id?.toString() === editingUser?.company_id?.toString();
-                            return isGlobal || isFromCompany || role.is_template;
+                            // Show platform roles and all company role templates
+                            const isPlatformRole = role.company_id === '0' || role.company_id === 0;
+                            const isCompanyTemplate = role.company_id === '1' || role.company_id === 1;
+                            return isPlatformRole || isCompanyTemplate || role.is_template;
                           })
                           .map((role: Role) => (
                             <SelectItem key={role.id} value={role.id.toString()}>
-                              {role.name} {(!role.company_id || role.company_id === '0' || role.is_template) ? '(Global)' : '(Company)'}
+                              {role.name} {(role.company_id === '0' || role.company_id === 0) ? '(Platform)' : '(Standard)'}
                             </SelectItem>
                           ))
                       ) : (
