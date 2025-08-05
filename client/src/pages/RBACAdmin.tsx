@@ -337,26 +337,31 @@ export default function RBACAdmin() {
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="company">Company</Label>
-                  <Select value={newUser.company_id} onValueChange={(value) => setNewUser({ ...newUser, company_id: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select company" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(() => {
-                        // Company admins can only create users in their own company
-                        const availableCompanies = isRootAdmin ? companies : companies.filter(c => c.id === currentUser?.company_id);
-                        
-                        return availableCompanies.map((company: Company) => (
+                {isRootAdmin && (
+                  <div>
+                    <Label htmlFor="company">Company</Label>
+                    <Select value={newUser.company_id} onValueChange={(value) => setNewUser({ ...newUser, company_id: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select company" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {companies.map((company: Company) => (
                           <SelectItem key={company.id} value={company.id}>
                             {company.name}
                           </SelectItem>
-                        ));
-                      })()}
-                    </SelectContent>
-                  </Select>
-                </div>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {!isRootAdmin && (
+                  <div>
+                    <Label>Company</Label>
+                    <div className="p-2 bg-gray-50 rounded border text-sm text-gray-600">
+                      {companies.find(c => c.id === currentUser?.company_id)?.name || 'Your Company'}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="role">Role</Label>
                   <Select value={newUser.role_id} onValueChange={(value) => setNewUser({ ...newUser, role_id: value })}>
@@ -398,11 +403,19 @@ export default function RBACAdmin() {
                           return <SelectItem value="none" disabled>No roles for selected company</SelectItem>;
                         }
                         
-                        return filteredRoles.map((role: Role) => (
-                          <SelectItem key={role.id} value={role.id.toString()}>
-                            {role.name} {(role.company_id === '0' || role.company_id === 0) ? '(Platform)' : '(Standard)'}
-                          </SelectItem>
-                        ));
+                        return filteredRoles
+                          .filter((role: Role) => {
+                            // Only root admin can assign Platform Administrator role
+                            if (role.name === 'Platform Administrator' && !isRootAdmin) {
+                              return false;
+                            }
+                            return true;
+                          })
+                          .map((role: Role) => (
+                            <SelectItem key={role.id} value={role.id.toString()}>
+                              {role.name} {(role.company_id === '0' || role.company_id === 0) ? '(Platform)' : '(Standard)'}
+                            </SelectItem>
+                          ));
                       })()}
                     </SelectContent>
                   </Select>
@@ -414,8 +427,11 @@ export default function RBACAdmin() {
                 </Button>
                 <Button 
                   onClick={() => {
+                    // Auto-assign company for non-root admins
+                    const effectiveCompanyId = isRootAdmin ? newUser.company_id : currentUser?.company_id || '0';
+                    
                     // Validate required fields
-                    if (!newUser.email || !newUser.first_name || !newUser.last_name || !newUser.company_id || !newUser.role_id) {
+                    if (!newUser.email || !newUser.first_name || !newUser.last_name || !effectiveCompanyId || !newUser.role_id) {
                       toast({ title: 'Error', description: 'All fields are required', variant: 'destructive' });
                       return;
                     }
@@ -427,7 +443,7 @@ export default function RBACAdmin() {
                       name: `${newUser.first_name} ${newUser.last_name}`.trim(), // Combine first and last name
                       first_name: newUser.first_name,
                       last_name: newUser.last_name,
-                      company_id: newUser.company_id,
+                      company_id: effectiveCompanyId,
                       role_id: newUser.role_id,
                       password: newUser.password || 'defaultpassword123' // Ensure password is included
                     };

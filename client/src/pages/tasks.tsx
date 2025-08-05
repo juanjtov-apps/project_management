@@ -457,6 +457,7 @@ export default function Tasks() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
   const [bulkActionMode, setBulkActionMode] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const queryClient = useQueryClient();
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
@@ -559,7 +560,14 @@ export default function Tasks() {
   };
 
   const handleDeleteTask = (task: Task) => {
-    deleteTaskMutation.mutate(task.id);
+    setTaskToDelete(task);
+  };
+
+  const confirmDeleteTask = () => {
+    if (taskToDelete) {
+      deleteTaskMutation.mutate(taskToDelete.id);
+      setTaskToDelete(null);
+    }
   };
 
   const handleStatusChange = (task: Task, newStatus: string) => {
@@ -843,6 +851,27 @@ export default function Tasks() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Task</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{taskToDelete?.title}"? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDeleteTask}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Global Summary Bar - Enhancement #1 */}
