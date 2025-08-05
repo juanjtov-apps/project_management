@@ -358,7 +358,14 @@ export default function RBACAdmin() {
                   <div>
                     <Label>Company</Label>
                     <div className="p-2 bg-gray-50 rounded border text-sm text-gray-600">
-                      {companies.find(c => c.id.toString() === currentUser?.company_id?.toString())?.name || 'Your Company'}
+                      {(() => {
+                        console.log('Company display debug:', {
+                          companies: companies.map(c => ({ id: c.id, name: c.name })),
+                          currentUserCompanyId: currentUser?.company_id,
+                          matchedCompany: companies.find(c => c.id.toString() === currentUser?.company_id?.toString())
+                        });
+                        return companies.find(c => c.id.toString() === currentUser?.company_id?.toString())?.name || 'Loading company...';
+                      })()}
                     </div>
                   </div>
                 )}
@@ -437,9 +444,20 @@ export default function RBACAdmin() {
                       effectiveCompanyId
                     });
                     
-                    // Validate required fields
+                    // Validate required fields (company_id is auto-assigned for non-root admins)
                     if (!newUser.email || !newUser.first_name || !newUser.last_name || !effectiveCompanyId || !newUser.role_id) {
-                      toast({ title: 'Error', description: 'All fields are required', variant: 'destructive' });
+                      const missingFields = [];
+                      if (!newUser.email) missingFields.push('Email');
+                      if (!newUser.first_name) missingFields.push('First Name');
+                      if (!newUser.last_name) missingFields.push('Last Name');
+                      if (!effectiveCompanyId) missingFields.push('Company');
+                      if (!newUser.role_id) missingFields.push('Role');
+                      
+                      toast({ 
+                        title: 'Error', 
+                        description: `Please fill in: ${missingFields.join(', ')}`, 
+                        variant: 'destructive' 
+                      });
                       return;
                     }
                     
