@@ -64,8 +64,38 @@ export class DatabaseStorage implements IStorage {
 
   // Additional user operations for manual auth
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user;
+    // Use direct SQL query to ensure we get the password field for authentication
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        SELECT id, email, username, name, first_name, last_name, role, 
+               company_id, is_active, created_at, password
+        FROM users 
+        WHERE email = $1
+      `, [email]);
+      
+      if (result.rows.length === 0) {
+        return undefined;
+      }
+      
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        email: row.email,
+        username: row.username,
+        name: row.name,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        role: row.role,
+        company_id: row.company_id,
+        is_active: row.is_active,
+        created_at: row.created_at,
+        password: row.password // Include password for authentication
+      } as any;
+    } finally {
+      await pool.end();
+    }
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
