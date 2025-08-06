@@ -33,22 +33,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { email, password } = req.body;
       
+      console.log("Login attempt:", { email, password: password ? "***" : "empty" });
+      
       if (!email || !password) {
+        console.log("Missing credentials");
         return res.status(400).json({ message: "Email and password are required" });
       }
 
       const user = await storage.getUserByEmail(email);
+      console.log("User found:", user ? "yes" : "no", user ? `id: ${user.id}` : "");
+      
       if (!user || !user.password) {
+        console.log("No user or no password found");
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
       const isValidPassword = await bcrypt.compare(password, user.password);
+      console.log("Password valid:", isValidPassword);
+      
       if (!isValidPassword) {
+        console.log("Invalid password");
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
       // Store user in session
       (req.session as any).userId = user.id;
+      console.log("Login successful for user:", user.email);
       res.json({ user: { ...user, password: undefined } });
     } catch (error) {
       console.error("Login error:", error);
