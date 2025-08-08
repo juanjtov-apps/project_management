@@ -225,6 +225,14 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
     return `/api/photos/${photo.id}/file`;
   };
 
+  // Console spy for debugging file input clicks
+  useEffect(() => {
+    window.addEventListener('filechooser', () => console.log('filechooser event'));
+    return () => {
+      window.removeEventListener('filechooser', () => console.log('filechooser event'));
+    };
+  }, []);
+
   // Clean up preview URLs when component unmounts
   useEffect(() => {
     return () => {
@@ -265,7 +273,15 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
             <Eye size={14} />
             View Photos ({photos.length})
           </Button>
-          <input type="file" accept="image/*" />
+          <Button
+            variant={view === "upload" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setView("upload")}
+            className="gap-2"
+          >
+            <Upload size={14} />
+            Upload New
+          </Button>
         </div>
 
         {view === "grid" ? (
