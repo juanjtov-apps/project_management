@@ -27,11 +27,14 @@ import { useState } from "react";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
-  // If still loading auth state, don't render anything to prevent 404 flash
+  // If still loading auth state, show loading with proper delay to prevent 404 flash
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-brand-text text-sm">Loading your dashboard...</p>
+        </div>
       </div>
     );
   }

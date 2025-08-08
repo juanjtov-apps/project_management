@@ -134,7 +134,18 @@ export default function Photos() {
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFiles(event.target.files);
+    const files = event.target.files;
+    if (files && files.length > 0 && !form.watch("projectId")) {
+      toast({
+        title: "Project Required",
+        description: "Please select a project first before choosing files",
+        variant: "destructive",
+      });
+      // Reset the file input
+      event.target.value = '';
+      return;
+    }
+    setSelectedFiles(files);
   };
 
   const handleDragDrop = (event: React.DragEvent<HTMLDivElement>) => {
@@ -278,7 +289,7 @@ export default function Photos() {
                     accept="image/*"
                     className="hidden"
                     onChange={handleFileSelect}
-
+                    disabled={!form.watch("projectId")}
                   />
                 </div>
 
