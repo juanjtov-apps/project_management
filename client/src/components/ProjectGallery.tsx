@@ -379,23 +379,43 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                     type="file"
                     accept="image/*,image/jpeg,image/jpg,image/png,image/gif,image/webp"
                     onChange={handleFileSelect}
-                    onClick={() => console.log("📁 File input directly clicked")}
+                    onClick={(e) => {
+                      console.log("📁 File input directly clicked");
+                      console.log("📁 Event details:", {
+                        defaultPrevented: e.defaultPrevented,
+                        isTrusted: e.isTrusted,
+                        disabled: e.currentTarget.disabled
+                      });
+                    }}
                     multiple={false}
-                    disabled={uploadMutation.isPending}
+                    disabled={false}
                     className="hidden"
                   />
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       console.log("🖱️ Browse button clicked");
-                      fileInputRef.current?.click();
+                      console.log("📝 uploadMutation.isPending:", uploadMutation.isPending);
+                      console.log("📝 fileInputRef.current:", fileInputRef.current);
+                      console.log("📝 File input disabled:", fileInputRef.current?.disabled);
+                      
+                      // Force enable the input and trigger click
+                      if (fileInputRef.current) {
+                        fileInputRef.current.disabled = false;
+                        setTimeout(() => {
+                          console.log("⏰ Delayed click attempt");
+                          fileInputRef.current?.click();
+                        }, 10);
+                      }
                     }}
-                    disabled={uploadMutation.isPending}
+                    disabled={false}
                     className="gap-2"
                   >
                     <Upload size={16} />
-                    Browse Files
+                    Browse Files (Fixed)
                   </Button>
                   <p className="text-xs text-gray-500 mt-2">
                     Supports JPG, PNG, GIF, WebP (max 10MB)
