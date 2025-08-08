@@ -24,6 +24,12 @@ Preferred communication style: Simple, everyday language.
 - Permissions management integrated with role assignments ✅
 - Frontend role creation form working with proper validation ✅
 
+**DialogContent Accessibility Warnings**: Completely resolved React warnings (August 8, 2025)
+- Fixed all DialogContent components with proper aria-describedby attributes ✅
+- Added hidden description elements for accessibility compliance ✅
+- Updated ProjectGallery.tsx, photo-gallery.tsx, add-risk-dialog.tsx, command.tsx ✅
+- Photo upload functionality maintained with robust file picker implementation ✅
+
 **Task Creation & Project Dropdown**: Fixed the critical task creation functionality
 - Project dropdown now properly populated with 42+ available projects ✅
 - Task creation working with proper project associations ✅
