@@ -378,10 +378,22 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                     type="button"
                     variant="default"
                     onClick={(e) => {
+                      console.log("🔍 DEBUGGING: Button clicked");
+                      console.log("🔍 Event:", e);
+                      console.log("🔍 fileInputRef.current:", fileInputRef.current);
+                      console.log("🔍 uploadMutation.isPending:", uploadMutation.isPending);
                       e.preventDefault();
                       e.stopPropagation();
                       setTimeout(() => {
-                        fileInputRef.current?.click();
+                        console.log("🔍 DEBUGGING: setTimeout triggered");
+                        console.log("🔍 fileInputRef.current in setTimeout:", fileInputRef.current);
+                        if (fileInputRef.current) {
+                          console.log("🔍 Calling click() on file input");
+                          fileInputRef.current.click();
+                          console.log("🔍 click() called");
+                        } else {
+                          console.log("🔍 ERROR: fileInputRef.current is null");
+                        }
                       }, 0);
                     }}
                     disabled={uploadMutation.isPending}
@@ -397,6 +409,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                     accept="image/*"
                     className="sr-only"
                     onChange={handleFileSelect}
+                    onClick={() => console.log("🔍 File input clicked directly")}
                   />
                   <p className="text-xs text-gray-500 mt-2">
                     Supports JPG, PNG, GIF, WebP (max 10MB)
