@@ -2,14 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Fix for Radix UI accessibility issue with popper wrapper elements */
-[data-radix-popper-content-wrapper][aria-hidden="true"] {
+/* Hidden Radix poppers must not capture events or focus */
+[data-radix-popper-content-wrapper][data-aria-hidden="true"],
+[data-radix-popper-content-wrapper][aria-hidden="true"]{
   pointer-events: none !important;
-}
-
-[data-radix-popper-content-wrapper][aria-hidden="true"] * {
-  pointer-events: none !important;
-  tabindex: -1 !important;
+  visibility: hidden !important;
+  display: none !important;
 }
 
 @layer components {

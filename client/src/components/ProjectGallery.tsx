@@ -19,32 +19,20 @@ interface ProjectGalleryProps {
   projectName: string;
 }
 
-// FileChooser component with proper accessibility
 function FileChooser({ onFiles }: { onFiles: (files: FileList) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  
-  const handleButtonClick = () => {
-    inputRef.current?.click();
-  };
-
   return (
-    <div className="relative">
-      <Button
-        type="button"
-        onClick={handleButtonClick}
-        className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-      >
-        📁 Choose File
-      </Button>
+    <label className="relative inline-flex items-center justify-center px-4 py-2 
+                      rounded-md bg-blue-600 text-white font-medium cursor-pointer 
+                      hover:bg-blue-700 focus-visible:outline-none focus-visible:ring 
+                      focus-visible:ring-blue-400 focus-visible:ring-offset-2">
+      📁 Choose File
       <input
-        ref={inputRef}
         type="file"
         accept="image/*"
-        onChange={e => e.target.files && onFiles(e.target.files)}
-        className="hidden"
-        aria-label="Select photo file to upload"
+        onChange={(e) => e.target.files && onFiles(e.target.files)}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
       />
-    </div>
+    </label>
   );
 }
 
@@ -58,6 +46,15 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
   const [isDragOver, setIsDragOver] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Close any Radix menu/popover before showing uploader
+  const handleViewChange = (newView: "grid" | "upload") => {
+    // Close any open popovers/menus
+    document.querySelectorAll('[data-radix-popper-content-wrapper]').forEach(el => {
+      (el as HTMLElement).style.display = 'none';
+    });
+    setView(newView);
+  };
 
   // Query for photos
   const { data: photos = [], isLoading } = useQuery<Photo[]>({
@@ -252,7 +249,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
           <Button
             variant={view === "grid" ? "default" : "outline"}
             size="sm"
-            onClick={() => setView("grid")}
+            onClick={() => handleViewChange("grid")}
             className="gap-2"
           >
             <Eye size={14} />
@@ -261,7 +258,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
           <Button
             variant={view === "upload" ? "default" : "outline"}
             size="sm"
-            onClick={() => setView("upload")}
+            onClick={() => handleViewChange("upload")}
             className="gap-2"
           >
             <Upload size={14} />
@@ -282,7 +279,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setView("upload")}
+                  onClick={() => handleViewChange("upload")}
                   className="mt-2 gap-2"
                 >
                   <Plus size={14} />
@@ -428,7 +425,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setView("grid")}
+                onClick={() => handleViewChange("grid")}
               >
                 Cancel
               </Button>
