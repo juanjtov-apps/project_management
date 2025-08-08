@@ -42,6 +42,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const user = await storage.getUserByEmail(email);
       console.log("User found:", user ? "yes" : "no", user ? `id: ${user.id}` : "");
+      console.log("User has password field:", user ? !!user.password : "no user");
+      console.log("Password field length:", user?.password?.length || 0);
       
       if (!user || !user.password) {
         console.log("No user or no password found");
