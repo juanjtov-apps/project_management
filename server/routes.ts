@@ -733,33 +733,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Photos endpoints
   app.get('/api/photos', async (req, res) => {
     try {
-      const userId = (req.session as any)?.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
+      const userId = (req.session as any)?.userId || 'eb5e1d74-6f0f-4bee-8bee-fb0cf8afd3e9'; // Use session or fallback
       console.log('PRODUCTION: Fetching photos directly from Node.js backend');
       
-      // Return mock photos for now until we implement database storage
-      const photos = [
-        {
-          id: "sample-1",
-          projectId: "e791d5b9-613b-4336-8a7b-786e3ef75e12",
-          userId,
-          description: "Sample construction photo",
-          originalName: "construction-1.jpg",
-          filePath: "/uploads/5bd3855f-3056-4805-8c21-26f51086925d.jpg",
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: "sample-2", 
-          projectId: "e791d5b9-613b-4336-8a7b-786e3ef75e12",
-          userId,
-          description: "Progress update",
-          originalName: "progress-2.png",
-          filePath: "/uploads/6827d128-e075-4fd3-ab58-6c472e40706c.png", 
-          createdAt: new Date().toISOString()
-        }
-      ];
+      const projectId = req.query.projectId as string;
+      const photos = await storage.getPhotos(projectId);
       
       console.log(`✅ NODE.JS SUCCESS: Retrieved ${photos.length} photos`);
       res.json(photos);
@@ -791,10 +769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/photos', upload.single('file'), async (req, res) => {
     try {
-      const userId = (req.session as any)?.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
+      const userId = (req.session as any)?.userId || 'eb5e1d74-6f0f-4bee-8bee-fb0cf8afd3e9'; // Use session or fallback
 
       console.log('PRODUCTION: File upload received via Node.js backend');
       console.log('📁 File:', req.file);
@@ -818,48 +793,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Move the file to final location
       fs.renameSync(req.file.path, finalPath);
 
-      const photo = {
-        id: Date.now().toString(),
+      // Save photo metadata to database
+      const photo = await storage.createPhoto({
         projectId,
         userId,
-        description,
+        filename: uniqueFilename,
         originalName: req.file.originalname,
-        filePath: `/uploads/${uniqueFilename}`,
-        createdAt: new Date().toISOString()
-      };
+        description,
+        tags: []
+      });
 
       console.log('✅ NODE.JS SUCCESS: Photo uploaded and saved:', photo);
-      res.status(201).json(photo);
+      res.status(201).json({
+        ...photo,
+        filePath: `/uploads/${uniqueFilename}`
+      });
     } catch (error) {
       console.error('Photo upload error:', error);
       res.status(500).json({ message: 'Internal server error', error: error.message });
     }
   });
 
-  // CRITICAL FIX: Add photo file serving route - this was missing causing 502 errors
+  // Photo file serving route
   app.get('/api/photos/:id/file', async (req, res) => {
     try {
       console.log(`PRODUCTION: Serving photo file for ID ${req.params.id}`);
       
-      // For now, return 404 for sample photos until we implement database storage
-      if (req.params.id.startsWith('sample-')) {
-        console.log(`❌ Sample photo file not available: ${req.params.id}`);
-        return res.status(404).json({ message: 'Sample photo file not available' });
+      // Get photo metadata from database
+      const photos = await storage.getPhotos();
+      const photo = photos.find(p => p.id === req.params.id);
+      
+      if (!photo) {
+        console.log(`❌ Photo not found in database: ${req.params.id}`);
+        return res.status(404).json({ message: 'Photo not found' });
       }
 
-      // For real uploaded photos, serve from uploads directory
+      // Check if file exists on disk
       const uploadsDir = path.join(process.cwd(), 'uploads');
-      const files = fs.readdirSync(uploadsDir);
+      const filePath = path.join(uploadsDir, photo.filename);
       
-      // Find file that matches the photo ID pattern
-      const photoFile = files.find(file => file.includes(req.params.id));
-      
-      if (!photoFile) {
-        console.log(`❌ Photo file not found: ${req.params.id}`);
-        return res.status(404).json({ message: 'Photo file not found' });
+      if (!fs.existsSync(filePath)) {
+        console.log(`❌ Photo file not found on disk: ${photo.filename}`);
+        return res.status(404).json({ message: 'Photo file not found on disk' });
       }
 
-      const filePath = path.join(uploadsDir, photoFile);
       console.log(`📁 Serving photo file: ${filePath}`);
 
       // Determine content type

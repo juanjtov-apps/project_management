@@ -39,6 +39,15 @@ export interface IStorage {
   
   // Task operations
   assignTask(taskId: string, assigneeId: string | null): Promise<any>;
+  getTasks(): Promise<any[]>;
+  createTask(task: any): Promise<any>;
+  updateTask(id: string, data: any): Promise<any>;
+  deleteTask(id: string): Promise<boolean>;
+  
+  // Photo operations
+  getPhotos(projectId?: string): Promise<any[]>;
+  createPhoto(photo: any): Promise<any>;
+  deletePhoto(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1074,6 +1083,85 @@ export class DatabaseStorage implements IStorage {
   async getUserEmailById(userId: string): Promise<string | undefined> {
     const user = await this.getUser(userId);
     return user?.email;
+  }
+
+  // Photo operations
+  async getPhotos(projectId?: string): Promise<any[]> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      let query = `
+        SELECT p.id, p.project_id, p.user_id, p.filename, p.original_name, 
+               p.description, p.tags, p.created_at,
+               u.name as user_name, pr.name as project_name
+        FROM photos p
+        LEFT JOIN users u ON p.user_id = u.id
+        LEFT JOIN projects pr ON p.project_id = pr.id
+      `;
+      
+      const params: any[] = [];
+      if (projectId) {
+        query += ' WHERE p.project_id = $1';
+        params.push(projectId);
+      }
+      
+      query += ' ORDER BY p.created_at DESC';
+      
+      const result = await pool.query(query, params);
+      return result.rows.map(row => ({
+        id: row.id,
+        projectId: row.project_id,
+        userId: row.user_id,
+        filename: row.filename,
+        originalName: row.original_name,
+        description: row.description,
+        tags: row.tags,
+        createdAt: row.created_at,
+        userName: row.user_name,
+        projectName: row.project_name
+      }));
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async createPhoto(photoData: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const { projectId, userId, filename, originalName, description = '', tags = [] } = photoData;
+      
+      const result = await pool.query(`
+        INSERT INTO photos (project_id, user_id, filename, original_name, description, tags, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        RETURNING id, project_id, user_id, filename, original_name, description, tags, created_at
+      `, [projectId, userId, filename, originalName, description, tags]);
+      
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        projectId: row.project_id,
+        userId: row.user_id,
+        filename: row.filename,
+        originalName: row.original_name,
+        description: row.description,
+        tags: row.tags,
+        createdAt: row.created_at
+      };
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async deletePhoto(id: string): Promise<boolean> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query('DELETE FROM photos WHERE id = $1', [id]);
+      return result.rowCount > 0;
+    } finally {
+      await pool.end();
+    }
   }
 }
 
