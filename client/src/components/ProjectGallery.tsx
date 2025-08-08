@@ -77,16 +77,22 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
       
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      console.log("✅ Upload successful:", result);
       queryClient.invalidateQueries({ queryKey: ["/api/photos", projectId] });
       setSelectedFiles(null);
       setPreviewUrls([]);
       setDescription("");
       setView("grid");
       toast({
-        title: "Success",
+        title: "Success", 
         description: "Photo uploaded successfully",
       });
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     },
     onError: (error) => {
       toast({
@@ -129,36 +135,15 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
     
     setSelectedFiles(files);
     
-    // Create preview URLs
+    // Auto-upload immediately when file is selected
     if (files && files.length > 0) {
-      // Clean up previous preview URLs
-      previewUrls.forEach(url => URL.revokeObjectURL(url));
+      const file = files[0];
+      console.log("🚀 Auto-uploading file:", file.name);
       
-      const newPreviewUrls = Array.from(files).map(file => {
-        if (!file.type.startsWith('image/')) {
-          console.log("❌ Invalid file type:", file.type);
-          toast({
-            title: "Invalid File",
-            description: "Please select only image files",
-            variant: "destructive",
-          });
-          return null;
-        }
-        const url = URL.createObjectURL(file);
-        console.log("✅ Created preview URL:", url, "for file:", file.name);
-        return url;
-      }).filter(Boolean) as string[];
-      
-      setPreviewUrls(newPreviewUrls);
-      console.log("🖼️ Preview URLs set:", newPreviewUrls);
-      
-      toast({
-        title: "File Selected",
-        description: `Selected ${files.length} file(s)`,
+      uploadMutation.mutate({ 
+        file, 
+        description: description || `Uploaded ${file.name}` 
       });
-    } else {
-      console.log("📭 No files selected");
-      setPreviewUrls([]);
     }
   };
 
@@ -297,16 +282,20 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
             <div>
               <Label>Select Photo</Label>
               <div className="mt-1">
-                {/* Direct visible file input - no hidden elements */}
+                {/* Direct visible file input with auto-upload */}
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/*,image/jpeg,image/jpg,image/png,image/gif,image/webp"
                   onChange={handleFileSelect}
                   onClick={() => console.log("📁 File input directly clicked")}
                   multiple={false}
+                  disabled={uploadMutation.isPending}
                   className="mt-1 cursor-pointer file:cursor-pointer flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
+                {uploadMutation.isPending && (
+                  <p className="text-sm text-blue-600 mt-2">Uploading photo...</p>
+                )}
               </div>
               {selectedFiles && selectedFiles.length > 0 && (
                 <div className="mt-4 space-y-3">
