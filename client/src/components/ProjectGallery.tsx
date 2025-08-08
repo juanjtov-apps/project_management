@@ -192,13 +192,16 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
           Gallery
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh]">
+      <DialogContent className="max-w-4xl max-h-[80vh]" aria-describedby="gallery-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ImageIcon size={20} />
             {projectName} - Photo Gallery
           </DialogTitle>
         </DialogHeader>
+        <div id="gallery-description" className="sr-only">
+          Gallery for managing project photos. You can view existing photos or upload new ones.
+        </div>
 
         <div className="flex gap-2 mb-4">
           <Button

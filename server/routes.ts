@@ -836,6 +836,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CRITICAL FIX: Add photo file serving route - this was missing causing 502 errors
+  app.get('/api/photos/:id/file', async (req, res) => {
+    try {
+      console.log(`PRODUCTION: Serving photo file for ID ${req.params.id}`);
+      
+      // For now, return 404 for sample photos until we implement database storage
+      if (req.params.id.startsWith('sample-')) {
+        console.log(`❌ Sample photo file not available: ${req.params.id}`);
+        return res.status(404).json({ message: 'Sample photo file not available' });
+      }
+
+      // For real uploaded photos, serve from uploads directory
+      const uploadsDir = path.join(process.cwd(), 'uploads');
+      const files = fs.readdirSync(uploadsDir);
+      
+      // Find file that matches the photo ID pattern
+      const photoFile = files.find(file => file.includes(req.params.id));
+      
+      if (!photoFile) {
+        console.log(`❌ Photo file not found: ${req.params.id}`);
+        return res.status(404).json({ message: 'Photo file not found' });
+      }
+
+      const filePath = path.join(uploadsDir, photoFile);
+      console.log(`📁 Serving photo file: ${filePath}`);
+
+      // Determine content type
+      const ext = path.extname(filePath).toLowerCase();
+      const contentType = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg', 
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp'
+      }[ext] || 'image/jpeg';
+
+      res.contentType(contentType);
+      console.log(`✅ Serving photo file as ${contentType}`);
+      return res.sendFile(filePath);
+      
+    } catch (error: any) {
+      console.error(`Error serving photo file ${req.params.id}:`, error);
+      res.status(500).json({ message: 'Failed to serve photo file', error: error.message });
+    }
+  });
+
   // Serve uploaded files
   app.use('/uploads', (req, res, next) => {
     console.log('📁 Serving uploaded file:', req.path);
