@@ -372,51 +372,28 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                   )}
                 </div>
 
-                {/* File Input - Fallback method */}
+                {/* File Input - Label-wrapped approach for Replit sandbox */}
                 <div className="text-center">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                    onChange={handleFileSelect}
-                    onClick={(e) => {
-                      console.log("📁 File input directly clicked");
-                      console.log("📁 Event details:", {
-                        defaultPrevented: e.defaultPrevented,
-                        isTrusted: e.isTrusted,
-                        disabled: e.currentTarget.disabled
-                      });
-                    }}
-                    multiple={false}
-                    disabled={false}
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log("🖱️ Browse button clicked");
-                      console.log("📝 uploadMutation.isPending:", uploadMutation.isPending);
-                      console.log("📝 fileInputRef.current:", fileInputRef.current);
-                      console.log("📝 File input disabled:", fileInputRef.current?.disabled);
-                      
-                      // Force enable the input and trigger click
-                      if (fileInputRef.current) {
-                        fileInputRef.current.disabled = false;
-                        setTimeout(() => {
-                          console.log("⏰ Delayed click attempt");
-                          fileInputRef.current?.click();
-                        }, 10);
-                      }
-                    }}
-                    disabled={false}
-                    className="gap-2"
-                  >
-                    <Upload size={16} />
-                    Browse Files (Fixed)
-                  </Button>
+                  {/* Use label-wrapped file input - this bypasses programmatic click restrictions */}
+                  <label className="inline-block cursor-pointer">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={handleFileSelect}
+                      multiple={false}
+                      disabled={uploadMutation.isPending}
+                      className="hidden"
+                    />
+                    <span className={`inline-flex items-center justify-center gap-2 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                      uploadMutation.isPending 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'cursor-pointer'
+                    }`}>
+                      <Upload size={16} />
+                      Browse Files
+                    </span>
+                  </label>
                   <p className="text-xs text-gray-500 mt-2">
                     Supports JPG, PNG, GIF, WebP (max 10MB)
                   </p>
