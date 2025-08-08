@@ -295,12 +295,13 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
           <div className="space-y-4">
             <div>
               <Label htmlFor="photo-upload">Select Photo</Label>
-              <Input
+              <input
                 id="photo-upload"
                 type="file"
                 accept="image/*,image/jpeg,image/jpg,image/png,image/gif,image/webp"
                 onChange={handleFileSelect}
-                className="mt-1 cursor-pointer file:cursor-pointer"
+                onClick={() => console.log("🖱️ File input clicked")}
+                className="mt-1 cursor-pointer file:cursor-pointer flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 multiple={false}
               />
               {selectedFiles && selectedFiles.length > 0 && (
