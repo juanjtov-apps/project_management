@@ -372,45 +372,23 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                   )}
                 </div>
 
-                {/* File Input - Copy working approach from Photos tab */}
+                {/* File Input - Direct approach for Replit sandbox */}
                 <div className="text-center">
-                  <Button
-                    type="button"
-                    variant="default"
-                    onClick={(e) => {
-                      console.log("🔍 DEBUGGING: Button clicked");
-                      console.log("🔍 Event:", e);
-                      console.log("🔍 fileInputRef.current:", fileInputRef.current);
-                      console.log("🔍 uploadMutation.isPending:", uploadMutation.isPending);
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setTimeout(() => {
-                        console.log("🔍 DEBUGGING: setTimeout triggered");
-                        console.log("🔍 fileInputRef.current in setTimeout:", fileInputRef.current);
-                        if (fileInputRef.current) {
-                          console.log("🔍 Calling click() on file input");
-                          fileInputRef.current.click();
-                          console.log("🔍 click() called");
-                        } else {
-                          console.log("🔍 ERROR: fileInputRef.current is null");
-                        }
-                      }, 0);
-                    }}
-                    disabled={uploadMutation.isPending}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 border-2 border-blue-600 font-medium rounded-md shadow-sm"
+                  <label 
+                    className="inline-block cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 border-2 border-blue-600 font-medium rounded-md shadow-sm transition-colors"
                     style={{ minHeight: '40px', fontSize: '14px' }}
                   >
                     📁 Choose Files
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple={false}
-                    accept="image/*"
-                    className="sr-only"
-                    onChange={handleFileSelect}
-                    onClick={() => console.log("🔍 File input clicked directly")}
-                  />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple={false}
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileSelect}
+                      disabled={uploadMutation.isPending}
+                    />
+                  </label>
                   <p className="text-xs text-gray-500 mt-2">
                     Supports JPG, PNG, GIF, WebP (max 10MB)
                   </p>
