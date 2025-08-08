@@ -64,9 +64,9 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
               return (
                 <li key={item.name}>
                   <Link href={item.href}>
-                    <a 
+                    <span 
                       className={cn(
-                        "flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors",
+                        "flex items-center space-x-3 p-3 rounded-lg font-medium transition-colors cursor-pointer",
                         isActive 
                           ? "construction-primary text-white" 
                           : "text-gray-600 hover:bg-gray-100"
@@ -75,7 +75,7 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
                     >
                       <Icon size={20} />
                       <span>{item.name}</span>
-                    </a>
+                    </span>
                   </Link>
                 </li>
               );
