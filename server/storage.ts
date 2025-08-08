@@ -414,6 +414,12 @@ export class DatabaseStorage implements IStorage {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
+      // First, handle any tasks assigned to this user by setting assignee_id to NULL
+      // This prevents foreign key constraint violations during deletion
+      await pool.query('UPDATE tasks SET assignee_id = NULL WHERE assignee_id = $1', [id]);
+      console.log(`✅ Unassigned all tasks for user ${id} before deletion`);
+      
+      // Now delete the user
       const result = await pool.query('DELETE FROM users WHERE id = $1', [id]);
       return (result.rowCount ?? 0) > 0;
     } finally {

@@ -36,6 +36,9 @@ Preferred communication style: Simple, everyday language.
 - Root admins can delete users across all companies ✅
 - Fixed TypeScript schema mismatches between company_id and companyId fields ✅
 - Enhanced security validation with proper error logging ✅
+- **Cascade Deletion Fix**: Resolved foreign key constraint violations ✅
+- Tasks assigned to deleted users are automatically unassigned (set to NULL) ✅
+- Prevents database integrity errors during user deletion ✅
 
 **Task Creation & Project Dropdown**: Fixed the critical task creation functionality
 - Project dropdown now properly populated with 42+ available projects ✅
