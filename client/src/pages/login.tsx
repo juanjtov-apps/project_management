@@ -28,8 +28,8 @@ export default function Login() {
         title: "Success",
         description: "Logged in successfully!",
       });
-      // Invalidate the auth user query to refetch user data
-      window.location.href = "/";
+      // Navigate directly to home without page reload
+      setLocation("/");
     },
     onError: (error: any) => {
       // Better user-friendly error messages
