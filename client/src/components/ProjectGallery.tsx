@@ -19,21 +19,22 @@ interface ProjectGalleryProps {
   projectName: string;
 }
 
-// FileChooser component with invisible overlay approach
+// FileChooser component with proper accessibility
 function FileChooser({ onFiles }: { onFiles: (files: FileList) => void }) {
   return (
     <label className="relative inline-flex items-center justify-center
                       px-4 py-2 rounded-md bg-blue-600 text-white
                       font-medium cursor-pointer hover:bg-blue-700
-                      focus-visible:ring focus-visible:ring-offset-2
-                      focus-visible:ring-blue-400">
+                      focus-within:ring-2 focus-within:ring-offset-2
+                      focus-within:ring-blue-400 transition-all">
       📁 Choose File
       <input
         type="file"
         accept="image/*"
         onChange={e => e.target.files && onFiles(e.target.files)}
-        /* FULL-SIZE INVISIBLE OVERLAY */
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer
+                   focus:outline-none"
+        aria-label="Select photo file to upload"
       />
     </label>
   );
@@ -228,13 +229,13 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
           Gallery
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh]">
+      <DialogContent className="max-w-4xl max-h-[80vh]" aria-describedby="gallery-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ImageIcon size={20} />
             {projectName} - Photo Gallery
           </DialogTitle>
-          <div className="sr-only">
+          <div id="gallery-description" className="sr-only">
             Gallery for managing project photos. You can view existing photos or upload new ones.
           </div>
         </DialogHeader>
@@ -430,10 +431,13 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
         {/* Photo viewer modal */}
         {selectedPhoto && (
           <Dialog open={!!selectedPhoto} onOpenChange={() => setSelectedPhoto(null)}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="max-w-3xl" aria-describedby="photo-details-description">
               <DialogHeader>
                 <DialogTitle>Photo Details</DialogTitle>
               </DialogHeader>
+              <div id="photo-details-description" className="sr-only">
+                Photo viewer showing full-size image with details and upload date
+              </div>
               <div className="space-y-4">
                 <img
                   src={getPhotoUrl(selectedPhoto)}
