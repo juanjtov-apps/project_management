@@ -90,7 +90,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
         description: "Photo uploaded successfully",
       });
       
-      // Reset file input
+      // Reset file input after successful upload so same file can be chosen again
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -149,16 +149,14 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
     }
   };
 
-  // Drag and drop handlers - Alternative to file input for sandbox environments
+  // Drag and drop handlers - Only prevent default for drag events, not all events
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragOver(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragOver(false);
   };
 
@@ -345,7 +343,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
                     isDragOver
                       ? 'border-blue-500 bg-blue-50'
                       : uploadMutation.isPending
