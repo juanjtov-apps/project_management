@@ -308,9 +308,17 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     console.log("🖱️ Choose File button clicked");
-                    fileInputRef.current?.click();
+                    console.log("📁 File input ref:", fileInputRef.current);
+                    if (fileInputRef.current) {
+                      console.log("🔄 Triggering file input click");
+                      fileInputRef.current.click();
+                    } else {
+                      console.error("❌ File input ref is null");
+                    }
                   }}
                   className="w-full justify-start"
                 >
