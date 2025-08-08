@@ -292,7 +292,7 @@ export default function Photos() {
                   <div className="text-center">
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="default"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -306,9 +306,10 @@ export default function Photos() {
                           });
                         }
                       }}
-                      className="px-6 py-2"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 border-2 border-blue-600 font-medium rounded-md shadow-sm"
+                      style={{ minHeight: '40px', fontSize: '14px' }}
                     >
-                      Choose Files
+                      📁 Choose Files
                     </Button>
                   </div>
 
