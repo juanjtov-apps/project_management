@@ -52,9 +52,9 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
       formData.append("userId", "sample-user-id");
       
       console.log("FormData entries:");
-      for (let [key, value] of formData.entries()) {
+      Array.from(formData.entries()).forEach(([key, value]) => {
         console.log(`${key}:`, value);
-      }
+      });
 
       console.log("Sending request to /api/photos");
       const response = await fetch("/api/photos", {
