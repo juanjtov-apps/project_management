@@ -588,10 +588,13 @@ export default function Projects() {
                 New Project
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl" aria-describedby="create-project-description">
               <DialogHeader>
                 <DialogTitle>Create New Project</DialogTitle>
               </DialogHeader>
+              <div id="create-project-description" className="sr-only">
+                Form to create a new construction project with name, description, status, and other details
+              </div>
               <ProjectCreateForm onClose={() => setIsCreateProjectOpen(false)} />
             </DialogContent>
           </Dialog>
@@ -996,20 +999,26 @@ export default function Projects() {
 
       {/* Project Edit Dialog */}
       <Dialog open={!!editingProject} onOpenChange={() => setEditingProject(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" aria-describedby="edit-project-description">
           <DialogHeader>
             <DialogTitle>Edit Project</DialogTitle>
           </DialogHeader>
+          <div id="edit-project-description" className="sr-only">
+            Form to edit existing project details including name, description, status, and other properties
+          </div>
           {editingProject && <ProjectEditForm project={editingProject} onClose={() => setEditingProject(null)} />}
         </DialogContent>
       </Dialog>
 
       {/* Task Edit Dialog */}
       <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" aria-describedby="edit-task-description">
           <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
           </DialogHeader>
+          <div id="edit-task-description" className="sr-only">
+            Form to edit existing task details including name, description, status, priority, and assignment
+          </div>
           {editingTask && <TaskEditForm task={editingTask} onClose={() => setEditingTask(null)} />}
         </DialogContent>
       </Dialog>
@@ -1019,10 +1028,13 @@ export default function Projects() {
         setIsAddTaskOpen(false);
         setAddingTaskProject(null);
       }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" aria-describedby="add-task-description">
           <DialogHeader>
             <DialogTitle>Add Task to {addingTaskProject?.name}</DialogTitle>
           </DialogHeader>
+          <div id="add-task-description" className="sr-only">
+            Form to create a new task for the selected project with name, description, priority, and assignment
+          </div>
           {addingTaskProject && <TaskCreateForm project={addingTaskProject} onClose={() => {
             setIsAddTaskOpen(false);
             setAddingTaskProject(null);
