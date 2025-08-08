@@ -20,19 +20,40 @@ interface ProjectGalleryProps {
 }
 
 function FileChooser({ onFiles }: { onFiles: (files: FileList) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  const handleClick = () => {
+    // Force close any Radix popovers first
+    document.querySelectorAll('[data-radix-popper-content-wrapper]').forEach(el => {
+      (el as HTMLElement).style.display = 'none';
+    });
+    
+    // Use requestAnimationFrame to ensure DOM updates are complete
+    requestAnimationFrame(() => {
+      inputRef.current?.click();
+    });
+  };
+
   return (
-    <label className="relative inline-flex items-center justify-center px-4 py-2
-                      rounded-md bg-blue-600 text-white font-medium cursor-pointer
-                      hover:bg-blue-700 focus-visible:outline-none focus-visible:ring
-                      focus-visible:ring-blue-400 focus-visible:ring-offset-2">
-      📁 Choose File
+    <div className="relative">
+      <button
+        type="button"
+        onClick={handleClick}
+        className="inline-flex items-center justify-center px-4 py-2 rounded-md 
+                   bg-blue-600 text-white font-medium cursor-pointer hover:bg-blue-700
+                   focus-visible:outline-none focus-visible:ring focus-visible:ring-blue-400 
+                   focus-visible:ring-offset-2 transition-colors"
+      >
+        📁 Choose File
+      </button>
       <input
+        ref={inputRef}
         type="file"
         accept="image/*"
         onChange={(e) => e.target.files && onFiles(e.target.files)}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        style={{ display: 'none' }}
       />
-    </label>
+    </div>
   );
 }
 
