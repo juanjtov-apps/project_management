@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -21,22 +21,30 @@ interface ProjectGalleryProps {
 
 // FileChooser component with proper accessibility
 function FileChooser({ onFiles }: { onFiles: (files: FileList) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  const handleButtonClick = () => {
+    inputRef.current?.click();
+  };
+
   return (
-    <label className="relative inline-flex items-center justify-center
-                      px-4 py-2 rounded-md bg-blue-600 text-white
-                      font-medium cursor-pointer hover:bg-blue-700
-                      focus-within:ring-2 focus-within:ring-offset-2
-                      focus-within:ring-blue-400 transition-all">
-      📁 Choose File
+    <div className="relative">
+      <Button
+        type="button"
+        onClick={handleButtonClick}
+        className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+      >
+        📁 Choose File
+      </Button>
       <input
+        ref={inputRef}
         type="file"
         accept="image/*"
         onChange={e => e.target.files && onFiles(e.target.files)}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer
-                   focus:outline-none"
+        className="hidden"
         aria-label="Select photo file to upload"
       />
-    </label>
+    </div>
   );
 }
 
