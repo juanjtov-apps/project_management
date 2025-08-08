@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useId } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -19,6 +19,26 @@ interface ProjectGalleryProps {
   projectName: string;
 }
 
+// FileChooser component with invisible overlay approach
+function FileChooser({ onFiles }: { onFiles: (files: FileList) => void }) {
+  return (
+    <label className="relative inline-flex items-center justify-center
+                      px-4 py-2 rounded-md bg-blue-600 text-white
+                      font-medium cursor-pointer hover:bg-blue-700
+                      focus-visible:ring focus-visible:ring-offset-2
+                      focus-visible:ring-blue-400">
+      📁 Choose File
+      <input
+        type="file"
+        accept="image/*"
+        onChange={e => e.target.files && onFiles(e.target.files)}
+        /* FULL-SIZE INVISIBLE OVERLAY */
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      />
+    </label>
+  );
+}
+
 export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState<"grid" | "upload">("grid");
@@ -29,8 +49,6 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
   const [isDragOver, setIsDragOver] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const uploadId = useId(); // Generate guaranteed-unique ID per mount
 
   // Query for photos
   const { data: photos = [], isLoading } = useQuery<Photo[]>({
@@ -91,10 +109,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
         description: "Photo uploaded successfully",
       });
       
-      // Reset file input after successful upload so same file can be chosen again
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+
     },
     onError: (error) => {
       toast({
@@ -123,32 +138,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
     },
   });
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("🎯 handleFileSelect called");
-    console.log('change', event.target.files);
-    const files = event.target.files;
-    console.log("📁 Files selected:", files);
-    console.log("📁 Files length:", files?.length || 0);
-    
-    if (files) {
-      for (let i = 0; i < files.length; i++) {
-        console.log(`📁 File ${i}:`, files[i].name, files[i].type, files[i].size);
-      }
-    }
-    
-    setSelectedFiles(files);
-    
-    // Auto-upload immediately when file is selected
-    if (files && files.length > 0) {
-      const file = files[0];
-      console.log("🚀 Auto-uploading file:", file.name);
-      
-      uploadMutation.mutate({ 
-        file, 
-        description: description || `Uploaded ${file.name}` 
-      });
-    }
-  };
+
 
   // Drag and drop handlers - Only prevent default for drag events, not all events
   const handleDragOver = (e: React.DragEvent) => {
@@ -167,36 +157,9 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
     
     const files = e.dataTransfer.files;
     console.log("🎯 Files dropped:", files);
-    console.log('drop change', files);
     
     if (files && files.length > 0) {
-      // Convert FileList to array and filter for images
-      const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
-      
-      if (imageFiles.length === 0) {
-        toast({
-          title: "Invalid Files",
-          description: "Please drop only image files",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Create a new FileList-like object
-      const dataTransfer = new DataTransfer();
-      imageFiles.forEach(file => dataTransfer.items.add(file));
-      const fileList = dataTransfer.files;
-      
-      setSelectedFiles(fileList);
-      
-      // Auto-upload the first image
-      const firstFile = imageFiles[0];
-      console.log("🚀 Auto-uploading dropped file:", firstFile.name);
-      
-      uploadMutation.mutate({ 
-        file: firstFile, 
-        description: description || `Uploaded ${firstFile.name}` 
-      });
+      handleFileSelect(files);
     }
   };
 
@@ -240,8 +203,18 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
     };
   }, [previewUrls]);
 
-  // Back-stop with a direct click
-  const openPicker = () => fileInputRef.current?.click();
+  // File selection handler for both drag-and-drop and file chooser
+  const handleFileSelect = (files: FileList) => {
+    if (files.length > 0) {
+      const file = files[0];
+      console.log("🚀 File selected:", file.name);
+      
+      uploadMutation.mutate({ 
+        file, 
+        description: description || `Uploaded ${file.name}` 
+      });
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -380,33 +353,9 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                   )}
                 </div>
 
-                {/* File Input - Guaranteed unique ID + direct click backup */}
-                <div className="text-center">
-                  <input
-                    id={uploadId}
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="sr-only"
-                    onChange={handleFileSelect}
-                  />
-                  <label 
-                    htmlFor={uploadId}
-                    className="inline-flex items-center gap-2 btn-primary"
-                  >
-                    📁 Choose File
-                  </label>
-                  
-                  <Button
-                    onClick={openPicker}
-                    disabled={uploadMutation.isPending}
-                    className="ml-2"
-                  >
-                    📁 Choose File
-                  </Button>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Supports JPG, PNG, GIF, WebP (max 10MB)
-                  </p>
+                {/* File Chooser Button */}
+                <div className="mt-4 flex justify-center">
+                  <FileChooser onFiles={handleFileSelect} />
                 </div>
               </div>
               {selectedFiles && selectedFiles.length > 0 && (
