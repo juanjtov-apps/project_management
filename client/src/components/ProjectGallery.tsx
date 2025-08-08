@@ -267,15 +267,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
             <Eye size={14} />
             View Photos ({photos.length})
           </Button>
-          <Button
-            variant={view === "upload" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setView("upload")}
-            className="gap-2"
-          >
-            <Upload size={14} />
-            Upload New
-          </Button>
+          <input type="file" accept="image/*" />
         </div>
 
         {view === "grid" ? (
