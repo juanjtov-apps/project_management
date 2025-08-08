@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useId } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -30,6 +30,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputId = useId(); // Generate unique ID for this component instance
 
   // Query for photos
   const { data: photos = [], isLoading } = useQuery<Photo[]>({
@@ -370,10 +371,10 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                   )}
                 </div>
 
-                {/* File Input - Fixed with sr-only instead of hidden */}
+                {/* File Input - Fixed with unique ID to prevent duplicate ID conflicts */}
                 <div className="text-center">
                   <input
-                    id="file-upload"
+                    id={fileInputId}
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
@@ -383,7 +384,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                     disabled={uploadMutation.isPending}
                   />
                   <label 
-                    htmlFor="file-upload"
+                    htmlFor={fileInputId}
                     className="inline-flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 border-2 border-blue-600 font-medium rounded-md shadow-sm transition-colors"
                     style={{ minHeight: '40px', fontSize: '14px' }}
                   >
