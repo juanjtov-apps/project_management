@@ -23,16 +23,19 @@ export default function Login() {
       });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       // Invalidate auth query to update authentication state immediately
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       
       toast({
         title: "Success",
         description: "Logged in successfully!",
       });
-      // Navigate directly to dashboard after successful login
-      setLocation("/dashboard");
+      
+      // Small delay to ensure auth state is updated before navigation
+      setTimeout(() => {
+        setLocation("/dashboard");
+      }, 100);
     },
     onError: (error: any) => {
       // Better user-friendly error messages
