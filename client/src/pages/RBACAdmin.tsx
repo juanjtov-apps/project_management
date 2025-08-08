@@ -1673,15 +1673,17 @@ export default function RBACAdmin() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className={`grid w-full ${isRootAdmin ? 'grid-cols-4' : 'grid-cols-2'}`}>
+        <TabsList className={`grid w-full ${isRootAdmin ? 'grid-cols-4' : 'grid-cols-1'}`}>
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             Users
           </TabsTrigger>
-          <TabsTrigger value="roles" className="flex items-center gap-2">
-            <UserCheck className="w-4 h-4" />
-            Roles
-          </TabsTrigger>
+          {isRootAdmin && (
+            <TabsTrigger value="roles" className="flex items-center gap-2">
+              <UserCheck className="w-4 h-4" />
+              Roles
+            </TabsTrigger>
+          )}
           {isRootAdmin && (
             <TabsTrigger value="companies" className="flex items-center gap-2">
               <Building className="w-4 h-4" />
@@ -1700,9 +1702,11 @@ export default function RBACAdmin() {
           <UserManagement />
         </TabsContent>
 
-        <TabsContent value="roles" className="mt-6">
-          <RoleManagement />
-        </TabsContent>
+        {isRootAdmin && (
+          <TabsContent value="roles" className="mt-6">
+            <RoleManagement />
+          </TabsContent>
+        )}
 
         {isRootAdmin && (
           <TabsContent value="companies" className="mt-6">

@@ -249,7 +249,17 @@ export default function Photos() {
                   className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
                   onDrop={handleDragDrop}
                   onDragOver={(e) => e.preventDefault()}
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    if (form.watch("projectId")) {
+                      fileInputRef.current?.click();
+                    } else {
+                      toast({
+                        title: "Project Required",
+                        description: "Please select a project first before choosing files",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
                 >
                   <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <p className="text-lg font-medium text-gray-600">
@@ -268,6 +278,7 @@ export default function Photos() {
                     accept="image/*"
                     className="hidden"
                     onChange={handleFileSelect}
+
                   />
                 </div>
 

@@ -27,9 +27,18 @@ import { useState } from "react";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
+  // If still loading auth state, don't render anything to prevent 404 flash
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
+      {!isAuthenticated ? (
         <>
           <Route path="/" component={Landing} />
           <Route path="/login" component={Login} />

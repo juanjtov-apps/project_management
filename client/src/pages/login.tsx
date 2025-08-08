@@ -27,15 +27,8 @@ export default function Login() {
       // Invalidate auth query to update authentication state immediately
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       
-      toast({
-        title: "Success",
-        description: "Logged in successfully!",
-      });
-      
-      // Small delay to ensure auth state is updated before navigation
-      setTimeout(() => {
-        setLocation("/dashboard");
-      }, 100);
+      // Navigate immediately without toast to prevent delay
+      setLocation("/dashboard");
     },
     onError: (error: any) => {
       // Better user-friendly error messages
