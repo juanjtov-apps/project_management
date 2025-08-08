@@ -699,12 +699,7 @@ export default function Projects() {
                                   <Plus size={14} className="mr-2" />
                                   Add Task
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={(e) => e.preventDefault()}>
-                                  <ProjectGallery 
-                                    projectId={project.id} 
-                                    projectName={project.name}
-                                  />
-                                </DropdownMenuItem>
+
                                 <DropdownMenuItem 
                                   onClick={() => handleDeleteProject(project)}
                                   className="text-red-600"

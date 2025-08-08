@@ -115,8 +115,17 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
   });
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("🎯 handleFileSelect called");
     const files = event.target.files;
-    console.log("Files selected:", files);
+    console.log("📁 Files selected:", files);
+    console.log("📁 Files length:", files?.length || 0);
+    
+    if (files) {
+      for (let i = 0; i < files.length; i++) {
+        console.log(`📁 File ${i}:`, files[i].name, files[i].type, files[i].size);
+      }
+    }
+    
     setSelectedFiles(files);
     
     // Create preview URLs
@@ -125,19 +134,40 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
       previewUrls.forEach(url => URL.revokeObjectURL(url));
       
       const newPreviewUrls = Array.from(files).map(file => {
+        if (!file.type.startsWith('image/')) {
+          console.log("❌ Invalid file type:", file.type);
+          toast({
+            title: "Invalid File",
+            description: "Please select only image files",
+            variant: "destructive",
+          });
+          return null;
+        }
         const url = URL.createObjectURL(file);
-        console.log("Created preview URL:", url, "for file:", file.name);
+        console.log("✅ Created preview URL:", url, "for file:", file.name);
         return url;
-      });
+      }).filter(Boolean) as string[];
+      
       setPreviewUrls(newPreviewUrls);
-      console.log("Preview URLs set:", newPreviewUrls);
+      console.log("🖼️ Preview URLs set:", newPreviewUrls);
+      
+      toast({
+        title: "File Selected",
+        description: `Selected ${files.length} file(s)`,
+      });
     } else {
+      console.log("📭 No files selected");
       setPreviewUrls([]);
     }
   };
 
   const handleUpload = () => {
+    console.log("🚀 handleUpload called");
+    console.log("📁 selectedFiles:", selectedFiles);
+    console.log("📝 description:", description);
+    
     if (!selectedFiles || selectedFiles.length === 0) {
+      console.log("❌ No files selected");
       toast({
         title: "Error",
         description: "Please select at least one file",
@@ -148,6 +178,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
 
     // Upload the first file for now (can be extended for multiple uploads)
     const file = selectedFiles[0];
+    console.log("📤 Uploading file:", file.name, file.type, file.size);
     uploadMutation.mutate({ file, description });
   };
 
@@ -267,9 +298,10 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
               <Input
                 id="photo-upload"
                 type="file"
-                accept="image/*"
+                accept="image/*,image/jpeg,image/jpg,image/png,image/gif,image/webp"
                 onChange={handleFileSelect}
-                className="mt-1"
+                className="mt-1 cursor-pointer file:cursor-pointer"
+                multiple={false}
               />
               {selectedFiles && selectedFiles.length > 0 && (
                 <div className="mt-4 space-y-3">
