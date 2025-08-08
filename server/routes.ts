@@ -859,6 +859,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DELETE Photo endpoint
+  app.delete('/api/photos/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION: Deleting photo ${req.params.id} via Node.js backend`);
+      
+      // First, get the photo to find the filename for file system cleanup
+      const photos = await storage.getPhotos();
+      const photo = photos.find(p => p.id === req.params.id);
+      
+      if (!photo) {
+        return res.status(404).json({ message: 'Photo not found' });
+      }
+
+      // Delete from database
+      const success = await storage.deletePhoto(req.params.id);
+      
+      if (!success) {
+        return res.status(404).json({ message: 'Photo not found' });
+      }
+
+      // Delete physical file from uploads directory
+      const uploadsDir = path.join(process.cwd(), 'uploads');
+      const filePath = path.join(uploadsDir, photo.filename);
+      
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+          console.log(`🗑️ Deleted physical file: ${photo.filename}`);
+        } catch (fileError) {
+          console.error(`⚠️ Could not delete physical file ${photo.filename}:`, fileError);
+          // Don't fail the request if file deletion fails - database cleanup succeeded
+        }
+      }
+
+      console.log('✅ NODE.JS SUCCESS: Photo deleted');
+      res.json({ message: 'Photo deleted successfully' });
+    } catch (error: any) {
+      console.error('Error deleting photo:', error);
+      res.status(500).json({ message: 'Failed to delete photo', error: error.message });
+    }
+  });
+
   // Serve uploaded files
   app.use('/uploads', (req, res, next) => {
     console.log('📁 Serving uploaded file:', req.path);
