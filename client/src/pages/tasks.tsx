@@ -509,6 +509,7 @@ export default function Tasks() {
       status: "pending",
       priority: "medium",
       dueDate: undefined,
+      assigneeId: null,
     },
   });
 
@@ -522,6 +523,7 @@ export default function Tasks() {
       status: "pending",
       priority: "medium",
       dueDate: undefined,
+      assigneeId: null,
     },
   });
 
@@ -555,6 +557,7 @@ export default function Tasks() {
       status: task.status,
       priority: task.priority,
       dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+      assigneeId: task.assigneeId,
     });
     setIsEditDialogOpen(true);
   };
@@ -1744,6 +1747,23 @@ function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormP
         
         <FormField
           control={form.control}
+          name="assigneeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Assign To</FormLabel>
+              <FormControl>
+                <TaskAssignmentSelect 
+                  value={field.value} 
+                  onChange={field.onChange}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
           name="dueDate"
           render={({ field }) => (
             <FormItem className="flex flex-col">
@@ -1789,5 +1809,39 @@ function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormP
         </div>
       </form>
     </Form>
+  );
+}
+
+// Task Assignment Select for Forms
+function TaskAssignmentSelect({ value, onChange }: { value?: string | null; onChange: (value: string | null) => void }) {
+  const { data: managers = [], isLoading } = useQuery<User[]>({
+    queryKey: ["/api/users/managers"],
+  });
+
+  return (
+    <Select 
+      value={value || "unassigned"} 
+      onValueChange={(val) => onChange(val === "unassigned" ? null : val)}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Select assignee">
+          {isLoading ? (
+            "Loading..."
+          ) : value ? (
+            managers.find(m => m.id === value)?.name || "Unknown User"
+          ) : (
+            "Unassigned"
+          )}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="unassigned">Unassigned</SelectItem>
+        {managers.map((manager) => (
+          <SelectItem key={manager.id} value={manager.id}>
+            {manager.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
