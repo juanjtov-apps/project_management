@@ -207,7 +207,7 @@ export class DatabaseStorage implements IStorage {
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
       const result = await pool.query('DELETE FROM companies WHERE id = $1', [parseInt(id)]);
-      return result.rowCount > 0;
+      return (result.rowCount ?? 0) > 0;
     } finally {
       await pool.end();
     }
@@ -415,7 +415,7 @@ export class DatabaseStorage implements IStorage {
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
       const result = await pool.query('DELETE FROM users WHERE id = $1', [id]);
-      return result.rowCount > 0;
+      return (result.rowCount ?? 0) > 0;
     } finally {
       await pool.end();
     }
@@ -550,7 +550,6 @@ export class DatabaseStorage implements IStorage {
         progress: row.progress || 0,
         dueDate: row.due_date,
         createdAt: row.created_at,
-        companyId: row.company_id || '0',
         companyId: row.company_id || '0'
       };
     } finally {
@@ -619,7 +618,7 @@ export class DatabaseStorage implements IStorage {
       
       // Commit transaction
       await pool.query('COMMIT');
-      return result.rowCount > 0;
+      return (result.rowCount ?? 0) > 0;
     } catch (error) {
       // Rollback on error
       await pool.query('ROLLBACK');
@@ -815,7 +814,7 @@ export class DatabaseStorage implements IStorage {
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
       const result = await pool.query('DELETE FROM tasks WHERE id = $1', [id]);
-      return result.rowCount > 0;
+      return (result.rowCount ?? 0) > 0;
     } finally {
       await pool.end();
     }
@@ -856,258 +855,29 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // User CRUD operations
-  async getUsers(): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-    try {
-      const result = await pool.query(`
-        SELECT u.id, u.username, u.name, u.email, u.role, u.is_active, u.created_at, 
-               u.company_id, c.name as company_name
-        FROM users u 
-        LEFT JOIN companies c ON u.company_id = c.id::text
-        ORDER BY c.name, u.name
-      `);
-      return result.rows.map(row => ({
-        id: row.id,
-        username: row.username,
-        name: row.name,
-        email: row.email,
-        role: row.role,
-        role_id: row.role === 'admin' ? '1' : row.role === 'manager' ? '2' : '3',
-        isActive: row.is_active,
-        is_active: row.is_active,
-        createdAt: row.created_at,
-        company_id: row.company_id || '0',
-        company_name: row.company_name || 'Platform Administration'
-      }));
-    } finally {
-      await pool.end();
-    }
-  }
-
-  async createUser(userData: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-    try {
-      const { username, name, email, role = 'crew', password, isActive = true } = userData;
-      
-      if (!username || !name || !email) {
-        throw new Error('Username, name, and email are required');
-      }
-
-      // Hash password if provided
-      let hashedPassword = null;
-      if (password) {
-        const bcrypt = await import('bcrypt');
-        hashedPassword = await bcrypt.hash(password, 10);
-      }
-
-      const result = await pool.query(`
-        INSERT INTO users (username, name, email, role, password, is_active, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW())
-        RETURNING id, username, name, email, role, is_active, created_at
-      `, [username, name, email, role, hashedPassword, isActive]);
-      
-      const row = result.rows[0];
-
-      return {
-        id: row.id,
-        username: row.username,
-        name: row.name,
-        email: row.email,
-        role: row.role,
-        isActive: row.is_active,
-        createdAt: row.created_at
-      };
-    } finally {
-      await pool.end();
-    }
-  }
-
-  async updateUser(id: string, data: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-    try {
-      const { username, name, email, role, role_id, is_active, isActive } = data;
-      
-      // Handle role mapping - frontend sends role_id but we need role for the database
-      let finalRole = role;
-      if (role_id && !role) {
-        // Map role_id to role name
-        const roleMapping = { '1': 'admin', '2': 'manager', '3': 'crew' };
-        finalRole = roleMapping[role_id] || 'crew';
-      }
-      
-      const finalIsActive = is_active !== undefined ? is_active : isActive;
-      
-      const result = await pool.query(`
-        UPDATE users 
-        SET username = $1, name = $2, email = $3, role = $4, is_active = $5, updated_at = NOW()
-        WHERE id = $6
-        RETURNING id, username, name, email, role, is_active, created_at, company_id
-      `, [username, name, email, finalRole, finalIsActive, id]);
-      
-      if (result.rows.length === 0) return null;
-      
-      const row = result.rows[0];
-      return {
-        id: row.id,
-        username: row.username,
-        name: row.name,
-        email: row.email,
-        role: row.role,
-        isActive: row.is_active,
-        createdAt: row.created_at,
-        companyId: row.company_id || '0'
-      };
-    } finally {
-      await pool.end();
-    }
-  }
-
-  async deleteUser(id: string): Promise<boolean> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-    try {
-      const result = await pool.query('DELETE FROM users WHERE id = $1', [id]);
-      return result.rowCount > 0;
-    } finally {
-      await pool.end();
-    }
-  }
-
-  // Company CRUD operations
-  async getCompanies(): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-    try {
-      const result = await pool.query(`
-        SELECT id, name, domain, status, settings, created_at 
-        FROM companies 
-        ORDER BY name
-      `);
-      return result.rows.map(row => ({
-        id: row.id,
-        name: row.name,
-        domain: row.domain,
-        status: row.status,
-        settings: row.settings,
-        createdAt: row.created_at
-      }));
-    } finally {
-      await pool.end();
-    }
-  }
-
-  async createCompany(companyData: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-    try {
-      const { name, domain, status = 'active', settings = {}, isActive = true } = companyData;
-      
-      if (!name) {
-        throw new Error('Company name is required');
-      }
-
-      // Generate unique domain if not provided or empty
-      let finalDomain = domain;
-      if (!finalDomain || finalDomain.trim() === '') {
-        const timestamp = Date.now().toString().slice(-8);
-        const nameSlug = name.toLowerCase()
-          .replace(/[^a-z0-9]/g, '')
-          .slice(0, 12);
-        finalDomain = `${nameSlug}-${timestamp}.com`;
-      }
-
-      const result = await pool.query(`
-        INSERT INTO companies (name, domain, status, settings, created_at)
-        VALUES ($1, $2, $3, $4, NOW())
-        RETURNING id, name, domain, status, settings, created_at
-      `, [name, finalDomain, status, JSON.stringify(settings)]);
-      
-      const row = result.rows[0];
-
-      return {
-        id: row.id,
-        name: row.name,
-        domain: row.domain,
-        status: row.status,
-        settings: row.settings,
-        createdAt: row.created_at
-      };
-    } finally {
-      await pool.end();
-    }
-  }
-
-  async updateCompany(id: string, data: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-    try {
-      const { name, domain, status, settings } = data;
-      const result = await pool.query(`
-        UPDATE companies 
-        SET name = $1, domain = $2, status = $3, settings = $4, updated_at = NOW()
-        WHERE id = $5
-        RETURNING id, name, domain, status, settings, created_at
-      `, [name, domain, status, JSON.stringify(settings), id]);
-      
-      if (result.rows.length === 0) return null;
-      
-      const row = result.rows[0];
-      return {
-        id: row.id,
-        name: row.name,
-        domain: row.domain,
-        status: row.status,
-        settings: row.settings,
-        createdAt: row.created_at
-      };
-    } finally {
-      await pool.end();
-    }
-  }
-
-  async deleteCompany(id: string): Promise<boolean> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-    try {
-      const result = await pool.query('DELETE FROM companies WHERE id = $1', [id]);
-      return result.rowCount > 0;
-    } finally {
-      await pool.end();
-    }
-  }
-
-  async getUserEmailById(userId: string): Promise<string | undefined> {
-    const user = await this.getUser(userId);
-    return user?.email;
-  }
-
-  // Photo operations
+  // Photo CRUD operations
   async getPhotos(projectId?: string): Promise<any[]> {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
       let query = `
-        SELECT p.id, p.project_id, p.user_id, p.filename, p.original_name, 
-               p.description, p.tags, p.created_at,
-               u.name as user_name, pr.name as project_name
-        FROM photos p
-        LEFT JOIN users u ON p.user_id = u.id
-        LEFT JOIN projects pr ON p.project_id = pr.id
+        SELECT p.id, p.project_id, p.user_id, p.filename, p.original_name, p.description, p.tags, p.created_at
+        FROM photos p 
+        ORDER BY p.created_at DESC
       `;
+      let queryParams: any[] = [];
       
-      const params: any[] = [];
       if (projectId) {
-        query += ' WHERE p.project_id = $1';
-        params.push(projectId);
+        query = `
+          SELECT p.id, p.project_id, p.user_id, p.filename, p.original_name, p.description, p.tags, p.created_at
+          FROM photos p 
+          WHERE p.project_id = $1
+          ORDER BY p.created_at DESC
+        `;
+        queryParams = [projectId];
       }
       
-      query += ' ORDER BY p.created_at DESC';
-      
-      const result = await pool.query(query, params);
+      const result = await pool.query(query, queryParams);
       return result.rows.map(row => ({
         id: row.id,
         projectId: row.project_id,
@@ -1115,10 +885,8 @@ export class DatabaseStorage implements IStorage {
         filename: row.filename,
         originalName: row.original_name,
         description: row.description,
-        tags: row.tags,
-        createdAt: row.created_at,
-        userName: row.user_name,
-        projectName: row.project_name
+        tags: row.tags || [],
+        createdAt: row.created_at
       }));
     } finally {
       await pool.end();
@@ -1129,7 +897,11 @@ export class DatabaseStorage implements IStorage {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
-      const { projectId, userId, filename, originalName, description = '', tags = [] } = photoData;
+      const { projectId, userId, filename, originalName, description, tags = [] } = photoData;
+      
+      if (!projectId || !userId || !filename || !originalName) {
+        throw new Error('ProjectId, userId, filename, and originalName are required');
+      }
       
       const result = await pool.query(`
         INSERT INTO photos (project_id, user_id, filename, original_name, description, tags, created_at)
@@ -1158,7 +930,7 @@ export class DatabaseStorage implements IStorage {
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
       const result = await pool.query('DELETE FROM photos WHERE id = $1', [id]);
-      return result.rowCount > 0;
+      return (result.rowCount ?? 0) > 0;
     } finally {
       await pool.end();
     }
