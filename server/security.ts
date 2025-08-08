@@ -36,13 +36,15 @@ export function setupSecurityMiddleware(app: express.Express) {
       "frame-ancestors 'none'; " +
       "upgrade-insecure-requests;"
       :
-      // Development: Slightly relaxed for dev tools
+      // Development: Relaxed for dev tools and Replit environment
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' ws: wss:; " +
-      "style-src 'self' 'unsafe-inline'; " +
-      "img-src 'self' data: https:; " +
-      "font-src 'self' data:; " +
-      "connect-src 'self' ws: wss:; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://replit.com https://*.replit.dev blob: ws: wss:; " +
+      "style-src 'self' 'unsafe-inline' https://replit.com https://*.replit.dev; " +
+      "img-src 'self' data: https: blob: https://replit.com https://*.replit.dev; " +
+      "font-src 'self' data: https://replit.com https://*.replit.dev; " +
+      "connect-src 'self' ws: wss: https://replit.com https://*.replit.dev; " +
+      "worker-src 'self' blob: data:; " +
+      "frame-src 'self' https://replit.com https://*.replit.dev; " +
       "object-src 'none'; " +
       "base-uri 'self'; " +
       "frame-ancestors 'none';";

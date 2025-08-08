@@ -901,6 +901,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Notification endpoints to prevent 502 errors
+  app.get('/api/notifications/:userId', async (req, res) => {
+    try {
+      console.log(`PRODUCTION: Notifications for user ${req.params.userId}`);
+      res.json([]);
+    } catch (error) {
+      console.error('Error fetching user notifications:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/notifications', async (req, res) => {
+    try {
+      const { userId } = req.query;
+      console.log(`PRODUCTION: General notifications for user ${userId || 'all'}`);
+      res.json([]);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Serve uploaded files
   app.use('/uploads', (req, res, next) => {
     console.log('📁 Serving uploaded file:', req.path);
