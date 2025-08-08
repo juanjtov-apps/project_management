@@ -289,7 +289,6 @@ export default function Photos() {
                     accept="image/*"
                     className="hidden"
                     onChange={handleFileSelect}
-                    disabled={!form.watch("projectId")}
                   />
                 </div>
 

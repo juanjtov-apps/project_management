@@ -714,16 +714,68 @@ export class DatabaseStorage implements IStorage {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
-      const { title, description, projectId, assigneeId, status, priority, dueDate, category, isMilestone, estimatedHours } = data;
+      // Build dynamic SQL based on provided fields
+      const fields = [];
+      const values = [];
+      let paramIndex = 1;
+
+      // Only update fields that are actually provided
+      if (data.title !== undefined) {
+        fields.push(`title = $${paramIndex++}`);
+        values.push(data.title);
+      }
+      if (data.description !== undefined) {
+        fields.push(`description = $${paramIndex++}`);
+        values.push(data.description);
+      }
+      if (data.projectId !== undefined) {
+        fields.push(`project_id = $${paramIndex++}`);
+        values.push(data.projectId);
+      }
+      if (data.assigneeId !== undefined) {
+        fields.push(`assignee_id = $${paramIndex++}`);
+        values.push(data.assigneeId);
+      }
+      if (data.status !== undefined) {
+        fields.push(`status = $${paramIndex++}`);
+        values.push(data.status);
+        // Auto-set completed_at when status changes to completed
+        fields.push(`completed_at = CASE WHEN $${paramIndex-1} = 'completed' AND completed_at IS NULL THEN NOW() ELSE completed_at END`);
+      }
+      if (data.priority !== undefined) {
+        fields.push(`priority = $${paramIndex++}`);
+        values.push(data.priority);
+      }
+      if (data.dueDate !== undefined) {
+        fields.push(`due_date = $${paramIndex++}`);
+        values.push(data.dueDate);
+      }
+      if (data.category !== undefined) {
+        fields.push(`category = $${paramIndex++}`);
+        values.push(data.category);
+      }
+      if (data.isMilestone !== undefined) {
+        fields.push(`is_milestone = $${paramIndex++}`);
+        values.push(data.isMilestone);
+      }
+      if (data.estimatedHours !== undefined) {
+        fields.push(`estimated_hours = $${paramIndex++}`);
+        values.push(data.estimatedHours);
+      }
+
+      if (fields.length === 0) {
+        throw new Error('No fields to update');
+      }
+
+      values.push(id); // Add ID as last parameter
+      
       const result = await pool.query(`
         UPDATE tasks 
-        SET title = $1, description = $2, project_id = $3, assignee_id = $4, status = $5, 
-            priority = $6, due_date = $7, category = $8, is_milestone = $9, estimated_hours = $10,
-            completed_at = CASE WHEN $5 = 'completed' AND completed_at IS NULL THEN NOW() ELSE completed_at END
-        WHERE id = $11
+        SET ${fields.join(', ')}
+        WHERE id = $${paramIndex}
         RETURNING id, title, description, project_id, assignee_id, status, priority, 
                   due_date, completed_at, created_at, category, is_milestone, estimated_hours
-      `, [title, description, projectId, assigneeId, status, priority, dueDate, category, isMilestone, estimatedHours, id]);
+      `, values);
       
       if (result.rows.length === 0) return null;
       
