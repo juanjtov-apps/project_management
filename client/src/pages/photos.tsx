@@ -71,7 +71,7 @@ export default function Photos() {
   });
 
   const deletePhotoMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/photos/${id}`),
+    mutationFn: (id: string) => apiRequest(`/api/photos/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
       toast({

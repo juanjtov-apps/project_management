@@ -90,8 +90,8 @@ export default function Sidebar() {
                 >
                   <Icon size={20} className={isActive ? "text-brand-teal" : "opacity-60"} />
                   <span className={cn(
-                    "ml-1.5", // 6px spacing between icon and text
-                    isActive ? "font-semibold text-brand-teal" : ""
+                    "ml-3", // Increased spacing between icon and text
+                    isActive ? "font-semibold text-brand-blue" : "text-brand-text"
                   )}>{item.name}</span>
                 </Link>
               </li>
