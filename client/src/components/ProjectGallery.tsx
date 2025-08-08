@@ -30,7 +30,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const fileInputId = useId(); // Generate unique ID for this component instance
+  const uploadId = useId(); // Generate guaranteed-unique ID per mount
 
   // Query for photos
   const { data: photos = [], isLoading } = useQuery<Photo[]>({
@@ -240,6 +240,9 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
     };
   }, [previewUrls]);
 
+  // Back-stop with a direct click
+  const openPicker = () => fileInputRef.current?.click();
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -377,25 +380,30 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                   )}
                 </div>
 
-                {/* File Input - Fixed with unique ID to prevent duplicate ID conflicts */}
+                {/* File Input - Guaranteed unique ID + direct click backup */}
                 <div className="text-center">
                   <input
-                    id={fileInputId}
+                    id={uploadId}
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    multiple={false}
                     className="sr-only"
                     onChange={handleFileSelect}
-                    disabled={uploadMutation.isPending}
                   />
                   <label 
-                    htmlFor={fileInputId}
-                    className="inline-flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 border-2 border-blue-600 font-medium rounded-md shadow-sm transition-colors"
-                    style={{ minHeight: '40px', fontSize: '14px' }}
+                    htmlFor={uploadId}
+                    className="inline-flex items-center gap-2 btn-primary"
                   >
-                    📁 Choose Files
+                    📁 Choose File
                   </label>
+                  
+                  <Button
+                    onClick={openPicker}
+                    disabled={uploadMutation.isPending}
+                    className="ml-2"
+                  >
+                    📁 Choose File
+                  </Button>
                   <p className="text-xs text-gray-500 mt-2">
                     Supports JPG, PNG, GIF, WebP (max 10MB)
                   </p>
