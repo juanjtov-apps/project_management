@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fix for Radix UI accessibility issue with popper wrapper elements */
+[data-radix-popper-content-wrapper][aria-hidden="true"] {
+  pointer-events: none !important;
+}
+
+[data-radix-popper-content-wrapper][aria-hidden="true"] * {
+  pointer-events: none !important;
+  tabindex: -1 !important;
+}
+
 @layer components {
   .elevated {
     @apply border border-brand-grey shadow-sm rounded-lg bg-white;
