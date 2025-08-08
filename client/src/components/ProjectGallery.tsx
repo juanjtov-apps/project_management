@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Camera, Upload, X, Eye, Image as ImageIcon, Plus } from "lucide-react";
+import { Camera, Upload, X, Eye, Image as ImageIcon, Plus, FileImage } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Photo } from "@shared/schema";
@@ -26,6 +26,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
   const [description, setDescription] = useState("");
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -144,6 +145,59 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
       uploadMutation.mutate({ 
         file, 
         description: description || `Uploaded ${file.name}` 
+      });
+    }
+  };
+
+  // Drag and drop handlers - Alternative to file input for sandbox environments
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    
+    const files = e.dataTransfer.files;
+    console.log("🎯 Files dropped:", files);
+    console.log('drop change', files);
+    
+    if (files && files.length > 0) {
+      // Convert FileList to array and filter for images
+      const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+      
+      if (imageFiles.length === 0) {
+        toast({
+          title: "Invalid Files",
+          description: "Please drop only image files",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create a new FileList-like object
+      const dataTransfer = new DataTransfer();
+      imageFiles.forEach(file => dataTransfer.items.add(file));
+      const fileList = dataTransfer.files;
+      
+      setSelectedFiles(fileList);
+      
+      // Auto-upload the first image
+      const firstFile = imageFiles[0];
+      console.log("🚀 Auto-uploading dropped file:", firstFile.name);
+      
+      uploadMutation.mutate({ 
+        file: firstFile, 
+        description: description || `Uploaded ${firstFile.name}` 
       });
     }
   };
@@ -284,22 +338,69 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
         ) : (
           <div className="space-y-4">
             <div>
-              <Label>Select Photo</Label>
-              <div className="mt-1">
-                {/* Direct visible file input with auto-upload */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                  onChange={handleFileSelect}
-                  onClick={() => console.log("📁 File input directly clicked")}
-                  multiple={false}
-                  disabled={uploadMutation.isPending}
-                  className="mt-1 cursor-pointer file:cursor-pointer flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-                {uploadMutation.isPending && (
-                  <p className="text-sm text-blue-600 mt-2">Uploading photo...</p>
-                )}
+              <Label>Upload Photo</Label>
+              <div className="mt-1 space-y-3">
+                {/* Drag and Drop Zone - Primary method */}
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+                    isDragOver
+                      ? 'border-blue-500 bg-blue-50'
+                      : uploadMutation.isPending
+                      ? 'border-gray-300 bg-gray-50'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  <FileImage className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  {uploadMutation.isPending ? (
+                    <div>
+                      <p className="text-lg font-medium text-blue-600">Uploading...</p>
+                      <p className="text-sm text-gray-500">Please wait while your photo is being uploaded</p>
+                    </div>
+                  ) : isDragOver ? (
+                    <div>
+                      <p className="text-lg font-medium text-blue-600">Drop your photo here</p>
+                      <p className="text-sm text-gray-500">Release to upload</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-lg font-medium text-gray-900">Drag and drop a photo here</p>
+                      <p className="text-sm text-gray-500">Or click below to browse files</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* File Input - Fallback method */}
+                <div className="text-center">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                    onChange={handleFileSelect}
+                    onClick={() => console.log("📁 File input directly clicked")}
+                    multiple={false}
+                    disabled={uploadMutation.isPending}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      console.log("🖱️ Browse button clicked");
+                      fileInputRef.current?.click();
+                    }}
+                    disabled={uploadMutation.isPending}
+                    className="gap-2"
+                  >
+                    <Upload size={16} />
+                    Browse Files
+                  </Button>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Supports JPG, PNG, GIF, WebP (max 10MB)
+                  </p>
+                </div>
               </div>
               {selectedFiles && selectedFiles.length > 0 && (
                 <div className="mt-4 space-y-3">
