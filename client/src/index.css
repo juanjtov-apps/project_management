@@ -28,6 +28,16 @@
   body {
     @apply bg-brand-white;
   }
+  
+  /* DEBUG: File input visibility check */
+  input[type=file] { 
+    outline: 4px solid red !important; 
+  }
+  
+  /* DEBUG: Label and button visibility check */
+  label, button { 
+    outline: 2px solid blue !important; 
+  }
 }
 
 :root {

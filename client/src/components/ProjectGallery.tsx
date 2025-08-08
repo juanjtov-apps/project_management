@@ -163,7 +163,6 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragOver(false);
     
     const files = e.dataTransfer.files;
@@ -240,7 +239,6 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
           variant="outline" 
           size="sm"
           className="gap-2"
-          onClick={(e) => e.stopPropagation()}
         >
           <Camera size={14} />
           Gallery
