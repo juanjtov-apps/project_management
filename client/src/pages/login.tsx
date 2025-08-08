@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Building2, Mail, Lock, AlertCircle, ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
@@ -24,6 +24,9 @@ export default function Login() {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate auth query to update authentication state immediately
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      
       toast({
         title: "Success",
         description: "Logged in successfully!",
