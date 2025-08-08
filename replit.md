@@ -30,6 +30,13 @@ Preferred communication style: Simple, everyday language.
 - Updated ProjectGallery.tsx, photo-gallery.tsx, add-risk-dialog.tsx, command.tsx ✅
 - Photo upload functionality maintained with robust file picker implementation ✅
 
+**User Deletion Authorization Fix**: Resolved admin user deletion error (August 8, 2025)
+- Added comprehensive RBAC authorization to user deletion endpoint ✅
+- Company admins can only delete users within their own company ✅
+- Root admins can delete users across all companies ✅
+- Fixed TypeScript schema mismatches between company_id and companyId fields ✅
+- Enhanced security validation with proper error logging ✅
+
 **Task Creation & Project Dropdown**: Fixed the critical task creation functionality
 - Project dropdown now properly populated with 42+ available projects ✅
 - Task creation working with proper project associations ✅

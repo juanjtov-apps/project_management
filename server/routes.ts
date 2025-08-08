@@ -217,9 +217,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Filter users by current user's company for task assignment
       // Handle both company_id and companyId field formats for compatibility
-      const currentUserCompanyId = currentUser.company_id || currentUser.companyId;
+      const currentUserCompanyId = currentUser.companyId || currentUser.company_id;
       const filteredUsers = users.filter(user => {
-        const userCompanyId = user.company_id || user.companyId;
+        const userCompanyId = user.companyId || user.company_id;
         return userCompanyId === currentUserCompanyId;
       });
       
@@ -290,9 +290,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Filter users by company for company admins
       // Handle both company_id and companyId field formats for compatibility
-      const currentUserCompanyId = currentUser.company_id || currentUser.companyId;
+      const currentUserCompanyId = currentUser.companyId || currentUser.company_id;
       const filteredUsers = isRootAdmin ? users : users.filter(user => {
-        const userCompanyId = user.company_id || user.companyId;
+        const userCompanyId = user.companyId || user.company_id;
         return userCompanyId === currentUserCompanyId || userCompanyId === '0';
       });
       
@@ -329,7 +329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Company admin can only create users in their own company
       // Handle both company_id and companyId field formats for compatibility
-      const currentUserCompanyId = currentUser.company_id || currentUser.companyId;
+      const currentUserCompanyId = currentUser.companyId || currentUser.company_id;
       if (!isRootAdmin && req.body.company_id != currentUserCompanyId) {
         console.log('Company admin validation failed:', {
           isRootAdmin,
@@ -370,11 +370,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/rbac/users/:id', async (req, res) => {
     try {
       console.log(`PRODUCTION RBAC: Deleting user ${req.params.id} via Node.js backend`);
+      
+      // Get current user session to enforce authorization
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Check admin access
+      const isRootAdmin = currentUser.email?.includes('chacjjlegacy') || currentUser.email === 'admin@proesphere.com';
+      const isCompanyAdmin = currentUser.role === 'admin' || currentUser.email?.includes('admin');
+      
+      if (!isRootAdmin && !isCompanyAdmin) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      // Get the user to be deleted to check company restrictions
+      const userToDelete = await storage.getUser(req.params.id);
+      if (!userToDelete) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Company admin can only delete users in their own company
+      const currentUserCompanyId = currentUser.companyId || currentUser.company_id;
+      const targetUserCompanyId = userToDelete.companyId || userToDelete.company_id;
+      
+      if (!isRootAdmin && targetUserCompanyId !== currentUserCompanyId) {
+        console.log('Company admin validation failed for deletion:', {
+          isRootAdmin,
+          currentUserCompanyId: currentUserCompanyId,
+          targetUserCompanyId: targetUserCompanyId,
+          currentUserEmail: currentUser.email
+        });
+        return res.status(403).json({ 
+          message: "Company admins can only delete users within their own company." 
+        });
+      }
+
       const success = await storage.deleteUser(req.params.id);
       if (!success) {
         return res.status(404).json({ message: 'User not found' });
       }
-      console.log('✅ NODE.JS SUCCESS: User deleted');
+      console.log(`✅ NODE.JS SUCCESS: User deleted by ${currentUser.email} (${isRootAdmin ? 'root admin' : 'company admin'})`);
       res.json({ message: 'User deleted successfully' });
     } catch (error: any) {
       console.error('Error deleting user:', error);
