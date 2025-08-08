@@ -256,38 +256,68 @@ export default function Photos() {
                   )}
                 />
 
-                <div
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
-                  onDrop={handleDragDrop}
-                  onDragOver={(e) => e.preventDefault()}
-                  onClick={() => {
-                    if (form.watch("projectId")) {
-                      fileInputRef.current?.click();
-                    } else {
-                      toast({
-                        title: "Project Required",
-                        description: "Please select a project first before choosing files",
-                        variant: "destructive",
-                      });
-                    }
-                  }}
-                >
-                  <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <p className="text-lg font-medium text-gray-600">
-                    {selectedFiles && selectedFiles.length > 0
-                      ? `${selectedFiles.length} file(s) selected`
-                      : "Drop photos here or click to browse"
-                    }
-                  </p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Supports JPG, PNG, GIF up to 10MB
-                  </p>
+                <div className="space-y-4">
+                  <div
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
+                    onDrop={handleDragDrop}
+                    onDragOver={(e) => e.preventDefault()}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (form.watch("projectId")) {
+                        setTimeout(() => {
+                          fileInputRef.current?.click();
+                        }, 0);
+                      } else {
+                        toast({
+                          title: "Project Required",
+                          description: "Please select a project first before choosing files",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                  >
+                    <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <p className="text-lg font-medium text-gray-600">
+                      {selectedFiles && selectedFiles.length > 0
+                        ? `${selectedFiles.length} file(s) selected`
+                        : "Drop photos here or click to browse"
+                      }
+                    </p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Supports JPG, PNG, GIF up to 10MB
+                    </p>
+                  </div>
+
+                  <div className="text-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (form.watch("projectId")) {
+                          fileInputRef.current?.click();
+                        } else {
+                          toast({
+                            title: "Project Required",
+                            description: "Please select a project first before choosing files",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                      className="px-6 py-2"
+                    >
+                      Choose Files
+                    </Button>
+                  </div>
+
                   <input
                     ref={fileInputRef}
                     type="file"
                     multiple
                     accept="image/*"
-                    className="hidden"
+                    className="sr-only"
                     onChange={handleFileSelect}
                   />
                 </div>
