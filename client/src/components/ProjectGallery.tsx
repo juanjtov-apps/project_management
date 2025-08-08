@@ -372,22 +372,24 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                   )}
                 </div>
 
-                {/* File Input - Direct approach for Replit sandbox */}
+                {/* File Input - Fixed with sr-only instead of hidden */}
                 <div className="text-center">
+                  <input
+                    id="file-upload"
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple={false}
+                    className="sr-only"
+                    onChange={handleFileSelect}
+                    disabled={uploadMutation.isPending}
+                  />
                   <label 
-                    className="inline-block cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 border-2 border-blue-600 font-medium rounded-md shadow-sm transition-colors"
+                    htmlFor="file-upload"
+                    className="inline-flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 border-2 border-blue-600 font-medium rounded-md shadow-sm transition-colors"
                     style={{ minHeight: '40px', fontSize: '14px' }}
                   >
                     📁 Choose Files
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple={false}
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleFileSelect}
-                      disabled={uploadMutation.isPending}
-                    />
                   </label>
                   <p className="text-xs text-gray-500 mt-2">
                     Supports JPG, PNG, GIF, WebP (max 10MB)
