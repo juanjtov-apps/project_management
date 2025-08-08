@@ -123,6 +123,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     console.log("🎯 handleFileSelect called");
+    console.log('change', event.target.files);
     const files = event.target.files;
     console.log("📁 Files selected:", files);
     console.log("📁 Files length:", files?.length || 0);
