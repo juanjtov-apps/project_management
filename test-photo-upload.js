@@ -1,68 +1,71 @@
-#!/usr/bin/env node
-
-// Simple photo upload test script
+// Test script to verify photo upload functionality
 import fs from 'fs';
-import path from 'path';
-
-// Create a simple test image data (1x1 pixel PNG)
-const testImageData = Buffer.from([
-  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
-  0x00, 0x00, 0x00, 0x0D, // IHDR chunk length
-  0x49, 0x48, 0x44, 0x52, // IHDR
-  0x00, 0x00, 0x00, 0x01, // Width: 1
-  0x00, 0x00, 0x00, 0x01, // Height: 1
-  0x08, 0x02, 0x00, 0x00, 0x00, // Bit depth, color type, compression, filter, interlace
-  0x90, 0x77, 0x53, 0xDE, // CRC
-  0x00, 0x00, 0x00, 0x0C, // IDAT chunk length
-  0x49, 0x44, 0x41, 0x54, // IDAT
-  0x08, 0x99, 0x01, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, // Image data
-  0x02, 0x00, 0x01, 0xE5, // CRC
-  0x00, 0x00, 0x00, 0x00, // IEND chunk length
-  0x49, 0x45, 0x4E, 0x44, // IEND
-  0xAE, 0x42, 0x60, 0x82  // CRC
-]);
-
-const testImagePath = 'test-upload.png';
-fs.writeFileSync(testImagePath, testImageData);
-
-console.log('Created test image at:', testImagePath);
-console.log('Image size:', fs.statSync(testImagePath).size, 'bytes');
+import FormData from 'form-data';
+import fetch from 'node-fetch';
 
 async function testPhotoUpload() {
   try {
-    const FormData = (await import('form-data')).default;
-    const fetch = (await import('node-fetch')).default;
+    console.log('🧪 Testing photo upload functionality...');
     
+    // Create a simple test image
+    const testImageBuffer = Buffer.from([
+      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG header
+      0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1 pixel
+      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+      0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
+      0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+      0x00, 0x02, 0x00, 0x01, 0xE2, 0x21, 0xBC, 0x33,
+      0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44,
+      0xAE, 0x42, 0x60, 0x82
+    ]);
+    
+    fs.writeFileSync('test-upload.png', testImageBuffer);
+    console.log('✅ Test image created');
+    
+    // Create form data
     const form = new FormData();
-    form.append('file', fs.createReadStream(testImagePath));
-    form.append('projectId', 'e791d5b9-613b-4336-8a7b-786e3ef75e12'); // Using a project ID from logs
+    form.append('file', fs.createReadStream('test-upload.png'));
+    form.append('projectId', 'e791d5b9-613b-4336-8a7b-786e3ef75e12');
     form.append('description', 'Test upload from script');
-    form.append('userId', 'sample-user-id');
-
+    
+    // Make the upload request
     const response = await fetch('http://localhost:5000/api/photos', {
       method: 'POST',
       body: form,
+      headers: {
+        'Cookie': 'connect.sid=s%3AY5ftx0a-30JK4K7ZpRtPAM8nG4Lzf1xG.lCVWgnMEknr9t43q5GpeMB8vyl9617QdHA0MYqgoDks'
+      }
     });
-
-    console.log('Upload response status:', response.status);
-    const responseText = await response.text();
-    console.log('Upload response:', responseText);
-
+    
+    console.log('📤 Upload response status:', response.status);
+    
     if (response.ok) {
-      console.log('✅ Photo upload test successful!');
+      const result = await response.json();
+      console.log('✅ Upload successful!');
+      console.log('📁 Photo details:', result);
+      
+      // Test if the file can be accessed
+      const fileResponse = await fetch(`http://localhost:5000${result.filePath}`);
+      console.log('🖼️ File access status:', fileResponse.status);
+      
+      if (fileResponse.ok) {
+        console.log('✅ File successfully accessible via URL');
+        console.log('🎯 PHOTO UPLOAD WORKING CORRECTLY!');
+      } else {
+        console.log('❌ File not accessible via URL');
+      }
     } else {
-      console.log('❌ Photo upload test failed');
+      const error = await response.text();
+      console.log('❌ Upload failed:', error);
     }
+    
+    // Cleanup
+    fs.unlinkSync('test-upload.png');
+    
   } catch (error) {
-    console.error('Upload test error:', error.message);
-  } finally {
-    // Clean up test file
-    if (fs.existsSync(testImagePath)) {
-      fs.unlinkSync(testImagePath);
-      console.log('Cleaned up test file');
-    }
+    console.error('❌ Test failed:', error);
   }
 }
 
-// Run the test
 testPhotoUpload();

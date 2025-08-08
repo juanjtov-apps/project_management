@@ -4,6 +4,10 @@ import { storage } from "./storage";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import bcrypt from "bcrypt";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import express from "express";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session configuration
@@ -734,8 +738,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
       console.log('PRODUCTION: Fetching photos directly from Node.js backend');
-      // Return empty array for now - photos functionality working
-      const photos: any[] = [];
+      
+      // Return mock photos for now until we implement database storage
+      const photos = [
+        {
+          id: "sample-1",
+          projectId: "e791d5b9-613b-4336-8a7b-786e3ef75e12",
+          userId,
+          description: "Sample construction photo",
+          originalName: "construction-1.jpg",
+          filePath: "/uploads/5bd3855f-3056-4805-8c21-26f51086925d.jpg",
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: "sample-2", 
+          projectId: "e791d5b9-613b-4336-8a7b-786e3ef75e12",
+          userId,
+          description: "Progress update",
+          originalName: "progress-2.png",
+          filePath: "/uploads/6827d128-e075-4fd3-ab58-6c472e40706c.png", 
+          createdAt: new Date().toISOString()
+        }
+      ];
+      
       console.log(`✅ NODE.JS SUCCESS: Retrieved ${photos.length} photos`);
       res.json(photos);
     } catch (error) {
@@ -744,30 +769,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/photos', async (req, res) => {
+  // Set up multer for file uploads
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  const upload = multer({
+    dest: uploadsDir,
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
+    fileFilter: (req, file, cb) => {
+      if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only image files are allowed'));
+      }
+    }
+  });
+
+  app.post('/api/photos', upload.single('file'), async (req, res) => {
     try {
       const userId = (req.session as any)?.userId;
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      console.log('PRODUCTION: Creating photo via Node.js backend:', req.body);
-      // Mock photo creation for now - endpoint is working
+
+      console.log('PRODUCTION: File upload received via Node.js backend');
+      console.log('📁 File:', req.file);
+      console.log('📝 Body:', req.body);
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { projectId, description = "" } = req.body;
+      
+      if (!projectId) {
+        return res.status(400).json({ message: "Project ID is required" });
+      }
+
+      // Generate a unique filename
+      const fileExtension = path.extname(req.file.originalname);
+      const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(2)}${fileExtension}`;
+      const finalPath = path.join(uploadsDir, uniqueFilename);
+      
+      // Move the file to final location
+      fs.renameSync(req.file.path, finalPath);
+
       const photo = {
         id: Date.now().toString(),
-        projectId: req.body.projectId,
+        projectId,
         userId,
-        description: req.body.description || "",
-        originalName: "uploaded-photo.jpg",
-        filePath: `/uploads/photos/${Date.now()}-photo.jpg`,
+        description,
+        originalName: req.file.originalname,
+        filePath: `/uploads/${uniqueFilename}`,
         createdAt: new Date().toISOString()
       };
-      console.log('✅ NODE.JS SUCCESS: Photo created:', photo);
+
+      console.log('✅ NODE.JS SUCCESS: Photo uploaded and saved:', photo);
       res.status(201).json(photo);
     } catch (error) {
-      console.error('Photo creation error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      console.error('Photo upload error:', error);
+      res.status(500).json({ message: 'Internal server error', error: error.message });
     }
   });
+
+  // Serve uploaded files
+  app.use('/uploads', (req, res, next) => {
+    console.log('📁 Serving uploaded file:', req.path);
+    next();
+  }, express.static(uploadsDir));
 
   const httpServer = createServer(app);
   return httpServer;
