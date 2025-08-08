@@ -21,9 +21,9 @@ interface ProjectGalleryProps {
 
 function FileChooser({ onFiles }: { onFiles: (files: FileList) => void }) {
   return (
-    <label className="relative inline-flex items-center justify-center px-4 py-2 
-                      rounded-md bg-blue-600 text-white font-medium cursor-pointer 
-                      hover:bg-blue-700 focus-visible:outline-none focus-visible:ring 
+    <label className="relative inline-flex items-center justify-center px-4 py-2
+                      rounded-md bg-blue-600 text-white font-medium cursor-pointer
+                      hover:bg-blue-700 focus-visible:outline-none focus-visible:ring
                       focus-visible:ring-blue-400 focus-visible:ring-offset-2">
       📁 Choose File
       <input
