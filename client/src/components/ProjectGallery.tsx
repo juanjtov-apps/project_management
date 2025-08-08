@@ -372,28 +372,32 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                   )}
                 </div>
 
-                {/* File Input - Label-wrapped approach for Replit sandbox */}
+                {/* File Input - Copy working approach from Photos tab */}
                 <div className="text-center">
-                  {/* Use label-wrapped file input - this bypasses programmatic click restrictions */}
-                  <label className="inline-block cursor-pointer">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*,image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                      onChange={handleFileSelect}
-                      multiple={false}
-                      disabled={uploadMutation.isPending}
-                      className="hidden"
-                    />
-                    <span className={`inline-flex items-center justify-center gap-2 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                      uploadMutation.isPending 
-                        ? 'opacity-50 cursor-not-allowed' 
-                        : 'cursor-pointer'
-                    }`}>
-                      <Upload size={16} />
-                      Browse Files
-                    </span>
-                  </label>
+                  <Button
+                    type="button"
+                    variant="default"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setTimeout(() => {
+                        fileInputRef.current?.click();
+                      }, 0);
+                    }}
+                    disabled={uploadMutation.isPending}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 border-2 border-blue-600 font-medium rounded-md shadow-sm"
+                    style={{ minHeight: '40px', fontSize: '14px' }}
+                  >
+                    📁 Choose Files
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple={false}
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={handleFileSelect}
+                  />
                   <p className="text-xs text-gray-500 mt-2">
                     Supports JPG, PNG, GIF, WebP (max 10MB)
                   </p>
