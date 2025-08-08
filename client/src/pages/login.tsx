@@ -28,8 +28,8 @@ export default function Login() {
         title: "Success",
         description: "Logged in successfully!",
       });
-      // Navigate directly to home without page reload
-      setLocation("/");
+      // Navigate directly to dashboard after successful login
+      setLocation("/dashboard");
     },
     onError: (error: any) => {
       // Better user-friendly error messages
