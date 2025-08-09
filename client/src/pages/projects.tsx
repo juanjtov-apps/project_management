@@ -228,7 +228,7 @@ function ProjectEditForm({ project, onClose }: { project: Project; onClose: () =
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={field.value}
+                    selected={field.value || undefined}
                     onSelect={field.onChange}
                     disabled={(date) =>
                       date < new Date(new Date().setHours(0, 0, 0, 0))
@@ -330,7 +330,7 @@ function ProjectCreateForm({ onClose }: { onClose: () => void }) {
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea placeholder="Enter project description" {...field} rows={3} />
+                <Textarea placeholder="Enter project description" {...field} value={field.value || ""} rows={3} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -424,7 +424,7 @@ function ProjectCreateForm({ onClose }: { onClose: () => void }) {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={field.value}
+                    selected={field.value || undefined}
                     onSelect={field.onChange}
                     disabled={(date) =>
                       date < new Date() || date < new Date("1900-01-01")
@@ -1099,8 +1099,7 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
 
   const updateTaskMutation = useMutation({
     mutationFn: async (values: any) => {
-      const response = await apiRequest("PATCH", `/api/tasks/${task.id}`, values);
-      return response.json();
+      return apiRequest(`/api/tasks/${task.id}`, { method: 'PATCH', body: values });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -1145,7 +1144,7 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea {...field} value={field.value || ""} rows={3} />
+                <Textarea {...field} value={field.value || ""} rows={3} placeholder="Add a description..." />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -1281,7 +1280,7 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={field.value}
+                    selected={field.value || undefined}
                     onSelect={field.onChange}
                     disabled={(date) =>
                       date < new Date(new Date().setHours(0, 0, 0, 0))
@@ -1458,7 +1457,7 @@ function TaskCreateForm({ project, onClose }: { project: Project; onClose: () =>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={field.value}
+                    selected={field.value || undefined}
                     onSelect={field.onChange}
                     disabled={(date) =>
                       date < new Date() || date < new Date("1900-01-01")
