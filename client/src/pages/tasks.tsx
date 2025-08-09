@@ -416,10 +416,10 @@ function TaskListItem({
                       Delete
                     </DropdownMenuItem>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+                  <AlertDialogContent aria-describedby="delete-task-alert-description">
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete Task</AlertDialogTitle>
-                      <AlertDialogDescription>
+                      <AlertDialogDescription id="delete-task-alert-description">
                         Are you sure you want to delete "{task.title}"? This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -720,7 +720,7 @@ export default function Tasks() {
             <DialogHeader>
               <DialogTitle>Edit Task</DialogTitle>
               <div id="edit-task-description" className="sr-only">
-                Edit an existing task's details, status, and assignments.
+                Edit an existing task's title, description, and project assignment.
               </div>
             </DialogHeader>
             <TaskForm 
@@ -866,10 +866,10 @@ export default function Tasks() {
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
-          <AlertDialogContent>
+          <AlertDialogContent aria-describedby="confirm-delete-task-description">
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Task</AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogDescription id="confirm-delete-task-description">
                 Are you sure you want to delete "{taskToDelete?.title}"? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
