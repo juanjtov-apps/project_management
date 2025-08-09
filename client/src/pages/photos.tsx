@@ -220,9 +220,12 @@ export default function Photos() {
               Upload Photos
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px]" aria-describedby="upload-photos-description">
             <DialogHeader>
               <DialogTitle>Upload Photos</DialogTitle>
+              <div id="upload-photos-description" className="sr-only">
+                Upload photos to a specific project with optional descriptions.
+              </div>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

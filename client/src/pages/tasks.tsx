@@ -697,9 +697,12 @@ export default function Tasks() {
               New Task
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px]" aria-describedby="create-task-description">
             <DialogHeader>
               <DialogTitle>Create New Task</DialogTitle>
+              <div id="create-task-description" className="sr-only">
+                Create a new task with title, description, and project assignment.
+              </div>
             </DialogHeader>
             <TaskForm 
               form={form} 
@@ -713,9 +716,12 @@ export default function Tasks() {
 
         {/* Edit Task Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px]" aria-describedby="edit-task-description">
             <DialogHeader>
               <DialogTitle>Edit Task</DialogTitle>
+              <div id="edit-task-description" className="sr-only">
+                Edit an existing task's details, status, and assignments.
+              </div>
             </DialogHeader>
             <TaskForm 
               form={editForm} 
@@ -729,8 +735,11 @@ export default function Tasks() {
 
         {/* Task Detail Modal - Comprehensive Editing */}
         <Dialog open={isTaskDetailDialogOpen} onOpenChange={setIsTaskDetailDialogOpen}>
-          <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto" aria-describedby="task-detail-description">
             <DialogHeader>
+              <div id="task-detail-description" className="sr-only">
+                Comprehensive task details view with full editing capabilities.
+              </div>
               <DialogTitle className="text-2xl font-bold text-gray-900">
                 {editingTask?.title || "Edit Task"}
               </DialogTitle>

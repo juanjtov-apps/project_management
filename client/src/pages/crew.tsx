@@ -365,9 +365,12 @@ export default function Crew() {
 
       {/* Schedule Change Request Dialog */}
       <Dialog open={isScheduleChangeDialogOpen} onOpenChange={setIsScheduleChangeDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px]" aria-describedby="schedule-change-description">
           <DialogHeader>
             <DialogTitle>Request Schedule Change</DialogTitle>
+            <div id="schedule-change-description" className="sr-only">
+              Request a change to a task's schedule with reason and new dates.
+            </div>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

@@ -284,10 +284,10 @@ export function RoleManagement({ companyId }: RoleManagementProps) {
                     Create Role
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent aria-describedby="create-role-description">
                   <DialogHeader>
                     <DialogTitle>Create New Role</DialogTitle>
-                    <DialogDescription>
+                    <DialogDescription id="create-role-description">
                       Create a new role for this company
                     </DialogDescription>
                   </DialogHeader>
@@ -421,10 +421,10 @@ export function RoleManagement({ companyId }: RoleManagementProps) {
                     Assign User
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent aria-describedby="assign-user-description">
                   <DialogHeader>
                     <DialogTitle>Assign User to Role</DialogTitle>
-                    <DialogDescription>
+                    <DialogDescription id="assign-user-description">
                       Assign a user to a role in this company
                     </DialogDescription>
                   </DialogHeader>

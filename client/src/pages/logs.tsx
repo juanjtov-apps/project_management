@@ -177,9 +177,12 @@ export default function Logs() {
               Create Log
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px]" aria-describedby="create-log-description">
             <DialogHeader>
               <DialogTitle>Create Project Log</DialogTitle>
+              <div id="create-log-description" className="sr-only">
+                Create a new project log entry with title, content, and type.
+              </div>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
