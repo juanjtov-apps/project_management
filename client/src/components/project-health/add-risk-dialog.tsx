@@ -97,10 +97,10 @@ export default function AddRiskDialog({ projectId, projects = [], trigger }: Add
             <AlertTriangle className="h-5 w-5 text-orange-500" />
             <span>Add Risk Assessment</span>
           </DialogTitle>
-          <DialogDescription id="add-risk-description">
-            Identify and assess potential risks for this project.
-          </DialogDescription>
         </DialogHeader>
+        <div id="add-risk-description" className="sr-only">
+          Identify and assess potential risks for this project.
+        </div>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

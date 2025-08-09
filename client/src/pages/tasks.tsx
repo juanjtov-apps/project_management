@@ -719,10 +719,10 @@ export default function Tasks() {
           <DialogContent className="sm:max-w-[600px]" aria-describedby="edit-task-description">
             <DialogHeader>
               <DialogTitle>Edit Task</DialogTitle>
-              <div id="edit-task-description" className="sr-only">
-                Edit an existing task's title, description, and project assignment.
-              </div>
             </DialogHeader>
+            <div id="edit-task-description" className="sr-only">
+              Edit an existing task's title, description, and project assignment.
+            </div>
             <TaskForm 
               form={editForm} 
               onSubmit={onEditSubmit} 
@@ -737,30 +737,30 @@ export default function Tasks() {
         <Dialog open={isTaskDetailDialogOpen} onOpenChange={setIsTaskDetailDialogOpen}>
           <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto" aria-describedby="task-detail-description">
             <DialogHeader>
-              <div id="task-detail-description" className="sr-only">
-                Comprehensive task details view with full editing capabilities.
-              </div>
               <DialogTitle className="text-2xl font-bold text-gray-900">
                 {editingTask?.title || "Edit Task"}
               </DialogTitle>
-              <div className="flex items-center gap-2 mt-2">
-                {editingTask && (
-                  <>
-                    <Badge className={getPriorityColor(editingTask.priority)} variant="outline">
-                      {editingTask.priority}
-                    </Badge>
-                    <Badge className={getStatusColor(editingTask.status)} variant="secondary">
-                      {editingTask.status.replace("-", " ")}
-                    </Badge>
-                    {editingTask.category && (
-                      <Badge variant="outline" className="bg-gray-50">
-                        {editingTask.category}
-                      </Badge>
-                    )}
-                  </>
-                )}
-              </div>
             </DialogHeader>
+            <div id="task-detail-description" className="sr-only">
+              Comprehensive task details view with full editing capabilities.
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              {editingTask && (
+                <>
+                  <Badge className={getPriorityColor(editingTask.priority)} variant="outline">
+                    {editingTask.priority}
+                  </Badge>
+                  <Badge className={getStatusColor(editingTask.status)} variant="secondary">
+                    {editingTask.status.replace("-", " ")}
+                  </Badge>
+                  {editingTask.category && (
+                    <Badge variant="outline" className="bg-gray-50">
+                      {editingTask.category}
+                    </Badge>
+                  )}
+                </>
+              )}
+            </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
               {/* Main Content - Task Form */}
@@ -869,10 +869,10 @@ export default function Tasks() {
           <AlertDialogContent aria-describedby="confirm-delete-task-description">
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Task</AlertDialogTitle>
-              <AlertDialogDescription id="confirm-delete-task-description">
-                Are you sure you want to delete "{taskToDelete?.title}"? This action cannot be undone.
-              </AlertDialogDescription>
             </AlertDialogHeader>
+            <div id="confirm-delete-task-description" className="sr-only">
+              Are you sure you want to delete "{taskToDelete?.title}"? This action cannot be undone.
+            </div>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
