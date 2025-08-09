@@ -793,7 +793,7 @@ export default function Tasks() {
                     )}
                     
                     <div className="flex items-center text-sm">
-                      <User size={14} className="mr-2 text-gray-500" />
+                      <UserIcon size={14} className="mr-2 text-gray-500" />
                       <span className="text-gray-600">Created:</span>
                       <span className="ml-1 font-medium">
                         {editingTask?.createdAt ? new Date(editingTask.createdAt).toLocaleDateString() : "Unknown"}
