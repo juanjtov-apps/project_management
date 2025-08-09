@@ -55,7 +55,7 @@ export default function Crew() {
 
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) =>
-      apiRequest("PATCH", `/api/tasks/${id}`, updates),
+      apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: updates }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
@@ -63,7 +63,7 @@ export default function Crew() {
   });
 
   const createScheduleChangeMutation = useMutation({
-    mutationFn: (data: InsertScheduleChange) => apiRequest("POST", "/api/schedule-changes", data),
+    mutationFn: (data: InsertScheduleChange) => apiRequest("/api/schedule-changes", { method: "POST", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/schedule-changes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
@@ -252,7 +252,7 @@ export default function Crew() {
                       <h4 className={`font-medium ${task.status === "completed" ? "line-through text-gray-500" : "construction-secondary"}`}>
                         {task.title}
                       </h4>
-                      <p className="text-sm text-blue-600">{getProjectName(task.projectId)}</p>
+                      <p className="text-sm text-blue-600">{getProjectName(task.projectId) || 'Unknown Project'}</p>
                       <div className="flex items-center space-x-2 mt-1">
                         <Badge className={getPriorityColor(task.priority)}>
                           {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
@@ -300,7 +300,7 @@ export default function Crew() {
                   >
                     <div>
                       <h4 className="font-medium construction-secondary">{task.title}</h4>
-                      <p className="text-sm text-blue-600">{getProjectName(task.projectId)}</p>
+                      <p className="text-sm text-blue-600">{getProjectName(task.projectId) || 'Unknown Project'}</p>
                       <div className="flex items-center space-x-2 mt-1">
                         <Badge className={getPriorityColor(task.priority)}>
                           {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
@@ -374,7 +374,7 @@ export default function Crew() {
               {selectedTask && (
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <h4 className="font-medium construction-secondary">{selectedTask.title}</h4>
-                  <p className="text-sm text-blue-600">{getProjectName(selectedTask.projectId)}</p>
+                  <p className="text-sm text-blue-600">{getProjectName(selectedTask.projectId) || 'Unknown Project'}</p>
                 </div>
               )}
               

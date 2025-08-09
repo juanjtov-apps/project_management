@@ -779,10 +779,10 @@ export default function RBACAdmin() {
                                     <Trash2 className="w-4 h-4" />
                                   </Button>
                                 </AlertDialogTrigger>
-                                <AlertDialogContent aria-describedby="delete-user-alert-description">
+                                <AlertDialogContent aria-describedby={undefined}>
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Delete User</AlertDialogTitle>
-                                    <AlertDialogDescription id="delete-user-alert-description">
+                                    <AlertDialogDescription>
                                       Are you sure you want to delete user "{user.name || user.email}"? This action cannot be undone and will remove all associated data.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>

@@ -13,14 +13,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, CalendarIcon, Clock, User, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle, Grid3X3, List, FolderOpen, ChevronDown, ChevronRight, AlarmClock, Filter, RotateCcw, CheckSquare, Square, Eye, Search, Maximize2, Minimize2, SlidersHorizontal } from "lucide-react";
+import { Plus, CalendarIcon, Clock, User as UserIcon, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle, Grid3X3, List, FolderOpen, ChevronDown, ChevronRight, AlarmClock, Filter, RotateCcw, CheckSquare, Square, Eye, Search, Maximize2, Minimize2, SlidersHorizontal } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertTaskSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import type { Task, InsertTask, Project } from "@shared/schema";
+import type { Task, InsertTask, Project, User } from "@shared/schema";
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
@@ -416,10 +416,10 @@ function TaskListItem({
                       Delete
                     </DropdownMenuItem>
                   </AlertDialogTrigger>
-                  <AlertDialogContent aria-describedby="delete-task-alert-description">
+                  <AlertDialogContent aria-describedby={undefined}>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete Task</AlertDialogTitle>
-                      <AlertDialogDescription id="delete-task-alert-description">
+                      <AlertDialogDescription>
                         Are you sure you want to delete "{task.title}"? This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>

@@ -1032,13 +1032,13 @@ export default function Projects() {
 
       {/* Enhanced Project Deletion Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent aria-describedby="delete-project-alert-description">
+        <AlertDialogContent aria-describedby={undefined}>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Trash2 className="h-5 w-5 text-red-600" />
               Delete Project
             </AlertDialogTitle>
-            <AlertDialogDescription id="delete-project-alert-description" className="space-y-3">
+            <AlertDialogDescription className="space-y-3">
               <div className="text-sm">
                 Are you sure you want to delete the project <strong>"{projectToDelete?.name}"</strong>?
               </div>
