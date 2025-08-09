@@ -697,12 +697,9 @@ export default function Tasks() {
               New Task
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]" aria-describedby="create-task-description">
+          <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Create New Task</DialogTitle>
-              <div id="create-task-description" className="sr-only">
-                Create a new task with title, description, and project assignment.
-              </div>
             </DialogHeader>
             <TaskForm 
               form={form} 
@@ -716,13 +713,10 @@ export default function Tasks() {
 
         {/* Edit Task Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]" aria-describedby="edit-task-description">
+          <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Edit Task</DialogTitle>
             </DialogHeader>
-            <div id="edit-task-description" className="sr-only">
-              Edit an existing task's title, description, and project assignment.
-            </div>
             <TaskForm 
               form={editForm} 
               onSubmit={onEditSubmit} 
@@ -735,15 +729,12 @@ export default function Tasks() {
 
         {/* Task Detail Modal - Comprehensive Editing */}
         <Dialog open={isTaskDetailDialogOpen} onOpenChange={setIsTaskDetailDialogOpen}>
-          <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto" aria-describedby="task-detail-description">
+          <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold text-gray-900">
                 {editingTask?.title || "Edit Task"}
               </DialogTitle>
             </DialogHeader>
-            <div id="task-detail-description" className="sr-only">
-              Comprehensive task details view with full editing capabilities.
-            </div>
             <div className="flex items-center gap-2 mt-2">
               {editingTask && (
                 <>
@@ -866,13 +857,10 @@ export default function Tasks() {
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
-          <AlertDialogContent aria-describedby="confirm-delete-task-description">
+          <AlertDialogContent aria-describedby={undefined}>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Task</AlertDialogTitle>
             </AlertDialogHeader>
-            <div id="confirm-delete-task-description" className="sr-only">
-              Are you sure you want to delete "{taskToDelete?.title}"? This action cannot be undone.
-            </div>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction

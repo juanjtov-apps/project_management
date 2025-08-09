@@ -317,11 +317,10 @@ export default function RBACAdmin() {
                 Add User
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md" aria-describedby="create-user-description">
+            <DialogContent className="max-w-md" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>Create New User</DialogTitle>
               </DialogHeader>
-              <div id="create-user-description" className="sr-only">Add a new user to the system</div>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -522,11 +521,10 @@ export default function RBACAdmin() {
 
           {/* Edit User Dialog */}
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="max-w-md" aria-describedby="edit-user-description">
+            <DialogContent className="max-w-md" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>Edit User</DialogTitle>
               </DialogHeader>
-              <div id="edit-user-description" className="sr-only">Update user information</div>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -855,11 +853,10 @@ export default function RBACAdmin() {
                 Create Role
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto" aria-describedby="create-role-description">
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>Create New Role</DialogTitle>
               </DialogHeader>
-              <div id="create-role-description" className="sr-only">Define a new role with specific permissions</div>
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1155,11 +1152,10 @@ export default function RBACAdmin() {
                 Add Company
               </Button>
             </DialogTrigger>
-            <DialogContent aria-describedby="create-company-description">
+            <DialogContent aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>Create New Company</DialogTitle>
               </DialogHeader>
-              <div id="create-company-description" className="sr-only">Add a new company to the system</div>
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="company_name">Company Name</Label>
@@ -1267,11 +1263,10 @@ export default function RBACAdmin() {
 
         {/* Edit Company Dialog */}
         <Dialog open={isEditCompanyDialogOpen} onOpenChange={setIsEditCompanyDialogOpen}>
-          <DialogContent aria-describedby="edit-company-description">
+          <DialogContent aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Edit Company</DialogTitle>
             </DialogHeader>
-            <div id="edit-company-description" className="sr-only">Update company information</div>
             <div className="space-y-4">
               <div>
                 <Label htmlFor="edit_company_name">Company Name</Label>
@@ -1384,13 +1379,10 @@ export default function RBACAdmin() {
 
         {/* View Users Dialog */}
         <Dialog open={isViewUsersDialogOpen} onOpenChange={setIsViewUsersDialogOpen}>
-          <DialogContent className="max-w-4xl" aria-describedby="view-company-users-description">
+          <DialogContent className="max-w-4xl" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Company Users</DialogTitle>
             </DialogHeader>
-            <div id="view-company-users-description" className="sr-only">
-              View all users assigned to {companies.find(c => c.id.toString() === selectedCompanyId?.toString())?.name}
-            </div>
             <div className="space-y-4">
               {companyUsersLoading ? (
                 <div className="text-center py-8">Loading users...</div>
@@ -1438,16 +1430,13 @@ export default function RBACAdmin() {
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={isDeleteConfirmDialogOpen} onOpenChange={setIsDeleteConfirmDialogOpen}>
-          <DialogContent className="sm:max-w-md" aria-describedby="delete-company-description">
+          <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-destructive">
                 <Trash2 className="w-5 h-5" />
                 Delete Company
               </DialogTitle>
             </DialogHeader>
-            <div id="delete-company-description" className="sr-only">
-              This action cannot be undone. This will permanently delete the company and remove all associated data.
-            </div>
             <div className="space-y-4">
               <div className="bg-muted/50 p-4 rounded-lg border">
                 <div className="flex items-start gap-3">

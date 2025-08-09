@@ -233,13 +233,10 @@ export default function Schedule() {
               Update Task Schedule
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]" aria-describedby="update-schedule-description">
+          <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Update Task Schedule</DialogTitle>
             </DialogHeader>
-            <div id="update-schedule-description" className="sr-only">
-              Update the schedule for a specific task with new dates and reason.
-            </div>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -387,13 +384,10 @@ export default function Schedule() {
 
         {/* Edit Schedule Change Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]" aria-describedby="edit-schedule-description">
+          <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Update Task Schedule</DialogTitle>
             </DialogHeader>
-            <div id="edit-schedule-description" className="sr-only">
-              Edit an existing schedule change request with updated details.
-            </div>
             <Form {...editForm}>
               <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
                 <FormField

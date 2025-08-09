@@ -284,13 +284,10 @@ export function RoleManagement({ companyId }: RoleManagementProps) {
                     Create Role
                   </Button>
                 </DialogTrigger>
-                <DialogContent aria-describedby="create-role-description">
+                <DialogContent aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Create New Role</DialogTitle>
                   </DialogHeader>
-                  <div id="create-role-description" className="sr-only">
-                    Create a new role for this company
-                  </div>
                   <Form {...createRoleForm}>
                     <form onSubmit={createRoleForm.handleSubmit(onCreateRole)} className="space-y-4">
                       <FormField
@@ -421,13 +418,10 @@ export function RoleManagement({ companyId }: RoleManagementProps) {
                     Assign User
                   </Button>
                 </DialogTrigger>
-                <DialogContent aria-describedby="assign-user-description">
+                <DialogContent aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Assign User to Role</DialogTitle>
                   </DialogHeader>
-                  <div id="assign-user-description" className="sr-only">
-                    Assign a user to a role in this company
-                  </div>
                   <Form {...assignUserForm}>
                     <form onSubmit={assignUserForm.handleSubmit(onAssignUser)} className="space-y-4">
                       <FormField

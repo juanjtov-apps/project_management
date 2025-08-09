@@ -91,16 +91,13 @@ export default function AddRiskDialog({ projectId, projects = [], trigger }: Add
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl" aria-describedby="add-risk-description">
+      <DialogContent className="max-w-2xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <AlertTriangle className="h-5 w-5 text-orange-500" />
             <span>Add Risk Assessment</span>
           </DialogTitle>
         </DialogHeader>
-        <div id="add-risk-description" className="sr-only">
-          Identify and assess potential risks for this project.
-        </div>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
