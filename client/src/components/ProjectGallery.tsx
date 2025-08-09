@@ -291,10 +291,10 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
             <ImageIcon size={20} />
             {projectName} - Photo Gallery
           </DialogTitle>
-          <div id="gallery-description" className="sr-only">
-            Gallery for managing project photos. You can view existing photos or upload new ones.
-          </div>
         </DialogHeader>
+        <div id="gallery-description" className="sr-only">
+          Gallery for managing project photos. You can view existing photos or upload new ones.
+        </div>
 
         <div className="flex gap-2 mb-4">
           <Button
