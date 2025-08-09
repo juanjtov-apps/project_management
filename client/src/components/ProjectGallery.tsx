@@ -285,16 +285,13 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
           Gallery
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh]" aria-describedby="gallery-description">
+      <DialogContent className="max-w-4xl max-h-[80vh]" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ImageIcon size={20} />
             {projectName} - Photo Gallery
           </DialogTitle>
         </DialogHeader>
-        <div id="gallery-description" className="sr-only">
-          Gallery for managing project photos. You can view existing photos or upload new ones.
-        </div>
 
         <div className="flex gap-2 mb-4">
           <Button
@@ -487,13 +484,10 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
         {/* Photo viewer modal */}
         {selectedPhoto && (
           <Dialog open={!!selectedPhoto} onOpenChange={() => setSelectedPhoto(null)}>
-            <DialogContent className="max-w-3xl" aria-describedby="photo-details-description">
+            <DialogContent className="max-w-3xl" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>Photo Details</DialogTitle>
               </DialogHeader>
-              <div id="photo-details-description" className="sr-only">
-                Photo viewer showing full-size image with details and upload date
-              </div>
               <div className="space-y-4">
                 <img
                   src={getPhotoUrl(selectedPhoto)}
