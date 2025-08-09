@@ -22,27 +22,43 @@ interface ProjectGalleryProps {
 function FileChooser({ onFiles }: { onFiles: (files: FileList) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   
-  const handleClick = () => {
-    // Force close any Radix popovers first
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Force close any Radix popovers that might be interfering
     document.querySelectorAll('[data-radix-popper-content-wrapper]').forEach(el => {
-      (el as HTMLElement).style.display = 'none';
+      const element = el as HTMLElement;
+      element.style.display = 'none';
+      element.style.pointerEvents = 'none';
+      element.style.visibility = 'hidden';
     });
     
-    // Use requestAnimationFrame to ensure DOM updates are complete
-    requestAnimationFrame(() => {
-      inputRef.current?.click();
+    // Also ensure any hidden elements are properly cleared
+    document.querySelectorAll('[data-radix-popper-content-wrapper][aria-hidden="true"]').forEach(el => {
+      const element = el as HTMLElement;
+      element.style.display = 'none !important';
+      element.style.pointerEvents = 'none !important';
     });
+    
+    // Multiple approaches to trigger the file input
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.click();
+      }
+    }, 0);
   };
 
   return (
-    <div className="relative">
+    <div className="relative z-50">
       <button
         type="button"
         onClick={handleClick}
         className="inline-flex items-center justify-center px-4 py-2 rounded-md 
                    bg-blue-600 text-white font-medium cursor-pointer hover:bg-blue-700
                    focus-visible:outline-none focus-visible:ring focus-visible:ring-blue-400 
-                   focus-visible:ring-offset-2 transition-colors"
+                   focus-visible:ring-offset-2 transition-colors relative z-50"
+        style={{ position: 'relative', zIndex: 9999 }}
       >
         📁 Choose File
       </button>
@@ -50,8 +66,22 @@ function FileChooser({ onFiles }: { onFiles: (files: FileList) => void }) {
         ref={inputRef}
         type="file"
         accept="image/*"
-        onChange={(e) => e.target.files && onFiles(e.target.files)}
-        style={{ display: 'none' }}
+        onChange={(e) => {
+          console.log('📁 File input change triggered:', e.target.files);
+          if (e.target.files && e.target.files.length > 0) {
+            onFiles(e.target.files);
+          }
+        }}
+        style={{ 
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          opacity: 0,
+          cursor: 'pointer',
+          zIndex: 10000
+        }}
       />
     </div>
   );
