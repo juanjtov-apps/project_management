@@ -1102,8 +1102,16 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
       return apiRequest(`/api/tasks/${task.id}`, { method: 'PATCH', body: values });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      onClose();
+      // Invalidate queries and close dialog
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+        onClose();
+      }, 100);
+    },
+    onError: (error: any) => {
+      console.error("Error updating task:", error);
+      // Don't close the dialog on error so user can retry
     },
   });
 
@@ -1295,10 +1303,10 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
         />
 
         <div className="flex items-center justify-end space-x-2 pt-4">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={updateTaskMutation.isPending}>
             Cancel
           </Button>
-          <Button type="submit" disabled={updateTaskMutation.isPending}>
+          <Button type="submit" disabled={updateTaskMutation.isPending} className="construction-primary">
             {updateTaskMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
         </div>
