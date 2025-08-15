@@ -529,6 +529,7 @@ export default function Projects() {
   };
 
   const handleEditTask = (task: Task) => {
+    console.log("Opening task edit dialog for task:", task.id, task.title);
     setEditingTask(task);
   };
 
@@ -774,7 +775,9 @@ export default function Projects() {
                                         </div>
                                         <div>
                                           <div className="text-xs text-gray-600 mb-1">Assigned to:</div>
-                                          <TaskAssignmentDropdown task={task} />
+                                          <div className="text-xs">
+                                            {task.assigneeId ? "Assigned" : "Unassigned"}
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
@@ -979,7 +982,9 @@ export default function Projects() {
                               
                               <div>
                                 <div className="text-sm text-gray-600 mb-1">Assigned to:</div>
-                                <TaskAssignmentDropdown task={task} />
+                                <div className="text-sm font-medium">
+                                  {task.assigneeId ? "Assigned" : "Unassigned"}
+                                </div>
                               </div>
                             </div>
                           ))
@@ -1005,12 +1010,20 @@ export default function Projects() {
       </Dialog>
 
       {/* Task Edit Dialog */}
-      <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
+      <Dialog open={!!editingTask} onOpenChange={(open) => {
+        console.log("Task dialog onOpenChange:", open, "current editingTask:", editingTask?.id);
+        if (!open) {
+          setEditingTask(null);
+        }
+      }}>
         <DialogContent className="max-w-2xl" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
           </DialogHeader>
-          {editingTask && <TaskEditForm task={editingTask} onClose={() => setEditingTask(null)} />}
+          {editingTask && <TaskEditForm task={editingTask} onClose={() => {
+            console.log("TaskEditForm onClose called for task:", editingTask.id);
+            setEditingTask(null);
+          }} />}
         </DialogContent>
       </Dialog>
 
@@ -1099,28 +1112,40 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
 
   const updateTaskMutation = useMutation({
     mutationFn: async (values: any) => {
-      return apiRequest(`/api/tasks/${task.id}`, { method: 'PATCH', body: values });
+      console.log("Updating task:", task.id, values);
+      const response = await apiRequest(`/api/tasks/${task.id}`, { method: 'PATCH', body: values });
+      console.log("Task update response:", response);
+      return response;
     },
-    onSuccess: () => {
-      // Invalidate queries and close dialog
+    onSuccess: (data) => {
+      console.log("Task update success:", data);
+      
+      // Close dialog first to prevent re-renders during invalidation
+      onClose();
+      
+      // Use a small delay to ensure dialog is closed before invalidating
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
         queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-        onClose();
-      }, 100);
+      }, 50);
     },
     onError: (error: any) => {
-      console.error("Error updating task:", error);
+      console.error("Task update error:", error);
       // Don't close the dialog on error so user can retry
     },
   });
 
   const onSubmit = (values: any) => {
-    // Convert "none" back to null for projectId
+    console.log("Form submit with values:", values);
+    
+    // Convert "none" back to null for projectId and format dates
     const submitValues = {
       ...values,
-      projectId: values.projectId === "none" ? null : values.projectId
+      projectId: values.projectId === "none" ? null : values.projectId,
+      dueDate: values.dueDate ? values.dueDate.toISOString() : null,
     };
+    
+    console.log("Submitting processed values:", submitValues);
     updateTaskMutation.mutate(submitValues);
   };
 
