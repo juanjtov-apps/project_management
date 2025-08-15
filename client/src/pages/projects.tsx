@@ -1119,15 +1119,16 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
     },
     onSuccess: (data) => {
       console.log("Task update success:", data);
+      console.log("About to invalidate queries and close dialog");
       
-      // Close dialog first to prevent re-renders during invalidation
+      // Invalidate queries immediately
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      
+      console.log("Queries invalidated, about to close dialog");
+      // Close dialog after invalidation
       onClose();
-      
-      // Use a small delay to ensure dialog is closed before invalidating
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      }, 50);
+      console.log("Dialog closed successfully");
     },
     onError: (error: any) => {
       console.error("Task update error:", error);
