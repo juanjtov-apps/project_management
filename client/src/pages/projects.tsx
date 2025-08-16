@@ -1096,8 +1096,10 @@ export default function Projects() {
 
 // Task Edit Form Component
 function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
+  console.log("TaskEditForm component rendering for task:", task.id);
   const queryClient = useQueryClient();
   
+  console.log("TaskEditForm: About to initialize form with task data:", task);
   const form = useForm({
     defaultValues: {
       title: task?.title || "",
@@ -1150,10 +1152,13 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
     updateTaskMutation.mutate(submitValues);
   };
 
+  console.log("TaskEditForm: About to fetch projects for dropdown");
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
   });
+  console.log("TaskEditForm: Projects fetched, count:", projects.length);
 
+  console.log("TaskEditForm: About to render form");
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
