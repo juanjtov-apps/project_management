@@ -1120,16 +1120,16 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
     onSuccess: (data) => {
       console.log("Task update success:", data);
       
-      // Close dialog immediately for better UX
+      // Close dialog immediately
       onClose();
       
-      // Invalidate queries in the next tick to prevent blocking
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      }, 0);
+      // Optimistic update - directly update cache instead of refetching
+      queryClient.setQueryData(["/api/tasks"], (oldTasks: Task[] | undefined) => {
+        if (!oldTasks) return oldTasks;
+        return oldTasks.map(t => t.id === task.id ? { ...t, ...data } : t);
+      });
       
-      console.log("Dialog closed, queries will invalidate shortly");
+      console.log("Dialog closed, task updated in cache");
     },
     onError: (error: any) => {
       console.error("Task update error:", error);
