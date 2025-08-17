@@ -529,8 +529,11 @@ export default function Projects() {
   };
 
   const handleEditTask = (task: Task) => {
-    console.log("Opening task edit dialog for task:", task.id, task.title);
+    console.log("🎯 handleEditTask called for task:", task.id, task.title);
+    console.log("🎯 Task object:", task);
+    console.log("🎯 About to call setEditingTask...");
     setEditingTask(task);
+    console.log("🎯 setEditingTask completed");
   };
 
   const handleDeleteTask = async (task: Task) => {
@@ -1011,7 +1014,7 @@ export default function Projects() {
 
       {/* Task Edit Dialog */}
       <Dialog open={!!editingTask} onOpenChange={(open) => {
-        console.log("Task dialog onOpenChange:", open, "current editingTask:", editingTask?.id);
+        console.log("🔄 Task dialog onOpenChange:", open, "current editingTask:", editingTask?.id);
         if (!open) {
           setEditingTask(null);
         }
