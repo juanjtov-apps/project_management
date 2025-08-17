@@ -1020,10 +1020,19 @@ export default function Projects() {
           <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
           </DialogHeader>
-          {editingTask && <TaskEditForm task={editingTask} onClose={() => {
-            console.log("TaskEditForm onClose called for task:", editingTask.id);
-            setEditingTask(null);
-          }} />}
+          {editingTask && (
+            <div>
+              <div>DEBUG: About to render TaskEditForm for task: {editingTask.id}</div>
+              <TaskEditForm 
+                key={editingTask.id} 
+                task={editingTask} 
+                onClose={() => {
+                  console.log("TaskEditForm onClose called for task:", editingTask.id);
+                  setEditingTask(null);
+                }} 
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -1096,6 +1105,7 @@ export default function Projects() {
 
 // Task Edit Form Component
 function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
+  console.log("🏗️ TaskEditForm rendering for task:", task.id, task.title);
   const queryClient = useQueryClient();
   
   const form = useForm({
