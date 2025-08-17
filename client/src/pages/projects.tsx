@@ -984,23 +984,32 @@ export default function Projects() {
                                   <Badge className={getPriorityColor(task.priority)} variant="outline">
                                     {task.priority}
                                   </Badge>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => e.stopPropagation()}>
-                                        <MoreHorizontal size={14} />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => handleEditTask(task)}>
-                                        <Edit size={14} className="mr-2" />
-                                        Edit
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handleDeleteTask(task)} className="text-red-600">
-                                        <Trash2 size={14} className="mr-2" />
-                                        Delete
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                                  <div className="flex gap-1">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="h-6 w-6 p-0" 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditTask(task);
+                                      }}
+                                      title="Edit task"
+                                    >
+                                      <Edit size={12} />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700" 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteTask(task);
+                                      }}
+                                      title="Delete task"
+                                    >
+                                      <Trash2 size={12} />
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
                               
@@ -1523,7 +1532,7 @@ function TaskCreateForm({ project, onClose }: { project: Project; onClose: () =>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={field.value || undefined}
+                    selected={field.value ? (typeof field.value === 'string' ? new Date(field.value) : field.value) : undefined}
                     onSelect={field.onChange}
                     disabled={(date) =>
                       date < new Date() || date < new Date("1900-01-01")
