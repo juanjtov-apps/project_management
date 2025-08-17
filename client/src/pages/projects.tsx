@@ -745,34 +745,33 @@ export default function Projects() {
                                           <Badge className={getStatusColor(task.status)} variant="outline">
                                             {task.status === "in-progress" ? "In Progress" : task.status}
                                           </Badge>
-                                          <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                              <Button 
-                                                variant="ghost" 
-                                                size="sm" 
-                                                className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100" 
-                                                onClick={(e) => {
-                                                  console.log("🎯 Dropdown trigger clicked");
-                                                  e.stopPropagation();
-                                                }}
-                                              >
-                                                <MoreHorizontal size={12} />
-                                              </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                              <DropdownMenuItem onClick={() => {
-                                                console.log("🎯 Edit menu item clicked for task:", task.id);
+                                          <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                                            <Button 
+                                              variant="ghost" 
+                                              size="sm" 
+                                              className="h-5 w-5 p-0" 
+                                              onClick={(e) => {
+                                                console.log("🎯 Direct Edit button clicked for task:", task.id);
+                                                e.stopPropagation();
                                                 handleEditTask(task);
-                                              }}>
-                                                <Edit size={12} className="mr-2" />
-                                                Edit
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem onClick={() => handleDeleteTask(task)} className="text-red-600">
-                                                <Trash2 size={12} className="mr-2" />
-                                                Delete
-                                              </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                          </DropdownMenu>
+                                              }}
+                                              title="Edit task"
+                                            >
+                                              <Edit size={10} />
+                                            </Button>
+                                            <Button 
+                                              variant="ghost" 
+                                              size="sm" 
+                                              className="h-5 w-5 p-0 text-red-600 hover:text-red-700" 
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteTask(task);
+                                              }}
+                                              title="Delete task"
+                                            >
+                                              <Trash2 size={10} />
+                                            </Button>
+                                          </div>
                                         </div>
                                       </div>
                                       <div className="space-y-2">
