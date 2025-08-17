@@ -747,12 +747,23 @@ export default function Projects() {
                                           </Badge>
                                           <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                                              <Button 
+                                                variant="ghost" 
+                                                size="sm" 
+                                                className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100" 
+                                                onClick={(e) => {
+                                                  console.log("🎯 Dropdown trigger clicked");
+                                                  e.stopPropagation();
+                                                }}
+                                              >
                                                 <MoreHorizontal size={12} />
                                               </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                              <DropdownMenuItem onClick={() => handleEditTask(task)}>
+                                              <DropdownMenuItem onClick={() => {
+                                                console.log("🎯 Edit menu item clicked for task:", task.id);
+                                                handleEditTask(task);
+                                              }}>
                                                 <Edit size={12} className="mr-2" />
                                                 Edit
                                               </DropdownMenuItem>
@@ -1111,6 +1122,17 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
   console.log("🏗️ TaskEditForm rendering for task:", task.id, task.title);
   const queryClient = useQueryClient();
   
+  console.log("🚨 Creating form with task data:", {
+    title: task?.title,
+    description: task?.description,
+    status: task?.status,
+    priority: task?.priority,
+    category: task?.category,
+    projectId: task?.projectId,
+    dueDate: task?.dueDate,
+    dueDateParsed: task?.dueDate ? new Date(task.dueDate) : undefined
+  });
+
   const form = useForm({
     defaultValues: {
       title: task?.title || "",
@@ -1122,6 +1144,8 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
       dueDate: task?.dueDate ? new Date(task.dueDate) : undefined,
     },
   });
+
+  console.log("🚨 Form created successfully");
 
   const updateTaskMutation = useMutation({
     mutationFn: async (values: any) => {
