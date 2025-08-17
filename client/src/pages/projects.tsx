@@ -529,11 +529,7 @@ export default function Projects() {
   };
 
   const handleEditTask = (task: Task) => {
-    console.log("🎯 handleEditTask called for task:", task.id, task.title);
-    console.log("🎯 Task object:", task);
-    console.log("🎯 About to call setEditingTask...");
     setEditingTask(task);
-    console.log("🎯 setEditingTask completed");
   };
 
   const handleDeleteTask = async (task: Task) => {
@@ -751,7 +747,6 @@ export default function Projects() {
                                               size="sm" 
                                               className="h-5 w-5 p-0" 
                                               onClick={(e) => {
-                                                console.log("🎯 Direct Edit button clicked for task:", task.id);
                                                 e.stopPropagation();
                                                 handleEditTask(task);
                                               }}
@@ -1024,7 +1019,6 @@ export default function Projects() {
 
       {/* Task Edit Dialog */}
       <Dialog open={!!editingTask} onOpenChange={(open) => {
-        console.log("🔄 Task dialog onOpenChange:", open, "current editingTask:", editingTask?.id);
         if (!open) {
           setEditingTask(null);
         }
@@ -1034,17 +1028,11 @@ export default function Projects() {
             <DialogTitle>Edit Task</DialogTitle>
           </DialogHeader>
           {editingTask && (
-            <div>
-              <div>DEBUG: About to render TaskEditForm for task: {editingTask.id}</div>
-              <TaskEditForm 
-                key={editingTask.id} 
-                task={editingTask} 
-                onClose={() => {
-                  console.log("TaskEditForm onClose called for task:", editingTask.id);
-                  setEditingTask(null);
-                }} 
-              />
-            </div>
+            <TaskEditForm 
+              key={editingTask.id} 
+              task={editingTask} 
+              onClose={() => setEditingTask(null)} 
+            />
           )}
         </DialogContent>
       </Dialog>
@@ -1118,33 +1106,19 @@ export default function Projects() {
 
 // Task Edit Form Component
 function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
-  console.log("🏗️ TaskEditForm rendering for task:", task.id, task.title);
   const queryClient = useQueryClient();
   
-  console.log("🚨 Creating form with task data:", {
-    title: task?.title,
-    description: task?.description,
-    status: task?.status,
-    priority: task?.priority,
-    category: task?.category,
-    projectId: task?.projectId,
-    dueDate: task?.dueDate,
-    dueDateParsed: task?.dueDate ? new Date(task.dueDate) : undefined
-  });
-
   const form = useForm({
     defaultValues: {
-      title: task?.title || "",
-      description: task?.description || "",
-      status: task?.status || "pending",
-      priority: task?.priority || "medium",
-      category: task?.category || "project",
-      projectId: task?.projectId || "none",
-      dueDate: task?.dueDate ? new Date(task.dueDate) : undefined,
+      title: task.title || "",
+      description: task.description || "",
+      status: task.status || "pending",
+      priority: task.priority || "medium",
+      category: task.category || "project",
+      projectId: task.projectId || "none",
+      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
     },
   });
-
-  console.log("🚨 Form created successfully");
 
   const updateTaskMutation = useMutation({
     mutationFn: async (values: any) => {
@@ -1174,18 +1148,12 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
   });
 
   const onSubmit = (values: any) => {
-    console.log("🚀 FORM SUBMIT STARTED with values:", values);
-    
-    // Convert "none" back to null for projectId and format dates
     const submitValues = {
       ...values,
       projectId: values.projectId === "none" ? null : values.projectId,
       dueDate: values.dueDate ? values.dueDate.toISOString() : null,
     };
-    
-    console.log("🚀 CALLING MUTATION with processed values:", submitValues);
     updateTaskMutation.mutate(submitValues);
-    console.log("🚀 MUTATION CALLED, waiting for response...");
   };
 
   const { data: projects = [] } = useQuery<Project[]>({
@@ -1194,9 +1162,7 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
-        console.log("🚨 FORM VALIDATION FAILED:", errors);
-      })} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="title"
@@ -1376,12 +1342,6 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
             type="submit" 
             disabled={updateTaskMutation.isPending} 
             className="construction-primary"
-            onClick={() => {
-              console.log("🔥 SAVE BUTTON CLICKED");
-              console.log("🔥 Form errors:", form.formState.errors);
-              console.log("🔥 Form values:", form.getValues());
-              console.log("🔥 Form is valid:", form.formState.isValid);
-            }}
           >
             {updateTaskMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
