@@ -1114,11 +1114,12 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
     mutationFn: async (values: any) => {
       console.log("Updating task:", task.id, values);
       const response = await apiRequest(`/api/tasks/${task.id}`, { method: 'PATCH', body: values });
-      console.log("Task update response:", response);
-      return response;
+      const jsonData = await response.json();
+      console.log("Task update response:", jsonData);
+      return jsonData;
     },
-    onSuccess: (data) => {
-      console.log("Task update success:", data);
+    onSuccess: (updatedTask) => {
+      console.log("Task update success:", updatedTask);
       
       // Close dialog immediately
       onClose();
@@ -1126,7 +1127,7 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
       // Optimistic update - directly update cache instead of refetching
       queryClient.setQueryData(["/api/tasks"], (oldTasks: Task[] | undefined) => {
         if (!oldTasks) return oldTasks;
-        return oldTasks.map(t => t.id === task.id ? { ...t, ...data } : t);
+        return oldTasks.map(t => t.id === task.id ? updatedTask : t);
       });
       
       console.log("Dialog closed, task updated in cache");
