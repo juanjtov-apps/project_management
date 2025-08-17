@@ -1158,7 +1158,9 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+        console.log("🚨 FORM VALIDATION FAILED:", errors);
+      })} className="space-y-4">
         <FormField
           control={form.control}
           name="title"
@@ -1334,7 +1336,17 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
           <Button type="button" variant="outline" onClick={onClose} disabled={updateTaskMutation.isPending}>
             Cancel
           </Button>
-          <Button type="submit" disabled={updateTaskMutation.isPending} className="construction-primary">
+          <Button 
+            type="submit" 
+            disabled={updateTaskMutation.isPending} 
+            className="construction-primary"
+            onClick={() => {
+              console.log("🔥 SAVE BUTTON CLICKED");
+              console.log("🔥 Form errors:", form.formState.errors);
+              console.log("🔥 Form values:", form.getValues());
+              console.log("🔥 Form is valid:", form.formState.isValid);
+            }}
+          >
             {updateTaskMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
         </div>
