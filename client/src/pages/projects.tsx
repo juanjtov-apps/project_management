@@ -679,36 +679,44 @@ export default function Projects() {
                               </div>
                             </div>
                             
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="h-8 w-8 p-0" 
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <MoreHorizontal size={16} />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleEditProject(project)}>
-                                  <Edit size={14} className="mr-2" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleAddTask(project)}>
-                                  <Plus size={14} className="mr-2" />
-                                  Add Task
-                                </DropdownMenuItem>
-
-                                <DropdownMenuItem 
-                                  onClick={() => handleDeleteProject(project)}
-                                  className="text-red-600"
-                                >
-                                  <Trash2 size={14} className="mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="flex gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 w-8 p-0" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditProject(project);
+                                }}
+                                title="Edit project"
+                              >
+                                <Edit size={14} />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 w-8 p-0" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddTask(project);
+                                }}
+                                title="Add task"
+                              >
+                                <Plus size={14} />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteProject(project);
+                                }}
+                                title="Delete project"
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                            </div>
                           </div>
                           
                           {/* Tasks Section */}
@@ -896,36 +904,50 @@ export default function Projects() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-500">{project.progress}% complete</span>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
-                            <MoreHorizontal size={16} />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEditProject(project)}>
-                            <Edit size={14} className="mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleAddTask(project)}>
-                            <Plus size={14} className="mr-2" />
-                            Add Task
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => e.preventDefault()}>
-                            <ProjectGallery 
-                              projectId={project.id} 
-                              projectName={project.name}
-                            />
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteProject(project)}
-                            className="text-red-600"
-                          >
-                            <Trash2 size={14} className="mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditProject(project);
+                          }}
+                          title="Edit project"
+                        >
+                          <Edit size={14} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddTask(project);
+                          }}
+                          title="Add task"
+                        >
+                          <Plus size={14} />
+                        </Button>
+                        <div className="mt-1">
+                          <ProjectGallery 
+                            projectId={project.id} 
+                            projectName={project.name}
+                          />
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProject(project);
+                          }}
+                          title="Delete project"
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   
