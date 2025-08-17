@@ -1120,17 +1120,16 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
     },
     onSuccess: (updatedTask) => {
       console.log("Task update success:", updatedTask);
+      console.log("About to close dialog and update cache");
       
       // Close dialog immediately
       onClose();
+      console.log("Dialog closed successfully");
       
-      // Optimistic update - directly update cache instead of refetching
-      queryClient.setQueryData(["/api/tasks"], (oldTasks: Task[] | undefined) => {
-        if (!oldTasks) return oldTasks;
-        return oldTasks.map(t => t.id === task.id ? updatedTask : t);
-      });
-      
-      console.log("Dialog closed, task updated in cache");
+      // Simple invalidation approach - let React Query handle the refetch
+      console.log("Invalidating task queries...");
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      console.log("Task queries invalidated");
     },
     onError: (error: any) => {
       console.error("Task update error:", error);
@@ -1139,7 +1138,7 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
   });
 
   const onSubmit = (values: any) => {
-    console.log("Form submit with values:", values);
+    console.log("🚀 FORM SUBMIT STARTED with values:", values);
     
     // Convert "none" back to null for projectId and format dates
     const submitValues = {
@@ -1148,8 +1147,9 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
       dueDate: values.dueDate ? values.dueDate.toISOString() : null,
     };
     
-    console.log("Submitting processed values:", submitValues);
+    console.log("🚀 CALLING MUTATION with processed values:", submitValues);
     updateTaskMutation.mutate(submitValues);
+    console.log("🚀 MUTATION CALLED, waiting for response...");
   };
 
   const { data: projects = [] } = useQuery<Project[]>({
