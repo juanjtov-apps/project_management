@@ -848,8 +848,11 @@ export default function Tasks() {
                       className="w-full justify-start text-red-600 hover:text-red-700"
                       onClick={() => {
                         if (editingTask) {
-                          handleDeleteTask(editingTask);
                           setIsTaskDetailDialogOpen(false);
+                          // Use a small delay to ensure dialog closes before showing confirmation
+                          setTimeout(() => {
+                            handleDeleteTask(editingTask);
+                          }, 100);
                         }
                       }}
                     >
