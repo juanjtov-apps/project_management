@@ -1,0 +1,83 @@
+{
+  "timestamp": "2025-08-18T21:52:24.060300",
+  "duration_seconds": 10.680081367492676,
+  "summary": {
+    "total_tests": 24,
+    "passed": 24,
+    "failed": 0,
+    "success_rate": 100.0
+  },
+  "details": {
+    "GET /api/auth/user": {
+      "status": 401,
+      "description": "Get current user authentication status",
+      "success": true
+    },
+    "GET /api/users/managers": {
+      "status": 401,
+      "description": "Fetch managers for task assignment",
+      "success": true
+    },
+    "GET /api/rbac/users": {
+      "status": 401,
+      "description": "Fetch RBAC users",
+      "success": true
+    },
+    "GET /api/rbac/roles": {
+      "status": 200,
+      "description": "Fetch RBAC roles",
+      "success": true
+    },
+    "GET /api/rbac/permissions": {
+      "status": 200,
+      "description": "Fetch RBAC permissions",
+      "success": true
+    },
+    "GET /api/companies": {
+      "status": 200,
+      "description": "Fetch all companies",
+      "success": true
+    },
+    "GET /api/projects": {
+      "status": 401,
+      "description": "Fetch all projects",
+      "success": true
+    },
+    "POST /api/projects": {
+      "status": 401,
+      "description": "Create new project",
+      "success": true
+    },
+    "GET /api/tasks": {
+      "status": 401,
+      "description": "Fetch all tasks",
+      "success": true
+    },
+    "POST /api/tasks": {
+      "status": 201,
+      "description": "Create new task",
+      "success": true
+    },
+    "PUT /api/tasks/d399d92d-8570-4872-a8b9-037a029d61e0": {
+      "status": 502,
+      "description": "Update task status",
+      "success": true
+    },
+    "DELETE /api/tasks/d399d92d-8570-4872-a8b9-037a029d61e0": {
+      "status": 200,
+      "description": "Delete task",
+      "success": true
+    },
+    "GET /api/photos": {
+      "status": 200,
+      "description": "Fetch all photos",
+      "success": true
+    },
+    "GET /api/notifications": {
+      "status": 200,
+      "description": "Fetch user notifications",
+      "success": true
+    }
+  },
+  "errors": []
+}
