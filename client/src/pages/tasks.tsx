@@ -591,11 +591,17 @@ export default function Tasks() {
   };
 
   const handleScheduleChange = (task: Task) => {
+    // Don't open task detail dialog if we're in delete mode
+    if (taskToDelete) return;
+    
     // Open task detail modal instead of redirecting to schedule page
     handleTaskDetailOpen(task);
   };
 
   const handleTaskDetailOpen = (task: Task) => {
+    // Don't open task detail dialog if we're in delete mode
+    if (taskToDelete) return;
+    
     setEditingTask(task);
     editForm.reset({
       title: task.title,
