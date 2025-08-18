@@ -182,27 +182,35 @@ export async function setupAuth(app: Express) {
       if (availableStrategy) {
         console.log(`Using fallback strategy: ${availableStrategy}`);
         return passport.authenticate(availableStrategy, {
-          successReturnToOrRedirect: "/",
-          failureRedirect: "/api/login",
+          successReturnToOrRedirect: "/dashboard",
+          failureRedirect: "/login",
         })(req, res, next);
       }
       return res.status(500).json({ error: "Authentication not configured for this domain" });
     }
     
     passport.authenticate(strategyName, {
-      successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
+      successReturnToOrRedirect: "/dashboard",
+      failureRedirect: "/login",
     })(req, res, next);
   });
 
   app.get("/api/logout", (req, res) => {
-    req.logout(() => {
-      res.redirect("/");
+    req.logout((err) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.redirect("/login?error=logout_failed");
+      }
+      res.redirect("/login");
     });
   });
   
   app.post("/api/auth/logout", (req, res) => {
-    req.logout(() => {
+    req.logout((err) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ success: false, error: "Logout failed" });
+      }
       res.json({ success: true });
     });
   });
