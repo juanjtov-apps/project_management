@@ -842,8 +842,8 @@ export default function Tasks() {
                       size="sm"
                       className="w-full justify-start text-red-600 hover:text-red-700"
                       onClick={() => {
-                        if (editingTask && window.confirm(`Are you sure you want to delete "${editingTask.title}"?`)) {
-                          deleteTaskMutation.mutate(editingTask.id);
+                        if (editingTask) {
+                          handleDeleteTask(editingTask);
                           setIsTaskDetailDialogOpen(false);
                         }
                       }}
