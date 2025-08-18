@@ -144,10 +144,17 @@ interface TaskCardProps {
 }
 
 function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleChange }: TaskCardProps) {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  
   return (
     <Card 
       className="hover:shadow-md transition-shadow cursor-pointer"
-      onClick={() => onScheduleChange?.(task)}
+      onClick={(e) => {
+        // Prevent opening task detail if delete dialog is open
+        if (!isDeleteDialogOpen) {
+          onScheduleChange?.(task);
+        }
+      }}
     >
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
@@ -193,7 +200,7 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
                 className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDelete(task);
+                  setIsDeleteDialogOpen(true);
                 }}
                 title="Delete task"
               >
@@ -203,6 +210,37 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
           </div>
         </div>
       </CardHeader>
+      
+      {/* Delete confirmation dialog */}
+      <AlertDialog 
+        open={isDeleteDialogOpen} 
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{task.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                onDelete(task);
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <CardContent className="pt-0">
         {task.description && (
           <p className="text-sm text-gray-600 mb-3 line-clamp-2">{task.description}</p>
@@ -271,6 +309,7 @@ function TaskListItem({
   onToggleSelect,
   showBulkSelect = false
 }: TaskListItemProps) {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const CategoryIcon = getCategoryIcon(task.category || "general");
   const iconClass = task.category === "project" ? "text-blue-600" : 
                    task.category === "administrative" ? "text-purple-600" : "text-green-600";
@@ -292,7 +331,12 @@ function TaskListItem({
         isOverdue && "border-l-red-500 border-l-2", // Red left accent bar for overdue
         isSelected && "bg-white border-l-blue-500 shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
       )}
-      onClick={() => onScheduleChange?.(task)}
+      onClick={(e) => {
+        // Prevent opening task detail if delete dialog is open
+        if (!isDeleteDialogOpen) {
+          onScheduleChange?.(task);
+        }
+      }}
     >
       <CardContent className="px-4 py-3">
         <div className="flex items-center justify-between">
@@ -408,19 +452,25 @@ function TaskListItem({
               >
                 <Edit size={12} />
               </Button>
-              <AlertDialog>
+              <AlertDialog 
+                open={isDeleteDialogOpen} 
+                onOpenChange={setIsDeleteDialogOpen}
+              >
                 <AlertDialogTrigger asChild>
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsDeleteDialogOpen(true);
+                    }}
                     title="Delete task"
                   >
                     <Trash2 size={12} />
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent aria-describedby={undefined}>
+                <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete Task</AlertDialogTitle>
                     <AlertDialogDescription>
@@ -428,9 +478,16 @@ function TaskListItem({
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel 
+                      onClick={() => setIsDeleteDialogOpen(false)}
+                    >
+                      Cancel
+                    </AlertDialogCancel>
                     <AlertDialogAction 
-                      onClick={() => onDelete(task)}
+                      onClick={() => {
+                        setIsDeleteDialogOpen(false);
+                        onDelete(task);
+                      }}
                       className="bg-red-600 hover:bg-red-700"
                     >
                       Delete
@@ -460,7 +517,7 @@ export default function Tasks() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
   const [bulkActionMode, setBulkActionMode] = useState(false);
-  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+
   const queryClient = useQueryClient();
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
@@ -499,6 +556,10 @@ export default function Tasks() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      // Close any open dialogs to prevent showing deleted task
+      setIsTaskDetailDialogOpen(false);
+      setIsEditDialogOpen(false);
+      setEditingTask(null);
     },
   });
 
@@ -566,14 +627,7 @@ export default function Tasks() {
   };
 
   const handleDeleteTask = (task: Task) => {
-    setTaskToDelete(task);
-  };
-
-  const confirmDeleteTask = () => {
-    if (taskToDelete) {
-      deleteTaskMutation.mutate(taskToDelete.id);
-      setTaskToDelete(null);
-    }
+    deleteTaskMutation.mutate(task.id);
   };
 
   const handleStatusChange = (task: Task, newStatus: string) => {
@@ -591,6 +645,7 @@ export default function Tasks() {
   };
 
   const handleTaskDetailOpen = (task: Task) => {
+    
     setEditingTask(task);
     editForm.reset({
       title: task.title,
@@ -837,20 +892,44 @@ export default function Tasks() {
                       {editingTask?.status === "completed" ? "Mark Incomplete" : "Mark Complete"}
                     </Button>
                     
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start text-red-600 hover:text-red-700"
-                      onClick={() => {
-                        if (editingTask && window.confirm(`Are you sure you want to delete "${editingTask.title}"?`)) {
-                          deleteTaskMutation.mutate(editingTask.id);
-                          setIsTaskDetailDialogOpen(false);
-                        }
-                      }}
-                    >
-                      <Trash2 size={14} className="mr-2" />
-                      Delete Task
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 size={14} className="mr-2" />
+                          Delete Task
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{editingTask?.title}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => {
+                              if (editingTask) {
+                                const taskId = editingTask.id;
+                                // Clear editing state immediately to close dialog
+                                setEditingTask(null);
+                                setIsTaskDetailDialogOpen(false);
+                                // Delete the task
+                                deleteTaskMutation.mutate(taskId);
+                              }
+                            }}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </CardContent>
                 </Card>
               </div>
@@ -858,23 +937,7 @@ export default function Tasks() {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
-          <AlertDialogContent aria-describedby={undefined}>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Task</AlertDialogTitle>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={confirmDeleteTask}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+
       </div>
 
       {/* Global Summary Bar - Enhancement #1 */}

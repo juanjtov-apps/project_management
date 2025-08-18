@@ -28,7 +28,7 @@ import { insertProjectSchema, insertTaskSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import type { Project, InsertProject, InsertTask, Task } from "@shared/schema";
+import type { Project, InsertProject, InsertTask, Task, User } from "@shared/schema";
 import { TaskAssignmentDropdown } from "@/components/TaskAssignmentDropdown";
 import { ProjectGallery } from "@/components/ProjectGallery";
 
@@ -478,8 +478,20 @@ export default function Projects() {
     queryKey: ["/api/tasks"],
   });
 
+  // Fetch users to display assignee names
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users/managers"],
+  });
+
   const getProjectTasks = (projectId: string) => {
     return tasks.filter(task => task.projectId === projectId);
+  };
+
+  // Helper function to get assignee name
+  const getAssigneeName = (assigneeId: string | null) => {
+    if (!assigneeId) return "Unassigned";
+    const user = users.find(u => u.id === assigneeId);
+    return user?.name || "Unknown User";
   };
 
   const activeProjects = projects.filter(p => p.status !== "completed");
@@ -791,8 +803,8 @@ export default function Projects() {
                                         </div>
                                         <div>
                                           <div className="text-xs text-gray-600 mb-1">Assigned to:</div>
-                                          <div className="text-xs">
-                                            {task.assigneeId ? "Assigned" : "Unassigned"}
+                                          <div className="text-xs font-medium">
+                                            {getAssigneeName(task.assigneeId)}
                                           </div>
                                         </div>
                                       </div>
@@ -1022,7 +1034,7 @@ export default function Projects() {
                               <div>
                                 <div className="text-sm text-gray-600 mb-1">Assigned to:</div>
                                 <div className="text-sm font-medium">
-                                  {task.assigneeId ? "Assigned" : "Unassigned"}
+                                  {getAssigneeName(task.assigneeId)}
                                 </div>
                               </div>
                             </div>
