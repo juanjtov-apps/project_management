@@ -867,13 +867,20 @@ export default function Tasks() {
         </Dialog>
 
         {/* Delete Confirmation Dialog */}
-        <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
+        <AlertDialog open={!!taskToDelete} onOpenChange={(open) => {
+          if (!open) {
+            setTaskToDelete(null);
+          }
+        }}>
           <AlertDialogContent aria-describedby={undefined}>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Task</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{taskToDelete?.title}"? This action cannot be undone.
+              </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setTaskToDelete(null)}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={confirmDeleteTask}
                 className="bg-red-600 hover:bg-red-700"
