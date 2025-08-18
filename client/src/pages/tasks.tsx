@@ -858,8 +858,12 @@ export default function Tasks() {
                           <AlertDialogAction 
                             onClick={() => {
                               if (editingTask) {
+                                const taskId = editingTask.id;
+                                // Clear editing state immediately to close dialog
+                                setEditingTask(null);
                                 setIsTaskDetailDialogOpen(false);
-                                deleteTaskMutation.mutate(editingTask.id);
+                                // Delete the task
+                                deleteTaskMutation.mutate(taskId);
                               }
                             }}
                             className="bg-red-600 hover:bg-red-700"
