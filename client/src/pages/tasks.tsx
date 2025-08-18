@@ -420,7 +420,7 @@ function TaskListItem({
                     <Trash2 size={12} />
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent aria-describedby={undefined}>
+                <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete Task</AlertDialogTitle>
                     <AlertDialogDescription>
@@ -460,7 +460,7 @@ export default function Tasks() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
   const [bulkActionMode, setBulkActionMode] = useState(false);
-  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+
   const queryClient = useQueryClient();
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
@@ -503,7 +503,6 @@ export default function Tasks() {
       setIsTaskDetailDialogOpen(false);
       setIsEditDialogOpen(false);
       setEditingTask(null);
-      setTaskToDelete(null);
     },
   });
 
@@ -571,14 +570,7 @@ export default function Tasks() {
   };
 
   const handleDeleteTask = (task: Task) => {
-    setTaskToDelete(task);
-  };
-
-  const confirmDeleteTask = () => {
-    if (taskToDelete) {
-      deleteTaskMutation.mutate(taskToDelete.id);
-      setTaskToDelete(null);
-    }
+    deleteTaskMutation.mutate(task.id);
   };
 
   const handleStatusChange = (task: Task, newStatus: string) => {
@@ -591,16 +583,11 @@ export default function Tasks() {
   };
 
   const handleScheduleChange = (task: Task) => {
-    // Don't open task detail dialog if we're in delete mode
-    if (taskToDelete) return;
-    
     // Open task detail modal instead of redirecting to schedule page
     handleTaskDetailOpen(task);
   };
 
   const handleTaskDetailOpen = (task: Task) => {
-    // Don't open task detail dialog if we're in delete mode
-    if (taskToDelete) return;
     
     setEditingTask(task);
     editForm.reset({
@@ -848,23 +835,40 @@ export default function Tasks() {
                       {editingTask?.status === "completed" ? "Mark Incomplete" : "Mark Complete"}
                     </Button>
                     
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start text-red-600 hover:text-red-700"
-                      onClick={() => {
-                        if (editingTask) {
-                          setIsTaskDetailDialogOpen(false);
-                          // Use a small delay to ensure dialog closes before showing confirmation
-                          setTimeout(() => {
-                            handleDeleteTask(editingTask);
-                          }, 100);
-                        }
-                      }}
-                    >
-                      <Trash2 size={14} className="mr-2" />
-                      Delete Task
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 size={14} className="mr-2" />
+                          Delete Task
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{editingTask?.title}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => {
+                              if (editingTask) {
+                                setIsTaskDetailDialogOpen(false);
+                                deleteTaskMutation.mutate(editingTask.id);
+                              }
+                            }}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </CardContent>
                 </Card>
               </div>
@@ -872,30 +876,7 @@ export default function Tasks() {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={!!taskToDelete} onOpenChange={(open) => {
-          if (!open) {
-            setTaskToDelete(null);
-          }
-        }}>
-          <AlertDialogContent aria-describedby={undefined}>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Task</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete "{taskToDelete?.title}"? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setTaskToDelete(null)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={confirmDeleteTask}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+
       </div>
 
       {/* Global Summary Bar - Enhancement #1 */}
