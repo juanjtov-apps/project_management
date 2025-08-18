@@ -499,6 +499,11 @@ export default function Tasks() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      // Close any open dialogs to prevent showing deleted task
+      setIsTaskDetailDialogOpen(false);
+      setIsEditDialogOpen(false);
+      setEditingTask(null);
+      setTaskToDelete(null);
     },
   });
 
