@@ -622,7 +622,10 @@ export class DatabaseStorage implements IStorage {
       // 6. Delete project health metrics associated with this project
       await pool.query('DELETE FROM project_health_metrics WHERE project_id = $1', [id]);
       
-      // 7. Finally delete the project
+      // 7. Delete risk assessments associated with this project
+      await pool.query('DELETE FROM risk_assessments WHERE project_id = $1', [id]);
+      
+      // 8. Finally delete the project
       const result = await pool.query('DELETE FROM projects WHERE id = $1', [id]);
       
       // Commit transaction
