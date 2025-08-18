@@ -92,13 +92,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Logout route
+  // Logout route with improved error handling
   app.post('/api/auth/logout', (req, res) => {
     req.session.destroy((err) => {
       if (err) {
-        return res.status(500).json({ message: "Could not log out" });
+        console.error("Session destroy error:", err);
+        return res.status(500).json({ success: false, message: "Could not log out" });
       }
-      res.json({ message: "Logged out successfully" });
+      res.json({ success: true, message: "Logged out successfully" });
     });
   });
 
@@ -217,9 +218,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Filter users by current user's company for task assignment
       // Handle both company_id and companyId field formats for compatibility
-      const currentUserCompanyId = currentUser.companyId || currentUser.company_id;
+      const currentUserCompanyId = currentUser.companyId;
       const filteredUsers = users.filter(user => {
-        const userCompanyId = user.companyId || user.company_id;
+        const userCompanyId = user.companyId;
         return userCompanyId === currentUserCompanyId;
       });
       
