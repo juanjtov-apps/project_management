@@ -174,27 +174,32 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
             <Badge className={getPriorityColor(task.priority)} variant="outline">
               {task.priority}
             </Badge>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreHorizontal size={14} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(task); }}>
-                  <Edit size={14} className="mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(task); }} className="text-red-600">
-                  <Trash2 size={14} className="mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex gap-1">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(task);
+                }}
+                title="Edit task"
+              >
+                <Edit size={14} />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(task);
+                }}
+                title="Delete task"
+              >
+                <Trash2 size={14} />
+              </Button>
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -233,7 +238,7 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
           
           {task.assigneeId && (
             <div className="flex items-center text-xs text-gray-500">
-              <User size={12} className="mr-1" />
+              <UserIcon size={12} className="mr-1" />
               Assigned
             </div>
           )}
@@ -390,52 +395,50 @@ function TaskListItem({
               </SelectContent>
             </Select>
             
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-7 w-7 p-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreHorizontal size={14} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(task); }}>
-                  <Edit size={12} className="mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <DropdownMenuItem 
-                      onSelect={(e) => e.preventDefault()}
-                      className="text-red-600"
+            <div className="flex gap-1">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-7 w-7 p-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(task);
+                }}
+                title="Edit task"
+              >
+                <Edit size={12} />
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Delete task"
+                  >
+                    <Trash2 size={12} />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent aria-describedby={undefined}>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete "{task.title}"? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => onDelete(task)}
+                      className="bg-red-600 hover:bg-red-700"
                     >
-                      <Trash2 size={12} className="mr-2" />
                       Delete
-                    </DropdownMenuItem>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent aria-describedby={undefined}>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Task</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete "{task.title}"? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction 
-                        onClick={() => onDelete(task)}
-                        className="bg-red-600 hover:bg-red-700"
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         </div>
       </CardContent>
