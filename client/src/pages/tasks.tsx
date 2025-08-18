@@ -612,7 +612,6 @@ export default function Tasks() {
   };
 
   const handleEditTask = (task: Task) => {
-    console.log('handleEditTask called for task:', task.title);
     setEditingTask(task);
     editForm.reset({
       title: task.title,
@@ -628,7 +627,6 @@ export default function Tasks() {
   };
 
   const handleDeleteTask = (task: Task) => {
-    console.log('handleDeleteTask called for task:', task.title);
     deleteTaskMutation.mutate(task.id);
   };
 
@@ -642,7 +640,6 @@ export default function Tasks() {
   };
 
   const handleScheduleChange = (task: Task) => {
-    console.log('handleScheduleChange called for task:', task.title);
     // Open task detail modal instead of redirecting to schedule page
     handleTaskDetailOpen(task);
   };
