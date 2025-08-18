@@ -112,6 +112,16 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
     return proxy(req, res, next);
   });
 
+  // Add catch-all route handler to prevent 404s during authentication flows
+  app.use((req, res, next) => {
+    // If it's an API route that wasn't handled, return proper error instead of 404
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({ message: `API endpoint ${req.path} not found` });
+    }
+    // For frontend routes, serve the index.html (SPA routing)
+    next();
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
