@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status, Query
 from src.models import Task, TaskCreate, TaskUpdate
 from src.database.repositories import TaskRepository
 
-router = APIRouter(prefix="/tasks", tags=["tasks"])
+router = APIRouter()
 task_repo = TaskRepository()
 
 

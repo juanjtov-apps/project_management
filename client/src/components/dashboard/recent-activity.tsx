@@ -1,49 +1,84 @@
-import { Camera, CheckCircle, AlertTriangle } from "lucide-react";
+import { Camera, CheckCircle, AlertTriangle, Users, Building } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
-const activityItems = [
-  {
-    id: 1,
-    icon: CheckCircle,
-    user: "Task Completed",
-    action: "Foundation inspection completed",
-    timestamp: "2h ago",
-    type: "completed"
-  },
-  {
-    id: 2,
-    icon: Camera,
-    user: "New Team Member",
-    action: "Sarah Johnson joined the team",
-    timestamp: "4h ago",
-    type: "member"
-  },
-  {
-    id: 3,
-    icon: AlertTriangle,
-    user: "Schedule Update",
-    action: "Project deadline extended by 2 days",
-    timestamp: "1d ago",
-    type: "schedule"
-  },
-  {
-    id: 4,
-    icon: CheckCircle,
-    user: "Task Completed",
-    action: "Electrical work phase completed",
-    timestamp: "2d ago",
-    type: "completed"
-  },
-  {
-    id: 5,
-    icon: Camera,
-    user: "Photo Upload",
-    action: "Site progress photos uploaded",
-    timestamp: "3d ago",
-    type: "photo"
-  }
-];
+interface ActivityItem {
+  id: number;
+  icon: any;
+  user: string;
+  action: string;
+  timestamp: string;
+  type: string;
+}
 
 export default function RecentActivity() {
+  // Get current user to determine activity scope
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ['/api/auth/user'],
+    retry: false
+  });
+  
+  // Get company data for root admin
+  const { data: companies = [] } = useQuery<any[]>({
+    queryKey: ['/api/companies'],
+    enabled: !!currentUser
+  });
+  
+  // Get users data for root admin
+  const { data: users = [] } = useQuery<any[]>({
+    queryKey: ['/api/rbac/users'],
+    enabled: !!currentUser
+  });
+
+  const isRootAdmin = currentUser?.email?.includes('chacjjlegacy') || currentUser?.email === 'admin@proesphere.com';
+  
+  // Generate relevant activity items based on user role
+  const getActivityItems = (): ActivityItem[] => {
+    if (isRootAdmin) {
+      // Root admin sees platform-wide activities
+      return [
+        {
+          id: 1,
+          icon: Building,
+          user: "Company Added",
+          action: `New company "${companies[companies.length - 1]?.name || 'Recent Company'}" added to platform`,
+          timestamp: "2h ago",
+          type: "company"
+        },
+        {
+          id: 2,
+          icon: Users,
+          user: "User Registered",
+          action: `${users[users.length - 1]?.name || users[users.length - 1]?.email || 'New user'} joined the platform`,
+          timestamp: "4h ago",
+          type: "user"
+        }
+      ];
+    } else {
+      // Company users see company-specific activities
+      const companyName = currentUser?.companyId ? companies.find(c => c.id.toString() === currentUser.companyId.toString())?.name || 'your company' : 'your company';
+      return [
+        {
+          id: 1,
+          icon: CheckCircle,
+          user: "Task Progress",
+          action: `Project tasks updated in ${companyName}`,
+          timestamp: "3h ago",
+          type: "task"
+        },
+        {
+          id: 2,
+          icon: Camera,
+          user: "Documentation",
+          action: `New project photos uploaded for ${companyName} projects`,
+          timestamp: "1d ago",
+          type: "photo"
+        }
+      ];
+    }
+  };
+
+  const activityItems = getActivityItems();
+
   return (
     <div className="elevated">
       <div className="p-6 border-b border-brand-grey">

@@ -4,7 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -218,7 +228,7 @@ function ProjectEditForm({ project, onClose }: { project: Project; onClose: () =
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={field.value}
+                    selected={field.value || undefined}
                     onSelect={field.onChange}
                     disabled={(date) =>
                       date < new Date(new Date().setHours(0, 0, 0, 0))
@@ -320,7 +330,7 @@ function ProjectCreateForm({ onClose }: { onClose: () => void }) {
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea placeholder="Enter project description" {...field} rows={3} />
+                <Textarea placeholder="Enter project description" {...field} value={field.value || ""} rows={3} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -414,7 +424,7 @@ function ProjectCreateForm({ onClose }: { onClose: () => void }) {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={field.value}
+                    selected={field.value || undefined}
                     onSelect={field.onChange}
                     disabled={(date) =>
                       date < new Date() || date < new Date("1900-01-01")
@@ -451,6 +461,14 @@ export default function Projects() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+
+  // Get current user for company context
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ['/api/auth/user'],
+    retry: false
+  });
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -487,24 +505,26 @@ export default function Projects() {
     setIsAddTaskOpen(true);
   };
 
-  const handleDeleteProject = async (project: Project) => {
-    const projectTasks = getProjectTasks(project.id);
-    const warningMessage = projectTasks.length > 0 
-      ? `This project has ${projectTasks.length} associated tasks. Delete project "${project.name}" and all its tasks?`
-      : `Delete project "${project.name}"?`;
+  const handleDeleteProject = (project: Project) => {
+    setProjectToDelete(project);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!projectToDelete) return;
     
-    if (confirm(warningMessage)) {
-      try {
-        await apiRequest(`/api/projects/${project.id}`, {
-          method: "DELETE",
-        });
-        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      } catch (error: any) {
-        console.error("Error deleting project:", error);
-        const errorMessage = error?.message || "Failed to delete project. It may have associated data that needs to be removed first.";
-        alert(`Error: ${errorMessage}`);
-      }
+    try {
+      await apiRequest(`/api/projects/${projectToDelete.id}`, {
+        method: "DELETE",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      setDeleteDialogOpen(false);
+      setProjectToDelete(null);
+    } catch (error: any) {
+      console.error("Error deleting project:", error);
+      const errorMessage = error?.message || "Failed to delete project. It may have associated data that needs to be removed first.";
+      alert(`Error: ${errorMessage}`);
     }
   };
 
@@ -532,7 +552,14 @@ export default function Projects() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Projects</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Projects</h1>
+          {currentUser?.company_name && (
+            <p className="text-sm text-gray-600 mt-1">
+              {currentUser.company_name}
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center border rounded-md">
             <Button
@@ -561,7 +588,7 @@ export default function Projects() {
                 New Project
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>Create New Project</DialogTitle>
               </DialogHeader>
@@ -652,41 +679,44 @@ export default function Projects() {
                               </div>
                             </div>
                             
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="h-8 w-8 p-0" 
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <MoreHorizontal size={16} />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleEditProject(project)}>
-                                  <Edit size={14} className="mr-2" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleAddTask(project)}>
-                                  <Plus size={14} className="mr-2" />
-                                  Add Task
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={(e) => e.preventDefault()}>
-                                  <ProjectGallery 
-                                    projectId={project.id} 
-                                    projectName={project.name}
-                                  />
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => handleDeleteProject(project)}
-                                  className="text-red-600"
-                                >
-                                  <Trash2 size={14} className="mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="flex gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 w-8 p-0" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditProject(project);
+                                }}
+                                title="Edit project"
+                              >
+                                <Edit size={14} />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 w-8 p-0" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddTask(project);
+                                }}
+                                title="Add task"
+                              >
+                                <Plus size={14} />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteProject(project);
+                                }}
+                                title="Delete project"
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                            </div>
                           </div>
                           
                           {/* Tasks Section */}
@@ -719,23 +749,32 @@ export default function Projects() {
                                           <Badge className={getStatusColor(task.status)} variant="outline">
                                             {task.status === "in-progress" ? "In Progress" : task.status}
                                           </Badge>
-                                          <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
-                                                <MoreHorizontal size={12} />
-                                              </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                              <DropdownMenuItem onClick={() => handleEditTask(task)}>
-                                                <Edit size={12} className="mr-2" />
-                                                Edit
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem onClick={() => handleDeleteTask(task)} className="text-red-600">
-                                                <Trash2 size={12} className="mr-2" />
-                                                Delete
-                                              </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                          </DropdownMenu>
+                                          <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                                            <Button 
+                                              variant="ghost" 
+                                              size="sm" 
+                                              className="h-5 w-5 p-0" 
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleEditTask(task);
+                                              }}
+                                              title="Edit task"
+                                            >
+                                              <Edit size={10} />
+                                            </Button>
+                                            <Button 
+                                              variant="ghost" 
+                                              size="sm" 
+                                              className="h-5 w-5 p-0 text-red-600 hover:text-red-700" 
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteTask(task);
+                                              }}
+                                              title="Delete task"
+                                            >
+                                              <Trash2 size={10} />
+                                            </Button>
+                                          </div>
                                         </div>
                                       </div>
                                       <div className="space-y-2">
@@ -752,7 +791,9 @@ export default function Projects() {
                                         </div>
                                         <div>
                                           <div className="text-xs text-gray-600 mb-1">Assigned to:</div>
-                                          <TaskAssignmentDropdown task={task} />
+                                          <div className="text-xs">
+                                            {task.assigneeId ? "Assigned" : "Unassigned"}
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
@@ -863,36 +904,50 @@ export default function Projects() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-500">{project.progress}% complete</span>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
-                            <MoreHorizontal size={16} />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEditProject(project)}>
-                            <Edit size={14} className="mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleAddTask(project)}>
-                            <Plus size={14} className="mr-2" />
-                            Add Task
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => e.preventDefault()}>
-                            <ProjectGallery 
-                              projectId={project.id} 
-                              projectName={project.name}
-                            />
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteProject(project)}
-                            className="text-red-600"
-                          >
-                            <Trash2 size={14} className="mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditProject(project);
+                          }}
+                          title="Edit project"
+                        >
+                          <Edit size={14} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddTask(project);
+                          }}
+                          title="Add task"
+                        >
+                          <Plus size={14} />
+                        </Button>
+                        <div className="mt-1">
+                          <ProjectGallery 
+                            projectId={project.id} 
+                            projectName={project.name}
+                          />
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProject(project);
+                          }}
+                          title="Delete project"
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   
@@ -929,23 +984,32 @@ export default function Projects() {
                                   <Badge className={getPriorityColor(task.priority)} variant="outline">
                                     {task.priority}
                                   </Badge>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => e.stopPropagation()}>
-                                        <MoreHorizontal size={14} />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => handleEditTask(task)}>
-                                        <Edit size={14} className="mr-2" />
-                                        Edit
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handleDeleteTask(task)} className="text-red-600">
-                                        <Trash2 size={14} className="mr-2" />
-                                        Delete
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                                  <div className="flex gap-1">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="h-6 w-6 p-0" 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditTask(task);
+                                      }}
+                                      title="Edit task"
+                                    >
+                                      <Edit size={12} />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700" 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteTask(task);
+                                      }}
+                                      title="Delete task"
+                                    >
+                                      <Trash2 size={12} />
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
                               
@@ -957,7 +1021,9 @@ export default function Projects() {
                               
                               <div>
                                 <div className="text-sm text-gray-600 mb-1">Assigned to:</div>
-                                <TaskAssignmentDropdown task={task} />
+                                <div className="text-sm font-medium">
+                                  {task.assigneeId ? "Assigned" : "Unassigned"}
+                                </div>
                               </div>
                             </div>
                           ))
@@ -974,7 +1040,7 @@ export default function Projects() {
 
       {/* Project Edit Dialog */}
       <Dialog open={!!editingProject} onOpenChange={() => setEditingProject(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Edit Project</DialogTitle>
           </DialogHeader>
@@ -983,12 +1049,22 @@ export default function Projects() {
       </Dialog>
 
       {/* Task Edit Dialog */}
-      <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={!!editingTask} onOpenChange={(open) => {
+        if (!open) {
+          setEditingTask(null);
+        }
+      }}>
+        <DialogContent className="max-w-2xl" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
           </DialogHeader>
-          {editingTask && <TaskEditForm task={editingTask} onClose={() => setEditingTask(null)} />}
+          {editingTask && (
+            <TaskEditForm 
+              key={editingTask.id} 
+              task={editingTask} 
+              onClose={() => setEditingTask(null)} 
+            />
+          )}
         </DialogContent>
       </Dialog>
 
@@ -997,7 +1073,7 @@ export default function Projects() {
         setIsAddTaskOpen(false);
         setAddingTaskProject(null);
       }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Add Task to {addingTaskProject?.name}</DialogTitle>
           </DialogHeader>
@@ -1007,6 +1083,54 @@ export default function Projects() {
           }} />}
         </DialogContent>
       </Dialog>
+
+      {/* Enhanced Project Deletion Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent aria-describedby={undefined}>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-600" />
+              Delete Project
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <div className="text-sm">
+                Are you sure you want to delete the project <strong>"{projectToDelete?.name}"</strong>?
+              </div>
+              
+              {projectToDelete && getProjectTasks(projectToDelete.id).length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3 space-y-2">
+                  <div className="font-medium text-red-800">⚠️ This will also delete:</div>
+                  <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+                    <li>{getProjectTasks(projectToDelete.id).length} associated tasks</li>
+                    <li>All project photos and documentation</li>
+                    <li>Project logs and progress history</li>
+                    <li>Any schedule changes related to this project</li>
+                  </ul>
+                </div>
+              )}
+              
+              <div className="text-sm text-gray-600">
+                This action cannot be undone. All data associated with this project will be permanently removed.
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setDeleteDialogOpen(false);
+              setProjectToDelete(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteProject}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Project
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -1017,32 +1141,48 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
   
   const form = useForm({
     defaultValues: {
-      title: task?.title || "",
-      description: task?.description || "",
-      status: task?.status || "pending",
-      priority: task?.priority || "medium",
-      category: task?.category || "project",
-      projectId: task?.projectId || "none",
-      dueDate: task?.dueDate ? new Date(task.dueDate) : undefined,
+      title: task.title || "",
+      description: task.description || "",
+      status: task.status || "pending",
+      priority: task.priority || "medium",
+      category: task.category || "project",
+      projectId: task.projectId || "none",
+      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
     },
   });
 
   const updateTaskMutation = useMutation({
     mutationFn: async (values: any) => {
-      const response = await apiRequest("PATCH", `/api/tasks/${task.id}`, values);
-      return response.json();
+      console.log("Updating task:", task.id, values);
+      const response = await apiRequest(`/api/tasks/${task.id}`, { method: 'PATCH', body: values });
+      const jsonData = await response.json();
+      console.log("Task update response:", jsonData);
+      return jsonData;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    onSuccess: (updatedTask) => {
+      console.log("Task update success:", updatedTask);
+      console.log("About to close dialog and update cache");
+      
+      // Close dialog immediately
       onClose();
+      console.log("Dialog closed successfully");
+      
+      // Simple invalidation approach - let React Query handle the refetch
+      console.log("Invalidating task queries...");
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      console.log("Task queries invalidated");
+    },
+    onError: (error: any) => {
+      console.error("Task update error:", error);
+      // Don't close the dialog on error so user can retry
     },
   });
 
   const onSubmit = (values: any) => {
-    // Convert "none" back to null for projectId
     const submitValues = {
       ...values,
-      projectId: values.projectId === "none" ? null : values.projectId
+      projectId: values.projectId === "none" ? null : values.projectId,
+      dueDate: values.dueDate ? values.dueDate.toISOString() : null,
     };
     updateTaskMutation.mutate(submitValues);
   };
@@ -1075,7 +1215,7 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea {...field} value={field.value || ""} rows={3} />
+                <Textarea {...field} value={field.value || ""} rows={3} placeholder="Add a description..." />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -1211,7 +1351,7 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={field.value}
+                    selected={field.value || undefined}
                     onSelect={field.onChange}
                     disabled={(date) =>
                       date < new Date(new Date().setHours(0, 0, 0, 0))
@@ -1226,10 +1366,14 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
         />
 
         <div className="flex items-center justify-end space-x-2 pt-4">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={updateTaskMutation.isPending}>
             Cancel
           </Button>
-          <Button type="submit" disabled={updateTaskMutation.isPending}>
+          <Button 
+            type="submit" 
+            disabled={updateTaskMutation.isPending} 
+            className="construction-primary"
+          >
             {updateTaskMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
         </div>
@@ -1388,7 +1532,7 @@ function TaskCreateForm({ project, onClose }: { project: Project; onClose: () =>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={field.value}
+                    selected={field.value ? (typeof field.value === 'string' ? new Date(field.value) : field.value) : undefined}
                     onSelect={field.onChange}
                     disabled={(date) =>
                       date < new Date() || date < new Date("1900-01-01")

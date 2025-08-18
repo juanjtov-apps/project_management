@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -43,8 +44,13 @@ interface Role {
 interface Company {
   id: string;
   name: string;
-  type: string;
-  subscription_tier: string;
+  domain?: string;
+  status: 'active' | 'suspended' | 'pending';
+  settings: {
+    type: string;
+    subscription_tier: string;
+    [key: string]: any;
+  };
   created_at: string;
   is_active: boolean;
 }
@@ -71,21 +77,71 @@ export default function RBACAdmin() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('users');
 
+  // Get current user for RBAC checks
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ['/api/auth/user'],
+    retry: false
+  });
+
   // Data fetching
   const { data: permissions = [], isLoading: permissionsLoading } = useQuery<Permission[]>({
     queryKey: ['/api/rbac/permissions'],
   });
 
-  const { data: roles = [], isLoading: rolesLoading } = useQuery<Role[]>({
+  // Three-tier access control
+  const isRootAdmin = currentUser?.email?.includes('chacjjlegacy') || currentUser?.email === 'admin@proesphere.com';
+  const isCompanyAdmin = currentUser?.role === 'admin' || currentUser?.email?.includes('admin');
+  const hasRBACAccess = isRootAdmin || isCompanyAdmin;
+
+  const { data: roles = [], isLoading: rolesLoading, error: rolesError } = useQuery<Role[]>({
     queryKey: ['/api/rbac/roles'],
+    enabled: hasRBACAccess,
   });
+  
+  // Debug roles data
+  console.log('RBAC Debug - Roles data:', roles);
+  console.log('RBAC Debug - Roles loading:', rolesLoading);
+  console.log('RBAC Debug - Roles error:', rolesError);
+  console.log('RBAC Debug - Has RBAC access:', hasRBACAccess);
 
   const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
-    queryKey: ['/api/rbac/companies'],
+    queryKey: ['/api/companies'],
+    enabled: hasRBACAccess,
   });
 
   const { data: users = [], isLoading: usersLoading } = useQuery<UserProfile[]>({
     queryKey: ['/api/rbac/users'],
+    enabled: hasRBACAccess,
+  });
+  
+  if (!hasRBACAccess) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-destructive mb-4">Access Denied</h1>
+          <p className="text-muted-foreground">RBAC Administration requires admin privileges.</p>
+          <p className="text-sm text-muted-foreground mt-2">Contact your system administrator for access.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Filter data based on admin level with field name compatibility
+  const currentUserCompanyId = currentUser?.company_id || currentUser?.companyId;
+  const filteredCompanies = isRootAdmin ? companies : companies.filter(c => c.id === currentUserCompanyId);
+  const filteredUsers = isRootAdmin ? users : users.filter(u => {
+    const userCompanyId = u.company_id || u.companyId;
+    return userCompanyId === currentUserCompanyId;
+  });
+  const filteredRoles = isRootAdmin ? roles : roles.filter(r => !r.company_id || r.company_id === currentUserCompanyId);
+  
+  // Debug user filtering
+  console.log('User filtering debug:', {
+    isRootAdmin,
+    currentUserCompanyId,
+    totalUsers: users.length,
+    filteredUsers: filteredUsers.length,
+    usersData: users.slice(0, 3).map(u => ({ id: u.id, email: u.email, company_id: u.company_id, companyId: u.companyId }))
   });
 
   // Mutations
@@ -119,9 +175,12 @@ export default function RBACAdmin() {
       toast({ title: 'Success', description: 'User deleted successfully' });
     },
     onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      console.error('Delete user error:', error);
+      toast({ title: 'Error', description: error.message || 'Failed to delete user', variant: 'destructive' });
     }
   });
+
+
 
   const createRoleMutation = useMutation({
     mutationFn: (roleData: any) => apiRequest('/api/rbac/roles', { method: 'POST', body: roleData }),
@@ -158,9 +217,9 @@ export default function RBACAdmin() {
   });
 
   const createCompanyMutation = useMutation({
-    mutationFn: (companyData: any) => apiRequest('/api/rbac/companies', { method: 'POST', body: companyData }),
+    mutationFn: (companyData: any) => apiRequest('/api/companies', { method: 'POST', body: companyData }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/rbac/companies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/companies'] });
       toast({ title: 'Success', description: 'Company created successfully' });
     },
     onError: (error: any) => {
@@ -204,20 +263,35 @@ export default function RBACAdmin() {
       }
     });
 
-    // Group users by company
+    // Group filtered users by company, including companies with no users
     const usersByCompany = React.useMemo(() => {
       const grouped: { [key: string]: UserProfile[] } = {};
       
-      users.forEach((user: UserProfile) => {
-        const companyKey = user.company_name || 'Unassigned';
+      // First, initialize all companies with empty arrays
+      filteredCompanies.forEach((company: Company) => {
+        grouped[company.name] = [];
+      });
+      
+      // Then add users to their respective companies with proper company name mapping
+      filteredUsers.forEach((user: UserProfile) => {
+        const userCompanyId = user.company_id || user.companyId;
+        const company = companies.find(c => c.id === userCompanyId || c.id.toString() === userCompanyId?.toString());
+        const companyKey = company?.name || user.company_name || 'Unassigned';
+        
         if (!grouped[companyKey]) {
           grouped[companyKey] = [];
         }
         grouped[companyKey].push(user);
       });
       
+      console.log('UsersByCompany debug:', {
+        filteredUsersCount: filteredUsers.length,
+        groupedKeys: Object.keys(grouped),
+        groupedCounts: Object.fromEntries(Object.entries(grouped).map(([k, v]) => [k, v.length]))
+      });
+      
       return grouped;
-    }, [users]);
+    }, [filteredUsers, filteredCompanies, companies]);
 
     const toggleCompanyExpansion = (companyName: string) => {
       const newExpanded = new Set(expandedCompanies);
@@ -243,10 +317,9 @@ export default function RBACAdmin() {
                 Add User
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>Create New User</DialogTitle>
-                <DialogDescription>Add a new user to the system</DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -285,21 +358,47 @@ export default function RBACAdmin() {
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="company">Company</Label>
-                  <Select value={newUser.company_id} onValueChange={(value) => setNewUser({ ...newUser, company_id: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select company" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {companies.map((company: Company) => (
-                        <SelectItem key={company.id} value={company.id}>
-                          {company.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {isRootAdmin && (
+                  <div>
+                    <Label htmlFor="company">Company</Label>
+                    <Select value={newUser.company_id} onValueChange={(value) => setNewUser({ ...newUser, company_id: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select company" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {companies.map((company: Company) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {!isRootAdmin && (
+                  <div>
+                    <Label>Company</Label>
+                    <div className="p-2 bg-gray-50 rounded border text-sm text-gray-600">
+                      {(() => {
+                        console.log('Company display debug:', {
+                          companies: companies.length,
+                          companiesLoading,
+                          currentUser: currentUser,
+                          currentUserCompanyId: currentUser?.company_id || currentUser?.companyId,
+                          companiesList: companies.map(c => ({ id: c.id, name: c.name }))
+                        });
+                        
+                        if (companiesLoading) return 'Loading company...';
+                        if (!companies.length) return 'No companies available';
+                        
+                        // Try both company_id and companyId for compatibility
+                        const userCompanyId = currentUser?.company_id || currentUser?.companyId;
+                        const matchedCompany = companies.find(c => c.id.toString() === userCompanyId?.toString());
+                        return matchedCompany?.name || `Company ID ${userCompanyId} not found`;
+                      })()}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="role">Role</Label>
                   <Select value={newUser.role_id} onValueChange={(value) => setNewUser({ ...newUser, role_id: value })}>
@@ -307,13 +406,54 @@ export default function RBACAdmin() {
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      {roles
-                        .filter((role: Role) => !newUser.company_id || role.companyId?.toString() === newUser.company_id || !role.companyId)
-                        .map((role: Role) => (
-                          <SelectItem key={role.id} value={role.id.toString()}>
-                            {role.name} {!role.companyId && '(Platform)'}
-                          </SelectItem>
-                        ))}
+                      {(() => {
+                        console.log('User creation - Available roles:', roles);
+                        console.log('User creation - Selected company:', newUser.company_id);
+                        console.log('User creation - Roles loading:', rolesLoading);
+                        
+                        if (rolesLoading) {
+                          return <SelectItem value="loading" disabled>Loading roles...</SelectItem>;
+                        }
+                        
+                        if (!roles || roles.length === 0) {
+                          return <SelectItem value="none" disabled>No roles available</SelectItem>;
+                        }
+                        
+                        const filteredRoles = roles.filter((role: Role) => {
+                          // If no company selected, show all roles
+                          if (!newUser.company_id || newUser.company_id === '') {
+                            return true;
+                          }
+                          
+                          // Show platform roles (company_id 0) and treat all other roles as templates available to any company
+                          const isPlatformRole = role.company_id === '0' || role.company_id === 0;
+                          const isCompanyRole = role.company_id === '1' || role.company_id === 1; // These are role templates
+                          console.log(`Role ${role.name}: company_id=${role.company_id}, isPlatform=${isPlatformRole}, isTemplate=${isCompanyRole}`);
+                          
+                          // Platform roles and company role templates are available to all companies
+                          return isPlatformRole || isCompanyRole || role.is_template;
+                        });
+                        
+                        console.log('Filtered roles for user creation:', filteredRoles);
+                        
+                        if (filteredRoles.length === 0) {
+                          return <SelectItem value="none" disabled>No roles for selected company</SelectItem>;
+                        }
+                        
+                        return filteredRoles
+                          .filter((role: Role) => {
+                            // Only root admin can assign Platform Administrator role
+                            if (role.name === 'Platform Administrator' && !isRootAdmin) {
+                              return false;
+                            }
+                            return true;
+                          })
+                          .map((role: Role) => (
+                            <SelectItem key={role.id} value={role.id.toString()}>
+                              {role.name} {(role.company_id === '0' || role.company_id === 0) ? '(Platform)' : '(Standard)'}
+                            </SelectItem>
+                          ));
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>
@@ -324,13 +464,50 @@ export default function RBACAdmin() {
                 </Button>
                 <Button 
                   onClick={() => {
-                    // Validate required fields
-                    if (!newUser.email || !newUser.first_name || !newUser.last_name || !newUser.company_id || !newUser.role_id) {
-                      toast({ title: 'Error', description: 'All fields are required', variant: 'destructive' });
+                    // Auto-assign company for non-root admins - ensure it's the actual company ID, not '0'
+                    const userCompanyId = currentUser?.company_id || currentUser?.companyId;
+                    const effectiveCompanyId = isRootAdmin ? newUser.company_id : userCompanyId?.toString();
+                    
+                    console.log('User creation debug:', {
+                      isRootAdmin,
+                      currentUser: currentUser,
+                      currentUserCompanyId: userCompanyId,
+                      newUserCompanyId: newUser.company_id,
+                      effectiveCompanyId,
+                      companiesAvailable: companies.length
+                    });
+                    
+                    // Validate required fields (company_id is auto-assigned for non-root admins)
+                    if (!newUser.email || !newUser.first_name || !newUser.last_name || !effectiveCompanyId || !newUser.role_id) {
+                      const missingFields = [];
+                      if (!newUser.email) missingFields.push('Email');
+                      if (!newUser.first_name) missingFields.push('First Name');
+                      if (!newUser.last_name) missingFields.push('Last Name');
+                      if (!effectiveCompanyId) missingFields.push('Company');
+                      if (!newUser.role_id) missingFields.push('Role');
+                      
+                      toast({ 
+                        title: 'Error', 
+                        description: `Please fill in: ${missingFields.join(', ')}`, 
+                        variant: 'destructive' 
+                      });
                       return;
                     }
-                    console.log('Creating user with data:', newUser); // Debug logging
-                    createUserMutation.mutate(newUser);
+                    
+                    // Map frontend fields to backend expected format
+                    const userPayload = {
+                      email: newUser.email,
+                      username: newUser.email, // Use email as username
+                      name: `${newUser.first_name} ${newUser.last_name}`.trim(), // Combine first and last name
+                      first_name: newUser.first_name,
+                      last_name: newUser.last_name,
+                      company_id: effectiveCompanyId,
+                      role_id: newUser.role_id,
+                      password: newUser.password || 'defaultpassword123' // Ensure password is included
+                    };
+                    
+                    console.log('Creating user with mapped data:', userPayload); // Debug logging
+                    createUserMutation.mutate(userPayload);
                     setIsCreateDialogOpen(false);
                     setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '' });
                   }}
@@ -344,10 +521,9 @@ export default function RBACAdmin() {
 
           {/* Edit User Dialog */}
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>Edit User</DialogTitle>
-                <DialogDescription>Update user information</DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -382,18 +558,31 @@ export default function RBACAdmin() {
                   <Select 
                     value={editingUser?.company_id?.toString() || ''} 
                     onValueChange={(value) => setEditingUser(prev => prev ? {...prev, company_id: value} : null)}
+                    disabled={true}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select company" />
+                    <SelectTrigger className="opacity-60">
+                      <SelectValue placeholder="Company (read-only)" />
                     </SelectTrigger>
                     <SelectContent>
-                      {companies.map((company: Company) => (
+                      {filteredCompanies.map((company: Company) => (
                         <SelectItem key={company.id} value={company.id.toString()}>
                           {company.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Users cannot change companies</p>
+                </div>
+                <div>
+                  <Label htmlFor="edit_password">New Password (Optional)</Label>
+                  <Input
+                    id="edit_password"
+                    type="password"
+                    placeholder="Leave empty to keep current password"
+                    value={editingUser?.password || ''}
+                    onChange={(e) => setEditingUser(prev => prev ? {...prev, password: e.target.value} : null)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Only change if user needs a new password</p>
                 </div>
                 <div>
                   <Label htmlFor="edit_role">Role</Label>
@@ -405,13 +594,22 @@ export default function RBACAdmin() {
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      {roles
-                        .filter((role: Role) => !editingUser?.company_id || role.companyId?.toString() === editingUser.company_id?.toString() || !role.companyId)
-                        .map((role: Role) => (
-                          <SelectItem key={role.id} value={role.id.toString()}>
-                            {role.name} {!role.companyId && '(Platform)'}
-                          </SelectItem>
-                        ))}
+                      {roles && roles.length > 0 ? (
+                        roles
+                          .filter((role: Role) => {
+                            // Show platform roles and all company role templates
+                            const isPlatformRole = role.company_id === '0' || role.company_id === 0;
+                            const isCompanyTemplate = role.company_id === '1' || role.company_id === 1;
+                            return isPlatformRole || isCompanyTemplate || role.is_template;
+                          })
+                          .map((role: Role) => (
+                            <SelectItem key={role.id} value={role.id.toString()}>
+                              {role.name} {(role.company_id === '0' || role.company_id === 0) ? '(Platform)' : '(Standard)'}
+                            </SelectItem>
+                          ))
+                      ) : (
+                        <SelectItem value="none" disabled>No roles available</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -434,16 +632,22 @@ export default function RBACAdmin() {
                 <Button 
                   onClick={() => {
                     if (editingUser) {
-                      updateUserMutation.mutate({ 
+                      // Map fields properly for backend
+                      const updatePayload = {
+                        email: editingUser.email,
+                        username: editingUser.email, // Use email as username
+                        name: `${editingUser.first_name || ''} ${editingUser.last_name || ''}`.trim(),
+                        first_name: editingUser.first_name,
+                        last_name: editingUser.last_name,
+                        company_id: editingUser.company_id,
+                        role_id: editingUser.role_id,
+                        is_active: editingUser.is_active,
+                        password: editingUser.password // Include password if provided
+                      };
+                      
+                      updateUserMutation.mutate({
                         id: editingUser.id, 
-                        data: {
-                          email: editingUser.email,
-                          first_name: editingUser.first_name,
-                          last_name: editingUser.last_name,
-                          company_id: editingUser.company_id,
-                          role_id: editingUser.role_id,
-                          is_active: editingUser.is_active
-                        }
+                        data: updatePayload
                       });
                       setIsEditDialogOpen(false);
                       setEditingUser(null);
@@ -548,29 +752,52 @@ export default function RBACAdmin() {
                                 size="sm" 
                                 variant="outline"
                                 onClick={() => {
-                                  // Map backend field names to frontend field names
+                                  // Properly map user data for editing, parsing name into first/last
+                                  const nameParts = (user.name || '').split(' ');
                                   const mappedUser = {
                                     ...user,
-                                    first_name: user.firstName || user.first_name,
-                                    last_name: user.lastName || user.last_name,
-                                    company_id: user.companyId?.toString() || user.company_id,
-                                    role_id: user.roleId?.toString() || user.role_id,
-                                    is_active: user.isActive !== undefined ? user.isActive : user.is_active
+                                    first_name: user.first_name || nameParts[0] || '',
+                                    last_name: user.last_name || nameParts.slice(1).join(' ') || '',
+                                    company_id: user.company_id?.toString() || '1',
+                                    role_id: user.role_id?.toString() || (user.role === 'admin' ? '1' : user.role === 'manager' ? '2' : '3'),
+                                    is_active: user.is_active !== undefined ? user.is_active : user.isActive
                                   };
-                                  console.log('Mapped user for editing:', mappedUser); // Debug
+                                  console.log('Mapped user for editing:', mappedUser);
                                   setEditingUser(mappedUser);
                                   setIsEditDialogOpen(true);
                                 }}
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => deleteUserMutation.mutate(user.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className="text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent aria-describedby={undefined}>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete user "{user.name || user.email}"? This action cannot be undone and will remove all associated data.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => deleteUserMutation.mutate(user.id)}
+                                      className="bg-red-600 hover:bg-red-700"
+                                      disabled={deleteUserMutation.isPending}
+                                    >
+                                      {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </div>
                           </div>
                         ))}
@@ -626,10 +853,9 @@ export default function RBACAdmin() {
                 Create Role
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>Create New Role</DialogTitle>
-                <DialogDescription>Define a new role with specific permissions</DialogDescription>
               </DialogHeader>
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -812,23 +1038,39 @@ export default function RBACAdmin() {
     const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
     const [isViewUsersDialogOpen, setIsViewUsersDialogOpen] = useState(false);
     const [showOnlyWithUsers, setShowOnlyWithUsers] = useState(false);
+    const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
+    const [isDeleteConfirmDialogOpen, setIsDeleteConfirmDialogOpen] = useState(false);
     const [newCompany, setNewCompany] = useState({
       name: '',
-      type: 'customer',
-      subscription_tier: 'basic'
+      domain: '',
+      status: 'active',
+      settings: { type: 'customer', subscription_tier: 'basic' }
     });
 
     // Calculate user counts per company
     const userCountsByCompany = React.useMemo(() => {
       const counts: { [key: string]: number } = {};
-      users.forEach((user: UserProfile) => {
-        const companyName = user.company_name;
-        if (companyName) {
-          counts[companyName] = (counts[companyName] || 0) + 1;
-        }
-      });
+      if (users && Array.isArray(users)) {
+        users.forEach((user: UserProfile) => {
+          // Try multiple field variations for company identification
+          const companyName = user.company_name || user.company_name;
+          const companyId = user.company_id || user.company_id;
+          
+          if (companyName) {
+            counts[companyName] = (counts[companyName] || 0) + 1;
+          }
+          
+          // Also count by company ID for backup matching
+          if (companyId && companies) {
+            const company = companies.find((c: Company) => c.id.toString() === companyId.toString());
+            if (company) {
+              counts[company.name] = (counts[company.name] || 0) + 1;
+            }
+          }
+        });
+      }
       return counts;
-    }, [users]);
+    }, [users, companies]);
 
     // Filter companies based on user preference
     const filteredCompanies = React.useMemo(() => {
@@ -856,6 +1098,26 @@ export default function RBACAdmin() {
       },
       onError: (error: any) => {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      }
+    });
+
+    // Company delete mutation
+    const deleteCompanyMutation = useMutation({
+      mutationFn: (id: string) => apiRequest(`/api/companies/${id}`, { method: 'DELETE' }),
+      onSuccess: () => {
+        // Invalidate BOTH endpoints to ensure UI updates
+        queryClient.invalidateQueries({ queryKey: ['/api/rbac/companies'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/companies'] });
+        toast({ title: 'Success', description: 'Company deleted successfully' });
+        // Close the delete confirmation dialog
+        setIsDeleteConfirmDialogOpen(false);
+        setCompanyToDelete(null);
+      },
+      onError: (error: any) => {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        // Close the delete confirmation dialog on error too
+        setIsDeleteConfirmDialogOpen(false);
+        setCompanyToDelete(null);
       }
     });
 
@@ -890,10 +1152,9 @@ export default function RBACAdmin() {
                 Add Company
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>Create New Company</DialogTitle>
-                <DialogDescription>Add a new company to the system</DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
@@ -905,8 +1166,20 @@ export default function RBACAdmin() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="domain">Domain (optional)</Label>
+                  <Input
+                    id="domain"
+                    value={newCompany.domain}
+                    placeholder="company.example.com"
+                    onChange={(e) => setNewCompany({ ...newCompany, domain: e.target.value })}
+                  />
+                </div>
+                <div>
                   <Label htmlFor="type">Company Type</Label>
-                  <Select value={newCompany.type} onValueChange={(value) => setNewCompany({ ...newCompany, type: value })}>
+                  <Select value={newCompany.settings.type} onValueChange={(value) => setNewCompany({ 
+                    ...newCompany, 
+                    settings: { ...newCompany.settings, type: value }
+                  })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -919,7 +1192,10 @@ export default function RBACAdmin() {
                 </div>
                 <div>
                   <Label htmlFor="subscription">Subscription Tier</Label>
-                  <Select value={newCompany.subscription_tier} onValueChange={(value) => setNewCompany({ ...newCompany, subscription_tier: value })}>
+                  <Select value={newCompany.settings.subscription_tier} onValueChange={(value) => setNewCompany({ 
+                    ...newCompany, 
+                    settings: { ...newCompany.settings, subscription_tier: value }
+                  })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -927,6 +1203,19 @@ export default function RBACAdmin() {
                       <SelectItem value="basic">Basic</SelectItem>
                       <SelectItem value="professional">Professional</SelectItem>
                       <SelectItem value="enterprise">Enterprise</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={newCompany.status} onValueChange={(value) => setNewCompany({ ...newCompany, status: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -941,9 +1230,26 @@ export default function RBACAdmin() {
                       toast({ title: 'Error', description: 'Company name is required', variant: 'destructive' });
                       return;
                     }
-                    createCompanyMutation.mutate(newCompany);
+                    
+                    // Generate unique domain if not provided or empty
+                    const companyToCreate = { ...newCompany };
+                    if (!companyToCreate.domain || companyToCreate.domain.trim() === '') {
+                      // Generate unique domain from company name + timestamp
+                      const timestamp = Date.now().toString().slice(-8);
+                      const nameSlug = companyToCreate.name.toLowerCase()
+                        .replace(/[^a-z0-9]/g, '')
+                        .slice(0, 12);
+                      companyToCreate.domain = `${nameSlug}-${timestamp}.com`;
+                    }
+                    
+                    createCompanyMutation.mutate(companyToCreate);
                     setIsCreateDialogOpen(false);
-                    setNewCompany({ name: '', type: 'customer', subscription_tier: 'basic' });
+                    setNewCompany({ 
+                      name: '', 
+                      domain: '', 
+                      status: 'active', 
+                      settings: { type: 'customer', subscription_tier: 'basic' } 
+                    });
                   }}
                   disabled={createCompanyMutation.isPending}
                 >
@@ -957,10 +1263,9 @@ export default function RBACAdmin() {
 
         {/* Edit Company Dialog */}
         <Dialog open={isEditCompanyDialogOpen} onOpenChange={setIsEditCompanyDialogOpen}>
-          <DialogContent>
+          <DialogContent aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Edit Company</DialogTitle>
-              <DialogDescription>Update company information</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
@@ -972,10 +1277,37 @@ export default function RBACAdmin() {
                 />
               </div>
               <div>
+                <Label htmlFor="edit_domain">Domain</Label>
+                <Input
+                  id="edit_domain"
+                  value={editingCompany?.domain || ''}
+                  onChange={(e) => setEditingCompany(prev => prev ? {...prev, domain: e.target.value} : null)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_status">Status</Label>
+                <Select 
+                  value={editingCompany?.status || 'active'} 
+                  onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, status: value as 'active' | 'suspended' | 'pending'} : null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label htmlFor="edit_type">Company Type</Label>
                 <Select 
-                  value={editingCompany?.type || ''} 
-                  onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, type: value} : null)}
+                  value={editingCompany?.settings?.type || ''} 
+                  onValueChange={(value) => setEditingCompany(prev => prev ? {
+                    ...prev, 
+                    settings: { ...prev.settings, type: value }
+                  } : null)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -990,8 +1322,11 @@ export default function RBACAdmin() {
               <div>
                 <Label htmlFor="edit_subscription">Subscription Tier</Label>
                 <Select 
-                  value={editingCompany?.subscription_tier || ''} 
-                  onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, subscription_tier: value} : null)}
+                  value={editingCompany?.settings?.subscription_tier || ''} 
+                  onValueChange={(value) => setEditingCompany(prev => prev ? {
+                    ...prev, 
+                    settings: { ...prev.settings, subscription_tier: value }
+                  } : null)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -1026,9 +1361,9 @@ export default function RBACAdmin() {
                       id: editingCompany.id, 
                       data: {
                         name: editingCompany.name,
-                        type: editingCompany.type,
-                        subscription_tier: editingCompany.subscription_tier,
-                        is_active: editingCompany.is_active
+                        domain: editingCompany.domain,
+                        status: editingCompany.status,
+                        settings: editingCompany.settings
                       }
                     });
                     // Don't close dialog here - let onSuccess handle it
@@ -1044,12 +1379,9 @@ export default function RBACAdmin() {
 
         {/* View Users Dialog */}
         <Dialog open={isViewUsersDialogOpen} onOpenChange={setIsViewUsersDialogOpen}>
-          <DialogContent className="max-w-4xl">
+          <DialogContent className="max-w-4xl" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Company Users</DialogTitle>
-              <DialogDescription>
-                View all users assigned to {companies.find(c => c.id.toString() === selectedCompanyId?.toString())?.name}
-              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               {companyUsersLoading ? (
@@ -1096,6 +1428,84 @@ export default function RBACAdmin() {
           </DialogContent>
         </Dialog>
 
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={isDeleteConfirmDialogOpen} onOpenChange={setIsDeleteConfirmDialogOpen}>
+          <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <Trash2 className="w-5 h-5" />
+                Delete Company
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="bg-muted/50 p-4 rounded-lg border">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center flex-shrink-0">
+                    <Building className="w-5 h-5 text-destructive" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-foreground">{companyToDelete?.name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {companyToDelete?.domain && `Domain: ${companyToDelete.domain}`}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Type: {companyToDelete?.settings?.type} • {companyToDelete?.settings?.subscription_tier}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Users: {companyToDelete ? (userCountsByCompany[companyToDelete.name] || 0) : 0}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-lg">
+                <div className="flex gap-2">
+                  <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <div className="font-medium text-destructive">Warning</div>
+                    <div className="text-destructive/80">
+                      All projects, tasks, users, and associated data will be permanently removed.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsDeleteConfirmDialogOpen(false);
+                  setCompanyToDelete(null);
+                }}
+                disabled={deleteCompanyMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => {
+                  if (companyToDelete) {
+                    deleteCompanyMutation.mutate(companyToDelete.id.toString());
+                  }
+                }}
+                disabled={deleteCompanyMutation.isPending}
+                className="min-w-20"
+              >
+                {deleteCompanyMutation.isPending ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                    Deleting...
+                  </div>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Company
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {companiesLoading ? (
             <Card>
@@ -1111,11 +1521,11 @@ export default function RBACAdmin() {
                     <div>
                       <CardTitle>{company.name}</CardTitle>
                       <CardDescription>
-                        {company.type} • {company.subscription_tier}
+                        {company.settings?.type || 'Unknown'} • {company.settings?.subscription_tier || 'Unknown'}
                       </CardDescription>
                     </div>
-                    <Badge variant={company.is_active ? 'default' : 'destructive'}>
-                      {company.is_active ? 'Active' : 'Inactive'}
+                    <Badge variant={company.status === 'active' ? 'default' : 'destructive'}>
+                      {company.status === 'active' ? 'Active' : company.status || 'Unknown'}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -1151,6 +1561,18 @@ export default function RBACAdmin() {
                       >
                         <Eye className="w-4 h-4 mr-2" />
                         View Users
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        onClick={() => {
+                          setCompanyToDelete(company);
+                          setIsDeleteConfirmDialogOpen(true);
+                        }}
+                        disabled={deleteCompanyMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
                       </Button>
                     </div>
                   </div>
@@ -1240,40 +1662,52 @@ export default function RBACAdmin() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className={`grid w-full ${isRootAdmin ? 'grid-cols-4' : 'grid-cols-1'}`}>
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             Users
           </TabsTrigger>
-          <TabsTrigger value="roles" className="flex items-center gap-2">
-            <UserCheck className="w-4 h-4" />
-            Roles
-          </TabsTrigger>
-          <TabsTrigger value="companies" className="flex items-center gap-2">
-            <Building className="w-4 h-4" />
-            Companies
-          </TabsTrigger>
-          <TabsTrigger value="permissions" className="flex items-center gap-2">
-            <Key className="w-4 h-4" />
-            Permissions
-          </TabsTrigger>
+          {isRootAdmin && (
+            <TabsTrigger value="roles" className="flex items-center gap-2">
+              <UserCheck className="w-4 h-4" />
+              Roles
+            </TabsTrigger>
+          )}
+          {isRootAdmin && (
+            <TabsTrigger value="companies" className="flex items-center gap-2">
+              <Building className="w-4 h-4" />
+              Companies
+            </TabsTrigger>
+          )}
+          {isRootAdmin && (
+            <TabsTrigger value="permissions" className="flex items-center gap-2">
+              <Key className="w-4 h-4" />
+              Permissions
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="users" className="mt-6">
           <UserManagement />
         </TabsContent>
 
-        <TabsContent value="roles" className="mt-6">
-          <RoleManagement />
-        </TabsContent>
+        {isRootAdmin && (
+          <TabsContent value="roles" className="mt-6">
+            <RoleManagement />
+          </TabsContent>
+        )}
 
-        <TabsContent value="companies" className="mt-6">
-          <CompanyManagement />
-        </TabsContent>
+        {isRootAdmin && (
+          <TabsContent value="companies" className="mt-6">
+            <CompanyManagement />
+          </TabsContent>
+        )}
 
-        <TabsContent value="permissions" className="mt-6">
-          <PermissionsOverview />
-        </TabsContent>
+        {isRootAdmin && (
+          <TabsContent value="permissions" className="mt-6">
+            <PermissionsOverview />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

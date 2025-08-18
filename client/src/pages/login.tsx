@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Building2, Mail, Lock, AlertCircle, ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
@@ -23,18 +23,28 @@ export default function Login() {
       });
       return response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Logged in successfully!",
-      });
-      // Invalidate the auth user query to refetch user data
-      window.location.href = "/";
+    onSuccess: async () => {
+      // Invalidate auth query to update authentication state immediately
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      
+      // Navigate immediately without toast to prevent delay
+      setLocation("/dashboard");
     },
     onError: (error: any) => {
+      // Better user-friendly error messages
+      let errorMessage = "Please check your email and password and try again.";
+      
+      if (error.message?.includes("Invalid credentials")) {
+        errorMessage = "Email or password is incorrect. Please try again.";
+      } else if (error.message?.includes("required")) {
+        errorMessage = "Both email and password are required.";
+      } else if (error.message?.includes("server")) {
+        errorMessage = "Unable to connect to the server. Please try again later.";
+      }
+      
       toast({
-        title: "Login Failed",
-        description: error.message || "Invalid credentials",
+        title: "Unable to Sign In",
+        description: errorMessage,
         variant: "destructive",
       });
     },

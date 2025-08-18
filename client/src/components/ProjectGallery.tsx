@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Camera, Upload, X, Eye, Image as ImageIcon, Plus } from "lucide-react";
+import { Camera, Upload, X, Eye, Image as ImageIcon, Plus, FileImage } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Photo } from "@shared/schema";
@@ -19,6 +19,74 @@ interface ProjectGalleryProps {
   projectName: string;
 }
 
+function FileChooser({ onFiles }: { onFiles: (files: FileList) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Force close any Radix popovers that might be interfering
+    document.querySelectorAll('[data-radix-popper-content-wrapper]').forEach(el => {
+      const element = el as HTMLElement;
+      element.style.display = 'none';
+      element.style.pointerEvents = 'none';
+      element.style.visibility = 'hidden';
+    });
+    
+    // Also ensure any hidden elements are properly cleared
+    document.querySelectorAll('[data-radix-popper-content-wrapper][aria-hidden="true"]').forEach(el => {
+      const element = el as HTMLElement;
+      element.style.display = 'none !important';
+      element.style.pointerEvents = 'none !important';
+    });
+    
+    // Multiple approaches to trigger the file input
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.click();
+      }
+    }, 0);
+  };
+
+  return (
+    <div className="relative z-50">
+      <button
+        type="button"
+        onClick={handleClick}
+        className="inline-flex items-center justify-center px-4 py-2 rounded-md 
+                   bg-blue-600 text-white font-medium cursor-pointer hover:bg-blue-700
+                   focus-visible:outline-none focus-visible:ring focus-visible:ring-blue-400 
+                   focus-visible:ring-offset-2 transition-colors relative z-50"
+        style={{ position: 'relative', zIndex: 9999 }}
+      >
+        📁 Choose File
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        onChange={(e) => {
+          console.log('📁 File input change triggered:', e.target.files);
+          if (e.target.files && e.target.files.length > 0) {
+            onFiles(e.target.files);
+          }
+        }}
+        style={{ 
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          opacity: 0,
+          cursor: 'pointer',
+          zIndex: 10000
+        }}
+      />
+    </div>
+  );
+}
+
 export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState<"grid" | "upload">("grid");
@@ -26,8 +94,18 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
   const [description, setDescription] = useState("");
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Close any Radix menu/popover before showing uploader
+  const handleViewChange = (newView: "grid" | "upload") => {
+    // Close any open popovers/menus
+    document.querySelectorAll('[data-radix-popper-content-wrapper]').forEach(el => {
+      (el as HTMLElement).style.display = 'none';
+    });
+    setView(newView);
+  };
 
   // Query for photos
   const { data: photos = [], isLoading } = useQuery<Photo[]>({
@@ -52,9 +130,9 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
       formData.append("userId", "sample-user-id");
       
       console.log("FormData entries:");
-      for (let [key, value] of formData.entries()) {
+      Array.from(formData.entries()).forEach(([key, value]) => {
         console.log(`${key}:`, value);
-      }
+      });
 
       console.log("Sending request to /api/photos");
       const response = await fetch("/api/photos", {
@@ -76,16 +154,19 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
       
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      console.log("✅ Upload successful:", result);
       queryClient.invalidateQueries({ queryKey: ["/api/photos", projectId] });
       setSelectedFiles(null);
       setPreviewUrls([]);
       setDescription("");
       setView("grid");
       toast({
-        title: "Success",
+        title: "Success", 
         description: "Photo uploaded successfully",
       });
+      
+
     },
     onError: (error) => {
       toast({
@@ -114,30 +195,38 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
     },
   });
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    console.log("Files selected:", files);
-    setSelectedFiles(files);
+
+
+  // Drag and drop handlers - Only prevent default for drag events, not all events
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
     
-    // Create preview URLs
+    const files = e.dataTransfer.files;
+    console.log("🎯 Files dropped:", files);
+    
     if (files && files.length > 0) {
-      // Clean up previous preview URLs
-      previewUrls.forEach(url => URL.revokeObjectURL(url));
-      
-      const newPreviewUrls = Array.from(files).map(file => {
-        const url = URL.createObjectURL(file);
-        console.log("Created preview URL:", url, "for file:", file.name);
-        return url;
-      });
-      setPreviewUrls(newPreviewUrls);
-      console.log("Preview URLs set:", newPreviewUrls);
-    } else {
-      setPreviewUrls([]);
+      handleFileSelect(files);
     }
   };
 
   const handleUpload = () => {
+    console.log("🚀 handleUpload called");
+    console.log("📁 selectedFiles:", selectedFiles);
+    console.log("📝 description:", description);
+    
     if (!selectedFiles || selectedFiles.length === 0) {
+      console.log("❌ No files selected");
       toast({
         title: "Error",
         description: "Please select at least one file",
@@ -148,12 +237,21 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
 
     // Upload the first file for now (can be extended for multiple uploads)
     const file = selectedFiles[0];
+    console.log("📤 Uploading file:", file.name, file.type, file.size);
     uploadMutation.mutate({ file, description });
   };
 
   const getPhotoUrl = (photo: Photo) => {
     return `/api/photos/${photo.id}/file`;
   };
+
+  // Console spy for debugging file input clicks
+  useEffect(() => {
+    window.addEventListener('filechooser', () => console.log('filechooser event'));
+    return () => {
+      window.removeEventListener('filechooser', () => console.log('filechooser event'));
+    };
+  }, []);
 
   // Clean up preview URLs when component unmounts
   useEffect(() => {
@@ -162,6 +260,19 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
     };
   }, [previewUrls]);
 
+  // File selection handler for both drag-and-drop and file chooser
+  const handleFileSelect = (files: FileList) => {
+    if (files.length > 0) {
+      const file = files[0];
+      console.log("🚀 File selected:", file.name);
+      
+      uploadMutation.mutate({ 
+        file, 
+        description: description || `Uploaded ${file.name}` 
+      });
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -169,13 +280,12 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
           variant="outline" 
           size="sm"
           className="gap-2"
-          onClick={(e) => e.stopPropagation()}
         >
           <Camera size={14} />
           Gallery
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh]">
+      <DialogContent className="max-w-4xl max-h-[80vh]" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ImageIcon size={20} />
@@ -187,7 +297,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
           <Button
             variant={view === "grid" ? "default" : "outline"}
             size="sm"
-            onClick={() => setView("grid")}
+            onClick={() => handleViewChange("grid")}
             className="gap-2"
           >
             <Eye size={14} />
@@ -196,7 +306,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
           <Button
             variant={view === "upload" ? "default" : "outline"}
             size="sm"
-            onClick={() => setView("upload")}
+            onClick={() => handleViewChange("upload")}
             className="gap-2"
           >
             <Upload size={14} />
@@ -217,7 +327,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setView("upload")}
+                  onClick={() => handleViewChange("upload")}
                   className="mt-2 gap-2"
                 >
                   <Plus size={14} />
@@ -263,14 +373,45 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
         ) : (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="photo-upload">Select Photo</Label>
-              <Input
-                id="photo-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="mt-1"
-              />
+              <Label>Upload Photo</Label>
+              <div className="mt-1 space-y-3">
+                {/* Drag and Drop Zone - Primary method */}
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    isDragOver
+                      ? 'border-blue-500 bg-blue-50'
+                      : uploadMutation.isPending
+                      ? 'border-gray-300 bg-gray-50'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  <FileImage className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  {uploadMutation.isPending ? (
+                    <div>
+                      <p className="text-lg font-medium text-blue-600">Uploading...</p>
+                      <p className="text-sm text-gray-500">Please wait while your photo is being uploaded</p>
+                    </div>
+                  ) : isDragOver ? (
+                    <div>
+                      <p className="text-lg font-medium text-blue-600">Drop your photo here</p>
+                      <p className="text-sm text-gray-500">Release to upload</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-lg font-medium text-gray-900">Drag and drop a photo here</p>
+                      <p className="text-sm text-gray-500">Or click below to browse files</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* File Chooser Button */}
+                <div className="mt-4 flex justify-center">
+                  <FileChooser onFiles={handleFileSelect} />
+                </div>
+              </div>
               {selectedFiles && selectedFiles.length > 0 && (
                 <div className="mt-4 space-y-3">
                   <p className="text-sm font-medium text-gray-700">
@@ -332,7 +473,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setView("grid")}
+                onClick={() => handleViewChange("grid")}
               >
                 Cancel
               </Button>
@@ -343,7 +484,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
         {/* Photo viewer modal */}
         {selectedPhoto && (
           <Dialog open={!!selectedPhoto} onOpenChange={() => setSelectedPhoto(null)}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="max-w-3xl" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>Photo Details</DialogTitle>
               </DialogHeader>

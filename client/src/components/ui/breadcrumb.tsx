@@ -80,6 +80,7 @@ const BreadcrumbSeparator = ({
   <li
     role="presentation"
     aria-hidden="true"
+    tabIndex={-1}
     className={cn("[&>svg]:w-3.5 [&>svg]:h-3.5", className)}
     {...props}
   >
@@ -95,6 +96,7 @@ const BreadcrumbEllipsis = ({
   <span
     role="presentation"
     aria-hidden="true"
+    tabIndex={-1}
     className={cn("flex h-9 w-9 items-center justify-center", className)}
     {...props}
   >

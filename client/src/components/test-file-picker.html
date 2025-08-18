@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>File Picker Test</title>
+</head>
+<body>
+    <h1>Testing File Picker</h1>
+    
+    <!-- Test 1: Basic input -->
+    <div>
+        <h3>Test 1: Basic file input</h3>
+        <input type="file" accept="image/*" id="basic-input">
+        <script>
+            document.getElementById('basic-input').addEventListener('change', function(e) {
+                console.log('Basic input changed:', e.target.files);
+            });
+        </script>
+    </div>
+    
+    <!-- Test 2: Label wrapper (current approach) -->
+    <div style="margin-top: 20px;">
+        <h3>Test 2: Label wrapper approach (current)</h3>
+        <label style="display: inline-block; padding: 10px 20px; background: blue; color: white; cursor: pointer;">
+            Choose File (Label)
+            <input type="file" accept="image/*" style="position: absolute; opacity: 0; width: 100%; height: 100%;" id="label-input">
+        </label>
+        <script>
+            document.getElementById('label-input').addEventListener('change', function(e) {
+                console.log('Label input changed:', e.target.files);
+            });
+        </script>
+    </div>
+    
+    <!-- Test 3: Button + hidden input -->
+    <div style="margin-top: 20px;">
+        <h3>Test 3: Button + hidden input</h3>
+        <button onclick="document.getElementById('hidden-input').click()" style="padding: 10px 20px; background: green; color: white; cursor: pointer;">
+            Choose File (Button)
+        </button>
+        <input type="file" accept="image/*" style="display: none;" id="hidden-input">
+        <script>
+            document.getElementById('hidden-input').addEventListener('change', function(e) {
+                console.log('Hidden input changed:', e.target.files);
+            });
+        </script>
+    </div>
+    
+    <script>
+        console.log('File picker test page loaded');
+    </script>
+</body>
+</html>

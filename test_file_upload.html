@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test File Upload</title>
+</head>
+<body>
+    <h1>Test File Upload Button</h1>
+    
+    <!-- Method 1: Working Photos tab approach -->
+    <div>
+        <h2>Method 1: Photos Tab Approach</h2>
+        <button type="button" onclick="method1Click()">📁 Choose Files (Photos Tab Method)</button>
+        <input ref="fileInput1" type="file" accept="image/*" class="sr-only" onchange="console.log('Method 1 file selected:', this.files)" />
+    </div>
+    
+    <!-- Method 2: Direct input click -->
+    <div>
+        <h2>Method 2: Direct Input</h2>
+        <input type="file" accept="image/*" onchange="console.log('Method 2 file selected:', this.files)" />
+    </div>
+    
+    <script>
+        function method1Click() {
+            console.log('Method 1 button clicked');
+            setTimeout(() => {
+                console.log('Triggering file input click');
+                document.querySelector('[ref="fileInput1"]').click();
+            }, 0);
+        }
+    </script>
+</body>
+</html>

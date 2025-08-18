@@ -71,7 +71,7 @@ export default function Photos() {
   });
 
   const deletePhotoMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/photos/${id}`),
+    mutationFn: (id: string) => apiRequest(`/api/photos/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
       toast({
@@ -134,7 +134,18 @@ export default function Photos() {
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFiles(event.target.files);
+    const files = event.target.files;
+    if (files && files.length > 0 && !form.watch("projectId")) {
+      toast({
+        title: "Project Required",
+        description: "Please select a project first before choosing files",
+        variant: "destructive",
+      });
+      // Reset the file input
+      event.target.value = '';
+      return;
+    }
+    setSelectedFiles(files);
   };
 
   const handleDragDrop = (event: React.DragEvent<HTMLDivElement>) => {
@@ -209,9 +220,12 @@ export default function Photos() {
               Upload Photos
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px]" aria-describedby="upload-photos-description">
             <DialogHeader>
               <DialogTitle>Upload Photos</DialogTitle>
+              <div id="upload-photos-description" className="sr-only">
+                Upload photos to a specific project with optional descriptions.
+              </div>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -245,28 +259,69 @@ export default function Photos() {
                   )}
                 />
 
-                <div
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
-                  onDrop={handleDragDrop}
-                  onDragOver={(e) => e.preventDefault()}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <p className="text-lg font-medium text-gray-600">
-                    {selectedFiles && selectedFiles.length > 0
-                      ? `${selectedFiles.length} file(s) selected`
-                      : "Drop photos here or click to browse"
-                    }
-                  </p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Supports JPG, PNG, GIF up to 10MB
-                  </p>
+                <div className="space-y-4">
+                  <div
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
+                    onDrop={handleDragDrop}
+                    onDragOver={(e) => e.preventDefault()}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (form.watch("projectId")) {
+                        setTimeout(() => {
+                          fileInputRef.current?.click();
+                        }, 0);
+                      } else {
+                        toast({
+                          title: "Project Required",
+                          description: "Please select a project first before choosing files",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                  >
+                    <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <p className="text-lg font-medium text-gray-600">
+                      {selectedFiles && selectedFiles.length > 0
+                        ? `${selectedFiles.length} file(s) selected`
+                        : "Drop photos here or click to browse"
+                      }
+                    </p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Supports JPG, PNG, GIF up to 10MB
+                    </p>
+                  </div>
+
+                  <div className="text-center">
+                    <Button
+                      type="button"
+                      variant="default"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (form.watch("projectId")) {
+                          fileInputRef.current?.click();
+                        } else {
+                          toast({
+                            title: "Project Required",
+                            description: "Please select a project first before choosing files",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 border-2 border-blue-600 font-medium rounded-md shadow-sm"
+                      style={{ minHeight: '40px', fontSize: '14px' }}
+                    >
+                      📁 Choose Files
+                    </Button>
+                  </div>
+
                   <input
                     ref={fileInputRef}
                     type="file"
                     multiple
                     accept="image/*"
-                    className="hidden"
+                    className="sr-only"
                     onChange={handleFileSelect}
                   />
                 </div>

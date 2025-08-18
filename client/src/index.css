@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hidden Radix poppers must not capture events or focus */
+[data-radix-popper-content-wrapper][data-aria-hidden="true"],
+[data-radix-popper-content-wrapper][aria-hidden="true"]{
+  pointer-events: none !important;
+  visibility: hidden !important;
+  display: none !important;   /* safest */
+}
+
+/* Additional safeguards for Radix UI interference */
+[data-radix-popper-content-wrapper] {
+  z-index: auto;
+}
+
+/* Ensure file inputs have highest priority */
+input[type="file"] {
+  z-index: 99999 !important;
+}
+
 @layer components {
   .elevated {
     @apply border border-brand-grey shadow-sm rounded-lg bg-white;

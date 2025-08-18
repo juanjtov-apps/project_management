@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,14 +13,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, CalendarIcon, Clock, User, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle, Grid3X3, List, FolderOpen, ChevronDown, ChevronRight, AlarmClock, Filter, RotateCcw, CheckSquare, Square, Eye, Search, Maximize2, Minimize2, SlidersHorizontal } from "lucide-react";
+import { Plus, CalendarIcon, Clock, User as UserIcon, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle, Grid3X3, List, FolderOpen, ChevronDown, ChevronRight, AlarmClock, Filter, RotateCcw, CheckSquare, Square, Eye, Search, Maximize2, Minimize2, SlidersHorizontal } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertTaskSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import type { Task, InsertTask, Project } from "@shared/schema";
+import type { Task, InsertTask, Project, User } from "@shared/schema";
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
@@ -173,27 +174,32 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
             <Badge className={getPriorityColor(task.priority)} variant="outline">
               {task.priority}
             </Badge>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreHorizontal size={14} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(task); }}>
-                  <Edit size={14} className="mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(task); }} className="text-red-600">
-                  <Trash2 size={14} className="mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex gap-1">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(task);
+                }}
+                title="Edit task"
+              >
+                <Edit size={14} />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(task);
+                }}
+                title="Delete task"
+              >
+                <Trash2 size={14} />
+              </Button>
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -232,7 +238,7 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
           
           {task.assigneeId && (
             <div className="flex items-center text-xs text-gray-500">
-              <User size={12} className="mr-1" />
+              <UserIcon size={12} className="mr-1" />
               Assigned
             </div>
           )}
@@ -389,31 +395,50 @@ function TaskListItem({
               </SelectContent>
             </Select>
             
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-7 w-7 p-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreHorizontal size={14} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(task); }}>
-                  <Edit size={12} className="mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={(e) => { e.stopPropagation(); onDelete(task); }}
-                  className="text-red-600"
-                >
-                  <Trash2 size={12} className="mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex gap-1">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-7 w-7 p-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(task);
+                }}
+                title="Edit task"
+              >
+                <Edit size={12} />
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Delete task"
+                  >
+                    <Trash2 size={12} />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent aria-describedby={undefined}>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete "{task.title}"? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => onDelete(task)}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         </div>
       </CardContent>
@@ -435,6 +460,7 @@ export default function Tasks() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
   const [bulkActionMode, setBulkActionMode] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const queryClient = useQueryClient();
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
@@ -486,6 +512,7 @@ export default function Tasks() {
       status: "pending",
       priority: "medium",
       dueDate: undefined,
+      assigneeId: null,
     },
   });
 
@@ -499,6 +526,7 @@ export default function Tasks() {
       status: "pending",
       priority: "medium",
       dueDate: undefined,
+      assigneeId: null,
     },
   });
 
@@ -532,13 +560,19 @@ export default function Tasks() {
       status: task.status,
       priority: task.priority,
       dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+      assigneeId: task.assigneeId,
     });
     setIsEditDialogOpen(true);
   };
 
   const handleDeleteTask = (task: Task) => {
-    if (window.confirm(`Are you sure you want to delete "${task.title}"?`)) {
-      deleteTaskMutation.mutate(task.id);
+    setTaskToDelete(task);
+  };
+
+  const confirmDeleteTask = () => {
+    if (taskToDelete) {
+      deleteTaskMutation.mutate(taskToDelete.id);
+      setTaskToDelete(null);
     }
   };
 
@@ -666,7 +700,7 @@ export default function Tasks() {
               New Task
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Create New Task</DialogTitle>
             </DialogHeader>
@@ -682,7 +716,7 @@ export default function Tasks() {
 
         {/* Edit Task Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Edit Task</DialogTitle>
             </DialogHeader>
@@ -698,29 +732,29 @@ export default function Tasks() {
 
         {/* Task Detail Modal - Comprehensive Editing */}
         <Dialog open={isTaskDetailDialogOpen} onOpenChange={setIsTaskDetailDialogOpen}>
-          <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold text-gray-900">
                 {editingTask?.title || "Edit Task"}
               </DialogTitle>
-              <div className="flex items-center gap-2 mt-2">
-                {editingTask && (
-                  <>
-                    <Badge className={getPriorityColor(editingTask.priority)} variant="outline">
-                      {editingTask.priority}
-                    </Badge>
-                    <Badge className={getStatusColor(editingTask.status)} variant="secondary">
-                      {editingTask.status.replace("-", " ")}
-                    </Badge>
-                    {editingTask.category && (
-                      <Badge variant="outline" className="bg-gray-50">
-                        {editingTask.category}
-                      </Badge>
-                    )}
-                  </>
-                )}
-              </div>
             </DialogHeader>
+            <div className="flex items-center gap-2 mt-2">
+              {editingTask && (
+                <>
+                  <Badge className={getPriorityColor(editingTask.priority)} variant="outline">
+                    {editingTask.priority}
+                  </Badge>
+                  <Badge className={getStatusColor(editingTask.status)} variant="secondary">
+                    {editingTask.status.replace("-", " ")}
+                  </Badge>
+                  {editingTask.category && (
+                    <Badge variant="outline" className="bg-gray-50">
+                      {editingTask.category}
+                    </Badge>
+                  )}
+                </>
+              )}
+            </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
               {/* Main Content - Task Form */}
@@ -762,7 +796,7 @@ export default function Tasks() {
                     )}
                     
                     <div className="flex items-center text-sm">
-                      <User size={14} className="mr-2 text-gray-500" />
+                      <UserIcon size={14} className="mr-2 text-gray-500" />
                       <span className="text-gray-600">Created:</span>
                       <span className="ml-1 font-medium">
                         {editingTask?.createdAt ? new Date(editingTask.createdAt).toLocaleDateString() : "Unknown"}
@@ -823,6 +857,24 @@ export default function Tasks() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
+          <AlertDialogContent aria-describedby={undefined}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Task</AlertDialogTitle>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDeleteTask}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Global Summary Bar - Enhancement #1 */}
@@ -1695,6 +1747,23 @@ function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormP
         
         <FormField
           control={form.control}
+          name="assigneeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Assign To</FormLabel>
+              <FormControl>
+                <TaskAssignmentSelect 
+                  value={field.value} 
+                  onChange={field.onChange}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
           name="dueDate"
           render={({ field }) => (
             <FormItem className="flex flex-col">
@@ -1740,5 +1809,39 @@ function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormP
         </div>
       </form>
     </Form>
+  );
+}
+
+// Task Assignment Select for Forms
+function TaskAssignmentSelect({ value, onChange }: { value?: string | null; onChange: (value: string | null) => void }) {
+  const { data: managers = [], isLoading } = useQuery<User[]>({
+    queryKey: ["/api/users/managers"],
+  });
+
+  return (
+    <Select 
+      value={value || "unassigned"} 
+      onValueChange={(val) => onChange(val === "unassigned" ? null : val)}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Select assignee">
+          {isLoading ? (
+            "Loading..."
+          ) : value ? (
+            managers.find(m => m.id === value)?.name || "Unknown User"
+          ) : (
+            "Unassigned"
+          )}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="unassigned">Unassigned</SelectItem>
+        {managers.map((manager) => (
+          <SelectItem key={manager.id} value={manager.id}>
+            {manager.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

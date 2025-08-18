@@ -15,14 +15,18 @@ router = APIRouter(prefix="/rbac", tags=["rbac"])
 # Helper function to get current user from session (placeholder for now)
 async def get_current_user(request: Request) -> str:
     """Get current user ID from session/auth context"""
+    # For demo purposes, return a valid user ID from database
     # TODO: Integrate with actual auth system
-    return "current-user-id"
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        user_id = await conn.fetchval("SELECT id FROM users LIMIT 1")
+        return user_id or "demo-user-id"
 
 # Helper function to set company context for RLS
 async def set_company_context(pool: asyncpg.Pool, company_id: int):
     """Set the company context for Row Level Security"""
     async with pool.acquire() as conn:
-        await conn.execute(f"SELECT set_config('app.current_company', '{company_id}', false)")
+        await conn.execute("SELECT set_config('app.current_company', $1, false)", str(company_id))
         return conn
 
 # COMPANY MANAGEMENT ENDPOINTS

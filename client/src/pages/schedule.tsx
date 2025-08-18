@@ -233,7 +233,7 @@ export default function Schedule() {
               Update Task Schedule
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Update Task Schedule</DialogTitle>
             </DialogHeader>
@@ -384,7 +384,7 @@ export default function Schedule() {
 
         {/* Edit Schedule Change Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Update Task Schedule</DialogTitle>
             </DialogHeader>

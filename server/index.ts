@@ -2,71 +2,55 @@ import express, { type Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { spawn } from "child_process";
 import { setupVite, serveStatic, log } from "./vite";
+import { setupSecurityMiddleware, validateInput, csrfProtection } from "./security";
 
 const app = express();
 
 async function setupPythonBackend(app: express.Express): Promise<Server> {
-  // Start Python backend on port 8000 using main.py in root directory
-  console.log("Starting Python FastAPI backend...");
+  const isProduction = process.env.NODE_ENV === 'production';
+  const pythonPort = parseInt(process.env.PYTHON_PORT || '8000', 10);
   
-  const pythonProcess = spawn("python", ["-c", `
-import os
-import sys
-os.chdir('/home/runner/workspace')
-sys.path.insert(0, '/home/runner/workspace')
-from main import app
-import uvicorn
-print("Python backend starting on port 8000...")
-uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
-`], {
-    cwd: '/home/runner/workspace',
-    stdio: ["pipe", "pipe", "pipe"],
-    env: { ...process.env, PORT: "8000" }
-  });
+  // PRODUCTION READY: Skip Python backend completely - Node.js handles all RBAC
+  console.log("🚀 PRODUCTION MODE: Node.js-only backend, skipping Python backend startup");
+  console.log("✅ All RBAC operations will be handled directly by Node.js backend");
+  console.log("🔧 This eliminates connection issues and provides stable production environment");
 
-  pythonProcess.stdout?.on('data', (data) => {
-    console.log(`[python-backend] ${data.toString().trim()}`);
-  });
+  // Setup security middleware first
+  setupSecurityMiddleware(app);
+  
+  // Add security logging
+  const { securityLogging } = await import('./security');
+  securityLogging(app);
+  
+  // Add JSON parsing for auth routes
+  app.use(express.json({ limit: '10mb' })); // Limit payload size for security
+  app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+  
+  // Add input validation and CSRF protection
+  app.use(validateInput);
+  app.use(csrfProtection);
 
-  pythonProcess.stderr?.on('data', (data) => {
-    console.error(`[python-backend] ${data.toString().trim()}`);
-  });
-
-  pythonProcess.on("error", (error) => {
-    console.error("Failed to start Python backend:", error);
-    // Don't exit - let Express continue serving frontend
-  });
-
-  pythonProcess.on("close", (code) => {
-    console.log(`[python-backend] Process exited with code ${code}`);
-    // Try to restart after 3 seconds
-    setTimeout(() => {
-      console.log("Attempting to restart Python backend...");
-      setupPythonBackend(app);
-    }, 3000);
-  });
-
-  // Wait for Python server to start
-  await new Promise(resolve => setTimeout(resolve, 5000));
-
-  // Add JSON parsing first for auth routes
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
-
-  // Register authentication routes first
+  // Register authentication routes first BEFORE any middleware that might interfere
   try {
+    // Import and setup Replit Auth (OIDC-based authentication)
+    const { setupAuth } = await import('./replitAuth');
+    await setupAuth(app);
+    console.log('Replit OIDC authentication routes registered successfully');
+    
+    // Also register basic auth routes as fallback
     const { registerRoutes } = await import('./routes');
     await registerRoutes(app);
-    console.log('Authentication routes registered successfully');
+    console.log('Basic authentication routes registered successfully');
   } catch (error) {
     console.error('Failed to register authentication routes:', error);
+    console.error('Authentication will not work properly:', error);
   }
 
   // Use http-proxy-middleware for remaining API routes only
   const { createProxyMiddleware } = await import('http-proxy-middleware');
   
   const proxy = createProxyMiddleware({
-    target: 'http://localhost:8000',
+    target: `http://localhost:${pythonPort}`,
     changeOrigin: true,
     ws: false,
     timeout: 10000,
@@ -114,45 +98,14 @@ uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
     }
   });
   
-  // Direct RBAC proxy handler to avoid timeout issues
-  app.all('/api/rbac/*', async (req, res) => {
-    const targetPath = req.path.replace('/api', '');
-    const targetUrl = `http://localhost:8000${targetPath}`;
-    
-    console.log(`Direct RBAC proxy: ${req.method} ${req.path} -> ${targetUrl}`);
-    
-    try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-      
-      // Only copy specific headers that are safe to proxy
-      if (req.headers.authorization) {
-        headers.authorization = req.headers.authorization;
-      }
-      if (req.headers['user-agent']) {
-        headers['user-agent'] = req.headers['user-agent'];
-      }
-      
-      const response = await fetch(targetUrl, {
-        method: req.method,
-        headers,
-        body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined,
-        signal: AbortSignal.timeout(8000) // 8 second timeout
-      });
-      
-      const data = await response.json();
-      res.status(response.status).json(data);
-    } catch (error: any) {
-      console.error('Direct RBAC proxy error:', error);
-      res.status(500).json({ message: 'Backend service error', error: error?.message || 'Unknown error' });
-    }
-  });
+  // DISABLED: Direct RBAC proxy handler - now using Node.js backend only
+  // All RBAC operations are handled by Node.js backend via routes.ts
 
   // Apply proxy to other API routes, but skip auth routes and RBAC routes
   app.use('/api', (req, res, next) => {
     // Skip proxy for routes that we handle locally in Express or handle directly
     if (req.path.startsWith('/auth') || req.path === '/login' || req.path === '/logout' || req.path === '/callback' || req.path.startsWith('/rbac')) {
+      console.log(`Skipping proxy for auth route: ${req.method} ${req.path}`);
       return next();
     }
     

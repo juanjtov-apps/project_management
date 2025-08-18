@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import { 
   LayoutDashboard, 
   Building, 
@@ -10,13 +11,15 @@ import {
   Users,
   HardHat,
   Wrench,
-  Shield
+  Shield,
+  TrendingUp
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Projects", href: "/projects", icon: Building },
   { name: "Tasks", href: "/tasks", icon: CheckSquare },
+  { name: "Project Health", href: "/project-health", icon: TrendingUp },
   { name: "Schedule", href: "/schedule", icon: Calendar },
   { name: "Photos", href: "/photos", icon: Camera },
   { name: "Project Logs", href: "/logs", icon: ClipboardList },
@@ -27,6 +30,28 @@ const navigation = [
 
 export default function Sidebar() {
   const [location] = useLocation();
+  
+  // Get current user to check admin access
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ['/api/auth/user'],
+    retry: false
+  });
+  
+  // Three-tier access control - only show RBAC Admin to admin users
+  const isRootAdmin = currentUser?.email?.includes('chacjjlegacy') || currentUser?.email === 'admin@proesphere.com';
+  const isCompanyAdmin = currentUser?.role === 'admin' || currentUser?.email?.includes('admin');
+  const hasRBACAccess = isRootAdmin || isCompanyAdmin;
+  
+  // Filter navigation based on user role
+  const filteredNavigation = navigation.filter(item => {
+    if (item.name === 'RBAC Admin') {
+      return hasRBACAccess;
+    }
+    return true;
+  });
+  
+  // Debug logging to check navigation items
+  console.log('Sidebar navigation items:', filteredNavigation.length, filteredNavigation.map(item => item.name));
 
   return (
     <aside className="w-64 bg-brand-blue/5 shadow-lg border-r border-brand-grey hidden lg:block">
@@ -47,7 +72,7 @@ export default function Sidebar() {
       
       <nav className="p-4">
         <ul className="space-y-2">
-          {navigation.map((item) => {
+          {filteredNavigation.map((item) => {
             const isActive = location === item.href;
             const Icon = item.icon;
             
@@ -65,8 +90,8 @@ export default function Sidebar() {
                 >
                   <Icon size={20} className={isActive ? "text-brand-teal" : "opacity-60"} />
                   <span className={cn(
-                    "ml-1.5", // 6px spacing between icon and text
-                    isActive ? "font-semibold text-brand-teal" : ""
+                    "ml-3", // Increased spacing between icon and text
+                    isActive ? "font-semibold text-brand-blue" : "text-brand-text"
                   )}>{item.name}</span>
                 </Link>
               </li>

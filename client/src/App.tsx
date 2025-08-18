@@ -16,6 +16,7 @@ import Logs from "@/pages/logs";
 import Crew from "@/pages/crew";
 import Subs from "@/pages/subs";
 import RBACAdmin from "@/pages/RBACAdmin";
+import ProjectHealth from "@/pages/project-health";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
@@ -26,9 +27,21 @@ import { useState } from "react";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
+  // If still loading auth state, show loading with proper delay to prevent 404 flash
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-brand-text text-sm">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
+      {!isAuthenticated ? (
         <>
           <Route path="/" component={Landing} />
           <Route path="/login" component={Login} />
@@ -39,12 +52,14 @@ function Router() {
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/projects" component={Projects} />
           <Route path="/tasks" component={Tasks} />
+          <Route path="/project-health" component={ProjectHealth} />
           <Route path="/schedule" component={Schedule} />
           <Route path="/photos" component={Photos} />
           <Route path="/logs" component={Logs} />
           <Route path="/crew" component={Crew} />
           <Route path="/subs" component={Subs} />
           <Route path="/rbac" component={RBACAdmin} />
+          <Route path="/rbac-admin" component={RBACAdmin} />
         </>
       )}
       <Route component={NotFound} />

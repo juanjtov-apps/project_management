@@ -332,10 +332,10 @@ export default function Subs() {
               Add Task
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md" aria-describedby="create-sub-task-description">
             <DialogHeader>
               <DialogTitle>Create New Subcontractor Task</DialogTitle>
-              <DialogDescription>
+              <DialogDescription id="create-sub-task-description">
                 Add a new task or milestone for subcontractors
               </DialogDescription>
             </DialogHeader>
@@ -493,10 +493,10 @@ export default function Subs() {
 
         {/* Edit Task Dialog */}
         <Dialog open={isEditTaskOpen} onOpenChange={setIsEditTaskOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md" aria-describedby="edit-sub-task-description">
             <DialogHeader>
               <DialogTitle>Edit Subcontractor Task</DialogTitle>
-              <DialogDescription>
+              <DialogDescription id="edit-sub-task-description">
                 Update task details and assignment
               </DialogDescription>
             </DialogHeader>

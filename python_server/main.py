@@ -260,7 +260,7 @@ def row_to_dict(row, cursor_description):
         return None
     return dict(zip([desc[0] for desc in cursor_description], row))
 
-def execute_query(query: str, params: tuple = None, fetch_one: bool = False, fetch_all: bool = True):
+def execute_query(query: str, params: tuple = (), fetch_one: bool = False, fetch_all: bool = True):
     """Execute database query and return results"""
     with DatabaseConnection() as conn:
         with conn.cursor() as cursor:

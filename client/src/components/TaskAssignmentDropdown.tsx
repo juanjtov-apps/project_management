@@ -26,9 +26,8 @@ export function TaskAssignmentDropdown({ task, onAssignmentChange }: TaskAssignm
       });
     },
     onSuccess: () => {
-      // Invalidate relevant queries
+      // Only invalidate tasks query to prevent circular invalidation loops
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       onAssignmentChange?.();
     },
     onError: (error) => {

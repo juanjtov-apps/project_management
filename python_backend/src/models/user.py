@@ -6,11 +6,11 @@ from typing import Optional
 class User(BaseModel):
     """User model"""
     id: str
-    username: str
-    name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     email: str
     role: str
-    password: Optional[str] = None  # Exclude from responses
+    is_active: Optional[bool] = True
     
     class Config:
         from_attributes = True
@@ -18,10 +18,15 @@ class User(BaseModel):
 class UserCreate(BaseModel):
     """User creation model"""
     username: str
-    name: str
+    name: Optional[str] = None
+    first_name: Optional[str] = None  # Support frontend sending first_name
     email: str
     role: str
     password: str
+    
+    def get_name(self) -> str:
+        """Get the name field, preferring name over first_name"""
+        return self.name or self.first_name or self.username
 
 class UserUpdate(BaseModel):
     """User update model"""

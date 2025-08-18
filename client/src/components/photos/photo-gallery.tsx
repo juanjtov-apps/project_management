@@ -144,10 +144,13 @@ export default function PhotoGallery({ photos, onDelete }: PhotoGalleryProps) {
 
       {/* Photo Viewer Dialog */}
       <Dialog open={isViewerOpen} onOpenChange={setIsViewerOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden" aria-describedby="photo-viewer-description">
           <DialogHeader>
             <DialogTitle className="sr-only">Photo Viewer</DialogTitle>
           </DialogHeader>
+          <div id="photo-viewer-description" className="sr-only">
+            Full-size photo viewer with image details and metadata
+          </div>
           {selectedPhoto && (
             <div className="space-y-4">
               <div className="relative">
