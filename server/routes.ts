@@ -290,10 +290,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const users = await storage.getUsers();
       
       // Filter users by company for company admins
-      // Handle both company_id and companyId field formats for compatibility
-      const currentUserCompanyId = currentUser.companyId || currentUser.company_id;
+      // Handle companyId field for filtering
+      const currentUserCompanyId = currentUser.companyId;
       const filteredUsers = isRootAdmin ? users : users.filter(user => {
-        const userCompanyId = user.companyId || user.company_id;
+        const userCompanyId = user.companyId;
         return userCompanyId === currentUserCompanyId || userCompanyId === '0';
       });
       
@@ -1012,9 +1012,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('PRODUCTION: Getting upload URL for object storage');
       
-      // For now, we'll implement a simple upload URL endpoint
-      // This would normally generate a presigned URL for object storage
-      const uploadURL = `${req.protocol}://${req.get('host')}/api/objects/upload-direct`;
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
       
       res.json({ uploadURL });
     } catch (error) {
@@ -1023,17 +1023,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/objects/upload-direct', async (req, res) => {
+  // Photo management endpoints
+  app.post('/api/photos', async (req, res) => {
     try {
-      console.log('PRODUCTION: Direct object upload received');
+      const userId = (req.session as any)?.userId || 'eb5e1d74-6f0f-4bee-8bee-fb0cf8afd3e9';
+      console.log('PRODUCTION: Creating photo record via Node.js backend');
       
-      // For now, return a mock URL
-      // In production, this would handle the actual file upload to object storage
-      const mockObjectURL = `/objects/uploads/${Date.now()}-${Math.random().toString(36).substring(2)}`;
+      const photoData = {
+        ...req.body,
+        userId // Override with session user
+      };
       
-      res.json({ url: mockObjectURL });
+      const photo = await storage.createPhoto(photoData);
+      
+      console.log('✅ NODE.JS SUCCESS: Photo record created:', photo);
+      res.status(201).json(photo);
     } catch (error) {
-      console.error('Direct object upload error:', error);
+      console.error('Photo creation error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/photos', async (req, res) => {
+    try {
+      console.log('PRODUCTION: Fetching photos directly from Node.js backend');
+      
+      const projectId = req.query.projectId as string;
+      const photos = await storage.getPhotos(projectId);
+      
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${photos.length} photos`);
+      res.json(photos);
+    } catch (error) {
+      console.error('Photos fetch error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });

@@ -73,6 +73,8 @@ export function ObjectUploader({
       })
       .on("complete", (result) => {
         onComplete?.(result);
+        // Don't auto-close modal on complete to allow users to upload more files
+        // setShowModal(false);
       })
   );
 

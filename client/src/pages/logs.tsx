@@ -70,6 +70,7 @@ export default function Logs() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [photoTags, setPhotoTags] = useState<string>("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -87,6 +88,7 @@ export default function Logs() {
       queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
       setIsCreateDialogOpen(false);
       setUploadedImages([]);
+      setPhotoTags("");
       form.reset();
       toast({
         title: "Success",
@@ -157,14 +159,49 @@ export default function Logs() {
     }
   };
 
-  const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+  const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
     if (result.successful && result.successful.length > 0) {
-      const newImageUrls = result.successful.map((file) => file.uploadURL as string);
-      setUploadedImages(prev => [...prev, ...newImageUrls]);
-      toast({
-        title: "Success",
-        description: `${result.successful.length} image(s) uploaded successfully`,
-      });
+      try {
+        // Get current project ID from form
+        const currentProjectId = form.watch('projectId');
+        
+        // Parse tags from input (comma-separated)
+        const tags = photoTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+        if (!tags.includes('log-photo')) {
+          tags.push('log-photo');
+        }
+        
+        // Save photo metadata to database for each uploaded file
+        const photoPromises = result.successful.map(async (file) => {
+          const photoData = {
+            projectId: currentProjectId,
+            filename: file.uploadURL as string,
+            originalName: file.name,
+            description: `Photo uploaded for log`,
+            tags: tags
+          };
+          
+          return apiRequest("/api/photos", { method: "POST", body: photoData });
+        });
+        
+        await Promise.all(photoPromises);
+        
+        // Store the upload URLs for the log
+        const newImageUrls = result.successful.map((file) => file.uploadURL as string);
+        setUploadedImages(prev => [...prev, ...newImageUrls]);
+        
+        toast({
+          title: "Success",
+          description: `${result.successful.length} image(s) uploaded and saved successfully`,
+        });
+      } catch (error) {
+        console.error('Error saving photo metadata:', error);
+        toast({
+          title: "Warning",
+          description: "Images uploaded but metadata save failed",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -343,6 +380,23 @@ export default function Logs() {
                 <div className="space-y-3">
                   <FormLabel>Photos (Optional)</FormLabel>
                   <div className="space-y-3">
+                    <div className="space-y-2">
+                      <FormLabel htmlFor="photo-tags" className="text-sm font-medium">
+                        Photo Tags (comma-separated)
+                      </FormLabel>
+                      <Input
+                        id="photo-tags"
+                        type="text"
+                        placeholder="e.g., foundation, concrete, progress"
+                        value={photoTags}
+                        onChange={(e) => setPhotoTags(e.target.value)}
+                        className="w-full"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Add tags to help organize and search photos later
+                      </p>
+                    </div>
+                    
                     <ObjectUploader
                       maxNumberOfFiles={5}
                       maxFileSize={10485760} // 10MB
