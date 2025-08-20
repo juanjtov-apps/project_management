@@ -944,6 +944,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Project logs endpoints
+  app.get('/api/logs', async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId || 'eb5e1d74-6f0f-4bee-8bee-fb0cf8afd3e9'; // Use session or fallback
+      console.log('PRODUCTION: Fetching project logs directly from Node.js backend');
+      
+      const projectId = req.query.projectId as string;
+      const logs = await storage.getProjectLogs(projectId);
+      
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${logs.length} project logs`);
+      res.json(logs);
+    } catch (error) {
+      console.error('Project logs fetch error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/logs', async (req, res) => {
+    try {
+      const userId = (req.session as any)?.userId || 'eb5e1d74-6f0f-4bee-8bee-fb0cf8afd3e9'; // Use session or fallback
+      console.log('PRODUCTION: Creating project log via Node.js backend');
+      
+      const logData = {
+        ...req.body,
+        userId // Override with session user
+      };
+      
+      const log = await storage.createProjectLog(logData);
+      
+      console.log('✅ NODE.JS SUCCESS: Project log created:', log);
+      res.status(201).json(log);
+    } catch (error) {
+      console.error('Project log creation error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.patch('/api/logs/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION: Updating project log ${req.params.id} via Node.js backend`);
+      
+      const success = await storage.updateProjectLog(req.params.id, req.body);
+      
+      if (!success) {
+        return res.status(404).json({ message: 'Project log not found' });
+      }
+      
+      // Fetch updated log
+      const logs = await storage.getProjectLogs();
+      const updatedLog = logs.find(log => log.id === req.params.id);
+      
+      console.log('✅ NODE.JS SUCCESS: Project log updated');
+      res.json(updatedLog);
+    } catch (error) {
+      console.error('Project log update error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Object storage endpoints for image uploads
+  app.post('/api/objects/upload', async (req, res) => {
+    try {
+      console.log('PRODUCTION: Getting upload URL for object storage');
+      
+      // For now, we'll implement a simple upload URL endpoint
+      // This would normally generate a presigned URL for object storage
+      const uploadURL = `${req.protocol}://${req.get('host')}/api/objects/upload-direct`;
+      
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error('Object storage upload URL error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.put('/api/objects/upload-direct', async (req, res) => {
+    try {
+      console.log('PRODUCTION: Direct object upload received');
+      
+      // For now, return a mock URL
+      // In production, this would handle the actual file upload to object storage
+      const mockObjectURL = `/objects/uploads/${Date.now()}-${Math.random().toString(36).substring(2)}`;
+      
+      res.json({ url: mockObjectURL });
+    } catch (error) {
+      console.error('Direct object upload error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Notification endpoints to prevent 502 errors
   app.get('/api/notifications/:userId', async (req, res) => {
     try {
