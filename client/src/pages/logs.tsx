@@ -8,13 +8,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, FileText, AlertTriangle, CheckCircle, Clock, User } from "lucide-react";
+import { Plus, FileText, AlertTriangle, CheckCircle, Clock, User, Camera, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProjectLogSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { ObjectUploader } from "@/components/ObjectUploader";
 import type { ProjectLog, InsertProjectLog, Project } from "@shared/schema";
+import type { UploadResult } from "@uppy/core";
 
 const getTypeColor = (type: string) => {
   switch (type) {
@@ -67,6 +69,7 @@ export default function Logs() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -79,10 +82,11 @@ export default function Logs() {
   });
 
   const createLogMutation = useMutation({
-    mutationFn: (data: InsertProjectLog) => apiRequest("POST", "/api/logs", data),
+    mutationFn: (data: InsertProjectLog & { images?: string[] }) => apiRequest("POST", "/api/logs", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
       setIsCreateDialogOpen(false);
+      setUploadedImages([]);
       form.reset();
       toast({
         title: "Success",
@@ -123,7 +127,40 @@ export default function Logs() {
   });
 
   const onSubmit = (data: InsertProjectLog) => {
-    createLogMutation.mutate(data);
+    createLogMutation.mutate({
+      ...data,
+      images: uploadedImages
+    });
+  };
+
+  const handleGetUploadParameters = async () => {
+    try {
+      const response = await apiRequest("POST", "/api/objects/upload", {});
+      return {
+        method: "PUT" as const,
+        url: response.uploadURL,
+      };
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to get upload URL",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    const newImageUrls = result.successful.map((file) => file.uploadURL as string);
+    setUploadedImages(prev => [...prev, ...newImageUrls]);
+    toast({
+      title: "Success",
+      description: `${result.successful.length} image(s) uploaded successfully`,
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const getProjectName = (projectId: string) => {
@@ -292,6 +329,48 @@ export default function Logs() {
                     )}
                   />
                 </div>
+
+                {/* Image Upload Section */}
+                <div className="space-y-3">
+                  <FormLabel>Photos (Optional)</FormLabel>
+                  <div className="space-y-3">
+                    <ObjectUploader
+                      maxNumberOfFiles={5}
+                      maxFileSize={10485760} // 10MB
+                      onGetUploadParameters={handleGetUploadParameters}
+                      onComplete={handleUploadComplete}
+                      buttonClassName="w-full border-2 border-dashed border-gray-300 hover:border-gray-400 bg-gray-50 hover:bg-gray-100"
+                    >
+                      <div className="flex items-center justify-center gap-2 py-4">
+                        <Camera size={20} />
+                        <span>Upload Photos</span>
+                      </div>
+                    </ObjectUploader>
+                    
+                    {uploadedImages.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2">
+                        {uploadedImages.map((imageUrl, index) => (
+                          <div key={index} className="relative group">
+                            <div className="aspect-square bg-gray-100 rounded-lg border-2 border-gray-200 p-2">
+                              <div className="w-full h-full bg-gray-200 rounded flex items-center justify-center text-gray-500 text-sm">
+                                Image {index + 1}
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="absolute -top-2 -right-2 w-6 h-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => removeImage(index)}
+                            >
+                              <X size={12} />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
                 
                 <div className="flex justify-end space-x-2">
                   <Button
@@ -392,6 +471,27 @@ export default function Logs() {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600 mb-4 whitespace-pre-wrap">{log.content}</p>
+                
+                {/* Display images if they exist */}
+                {log.images && log.images.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Camera size={16} className="text-gray-500" />
+                      <span className="text-sm text-gray-500 font-medium">
+                        {log.images.length} photo{log.images.length > 1 ? 's' : ''} attached
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                      {log.images.map((imageUrl, index) => (
+                        <div key={index} className="aspect-square bg-gray-100 rounded-lg border-2 border-gray-200 p-2">
+                          <div className="w-full h-full bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs">
+                            Photo {index + 1}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center text-sm text-gray-500">

@@ -48,6 +48,11 @@ export interface IStorage {
   getPhotos(projectId?: string): Promise<any[]>;
   createPhoto(photo: any): Promise<any>;
   deletePhoto(id: string): Promise<boolean>;
+
+  // Project logs operations
+  getProjectLogs(projectId?: string): Promise<any[]>;
+  createProjectLog(log: any): Promise<any>;
+  updateProjectLog(id: string, data: any): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -942,6 +947,118 @@ export class DatabaseStorage implements IStorage {
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
       const result = await pool.query('DELETE FROM photos WHERE id = $1', [id]);
+      return (result.rowCount ?? 0) > 0;
+    } finally {
+      await pool.end();
+    }
+  }
+
+  // Project logs operations
+  async getProjectLogs(projectId?: string): Promise<any[]> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      let query = `
+        SELECT id, project_id, user_id, title, content, type, status, images, created_at
+        FROM project_logs
+      `;
+      let params: any[] = [];
+      
+      if (projectId) {
+        query += ' WHERE project_id = $1';
+        params.push(projectId);
+      }
+      
+      query += ' ORDER BY created_at DESC';
+      
+      const result = await pool.query(query, params);
+      
+      return result.rows.map(row => ({
+        id: row.id,
+        projectId: row.project_id,
+        userId: row.user_id,
+        title: row.title,
+        content: row.content,
+        type: row.type,
+        status: row.status,
+        images: row.images || [],
+        createdAt: row.created_at
+      }));
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async createProjectLog(logData: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const { projectId, userId, title, content, type = 'general', status = 'open', images = [] } = logData;
+      
+      if (!projectId || !userId || !title || !content) {
+        throw new Error('ProjectId, userId, title, and content are required');
+      }
+      
+      const result = await pool.query(`
+        INSERT INTO project_logs (project_id, user_id, title, content, type, status, images, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        RETURNING id, project_id, user_id, title, content, type, status, images, created_at
+      `, [projectId, userId, title, content, type, status, images]);
+      
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        projectId: row.project_id,
+        userId: row.user_id,
+        title: row.title,
+        content: row.content,
+        type: row.type,
+        status: row.status,
+        images: row.images || [],
+        createdAt: row.created_at
+      };
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async updateProjectLog(id: string, data: any): Promise<boolean> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const updateFields = [];
+      const params = [];
+      let paramIndex = 1;
+      
+      if (data.title !== undefined) {
+        updateFields.push(`title = $${paramIndex++}`);
+        params.push(data.title);
+      }
+      if (data.content !== undefined) {
+        updateFields.push(`content = $${paramIndex++}`);
+        params.push(data.content);
+      }
+      if (data.type !== undefined) {
+        updateFields.push(`type = $${paramIndex++}`);
+        params.push(data.type);
+      }
+      if (data.status !== undefined) {
+        updateFields.push(`status = $${paramIndex++}`);
+        params.push(data.status);
+      }
+      if (data.images !== undefined) {
+        updateFields.push(`images = $${paramIndex++}`);
+        params.push(data.images);
+      }
+      
+      if (updateFields.length === 0) {
+        return false;
+      }
+      
+      params.push(id);
+      const query = `UPDATE project_logs SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`;
+      
+      const result = await pool.query(query, params);
       return (result.rowCount ?? 0) > 0;
     } finally {
       await pool.end();

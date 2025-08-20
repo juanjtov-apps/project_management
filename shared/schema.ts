@@ -79,6 +79,7 @@ export const projectLogs = pgTable("project_logs", {
   content: text("content").notNull(),
   type: text("type").notNull().default("general"), // general, issue, milestone, safety
   status: text("status").notNull().default("open"), // open, in-progress, resolved, closed
+  images: text("images").array(), // Array of image URLs from object storage
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
