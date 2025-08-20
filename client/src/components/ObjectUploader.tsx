@@ -70,11 +70,20 @@ export function ObjectUploader({
       },
       autoProceed: false,
       allowMultipleUploadBatches: true,
-      debug: false
+      debug: true
     })
       .use(AwsS3, {
         shouldUseMultipart: false,
-        getUploadParameters: onGetUploadParameters,
+        getUploadParameters: async (file) => {
+          console.log('🔧 Uppy requesting upload parameters for:', file.name);
+          const params = await onGetUploadParameters();
+          console.log('📋 Upload parameters received:', {
+            method: params.method,
+            url: params.url?.substring(0, 100) + '...',
+            hasHeaders: !!(params as any).headers
+          });
+          return params;
+        },
       });
 
     // Prevent auto-close by handling all events that might close the modal
