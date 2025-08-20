@@ -162,7 +162,7 @@ export default function Logs() {
   const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
     if (result.successful && result.successful.length > 0) {
       try {
-        // Get current project ID from form
+        // Get current project ID from form (optional for now)
         const currentProjectId = form.watch('projectId');
         
         // Parse tags from input (comma-separated)
@@ -171,31 +171,39 @@ export default function Logs() {
           tags.push('log-photo');
         }
         
-        // Save photo metadata to database for each uploaded file
-        const photoPromises = result.successful.map(async (file) => {
-          const photoData = {
-            projectId: currentProjectId,
-            filename: file.uploadURL as string,
-            originalName: file.name,
-            description: `Photo uploaded for log`,
-            tags: tags
-          };
+        // Only save photo metadata if we have a project selected
+        if (currentProjectId) {
+          const photoPromises = result.successful.map(async (file) => {
+            const photoData = {
+              projectId: currentProjectId,
+              filename: file.uploadURL as string,
+              originalName: file.name,
+              description: `Photo uploaded for log`,
+              tags: tags
+            };
+            
+            return apiRequest("/api/photos", { method: "POST", body: photoData });
+          });
           
-          return apiRequest("/api/photos", { method: "POST", body: photoData });
-        });
+          await Promise.all(photoPromises);
+        }
         
-        await Promise.all(photoPromises);
-        
-        // Store the upload URLs for the log
+        // Store the upload URLs for the log (regardless of project selection)
         const newImageUrls = result.successful.map((file) => file.uploadURL as string);
         setUploadedImages(prev => [...prev, ...newImageUrls]);
         
         toast({
           title: "Success",
-          description: `${result.successful.length} image(s) uploaded and saved successfully`,
+          description: currentProjectId 
+            ? `${result.successful.length} image(s) uploaded and saved successfully`
+            : `${result.successful.length} image(s) uploaded. Select a project to save metadata.`,
         });
       } catch (error) {
         console.error('Error saving photo metadata:', error);
+        // Still store the image URLs even if metadata save fails
+        const newImageUrls = result.successful.map((file) => file.uploadURL as string);
+        setUploadedImages(prev => [...prev, ...newImageUrls]);
+        
         toast({
           title: "Warning",
           description: "Images uploaded but metadata save failed",
