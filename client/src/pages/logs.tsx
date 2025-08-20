@@ -155,6 +155,9 @@ export default function Logs() {
       const uploadParams = {
         method: "PUT" as const,
         url: data.uploadURL,
+        headers: {
+          'Content-Type': 'application/octet-stream'
+        }
       };
       
       console.log('📤 Returning upload parameters for Uppy:', uploadParams.method);
