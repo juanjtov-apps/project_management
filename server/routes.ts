@@ -1016,10 +1016,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const objectStorageService = new ObjectStorageService();
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
       
+      console.log('✅ Generated upload URL successfully:', uploadURL.substring(0, 100) + '...');
       res.json({ uploadURL });
     } catch (error) {
-      console.error('Object storage upload URL error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      console.error('❌ Object storage upload URL error:', error);
+      console.error('Error details:', error.message, error.stack);
+      res.status(500).json({ 
+        message: 'Internal server error', 
+        error: error.message,
+        details: 'Check server logs for more information'
+      });
     }
   });
 
