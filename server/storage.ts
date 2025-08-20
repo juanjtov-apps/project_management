@@ -223,8 +223,7 @@ export class DatabaseStorage implements IStorage {
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
       const result = await pool.query(`
-        SELECT u.id, u.email, u.first_name, u.last_name, u.is_active, u.last_login_at, u.mfa_enabled,
-               u.created_at, u.username, u.name, u.company_id,
+        SELECT u.id, u.email, u.first_name, u.last_name, u.created_at, u.username, u.name, u.company_id,
                COALESCE(u.role, 'User') as role_name,
                CASE 
                   WHEN u.role = 'admin' THEN 'Platform Administration'
@@ -244,13 +243,13 @@ export class DatabaseStorage implements IStorage {
         last_name: row.last_name,
         companyId: row.company_id || '0', // Use actual company_id from database
         role_id: '1',
-        is_active: row.is_active,
+        is_active: true, // Default to active since column doesn't exist
         created_at: row.created_at,
-        last_login: row.last_login_at,
+        last_login: null, // Column doesn't exist, set to null
         role_name: row.role_name,
         company_name: row.company_name,
         username: row.username || row.email,
-        isActive: row.is_active
+        isActive: true // Default to active since column doesn't exist
       }));
     } finally {
       await pool.end();
