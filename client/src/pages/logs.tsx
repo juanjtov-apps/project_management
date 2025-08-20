@@ -82,7 +82,7 @@ export default function Logs() {
   });
 
   const createLogMutation = useMutation({
-    mutationFn: (data: InsertProjectLog & { images?: string[] }) => apiRequest("POST", "/api/logs", data),
+    mutationFn: (data: InsertProjectLog & { images?: string[] }) => apiRequest("/api/logs", { method: "POST", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
       setIsCreateDialogOpen(false);
@@ -104,7 +104,7 @@ export default function Logs() {
 
   const updateLogMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<InsertProjectLog> }) =>
-      apiRequest("PATCH", `/api/logs/${id}`, updates),
+      apiRequest(`/api/logs/${id}`, { method: "PATCH", body: updates }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
       toast({
@@ -135,10 +135,11 @@ export default function Logs() {
 
   const handleGetUploadParameters = async () => {
     try {
-      const response = await apiRequest("POST", "/api/objects/upload", {});
+      const response = await apiRequest("/api/objects/upload", { method: "POST", body: {} });
+      const data = await response.json();
       return {
         method: "PUT" as const,
-        url: response.uploadURL,
+        url: data.uploadURL,
       };
     } catch (error) {
       toast({
@@ -151,12 +152,14 @@ export default function Logs() {
   };
 
   const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    const newImageUrls = result.successful.map((file) => file.uploadURL as string);
-    setUploadedImages(prev => [...prev, ...newImageUrls]);
-    toast({
-      title: "Success",
-      description: `${result.successful.length} image(s) uploaded successfully`,
-    });
+    if (result.successful && result.successful.length > 0) {
+      const newImageUrls = result.successful.map((file) => file.uploadURL as string);
+      setUploadedImages(prev => [...prev, ...newImageUrls]);
+      toast({
+        title: "Success",
+        description: `${result.successful.length} image(s) uploaded successfully`,
+      });
+    }
   };
 
   const removeImage = (index: number) => {
