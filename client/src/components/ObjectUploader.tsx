@@ -124,6 +124,7 @@ export function ObjectUploader({
   return (
     <div>
       <Button 
+        type="button"
         onClick={handleOpenModal} 
         className={buttonClassName}
         data-testid="button-upload-photos"
