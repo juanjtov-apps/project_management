@@ -143,13 +143,24 @@ export default function Logs() {
 
   const handleGetUploadParameters = async () => {
     try {
+      console.log('🔗 Requesting upload URL from server...');
       const response = await apiRequest("/api/objects/upload", { method: "POST", body: {} });
       const data = await response.json();
-      return {
+      
+      console.log('✅ Got upload URL response:', { 
+        url: data.uploadURL?.substring(0, 100) + '...',
+        fullLength: data.uploadURL?.length 
+      });
+      
+      const uploadParams = {
         method: "PUT" as const,
         url: data.uploadURL,
       };
+      
+      console.log('📤 Returning upload parameters for Uppy:', uploadParams.method);
+      return uploadParams;
     } catch (error) {
+      console.error('❌ Failed to get upload parameters:', error);
       toast({
         title: "Error",
         description: "Failed to get upload URL",
@@ -160,6 +171,24 @@ export default function Logs() {
   };
 
   const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    console.log('📸 Photo upload complete! Full result:', result);
+    console.log('📊 Upload summary:', {
+      successful: result.successful?.length || 0,
+      failed: result.failed?.length || 0,
+      total: (result.successful?.length || 0) + (result.failed?.length || 0)
+    });
+    
+    if (result.failed && result.failed.length > 0) {
+      console.error('❌ Failed uploads:', result.failed);
+      result.failed.forEach((failure, index) => {
+        console.error(`Failed upload ${index + 1}:`, {
+          name: failure.name,
+          error: failure.error,
+          response: failure.response
+        });
+      });
+    }
+    
     if (result.successful && result.successful.length > 0) {
       try {
         // Get current project ID from form (optional for now)
