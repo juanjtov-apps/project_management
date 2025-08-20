@@ -80,18 +80,34 @@ export function ObjectUploader({
     // Prevent auto-close by handling all events that might close the modal
     uppyInstance.on('complete', (result) => {
       console.log('Upload complete:', result);
+      console.log('Successful uploads:', result.successful?.length);
+      console.log('Failed uploads:', result.failed?.length);
+      if (result.failed && result.failed.length > 0) {
+        console.error('Failed upload details:', result.failed);
+      }
       onComplete?.(result);
       // Don't auto-close the modal - let user close it manually
     });
 
     uppyInstance.on('error', (error) => {
-      console.error('Upload error:', error);
+      console.error('Uppy general error:', error);
       // Don't auto-close on error either
     });
 
-    uppyInstance.on('upload-error', (file, error) => {
-      console.error('File upload error:', file, error);
+    uppyInstance.on('upload-error', (file, error, response) => {
+      console.error('File upload error for file:', file?.name);
+      console.error('Error details:', error);
+      console.error('Response details:', response);
       // Don't auto-close on individual file errors
+    });
+
+    uppyInstance.on('upload-success', (file, response) => {
+      console.log('File uploaded successfully:', file?.name);
+      console.log('Upload response:', response);
+    });
+
+    uppyInstance.on('upload-progress', (file, progress) => {
+      console.log(`Upload progress for ${file?.name}: ${progress?.percentage || 0}%`);
     });
 
     return uppyInstance;
