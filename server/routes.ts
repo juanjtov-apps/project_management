@@ -965,11 +965,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.session as any)?.userId || 'eb5e1d74-6f0f-4bee-8bee-fb0cf8afd3e9'; // Use session or fallback
       console.log('PRODUCTION: Creating project log via Node.js backend');
+      console.log('Request body received:', req.body);
+      console.log('Session userId:', userId);
       
       const logData = {
         ...req.body,
         userId // Override with session user
       };
+      
+      console.log('Final logData to be saved:', logData);
       
       const log = await storage.createProjectLog(logData);
       
