@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import Uppy from "@uppy/core";
 import { DashboardModal } from "@uppy/react";
@@ -51,7 +51,7 @@ interface ObjectUploaderProps {
  * @param props.children - Content to be rendered inside the button
  */
 export function ObjectUploader({
-  maxNumberOfFiles = 1,
+  maxNumberOfFiles = 5,
   maxFileSize = 10485760, // 10MB default
   onGetUploadParameters,
   onComplete,
@@ -59,36 +59,88 @@ export function ObjectUploader({
   children,
 }: ObjectUploaderProps) {
   const [showModal, setShowModal] = useState(false);
-  const [uppy] = useState(() =>
-    new Uppy({
+  const modalClosedByUser = useRef(false);
+  
+  const [uppy] = useState(() => {
+    const uppyInstance = new Uppy({
       restrictions: {
         maxNumberOfFiles,
         maxFileSize,
+        allowedFileTypes: ['image/*', '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
       },
       autoProceed: false,
+      allowMultipleUploadBatches: true,
+      debug: false
     })
       .use(AwsS3, {
         shouldUseMultipart: false,
         getUploadParameters: onGetUploadParameters,
-      })
-      .on("complete", (result) => {
-        onComplete?.(result);
-        // Don't auto-close modal on complete to allow users to upload more files
-        // setShowModal(false);
-      })
-  );
+      });
+
+    // Prevent auto-close by handling all events that might close the modal
+    uppyInstance.on('complete', (result) => {
+      console.log('Upload complete:', result);
+      onComplete?.(result);
+      // Don't auto-close the modal - let user close it manually
+    });
+
+    uppyInstance.on('error', (error) => {
+      console.error('Upload error:', error);
+      // Don't auto-close on error either
+    });
+
+    uppyInstance.on('upload-error', (file, error) => {
+      console.error('File upload error:', file, error);
+      // Don't auto-close on individual file errors
+    });
+
+    return uppyInstance;
+  });
+
+  // Handle modal open/close state
+  const handleOpenModal = () => {
+    modalClosedByUser.current = false;
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    modalClosedByUser.current = true;
+    setShowModal(false);
+  };
+
+  // Prevent any automatic modal closing unless user explicitly closed it
+  useEffect(() => {
+    if (showModal && !modalClosedByUser.current) {
+      // Keep modal open if it wasn't explicitly closed by user
+      const timer = setTimeout(() => {
+        if (!modalClosedByUser.current) {
+          setShowModal(true);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [showModal]);
 
   return (
     <div>
-      <Button onClick={() => setShowModal(true)} className={buttonClassName}>
+      <Button 
+        onClick={handleOpenModal} 
+        className={buttonClassName}
+        data-testid="button-upload-photos"
+      >
         {children}
       </Button>
 
       <DashboardModal
         uppy={uppy}
         open={showModal}
-        onRequestClose={() => setShowModal(false)}
+        onRequestClose={handleCloseModal}
         proudlyDisplayPoweredByUppy={false}
+        closeModalOnClickOutside={false}
+        disableStatusBar={false}
+        disableInformer={false}
+        showProgressDetails={true}
+        note="Upload multiple photos (up to 5 files, max 10MB each)"
       />
     </div>
   );
