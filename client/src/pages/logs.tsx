@@ -141,9 +141,9 @@ export default function Logs() {
     createLogMutation.mutate(submissionData);
   };
 
-  const handleGetUploadParameters = async () => {
+  const handleGetUploadParameters = async (file?: any) => {
     try {
-      console.log('🔗 Requesting upload URL from server...');
+      console.log('🔗 Requesting upload URL from server for file:', file?.name);
       const response = await apiRequest("/api/objects/upload", { method: "POST", body: {} });
       const data = await response.json();
       
@@ -155,12 +155,10 @@ export default function Logs() {
       const uploadParams = {
         method: "PUT" as const,
         url: data.uploadURL,
-        headers: {
-          'Content-Type': 'application/octet-stream'
-        }
+        headers: {}
       };
       
-      console.log('📤 Returning upload parameters for Uppy:', uploadParams.method);
+      console.log('📤 Returning upload parameters for Uppy:', uploadParams);
       return uploadParams;
     } catch (error) {
       console.error('❌ Failed to get upload parameters:', error);

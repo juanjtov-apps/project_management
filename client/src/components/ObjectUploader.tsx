@@ -11,9 +11,10 @@ import { Button } from "@/components/ui/button";
 interface ObjectUploaderProps {
   maxNumberOfFiles?: number;
   maxFileSize?: number;
-  onGetUploadParameters: () => Promise<{
+  onGetUploadParameters: (file?: any) => Promise<{
     method: "PUT";
     url: string;
+    headers?: Record<string, string>;
   }>;
   onComplete?: (
     result: UploadResult<Record<string, unknown>, Record<string, unknown>>
@@ -75,14 +76,19 @@ export function ObjectUploader({
       .use(AwsS3, {
         shouldUseMultipart: false,
         getUploadParameters: async (file) => {
-          console.log('🔧 Uppy requesting upload parameters for:', file.name);
-          const params = await onGetUploadParameters();
+          console.log('🔧 Uppy requesting upload parameters for:', file.name, 'type:', file.type);
+          const params = await onGetUploadParameters(file);
           console.log('📋 Upload parameters received:', {
             method: params.method,
             url: params.url?.substring(0, 100) + '...',
-            hasHeaders: !!(params as any).headers
+            hasHeaders: !!(params as any).headers,
+            fullUrl: params.url
           });
-          return params;
+          return {
+            method: params.method,
+            url: params.url,
+            headers: (params as any).headers || {}
+          };
         },
       });
 
