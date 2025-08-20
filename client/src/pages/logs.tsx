@@ -127,10 +127,16 @@ export default function Logs() {
   });
 
   const onSubmit = (data: InsertProjectLog) => {
-    createLogMutation.mutate({
+    console.log('Form submission data:', data);
+    console.log('Uploaded images:', uploadedImages);
+    
+    const submissionData = {
       ...data,
       images: uploadedImages
-    });
+    };
+    console.log('Final submission data:', submissionData);
+    
+    createLogMutation.mutate(submissionData);
   };
 
   const handleGetUploadParameters = async () => {
