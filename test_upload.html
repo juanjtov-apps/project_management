@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Upload</title>
+</head>
+<body>
+    <h1>Test Object Storage Upload</h1>
+    <input type="file" id="fileInput" />
+    <button onclick="testUpload()">Test Upload</button>
+    <div id="status"></div>
+
+    <script>
+        async function testUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const statusDiv = document.getElementById('status');
+            
+            if (!fileInput.files[0]) {
+                statusDiv.innerHTML = 'Please select a file first';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            statusDiv.innerHTML = 'Getting upload URL...';
+            
+            try {
+                // Get upload URL
+                const response = await fetch('/api/objects/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to get upload URL: ${response.status}`);
+                }
+                
+                const { uploadURL } = await response.json();
+                statusDiv.innerHTML = 'Got upload URL, uploading file...';
+                console.log('Upload URL:', uploadURL);
+                
+                // Upload file directly to the signed URL
+                const uploadResponse = await fetch(uploadURL, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {
+                        'Content-Type': file.type
+                    }
+                });
+                
+                console.log('Upload response status:', uploadResponse.status);
+                console.log('Upload response:', uploadResponse);
+                
+                if (uploadResponse.ok) {
+                    statusDiv.innerHTML = `✅ Upload successful! File: ${file.name}`;
+                } else {
+                    const errorText = await uploadResponse.text();
+                    console.error('Upload failed:', errorText);
+                    statusDiv.innerHTML = `❌ Upload failed: ${uploadResponse.status} - ${errorText}`;
+                }
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                statusDiv.innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
