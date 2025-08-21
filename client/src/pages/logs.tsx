@@ -586,10 +586,18 @@ export default function Logs() {
                       {log.images.map((imageUrl, index) => (
                         <div key={index} className="aspect-square bg-gray-100 rounded-lg border-2 border-gray-200 overflow-hidden">
                           <img 
-                            src={imageUrl} 
+                            src={imageUrl.startsWith('https://storage.googleapis.com') 
+                              ? `/api/objects/image/${imageUrl.split('/').pop()}` 
+                              : imageUrl
+                            } 
                             alt={`Log photo ${index + 1}`}
                             className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => window.open(imageUrl, '_blank')}
+                            onClick={() => {
+                              const displayUrl = imageUrl.startsWith('https://storage.googleapis.com') 
+                                ? `/api/objects/image/${imageUrl.split('/').pop()}` 
+                                : imageUrl;
+                              window.open(displayUrl, '_blank');
+                            }}
                             onError={(e) => {
                               console.error('Failed to load image:', imageUrl);
                               e.currentTarget.style.display = 'none';
