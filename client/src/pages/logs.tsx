@@ -245,23 +245,22 @@ export default function Logs() {
       try {
         // Extract URLs from successful uploads - convert to object storage image URLs
         const uploadedUrls = result.successful.map((file: any) => {
-          // Extract the object path from the upload URL and convert to our image serving format
+          // The uploadURL field contains the presigned URL that was used for upload
           const uploadUrl = file.uploadURL;
           console.log('🔍 Processing upload URL:', uploadUrl);
           
           // The URL format is: https://storage.googleapis.com/bucket/.private/uploads/object-id
-          // We need to extract just the object-id part
-          const urlObj = new URL(uploadUrl);
-          const pathParts = urlObj.pathname.split('/');
-          console.log('🔍 Path parts:', pathParts);
-          
-          // Find the uploads directory and get the next part (the object ID)
-          const uploadsIndex = pathParts.findIndex(part => part === 'uploads');
-          const objectId = uploadsIndex !== -1 && uploadsIndex + 1 < pathParts.length 
-            ? pathParts[uploadsIndex + 1] 
-            : pathParts[pathParts.length - 1];
+          // Extract object ID from the URL path
+          const urlMatch = uploadUrl.match(/\/uploads\/([^?]+)/);
+          const objectId = urlMatch ? urlMatch[1] : null;
           
           console.log('🔍 Extracted object ID:', objectId);
+          
+          if (!objectId) {
+            console.error('❌ Could not extract object ID from URL:', uploadUrl);
+            return uploadUrl; // fallback to original URL
+          }
+          
           return `/api/objects/image/${objectId}`;
         });
         
