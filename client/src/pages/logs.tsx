@@ -169,9 +169,14 @@ export default function Logs() {
   const onEditSubmit = (data: InsertProjectLog) => {
     if (!editingLog) return;
     
+    const updateData = {
+      ...data,
+      images: uploadedImages
+    };
+    
     updateLogMutation.mutate({
       id: editingLog.id,
-      updates: data
+      updates: updateData
     });
   };
 
@@ -185,6 +190,8 @@ export default function Logs() {
       type: log.type as any,
       status: log.status as any,
     });
+    // Initialize with existing images
+    setUploadedImages(log.images || []);
     setIsEditDialogOpen(true);
   };
 
@@ -218,11 +225,24 @@ export default function Logs() {
     }
   };
 
-  const handleUploadComplete = async (uploadedUrls: string[]) => {
-    console.log('📸 Photo upload complete! Uploaded URLs:', uploadedUrls);
+  const handleUploadComplete = async (result: any) => {
+    console.log('📸 Photo upload complete! Upload result:', result);
     
-    if (uploadedUrls && uploadedUrls.length > 0) {
+    if (result?.successful && result.successful.length > 0) {
       try {
+        // Extract URLs from successful uploads - convert to object storage image URLs
+        const uploadedUrls = result.successful.map((file: any) => {
+          // Extract the object path from the upload URL and convert to our image serving format
+          const uploadUrl = file.uploadURL;
+          const urlObj = new URL(uploadUrl);
+          const pathParts = urlObj.pathname.split('/');
+          // Get the object ID from the path (should be the last part)
+          const objectId = pathParts[pathParts.length - 1];
+          return `/api/objects/image/${objectId}`;
+        });
+        
+        console.log('📸 Converted URLs for display:', uploadedUrls);
+        
         // Get current project ID from form (optional for now)
         const currentProjectId = form.watch('projectId');
         
@@ -234,10 +254,10 @@ export default function Logs() {
         
         // Only save photo metadata if we have a project selected
         if (currentProjectId) {
-          const photoPromises = uploadedUrls.map(async (uploadUrl) => {
+          const photoPromises = uploadedUrls.map(async (imageUrl: string) => {
             const photoData = {
               projectId: currentProjectId,
-              filename: uploadUrl,
+              filename: imageUrl,
               originalName: `upload-${Date.now()}.jpg`,
               description: `Photo uploaded for log`,
               tags: tags
@@ -249,7 +269,7 @@ export default function Logs() {
           await Promise.all(photoPromises);
         }
         
-        // Store the upload URLs for the log
+        // Store the image URLs for the log
         setUploadedImages(prev => [...prev, ...uploadedUrls]);
         
         toast({
@@ -259,13 +279,10 @@ export default function Logs() {
             : `${uploadedUrls.length} image(s) uploaded. Select a project to save metadata.`,
         });
       } catch (error) {
-        console.error('Error saving photo metadata:', error);
-        // Still store the image URLs even if metadata save fails
-        setUploadedImages(prev => [...prev, ...uploadedUrls]);
-        
+        console.error('Error processing uploaded images:', error);
         toast({
-          title: "Warning",
-          description: "Images uploaded but metadata save failed",
+          title: "Error",
+          description: "Failed to process uploaded images",
           variant: "destructive",
         });
       }
