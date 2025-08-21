@@ -811,49 +811,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/photos', upload.single('file'), async (req, res) => {
+  // Photo metadata creation endpoint (for object storage photos)
+  app.post('/api/photos', async (req, res) => {
     try {
-      const userId = (req.session as any)?.userId || 'eb5e1d74-6f0f-4bee-8bee-fb0cf8afd3e9'; // Use session or fallback
+      const userId = (req.session as any)?.userId || 'eb5e1d74-6f0f-4bee-8bee-fb0cf8afd3e9';
 
-      console.log('PRODUCTION: File upload received via Node.js backend');
-      console.log('📁 File:', req.file);
+      console.log('PRODUCTION: Creating photo metadata for object storage via Node.js backend');
       console.log('📝 Body:', req.body);
 
-      if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
+      const { filename, originalName, description = "", tags = [], projectId } = req.body;
+      
+      if (!filename || !projectId) {
+        return res.status(400).json({ message: "Filename and Project ID are required" });
       }
 
-      const { projectId, description = "" } = req.body;
-      
-      if (!projectId) {
-        return res.status(400).json({ message: "Project ID is required" });
-      }
-
-      // Generate a unique filename
-      const fileExtension = path.extname(req.file.originalname);
-      const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(2)}${fileExtension}`;
-      const finalPath = path.join(uploadsDir, uniqueFilename);
-      
-      // Move the file to final location
-      fs.renameSync(req.file.path, finalPath);
-
-      // Save photo metadata to database
+      // Save photo metadata to database with object storage path
       const photo = await storage.createPhoto({
         projectId,
         userId,
-        filename: uniqueFilename,
-        originalName: req.file.originalname,
+        filename,
+        originalName: originalName || filename,
         description,
-        tags: []
+        tags: Array.isArray(tags) ? tags : []
       });
 
-      console.log('✅ NODE.JS SUCCESS: Photo uploaded and saved:', photo);
-      res.status(201).json({
-        ...photo,
-        filePath: `/uploads/${uniqueFilename}`
-      });
+      console.log('✅ NODE.JS SUCCESS: Photo metadata created for object storage:', photo);
+      res.status(201).json(photo);
     } catch (error) {
-      console.error('Photo upload error:', error);
+      console.error('Photo metadata creation error:', error);
       res.status(500).json({ message: 'Internal server error', error: error.message });
     }
   });
@@ -872,27 +857,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Photo not found' });
       }
 
-      // Check if this is a photo from object storage (log photos)
-      if (photo.filename.includes('-') && photo.filename.match(/^[a-f0-9-]+\.(jpg|jpeg|png)$/)) {
-        console.log(`📡 Photo from object storage, attempting to serve: ${photo.filename}`);
+      // Try object storage first (professional standard)
+      console.log(`📡 Attempting to serve from object storage: ${photo.filename}`);
+      
+      try {
+        const objectStorageService = new ObjectStorageService();
+        let objectPath;
         
-        // Extract the object ID from the filename (before the extension)
-        const objectId = photo.filename.split('.')[0];
-        const objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${objectId}`;
-        
-        try {
-          const objectStorageService = new ObjectStorageService();
-          const objectFile = await objectStorageService.getObjectFile(objectPath);
-          
-          if (objectFile) {
-            console.log(`✅ Found object storage file, streaming: ${objectPath}`);
-            return objectStorageService.downloadObject(objectFile, res);
-          } else {
-            console.log(`❌ Object storage file not found: ${objectPath}`);
-          }
-        } catch (objectError) {
-          console.error(`❌ Failed to serve from object storage:`, objectError);
+        // Handle both UUID-style filenames (object storage) and timestamp-style filenames (migrated)
+        if (photo.filename.includes('-') && photo.filename.match(/^[a-f0-9-]+\.(jpg|jpeg|png)$/)) {
+          // UUID-style object storage filename
+          const objectId = photo.filename.split('.')[0];
+          objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${objectId}`;
+        } else {
+          // Migrated or new photos stored in object storage
+          objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/photos/${photo.filename}`;
         }
+        
+        const objectFile = await objectStorageService.getObjectFile(objectPath);
+        
+        if (objectFile) {
+          console.log(`✅ Found object storage file, streaming: ${objectPath}`);
+          return objectStorageService.downloadObject(objectFile, res);
+        } else {
+          console.log(`❌ Object storage file not found: ${objectPath}`);
+        }
+      } catch (objectError) {
+        console.error(`❌ Failed to serve from object storage:`, objectError);
       }
 
       // Fall back to local file serving for regular uploads
