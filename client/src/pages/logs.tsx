@@ -218,26 +218,10 @@ export default function Logs() {
     }
   };
 
-  const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    console.log('📸 Photo upload complete! Full result:', result);
-    console.log('📊 Upload summary:', {
-      successful: result.successful?.length || 0,
-      failed: result.failed?.length || 0,
-      total: (result.successful?.length || 0) + (result.failed?.length || 0)
-    });
+  const handleUploadComplete = async (uploadedUrls: string[]) => {
+    console.log('📸 Photo upload complete! Uploaded URLs:', uploadedUrls);
     
-    if (result.failed && result.failed.length > 0) {
-      console.error('❌ Failed uploads:', result.failed);
-      result.failed.forEach((failure, index) => {
-        console.error(`Failed upload ${index + 1}:`, {
-          name: failure.name,
-          error: failure.error,
-          response: failure.response
-        });
-      });
-    }
-    
-    if (result.successful && result.successful.length > 0) {
+    if (uploadedUrls && uploadedUrls.length > 0) {
       try {
         // Get current project ID from form (optional for now)
         const currentProjectId = form.watch('projectId');
@@ -250,11 +234,11 @@ export default function Logs() {
         
         // Only save photo metadata if we have a project selected
         if (currentProjectId) {
-          const photoPromises = result.successful.map(async (file) => {
+          const photoPromises = uploadedUrls.map(async (uploadUrl) => {
             const photoData = {
               projectId: currentProjectId,
-              filename: file.uploadURL as string,
-              originalName: file.name,
+              filename: uploadUrl,
+              originalName: `upload-${Date.now()}.jpg`,
               description: `Photo uploaded for log`,
               tags: tags
             };
@@ -265,21 +249,19 @@ export default function Logs() {
           await Promise.all(photoPromises);
         }
         
-        // Store the upload URLs for the log (regardless of project selection)
-        const newImageUrls = result.successful.map((file) => file.uploadURL as string);
-        setUploadedImages(prev => [...prev, ...newImageUrls]);
+        // Store the upload URLs for the log
+        setUploadedImages(prev => [...prev, ...uploadedUrls]);
         
         toast({
           title: "Success",
           description: currentProjectId 
-            ? `${result.successful.length} image(s) uploaded and saved successfully`
-            : `${result.successful.length} image(s) uploaded. Select a project to save metadata.`,
+            ? `${uploadedUrls.length} image(s) uploaded and saved successfully`
+            : `${uploadedUrls.length} image(s) uploaded. Select a project to save metadata.`,
         });
       } catch (error) {
         console.error('Error saving photo metadata:', error);
         // Still store the image URLs even if metadata save fails
-        const newImageUrls = result.successful.map((file) => file.uploadURL as string);
-        setUploadedImages(prev => [...prev, ...newImageUrls]);
+        setUploadedImages(prev => [...prev, ...uploadedUrls]);
         
         toast({
           title: "Warning",
@@ -680,6 +662,94 @@ export default function Logs() {
                       </FormItem>
                     )}
                   />
+                </div>
+
+                {/* Photo Upload Section for Edit Dialog */}
+                <div className="space-y-4">
+                  <FormLabel>Add More Photos (Optional)</FormLabel>
+                  
+                  {/* Photo Tags Input */}
+                  <div className="space-y-2">
+                    <FormLabel htmlFor="edit-photo-tags" className="text-sm text-gray-600">
+                      Photo Tags (comma-separated)
+                    </FormLabel>
+                    <Input
+                      id="edit-photo-tags"
+                      type="text"
+                      placeholder="e.g., foundation, concrete, progress"
+                      value={photoTags}
+                      onChange={(e) => setPhotoTags(e.target.value)}
+                      className="text-sm"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Add tags to help organize and search photos later
+                    </p>
+                  </div>
+
+                  {/* Drag and Drop Upload Area */}
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors bg-gray-50">
+                    <div className="flex flex-col items-center justify-center">
+                      <Camera size={40} className="text-gray-400 mb-3" />
+                      <h3 className="text-base font-medium text-gray-700 mb-2">Drag and drop photos here</h3>
+                      <p className="text-sm text-gray-500 mb-3">Or click below to browse files</p>
+                      
+                      <ObjectUploader
+                        maxNumberOfFiles={5}
+                        maxFileSize={10485760} // 10MB
+                        onGetUploadParameters={handleGetUploadParameters}
+                        onComplete={handleUploadComplete}
+                        buttonClassName="bg-construction-teal text-white px-4 py-2 rounded-md hover:bg-construction-teal/90 transition-colors font-medium text-sm"
+                      >
+                        📁 Choose Files
+                      </ObjectUploader>
+                      
+                      <p className="text-xs text-gray-400 mt-2">Up to 5 files, max 10MB each</p>
+                    </div>
+                  </div>
+                  
+                  {/* Display newly uploaded images */}
+                  {uploadedImages.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Camera size={16} className="text-gray-500" />
+                        <p className="text-sm font-medium text-gray-700">
+                          {uploadedImages.length} new photo{uploadedImages.length > 1 ? 's' : ''} ready to attach
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {uploadedImages.map((imageUrl, index) => (
+                          <div key={index} className="relative group">
+                            <div className="aspect-square bg-gray-100 rounded-lg border-2 border-gray-200 overflow-hidden">
+                              <img 
+                                src={imageUrl.startsWith('https://storage.googleapis.com') 
+                                  ? `/api/objects/image/${imageUrl.split('/').pop()}` 
+                                  : imageUrl
+                                } 
+                                alt={`Upload preview ${index + 1}`}
+                                className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                                onError={(e) => {
+                                  console.error('Failed to load uploaded image:', imageUrl);
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                              <div className="hidden w-full h-full bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs">
+                                Preview {index + 1}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all shadow-md"
+                              title="Remove photo"
+                            >
+                              <X size={10} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex justify-end space-x-2">

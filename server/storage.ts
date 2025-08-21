@@ -87,7 +87,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const result = await pool.query(`
         SELECT id, email, username, name, first_name, last_name, role, 
-               company_id, is_active, created_at, password
+               company_id, created_at, password
         FROM users 
         WHERE email = $1
       `, [email]);
@@ -106,7 +106,6 @@ export class DatabaseStorage implements IStorage {
         last_name: row.last_name,
         role: row.role,
         company_id: row.company_id,
-        is_active: row.is_active,
         created_at: row.created_at,
         password: row.password // Include password for authentication
       } as any;
