@@ -330,7 +330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Company admin can only create users in their own company
       // Handle both company_id and companyId field formats for compatibility
-      const currentUserCompanyId = currentUser.companyId || currentUser.company_id;
+      const currentUserCompanyId = currentUser.companyId;
       if (!isRootAdmin && req.body.company_id != currentUserCompanyId) {
         console.log('Company admin validation failed:', {
           isRootAdmin,
@@ -398,8 +398,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Company admin can only delete users in their own company
-      const currentUserCompanyId = currentUser.companyId || currentUser.company_id;
-      const targetUserCompanyId = userToDelete.companyId || userToDelete.company_id;
+      const currentUserCompanyId = currentUser.companyId;
+      const targetUserCompanyId = userToDelete.companyId;
       
       if (!isRootAdmin && targetUserCompanyId !== currentUserCompanyId) {
         console.log('Company admin validation failed for deletion:', {
@@ -1018,7 +1018,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('✅ Generated upload URL successfully:', uploadURL.substring(0, 100) + '...');
       res.json({ uploadURL });
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Object storage upload URL error:', error);
       console.error('Error details:', error.message, error.stack);
       res.status(500).json({ 
@@ -1026,6 +1026,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: error.message,
         details: 'Check server logs for more information'
       });
+    }
+  });
+
+  // Object storage image proxy endpoint
+  app.get('/api/objects/image/:imageId', async (req, res) => {
+    try {
+      const imageId = req.params.imageId;
+      console.log('PRODUCTION: Serving object storage image:', imageId);
+      
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+      
+      // Convert the image ID to the object path format
+      const objectFile = await objectStorageService.getObjectEntityFile(`/objects/uploads/${imageId}`);
+      
+      // Stream the image directly to the response
+      await objectStorageService.downloadObject(objectFile, res);
+      
+    } catch (error: any) {
+      console.error('❌ Failed to serve object storage image:', error);
+      res.status(404).json({ message: "Image not found" });
     }
   });
 
@@ -1044,7 +1065,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('✅ NODE.JS SUCCESS: Photo record created:', photo);
       res.status(201).json(photo);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Photo creation error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
