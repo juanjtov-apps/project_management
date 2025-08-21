@@ -857,6 +857,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Direct photo serving route (used by photo gallery)
+  app.get('/api/photos/:id', async (req, res) => {
+    try {
+      console.log(`PRODUCTION: Serving photo directly for ID ${req.params.id}`);
+      
+      // Get photo metadata from database
+      const photos = await storage.getPhotos();
+      const photo = photos.find(p => p.id === req.params.id);
+      
+      if (!photo) {
+        console.log(`❌ Photo not found in database: ${req.params.id}`);
+        return res.status(404).json({ message: 'Photo not found' });
+      }
+
+      // Check if this is a photo from object storage (log photos)
+      if (photo.filename.includes('-') && photo.filename.match(/^[a-f0-9-]+\.(jpg|jpeg|png)$/)) {
+        console.log(`📡 Photo from object storage, attempting to find original URL for: ${photo.filename}`);
+        
+        // Try to find the corresponding object storage URL from project logs
+        const logs = await storage.getProjectLogs();
+        let objectStorageUrl = null;
+        
+        for (const log of logs) {
+          if (log.images && log.images.length > 0) {
+            for (const imageUrl of log.images) {
+              const urlId = imageUrl.split('/uploads/')[1]?.split('?')[0];
+              if (urlId && photo.filename.includes(urlId)) {
+                objectStorageUrl = imageUrl;
+                break;
+              }
+            }
+            if (objectStorageUrl) break;
+          }
+        }
+        
+        if (objectStorageUrl) {
+          console.log(`🔗 Redirecting to object storage URL: ${objectStorageUrl}`);
+          return res.redirect(objectStorageUrl);
+        }
+      }
+
+      // Fall back to local file serving for regular uploads
+      const uploadsDir = path.join(process.cwd(), 'uploads');
+      const filePath = path.join(uploadsDir, photo.filename);
+      
+      if (!fs.existsSync(filePath)) {
+        console.log(`❌ Photo file not found on disk: ${photo.filename}`);
+        return res.status(404).json({ message: 'Photo file not found on disk' });
+      }
+
+      console.log(`📁 Serving photo file: ${filePath}`);
+
+      // Determine content type
+      const ext = path.extname(filePath).toLowerCase();
+      const contentType = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg', 
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp'
+      }[ext] || 'image/jpeg';
+
+      res.contentType(contentType);
+      console.log(`✅ Serving photo file as ${contentType}`);
+      return res.sendFile(filePath);
+      
+    } catch (error: any) {
+      console.error(`Error serving photo ${req.params.id}:`, error);
+      res.status(500).json({ message: 'Failed to serve photo', error: error.message });
+    }
+  });
+
   // Photo file serving route
   app.get('/api/photos/:id/file', async (req, res) => {
     try {
@@ -871,7 +943,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Photo not found' });
       }
 
-      // Check if file exists on disk
+      // Check if this is a photo from object storage (log photos)
+      if (photo.filename.includes('-') && photo.filename.match(/^[a-f0-9-]+\.(jpg|jpeg|png)$/)) {
+        console.log(`📡 Photo from object storage, attempting to find original URL for: ${photo.filename}`);
+        
+        // Try to find the corresponding object storage URL from project logs
+        const logs = await storage.getProjectLogs();
+        let objectStorageUrl = null;
+        
+        for (const log of logs) {
+          if (log.images && log.images.length > 0) {
+            for (const imageUrl of log.images) {
+              const urlId = imageUrl.split('/uploads/')[1]?.split('?')[0];
+              if (urlId && photo.filename.includes(urlId)) {
+                objectStorageUrl = imageUrl;
+                break;
+              }
+            }
+            if (objectStorageUrl) break;
+          }
+        }
+        
+        if (objectStorageUrl) {
+          console.log(`🔗 Redirecting to object storage URL: ${objectStorageUrl}`);
+          return res.redirect(objectStorageUrl);
+        }
+      }
+
+      // Fall back to local file serving for regular uploads
       const uploadsDir = path.join(process.cwd(), 'uploads');
       const filePath = path.join(uploadsDir, photo.filename);
       
