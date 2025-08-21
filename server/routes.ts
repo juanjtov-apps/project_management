@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { ObjectStorageService } from "./objectStorage";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import bcrypt from "bcrypt";
@@ -873,46 +874,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if this is a photo from object storage (log photos)
       if (photo.filename.includes('-') && photo.filename.match(/^[a-f0-9-]+\.(jpg|jpeg|png)$/)) {
-        console.log(`📡 Photo from object storage, attempting to find original URL for: ${photo.filename}`);
+        console.log(`📡 Photo from object storage, attempting to serve: ${photo.filename}`);
         
-        // Try to find the corresponding object storage URL from project logs
-        const logs = await storage.getProjectLogs();
-        let objectStorageUrl = null;
+        // Extract the object ID from the filename (before the extension)
+        const objectId = photo.filename.split('.')[0];
+        const objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${objectId}`;
         
-        for (const log of logs) {
-          if (log.images && log.images.length > 0) {
-            for (const imageUrl of log.images) {
-              const urlId = imageUrl.split('/uploads/')[1]?.split('?')[0];
-              if (urlId && photo.filename.includes(urlId)) {
-                objectStorageUrl = imageUrl;
-                break;
-              }
-            }
-            if (objectStorageUrl) break;
+        try {
+          const objectStorageService = new ObjectStorageService();
+          const objectFile = await objectStorageService.getObjectFile(objectPath);
+          
+          if (objectFile) {
+            console.log(`✅ Found object storage file, streaming: ${objectPath}`);
+            return objectStorageService.downloadObject(objectFile, res);
+          } else {
+            console.log(`❌ Object storage file not found: ${objectPath}`);
           }
-        }
-        
-        if (objectStorageUrl) {
-          console.log(`🔗 Proxying object storage URL: ${objectStorageUrl}`);
-          try {
-            // Fetch the image from object storage and proxy it
-            const response = await fetch(objectStorageUrl);
-            if (!response.ok) {
-              throw new Error(`Failed to fetch from object storage: ${response.status}`);
-            }
-            
-            // Set appropriate headers
-            const contentType = response.headers.get('content-type') || 'image/jpeg';
-            res.set('Content-Type', contentType);
-            res.set('Cache-Control', 'public, max-age=3600');
-            
-            // Stream the response
-            const buffer = await response.arrayBuffer();
-            return res.send(Buffer.from(buffer));
-          } catch (fetchError) {
-            console.error(`❌ Failed to proxy object storage image:`, fetchError);
-            // Fall through to local file handling
-          }
+        } catch (objectError) {
+          console.error(`❌ Failed to serve from object storage:`, objectError);
         }
       }
 
@@ -963,46 +942,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if this is a photo from object storage (log photos)
       if (photo.filename.includes('-') && photo.filename.match(/^[a-f0-9-]+\.(jpg|jpeg|png)$/)) {
-        console.log(`📡 Photo from object storage, attempting to find original URL for: ${photo.filename}`);
+        console.log(`📡 Photo from object storage, attempting to serve: ${photo.filename}`);
         
-        // Try to find the corresponding object storage URL from project logs
-        const logs = await storage.getProjectLogs();
-        let objectStorageUrl = null;
+        // Extract the object ID from the filename (before the extension)
+        const objectId = photo.filename.split('.')[0];
+        const objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${objectId}`;
         
-        for (const log of logs) {
-          if (log.images && log.images.length > 0) {
-            for (const imageUrl of log.images) {
-              const urlId = imageUrl.split('/uploads/')[1]?.split('?')[0];
-              if (urlId && photo.filename.includes(urlId)) {
-                objectStorageUrl = imageUrl;
-                break;
-              }
-            }
-            if (objectStorageUrl) break;
+        try {
+          const objectStorageService = new ObjectStorageService();
+          const objectFile = await objectStorageService.getObjectFile(objectPath);
+          
+          if (objectFile) {
+            console.log(`✅ Found object storage file, streaming: ${objectPath}`);
+            return objectStorageService.downloadObject(objectFile, res);
+          } else {
+            console.log(`❌ Object storage file not found: ${objectPath}`);
           }
-        }
-        
-        if (objectStorageUrl) {
-          console.log(`🔗 Proxying object storage URL: ${objectStorageUrl}`);
-          try {
-            // Fetch the image from object storage and proxy it
-            const response = await fetch(objectStorageUrl);
-            if (!response.ok) {
-              throw new Error(`Failed to fetch from object storage: ${response.status}`);
-            }
-            
-            // Set appropriate headers
-            const contentType = response.headers.get('content-type') || 'image/jpeg';
-            res.set('Content-Type', contentType);
-            res.set('Cache-Control', 'public, max-age=3600');
-            
-            // Stream the response
-            const buffer = await response.arrayBuffer();
-            return res.send(Buffer.from(buffer));
-          } catch (fetchError) {
-            console.error(`❌ Failed to proxy object storage image:`, fetchError);
-            // Fall through to local file handling
-          }
+        } catch (objectError) {
+          console.error(`❌ Failed to serve from object storage:`, objectError);
         }
       }
 
