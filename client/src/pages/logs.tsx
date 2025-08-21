@@ -462,25 +462,19 @@ export default function Logs() {
                     </p>
                   </div>
 
-                  {/* Drag and Drop Upload Area */}
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors bg-gray-50">
-                    <div className="flex flex-col items-center justify-center">
-                      <Camera size={48} className="text-gray-400 mb-4" />
-                      <h3 className="text-lg font-medium text-gray-700 mb-2">Drag and drop a photo here</h3>
-                      <p className="text-sm text-gray-500 mb-4">Or click below to browse files</p>
-                      
-                      <ObjectUploader
-                        maxNumberOfFiles={5}
-                        maxFileSize={10485760} // 10MB
-                        onGetUploadParameters={handleGetUploadParameters}
-                        onComplete={handleUploadComplete}
-                        buttonClassName="bg-construction-teal text-white px-6 py-2 rounded-md hover:bg-construction-teal/90 transition-colors font-medium"
-                      >
-                        📁 Choose File
-                      </ObjectUploader>
-                      
-                      <p className="text-xs text-gray-400 mt-2">Up to 5 files, max 10MB each</p>
-                    </div>
+                  {/* Streamlined Photo Upload */}
+                  <div className="flex items-center gap-4">
+                    <ObjectUploader
+                      maxNumberOfFiles={5}
+                      maxFileSize={10485760} // 10MB
+                      onGetUploadParameters={handleGetUploadParameters}
+                      onComplete={handleUploadComplete}
+                      buttonClassName="bg-construction-teal hover:bg-construction-teal/90 text-white px-4 py-2 rounded-md font-medium inline-flex items-center gap-2"
+                    >
+                      <Camera size={16} />
+                      Add Photos
+                    </ObjectUploader>
+                    <span className="text-sm text-gray-500">Up to 5 files, max 10MB each</span>
                   </div>
                   
                   {/* Display uploaded images in a nice grid */}
@@ -686,25 +680,19 @@ export default function Logs() {
                     </p>
                   </div>
 
-                  {/* Drag and Drop Upload Area */}
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors bg-gray-50">
-                    <div className="flex flex-col items-center justify-center">
-                      <Camera size={40} className="text-gray-400 mb-3" />
-                      <h3 className="text-base font-medium text-gray-700 mb-2">Drag and drop photos here</h3>
-                      <p className="text-sm text-gray-500 mb-3">Or click below to browse files</p>
-                      
-                      <ObjectUploader
-                        maxNumberOfFiles={5}
-                        maxFileSize={10485760} // 10MB
-                        onGetUploadParameters={handleGetUploadParameters}
-                        onComplete={handleUploadComplete}
-                        buttonClassName="bg-construction-teal text-white px-4 py-2 rounded-md hover:bg-construction-teal/90 transition-colors font-medium text-sm"
-                      >
-                        📁 Choose Files
-                      </ObjectUploader>
-                      
-                      <p className="text-xs text-gray-400 mt-2">Up to 5 files, max 10MB each</p>
-                    </div>
+                  {/* Streamlined Photo Upload */}
+                  <div className="flex items-center gap-4">
+                    <ObjectUploader
+                      maxNumberOfFiles={5}
+                      maxFileSize={10485760} // 10MB
+                      onGetUploadParameters={handleGetUploadParameters}
+                      onComplete={handleUploadComplete}
+                      buttonClassName="bg-construction-teal hover:bg-construction-teal/90 text-white px-4 py-2 rounded-md font-medium inline-flex items-center gap-2"
+                    >
+                      <Camera size={16} />
+                      Add More Photos
+                    </ObjectUploader>
+                    <span className="text-sm text-gray-500">Up to 5 files, max 10MB each</span>
                   </div>
                   
                   {/* Display newly uploaded images */}
