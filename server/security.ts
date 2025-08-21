@@ -29,7 +29,7 @@ export function setupSecurityMiddleware(app: express.Express) {
       "style-src 'self' 'unsafe-inline'; " +
       "img-src 'self' data: https:; " +
       "font-src 'self' data:; " +
-      "connect-src 'self'; " +
+      "connect-src 'self' https://storage.googleapis.com; " +
       "object-src 'none'; " +
       "base-uri 'self'; " +
       "form-action 'self'; " +
@@ -42,7 +42,7 @@ export function setupSecurityMiddleware(app: express.Express) {
       "style-src 'self' 'unsafe-inline' https://replit.com https://*.replit.dev; " +
       "img-src 'self' data: https: blob: https://replit.com https://*.replit.dev; " +
       "font-src 'self' data: https://replit.com https://*.replit.dev; " +
-      "connect-src 'self' ws: wss: https://replit.com https://*.replit.dev; " +
+      "connect-src 'self' ws: wss: https://replit.com https://*.replit.dev https://storage.googleapis.com; " +
       "worker-src 'self' blob: data:; " +
       "frame-src 'self' https://replit.com https://*.replit.dev; " +
       "object-src 'none'; " +
