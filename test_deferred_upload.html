@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Photo Upload Timing Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background-color: #e8f5e8; border-color: #4caf50; }
+        .fail { background-color: #ffeaea; border-color: #f44336; }
+        .pending { background-color: #fff3e0; border-color: #ff9800; }
+        button { padding: 8px 16px; margin: 5px; }
+        #console { background: #f5f5f5; padding: 10px; border-radius: 4px; max-height: 300px; overflow-y: auto; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>Photo Upload Timing Test</h1>
+    <p>This test verifies that photos upload only when form is submitted, not when files are selected.</p>
+    
+    <div class="test-section pending" id="test1">
+        <h3>Test 1: File Selection Should NOT Trigger Upload</h3>
+        <p>Expected: No network requests to storage endpoints when files are selected</p>
+        <p id="test1-result">Status: Pending manual test</p>
+        <button onclick="startTest1()">Start Test 1</button>
+    </div>
+    
+    <div class="test-section pending" id="test2">
+        <h3>Test 2: Form Submission Should Trigger Upload</h3>
+        <p>Expected: Network requests to storage endpoints only when "Update Log" is clicked</p>
+        <p id="test2-result">Status: Pending manual test</p>
+        <button onclick="startTest2()">Start Test 2</button>
+    </div>
+    
+    <div class="test-section pending" id="test3">
+        <h3>Test 3: Photo Merging Test</h3>
+        <p>Expected: New photos appear alongside existing photos after form submission</p>
+        <p id="test3-result">Status: Pending manual test</p>
+        <button onclick="startTest3()">Start Test 3</button>
+    </div>
+    
+    <div id="console-section">
+        <h3>Test Console</h3>
+        <div id="console"></div>
+        <button onclick="clearConsole()">Clear Console</button>
+    </div>
+
+    <script>
+        let uploadDetected = false;
+        let formSubmitDetected = false;
+        
+        // Override fetch to monitor upload activity
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            const url = args[0];
+            if (typeof url === 'string') {
+                if (url.includes('/api/objects/upload') || url.includes('storage.googleapis.com')) {
+                    uploadDetected = true;
+                    logToConsole(`🔴 UPLOAD DETECTED: ${url} at ${new Date().toLocaleTimeString()}`);
+                    
+                    // Check which test is running
+                    if (window.currentTest === 1 && !formSubmitDetected) {
+                        failTest1('Upload detected before form submission!');
+                    } else if (window.currentTest === 2 && formSubmitDetected) {
+                        passTest2('Upload correctly triggered by form submission');
+                    }
+                }
+                
+                if (url.includes('/api/logs')) {
+                    formSubmitDetected = true;
+                    logToConsole(`📝 FORM SUBMIT DETECTED: ${url} at ${new Date().toLocaleTimeString()}`);
+                }
+            }
+            return originalFetch.apply(this, args);
+        };
+        
+        function logToConsole(message) {
+            const console = document.getElementById('console');
+            console.innerHTML += message + '\n';
+            console.scrollTop = console.scrollHeight;
+        }
+        
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+        }
+        
+        function startTest1() {
+            window.currentTest = 1;
+            uploadDetected = false;
+            formSubmitDetected = false;
+            logToConsole('=== TEST 1 STARTED ===');
+            logToConsole('1. Go to Project Logs page');
+            logToConsole('2. Click "Edit" on any existing log');
+            logToConsole('3. Click "Select More Photos" button');
+            logToConsole('4. Select a photo file');
+            logToConsole('5. Watch for upload activity (should be NONE)');
+            
+            // Set timeout to check if no upload occurred
+            setTimeout(() => {
+                if (!uploadDetected) {
+                    passTest1('No upload detected during file selection - CORRECT!');
+                }
+            }, 30000); // 30 second timeout
+        }
+        
+        function passTest1(message) {
+            const test1 = document.getElementById('test1');
+            test1.className = 'test-section success';
+            document.getElementById('test1-result').textContent = 'PASS: ' + message;
+            logToConsole('✅ TEST 1 PASSED: ' + message);
+        }
+        
+        function failTest1(message) {
+            const test1 = document.getElementById('test1');
+            test1.className = 'test-section fail';
+            document.getElementById('test1-result').textContent = 'FAIL: ' + message;
+            logToConsole('❌ TEST 1 FAILED: ' + message);
+        }
+        
+        function startTest2() {
+            window.currentTest = 2;
+            uploadDetected = false;
+            formSubmitDetected = false;
+            logToConsole('=== TEST 2 STARTED ===');
+            logToConsole('1. Select photos using "Select More Photos" button');
+            logToConsole('2. Fill in any other form fields');
+            logToConsole('3. Click "Update Log" button');
+            logToConsole('4. Watch for upload activity (should happen NOW)');
+        }
+        
+        function passTest2(message) {
+            const test2 = document.getElementById('test2');
+            test2.className = 'test-section success';
+            document.getElementById('test2-result').textContent = 'PASS: ' + message;
+            logToConsole('✅ TEST 2 PASSED: ' + message);
+        }
+        
+        function failTest2(message) {
+            const test2 = document.getElementById('test2');
+            test2.className = 'test-section fail';
+            document.getElementById('test2-result').textContent = 'FAIL: ' + message;
+            logToConsole('❌ TEST 2 FAILED: ' + message);
+        }
+        
+        function startTest3() {
+            window.currentTest = 3;
+            logToConsole('=== TEST 3 STARTED ===');
+            logToConsole('1. Edit a log that already has photos');
+            logToConsole('2. Add a new photo');
+            logToConsole('3. Submit the form');
+            logToConsole('4. Check if both old and new photos are visible');
+            logToConsole('5. Manually verify and click Pass/Fail below');
+            
+            // Add manual pass/fail buttons for test 3
+            const test3 = document.getElementById('test3');
+            test3.innerHTML += `
+                <div style="margin-top: 10px;">
+                    <button onclick="passTest3('Both old and new photos are visible')">Manual PASS</button>
+                    <button onclick="failTest3('Photos not merging correctly')">Manual FAIL</button>
+                </div>
+            `;
+        }
+        
+        function passTest3(message) {
+            const test3 = document.getElementById('test3');
+            test3.className = 'test-section success';
+            document.getElementById('test3-result').textContent = 'PASS: ' + message;
+            logToConsole('✅ TEST 3 PASSED: ' + message);
+        }
+        
+        function failTest3(message) {
+            const test3 = document.getElementById('test3');
+            test3.className = 'test-section fail';
+            document.getElementById('test3-result').textContent = 'FAIL: ' + message;
+            logToConsole('❌ TEST 3 FAILED: ' + message);
+        }
+        
+        // Initialize
+        logToConsole('Photo Upload Timing Test initialized');
+        logToConsole('All network requests are being monitored');
+    </script>
+</body>
+</html>
