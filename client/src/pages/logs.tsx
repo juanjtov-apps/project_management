@@ -114,6 +114,8 @@ export default function Logs() {
       queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
       setIsEditDialogOpen(false);
       setEditingLog(null);
+      setUploadedImages([]); // Reset uploaded images
+      setPhotoTags(""); // Reset photo tags
       editForm.reset();
       toast({
         title: "Success",
@@ -169,10 +171,20 @@ export default function Logs() {
   const onEditSubmit = (data: InsertProjectLog) => {
     if (!editingLog) return;
     
+    // Merge existing images with newly uploaded images
+    const existingImages = editingLog.images || [];
+    const allImages = [...existingImages, ...uploadedImages];
+    
     const updateData = {
       ...data,
-      images: uploadedImages
+      images: allImages
     };
+    
+    console.log('📸 Updating log with images:', { 
+      existingCount: existingImages.length, 
+      newCount: uploadedImages.length, 
+      totalCount: allImages.length 
+    });
     
     updateLogMutation.mutate({
       id: editingLog.id,
@@ -190,8 +202,9 @@ export default function Logs() {
       type: log.type as any,
       status: log.status as any,
     });
-    // Initialize with existing images
-    setUploadedImages(log.images || []);
+    // Reset new uploads state (existing images shown separately)
+    setUploadedImages([]);
+    setPhotoTags("");
     setIsEditDialogOpen(true);
   };
 
@@ -234,17 +247,28 @@ export default function Logs() {
         const uploadedUrls = result.successful.map((file: any) => {
           // Extract the object path from the upload URL and convert to our image serving format
           const uploadUrl = file.uploadURL;
+          console.log('🔍 Processing upload URL:', uploadUrl);
+          
+          // The URL format is: https://storage.googleapis.com/bucket/.private/uploads/object-id
+          // We need to extract just the object-id part
           const urlObj = new URL(uploadUrl);
           const pathParts = urlObj.pathname.split('/');
-          // Get the object ID from the path (should be the last part)
-          const objectId = pathParts[pathParts.length - 1];
+          console.log('🔍 Path parts:', pathParts);
+          
+          // Find the uploads directory and get the next part (the object ID)
+          const uploadsIndex = pathParts.findIndex(part => part === 'uploads');
+          const objectId = uploadsIndex !== -1 && uploadsIndex + 1 < pathParts.length 
+            ? pathParts[uploadsIndex + 1] 
+            : pathParts[pathParts.length - 1];
+          
+          console.log('🔍 Extracted object ID:', objectId);
           return `/api/objects/image/${objectId}`;
         });
         
         console.log('📸 Converted URLs for display:', uploadedUrls);
         
-        // Get current project ID from form (optional for now)
-        const currentProjectId = form.watch('projectId');
+        // Get current project ID from the appropriate form (create or edit)
+        const currentProjectId = isEditDialogOpen ? editForm.watch('projectId') : form.watch('projectId');
         
         // Parse tags from input (comma-separated)
         const tags = photoTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
@@ -677,7 +701,49 @@ export default function Logs() {
 
                 {/* Photo Upload Section for Edit Dialog */}
                 <div className="space-y-4">
-                  <FormLabel>Add More Photos (Optional)</FormLabel>
+                  <FormLabel>Photos</FormLabel>
+                  
+                  {/* Display existing images from the log being edited */}
+                  {editingLog && editingLog.images && editingLog.images.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Camera size={16} className="text-gray-500" />
+                        <p className="text-sm font-medium text-gray-700">
+                          {editingLog.images.length} existing photo{editingLog.images.length > 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {editingLog.images.map((imageUrl, index) => (
+                          <div key={index} className="aspect-square bg-gray-100 rounded-lg border-2 border-gray-200 overflow-hidden">
+                            <img 
+                              src={imageUrl.startsWith('https://storage.googleapis.com') 
+                                ? `/api/objects/image/${imageUrl.split('/').pop()}` 
+                                : imageUrl
+                              } 
+                              alt={`Existing photo ${index + 1}`}
+                              className="w-full h-full object-cover hover:opacity-90 transition-opacity cursor-pointer"
+                              onClick={() => {
+                                const displayUrl = imageUrl.startsWith('https://storage.googleapis.com') 
+                                  ? `/api/objects/image/${imageUrl.split('/').pop()}` 
+                                  : imageUrl;
+                                window.open(displayUrl, '_blank');
+                              }}
+                              onError={(e) => {
+                                console.error('Failed to load existing image:', imageUrl);
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                              }}
+                            />
+                            <div className="hidden w-full h-full bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs">
+                              Photo {index + 1}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <FormLabel className="text-sm">Add More Photos (Optional)</FormLabel>
                   
                   {/* Photo Tags Input */}
                   <div className="space-y-2">
