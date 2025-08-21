@@ -469,7 +469,7 @@ export default function Logs() {
                       maxFileSize={10485760} // 10MB
                       onGetUploadParameters={handleGetUploadParameters}
                       onComplete={handleUploadComplete}
-                      buttonClassName="bg-construction-teal hover:bg-construction-teal/90 text-white px-4 py-2 rounded-md font-medium inline-flex items-center gap-2"
+                      buttonClassName="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md font-medium inline-flex items-center gap-2 shadow-md"
                     >
                       <Camera size={16} />
                       Add Photos
@@ -687,7 +687,7 @@ export default function Logs() {
                       maxFileSize={10485760} // 10MB
                       onGetUploadParameters={handleGetUploadParameters}
                       onComplete={handleUploadComplete}
-                      buttonClassName="bg-construction-teal hover:bg-construction-teal/90 text-white px-4 py-2 rounded-md font-medium inline-flex items-center gap-2"
+                      buttonClassName="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md font-medium inline-flex items-center gap-2 shadow-md"
                     >
                       <Camera size={16} />
                       Add More Photos
