@@ -76,19 +76,36 @@ export function ObjectUploader({
       .use(AwsS3, {
         shouldUseMultipart: false,
         getUploadParameters: async (file) => {
-          console.log('🔧 Uppy requesting upload parameters for:', file.name, 'type:', file.type);
-          const params = await onGetUploadParameters(file);
-          console.log('📋 Upload parameters received:', {
-            method: params.method,
-            url: params.url?.substring(0, 100) + '...',
-            hasHeaders: !!(params as any).headers,
-            fullUrl: params.url
-          });
-          return {
-            method: params.method,
-            url: params.url,
-            headers: (params as any).headers || {}
-          };
+          console.log('🔧 Uppy requesting upload parameters for:', file.name, 'type:', file.type, 'size:', file.size);
+          try {
+            const params = await onGetUploadParameters(file);
+            console.log('📋 Upload parameters received:', {
+              method: params.method,
+              url: params.url?.substring(0, 100) + '...',
+              hasHeaders: !!(params as any).headers
+            });
+            
+            // Return exactly what Uppy expects for PUT uploads
+            const uploadParams = {
+              method: params.method,
+              url: params.url,
+              headers: {
+                ...(params.headers || {}),
+                'Content-Type': file.type || 'application/octet-stream'
+              }
+            };
+            
+            console.log('📤 Returning to Uppy:', {
+              method: uploadParams.method,
+              url: uploadParams.url.substring(0, 100) + '...',
+              headers: uploadParams.headers
+            });
+            
+            return uploadParams;
+          } catch (error) {
+            console.error('❌ Failed to get upload parameters:', error);
+            throw error;
+          }
         },
       });
 
@@ -110,9 +127,12 @@ export function ObjectUploader({
     });
 
     uppyInstance.on('upload-error', (file, error, response) => {
-      console.error('File upload error for file:', file?.name);
-      console.error('Error details:', error);
-      console.error('Response details:', response);
+      console.error('❌ File upload error for file:', file?.name);
+      console.error('❌ Error details:', error);
+      console.error('❌ Response details:', response);
+      console.error('❌ Error message:', error?.message);
+      console.error('❌ Response status:', response?.status);
+      console.error('❌ Response body:', response?.body);
       // Don't auto-close on individual file errors
     });
 
