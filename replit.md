@@ -107,8 +107,8 @@ Preferred communication style: Simple, everyday language.
 - **Visual Project Health Assessment Tool**: Project health monitoring with health score rings, risk matrices, project health cards, and a comprehensive dashboard, including real-time health score calculation and risk assessment.
 
 ### Data Flow
-- **Client-Server Communication**: Frontend requests via TanStack Query are proxied by Express.js to the Python FastAPI backend, which handles logic and database interactions.
-- **Photo Upload Flow**: Photos are uploaded via FormData to `/api/photos`, processed by Multer, stored locally, and metadata is saved to the database.
+- **Client-Server Communication**: Frontend requests via TanStack Query are handled by the Node.js backend for all operations including authentication, data management, and file operations.
+- **Photo Storage Architecture**: All photos are stored professionally in Google Cloud Storage using Replit's object storage service for reliability, scalability, and automatic backups. Legacy local storage has been migrated to cloud storage.
 
 ## External Dependencies
 
