@@ -584,8 +584,19 @@ export default function Logs() {
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                       {log.images.map((imageUrl, index) => (
-                        <div key={index} className="aspect-square bg-gray-100 rounded-lg border-2 border-gray-200 p-2">
-                          <div className="w-full h-full bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs">
+                        <div key={index} className="aspect-square bg-gray-100 rounded-lg border-2 border-gray-200 overflow-hidden">
+                          <img 
+                            src={imageUrl} 
+                            alt={`Log photo ${index + 1}`}
+                            className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => window.open(imageUrl, '_blank')}
+                            onError={(e) => {
+                              console.error('Failed to load image:', imageUrl);
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                          <div className="hidden w-full h-full bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs">
                             Photo {index + 1}
                           </div>
                         </div>
