@@ -987,6 +987,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/logs/:id', async (req, res) => {
     try {
+      const logId = req.params.id;
+      const userId = (req.session as any)?.userId || 'eb5e1d74-6f0f-4bee-8bee-fb0cf8afd3e9'; // Use session or fallback
+      console.log('PRODUCTION: Updating project log via Node.js backend');
+      console.log('Log ID:', logId);
+      console.log('Update data received:', req.body);
+      console.log('Session userId:', userId);
+      
+      const wasUpdated = await storage.updateProjectLog(logId, req.body);
+      
+      if (!wasUpdated) {
+        console.log('❌ NODE.JS ERROR: Log not found or not updated');
+        return res.status(404).json({ message: 'Log not found' });
+      }
+
+      // Get the updated log to return it
+      const logs = await storage.getProjectLogs();
+      const updatedLog = logs.find(log => log.id === logId);
+      
+      console.log('✅ NODE.JS SUCCESS: Project log updated');
+      res.json(updatedLog || { id: logId, ...req.body });
+    } catch (error) {
+      console.error('Project log update error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.patch('/api/logs/:id', async (req, res) => {
+    try {
       console.log(`PRODUCTION: Updating project log ${req.params.id} via Node.js backend`);
       
       const success = await storage.updateProjectLog(req.params.id, req.body);
