@@ -893,8 +893,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         if (objectStorageUrl) {
-          console.log(`🔗 Redirecting to object storage URL: ${objectStorageUrl}`);
-          return res.redirect(objectStorageUrl);
+          console.log(`🔗 Proxying object storage URL: ${objectStorageUrl}`);
+          try {
+            // Fetch the image from object storage and proxy it
+            const response = await fetch(objectStorageUrl);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch from object storage: ${response.status}`);
+            }
+            
+            // Set appropriate headers
+            const contentType = response.headers.get('content-type') || 'image/jpeg';
+            res.set('Content-Type', contentType);
+            res.set('Cache-Control', 'public, max-age=3600');
+            
+            // Stream the response
+            const buffer = await response.arrayBuffer();
+            return res.send(Buffer.from(buffer));
+          } catch (fetchError) {
+            console.error(`❌ Failed to proxy object storage image:`, fetchError);
+            // Fall through to local file handling
+          }
         }
       }
 
@@ -965,8 +983,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         if (objectStorageUrl) {
-          console.log(`🔗 Redirecting to object storage URL: ${objectStorageUrl}`);
-          return res.redirect(objectStorageUrl);
+          console.log(`🔗 Proxying object storage URL: ${objectStorageUrl}`);
+          try {
+            // Fetch the image from object storage and proxy it
+            const response = await fetch(objectStorageUrl);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch from object storage: ${response.status}`);
+            }
+            
+            // Set appropriate headers
+            const contentType = response.headers.get('content-type') || 'image/jpeg';
+            res.set('Content-Type', contentType);
+            res.set('Cache-Control', 'public, max-age=3600');
+            
+            // Stream the response
+            const buffer = await response.arrayBuffer();
+            return res.send(Buffer.from(buffer));
+          } catch (fetchError) {
+            console.error(`❌ Failed to proxy object storage image:`, fetchError);
+            // Fall through to local file handling
+          }
         }
       }
 
