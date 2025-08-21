@@ -65,12 +65,15 @@ const getTypeIcon = (type: string) => {
 
 export default function Logs() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingLog, setEditingLog] = useState<ProjectLog | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [photoTags, setPhotoTags] = useState<string>("");
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -109,9 +112,19 @@ export default function Logs() {
       apiRequest(`/api/logs/${id}`, { method: "PATCH", body: updates }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
+      setIsEditDialogOpen(false);
+      setEditingLog(null);
+      editForm.reset();
       toast({
         title: "Success",
-        description: "Log status updated successfully",
+        description: "Log updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update log",
+        variant: "destructive",
       });
     },
   });
@@ -121,6 +134,18 @@ export default function Logs() {
     defaultValues: {
       projectId: "",
       userId: "sample-user-id", // In a real app, this would come from auth
+      title: "",
+      content: "",
+      type: "general",
+      status: "open",
+    },
+  });
+
+  const editForm = useForm<InsertProjectLog>({
+    resolver: zodResolver(insertProjectLogSchema),
+    defaultValues: {
+      projectId: "",
+      userId: "sample-user-id",
       title: "",
       content: "",
       type: "general",
@@ -139,6 +164,28 @@ export default function Logs() {
     console.log('Final submission data:', submissionData);
     
     createLogMutation.mutate(submissionData);
+  };
+
+  const onEditSubmit = (data: InsertProjectLog) => {
+    if (!editingLog) return;
+    
+    updateLogMutation.mutate({
+      id: editingLog.id,
+      updates: data
+    });
+  };
+
+  const startEditingLog = (log: ProjectLog) => {
+    setEditingLog(log);
+    editForm.reset({
+      projectId: log.projectId,
+      userId: log.userId,
+      title: log.title,
+      content: log.content,
+      type: log.type as any,
+      status: log.status as any,
+    });
+    setIsEditDialogOpen(true);
   };
 
   const handleGetUploadParameters = async (file?: any) => {
@@ -298,12 +345,9 @@ export default function Logs() {
               Create Log
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]" aria-describedby="create-log-description">
+          <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Create Project Log</DialogTitle>
-              <div id="create-log-description" className="sr-only">
-                Create a new project log entry with title, content, and type.
-              </div>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -414,63 +458,92 @@ export default function Logs() {
                   />
                 </div>
 
-                {/* Image Upload Section */}
-                <div className="space-y-3">
+                {/* Improved Image Upload Section */}
+                <div className="space-y-4">
                   <FormLabel>Photos (Optional)</FormLabel>
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <FormLabel htmlFor="photo-tags" className="text-sm font-medium">
-                        Photo Tags (comma-separated)
-                      </FormLabel>
-                      <Input
-                        id="photo-tags"
-                        type="text"
-                        placeholder="e.g., foundation, concrete, progress"
-                        value={photoTags}
-                        onChange={(e) => setPhotoTags(e.target.value)}
-                        className="w-full"
-                      />
-                      <p className="text-xs text-gray-500">
-                        Add tags to help organize and search photos later
-                      </p>
+                  
+                  {/* Photo Tags Input */}
+                  <div className="space-y-2">
+                    <FormLabel htmlFor="photo-tags" className="text-sm text-gray-600">
+                      Photo Tags (comma-separated)
+                    </FormLabel>
+                    <Input
+                      id="photo-tags"
+                      type="text"
+                      placeholder="e.g., foundation, concrete, progress"
+                      value={photoTags}
+                      onChange={(e) => setPhotoTags(e.target.value)}
+                      className="text-sm"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Add tags to help organize and search photos later
+                    </p>
+                  </div>
+
+                  {/* Drag and Drop Upload Area */}
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors bg-gray-50">
+                    <div className="flex flex-col items-center justify-center">
+                      <Camera size={48} className="text-gray-400 mb-4" />
+                      <h3 className="text-lg font-medium text-gray-700 mb-2">Drag and drop a photo here</h3>
+                      <p className="text-sm text-gray-500 mb-4">Or click below to browse files</p>
+                      
+                      <ObjectUploader
+                        maxNumberOfFiles={5}
+                        maxFileSize={10485760} // 10MB
+                        onGetUploadParameters={handleGetUploadParameters}
+                        onComplete={handleUploadComplete}
+                        buttonClassName="bg-construction-teal text-white px-6 py-2 rounded-md hover:bg-construction-teal/90 transition-colors font-medium"
+                      >
+                        📁 Choose File
+                      </ObjectUploader>
+                      
+                      <p className="text-xs text-gray-400 mt-2">Up to 5 files, max 10MB each</p>
                     </div>
-                    
-                    <ObjectUploader
-                      maxNumberOfFiles={5}
-                      maxFileSize={10485760} // 10MB
-                      onGetUploadParameters={handleGetUploadParameters}
-                      onComplete={handleUploadComplete}
-                      buttonClassName="w-full border-2 border-dashed border-gray-300 hover:border-gray-400 bg-gray-50 hover:bg-gray-100"
-                    >
-                      <div className="flex items-center justify-center gap-2 py-4">
-                        <Camera size={20} />
-                        <span>Upload Photos</span>
+                  </div>
+                  
+                  {/* Display uploaded images in a nice grid */}
+                  {uploadedImages.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Camera size={16} className="text-gray-500" />
+                        <p className="text-sm font-medium text-gray-700">
+                          {uploadedImages.length} photo{uploadedImages.length > 1 ? 's' : ''} ready to attach
+                        </p>
                       </div>
-                    </ObjectUploader>
-                    
-                    {uploadedImages.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                         {uploadedImages.map((imageUrl, index) => (
                           <div key={index} className="relative group">
-                            <div className="aspect-square bg-gray-100 rounded-lg border-2 border-gray-200 p-2">
-                              <div className="w-full h-full bg-gray-200 rounded flex items-center justify-center text-gray-500 text-sm">
-                                Image {index + 1}
+                            <div className="aspect-square bg-gray-100 rounded-lg border-2 border-gray-200 overflow-hidden">
+                              <img 
+                                src={imageUrl.startsWith('https://storage.googleapis.com') 
+                                  ? `/api/objects/image/${imageUrl.split('/').pop()}` 
+                                  : imageUrl
+                                } 
+                                alt={`Upload preview ${index + 1}`}
+                                className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                                onError={(e) => {
+                                  console.error('Failed to load uploaded image:', imageUrl);
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                              <div className="hidden w-full h-full bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs">
+                                Preview {index + 1}
                               </div>
                             </div>
-                            <Button
+                            <button
                               type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="absolute -top-2 -right-2 w-6 h-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={() => removeImage(index)}
+                              className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all shadow-md"
+                              title="Remove photo"
                             >
                               <X size={12} />
-                            </Button>
+                            </button>
                           </div>
                         ))}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex justify-end space-x-2">
@@ -487,6 +560,142 @@ export default function Logs() {
                     className="construction-primary text-white"
                   >
                     {createLogMutation.isPending ? "Creating..." : "Create Log"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Log Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
+            <DialogHeader>
+              <DialogTitle>Edit Project Log</DialogTitle>
+            </DialogHeader>
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+                <FormField
+                  control={editForm.control}
+                  name="projectId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select project" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {projects.map(project => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editForm.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter log title" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editForm.control}
+                  name="content"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Content</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Enter detailed log content..." 
+                          className="min-h-[120px]"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Type</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="general">General</SelectItem>
+                            <SelectItem value="issue">Issue</SelectItem>
+                            <SelectItem value="milestone">Milestone</SelectItem>
+                            <SelectItem value="safety">Safety</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="in-progress">In Progress</SelectItem>
+                            <SelectItem value="resolved">Resolved</SelectItem>
+                            <SelectItem value="closed">Closed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsEditDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={updateLogMutation.isPending}
+                    className="construction-primary text-white"
+                  >
+                    {updateLogMutation.isPending ? "Updating..." : "Update Log"}
                   </Button>
                 </div>
               </form>
@@ -619,46 +828,59 @@ export default function Logs() {
                     <span>Created {new Date(log.createdAt).toLocaleDateString()}</span>
                   </div>
                   
-                  {log.status !== "closed" && (
-                    <div className="flex space-x-2">
-                      {log.status === "open" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateLogMutation.mutate({
-                            id: log.id,
-                            updates: { status: "in-progress" }
-                          })}
-                        >
-                          Start Progress
-                        </Button>
-                      )}
-                      {log.status === "in-progress" && (
-                        <Button
-                          size="sm"
-                          className="bg-green-600 text-white hover:bg-green-700"
-                          onClick={() => updateLogMutation.mutate({
-                            id: log.id,
-                            updates: { status: "resolved" }
-                          })}
-                        >
-                          Mark Resolved
-                        </Button>
-                      )}
-                      {log.status === "resolved" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateLogMutation.mutate({
-                            id: log.id,
-                            updates: { status: "closed" }
-                          })}
-                        >
-                          Close
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex space-x-2">
+                    {/* Edit button - always available */}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => startEditingLog(log)}
+                      className="text-construction-teal border-construction-teal hover:bg-construction-teal/10"
+                    >
+                      Edit
+                    </Button>
+                    
+                    {/* Status action buttons */}
+                    {log.status !== "closed" && (
+                      <>
+                        {log.status === "open" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateLogMutation.mutate({
+                              id: log.id,
+                              updates: { status: "in-progress" }
+                            })}
+                          >
+                            Start Progress
+                          </Button>
+                        )}
+                        {log.status === "in-progress" && (
+                          <Button
+                            size="sm"
+                            className="bg-green-600 text-white hover:bg-green-700"
+                            onClick={() => updateLogMutation.mutate({
+                              id: log.id,
+                              updates: { status: "resolved" }
+                            })}
+                          >
+                            Mark Resolved
+                          </Button>
+                        )}
+                        {log.status === "resolved" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateLogMutation.mutate({
+                              id: log.id,
+                              updates: { status: "closed" }
+                            })}
+                          >
+                            Close
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
