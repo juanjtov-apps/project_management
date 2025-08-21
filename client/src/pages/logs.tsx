@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +14,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProjectLogSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { ObjectUploader } from "@/components/ObjectUploader";
+import { DeferredObjectUploader, type DeferredObjectUploaderRef } from "@/components/DeferredObjectUploader";
 import type { ProjectLog, InsertProjectLog, Project } from "@shared/schema";
-import type { UploadResult } from "@uppy/core";
 
 const getTypeColor = (type: string) => {
   switch (type) {
@@ -74,6 +73,8 @@ export default function Logs() {
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [photoTags, setPhotoTags] = useState<string>("");
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+  const createUploaderRef = useRef<DeferredObjectUploaderRef>(null);
+  const editUploaderRef = useRef<DeferredObjectUploaderRef>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -155,41 +156,69 @@ export default function Logs() {
     },
   });
 
-  const onSubmit = (data: InsertProjectLog) => {
-    console.log('Form submission data:', data);
-    console.log('Uploaded images:', uploadedImages);
+  const onSubmit = async (data: InsertProjectLog) => {
+    console.log('🚀 Form submission started - uploading photos...');
     
-    const submissionData = {
-      ...data,
-      images: uploadedImages
-    };
-    console.log('Final submission data:', submissionData);
-    
-    createLogMutation.mutate(submissionData);
+    try {
+      // Upload selected files first
+      const uploadedUrls = await createUploaderRef.current?.uploadFiles() || [];
+      console.log('✅ Photos uploaded successfully:', uploadedUrls);
+      
+      const submissionData = {
+        ...data,
+        images: [...uploadedImages, ...uploadedUrls] // Combine existing + new
+      };
+      
+      console.log('📝 Creating log with images:', submissionData);
+      createLogMutation.mutate(submissionData);
+    } catch (error) {
+      console.error('❌ Photo upload failed:', error);
+      toast({
+        title: "Upload Error",
+        description: "Failed to upload photos. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const onEditSubmit = (data: InsertProjectLog) => {
+  const onEditSubmit = async (data: InsertProjectLog) => {
     if (!editingLog) return;
     
-    // Merge existing images with newly uploaded images
-    const existingImages = editingLog.images || [];
-    const allImages = [...existingImages, ...uploadedImages];
+    console.log('🚀 Edit form submission started - uploading new photos...');
     
-    const updateData = {
-      ...data,
-      images: allImages
-    };
-    
-    console.log('📸 Updating log with images:', { 
-      existingCount: existingImages.length, 
-      newCount: uploadedImages.length, 
-      totalCount: allImages.length 
-    });
-    
-    updateLogMutation.mutate({
-      id: editingLog.id,
-      updates: updateData
-    });
+    try {
+      // Upload new selected files first
+      const newUploadedUrls = await editUploaderRef.current?.uploadFiles() || [];
+      console.log('✅ New photos uploaded successfully:', newUploadedUrls);
+      
+      // Merge existing images with newly uploaded images
+      const existingImages = editingLog.images || [];
+      const allImages = [...existingImages, ...uploadedImages, ...newUploadedUrls];
+      
+      const updateData = {
+        ...data,
+        images: allImages
+      };
+      
+      console.log('📸 Updating log with images:', { 
+        existingCount: existingImages.length, 
+        previouslyUploadedCount: uploadedImages.length,
+        newCount: newUploadedUrls.length, 
+        totalCount: allImages.length 
+      });
+      
+      updateLogMutation.mutate({
+        id: editingLog.id,
+        updates: updateData
+      });
+    } catch (error) {
+      console.error('❌ Photo upload failed during edit:', error);
+      toast({
+        title: "Upload Error",
+        description: "Failed to upload new photos. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const startEditingLog = (log: ProjectLog) => {
@@ -504,16 +533,16 @@ export default function Logs() {
 
                   {/* Streamlined Photo Upload */}
                   <div className="flex items-center gap-4">
-                    <ObjectUploader
+                    <DeferredObjectUploader
+                      ref={createUploaderRef}
                       maxNumberOfFiles={5}
                       maxFileSize={10485760} // 10MB
                       onGetUploadParameters={handleGetUploadParameters}
-                      onComplete={handleUploadComplete}
                       buttonClassName="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md font-medium inline-flex items-center gap-2 shadow-md"
                     >
                       <Camera size={16} />
-                      Add Photos
-                    </ObjectUploader>
+                      Select Photos
+                    </DeferredObjectUploader>
                     <span className="text-sm text-gray-500">Up to 5 files, max 10MB each</span>
                   </div>
                   
@@ -764,16 +793,16 @@ export default function Logs() {
 
                   {/* Streamlined Photo Upload */}
                   <div className="flex items-center gap-4">
-                    <ObjectUploader
+                    <DeferredObjectUploader
+                      ref={editUploaderRef}
                       maxNumberOfFiles={5}
                       maxFileSize={10485760} // 10MB
                       onGetUploadParameters={handleGetUploadParameters}
-                      onComplete={handleUploadComplete}
                       buttonClassName="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md font-medium inline-flex items-center gap-2 shadow-md"
                     >
                       <Camera size={16} />
-                      Add More Photos
-                    </ObjectUploader>
+                      Select More Photos
+                    </DeferredObjectUploader>
                     <span className="text-sm text-gray-500">Up to 5 files, max 10MB each</span>
                   </div>
                   
