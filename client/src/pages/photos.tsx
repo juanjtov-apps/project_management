@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,14 +8,15 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Camera, Trash2, Download, Search } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Upload, Camera, Trash2, Download, Search, Filter, Tag, FileText, FolderOpen, Grid3X3, List } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPhotoSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import PhotoGallery from "@/components/photos/photo-gallery";
-import type { Photo, Project } from "@shared/schema";
+import { DeferredObjectUploader, type DeferredObjectUploaderRef } from "@/components/DeferredObjectUploader";
+import type { Photo, Project, ProjectLog } from "@shared/schema";
 
 interface PhotoUploadData {
   projectId: string;
@@ -25,11 +26,13 @@ interface PhotoUploadData {
 
 export default function Photos() {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "project" | "tag" | "log">("all");
   const [selectedProject, setSelectedProject] = useState("all");
   const [selectedTag, setSelectedTag] = useState("all");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedLog, setSelectedLog] = useState("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const uploaderRef = useRef<DeferredObjectUploaderRef>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -41,20 +44,115 @@ export default function Photos() {
     queryKey: ["/api/projects"],
   });
 
+  const { data: logs = [] } = useQuery<ProjectLog[]>({
+    queryKey: ["/api/logs"],
+  });
+
+  // Extract all unique tags from photos
+  const uniqueTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    photos.forEach(photo => {
+      if (photo.tags) {
+        photo.tags.forEach(tag => tagSet.add(tag));
+      }
+    });
+    return Array.from(tagSet).sort();
+  }, [photos]);
+
+  // Get logs that have images
+  const logsWithImages = useMemo(() => {
+    return logs.filter(log => log.images && log.images.length > 0);
+  }, [logs]);
+
+  // Filter photos based on current selection
+  const filteredPhotosData = useMemo(() => {
+    let filtered = photos;
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(photo => 
+        photo.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        photo.originalName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        photo.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    // Filter by type
+    switch (filterType) {
+      case "project":
+        if (selectedProject !== "all") {
+          filtered = filtered.filter(photo => photo.projectId === selectedProject);
+        }
+        break;
+      case "tag":
+        if (selectedTag !== "all") {
+          filtered = filtered.filter(photo => photo.tags?.includes(selectedTag));
+        }
+        break;
+      case "log":
+        if (selectedLog !== "all") {
+          // Find photos that are referenced in the selected log
+          const selectedLogData = logs.find(log => log.id === selectedLog);
+          if (selectedLogData && selectedLogData.images) {
+            // Extract photo IDs from log image URLs and match with photos
+            const logImageIds = selectedLogData.images.map(url => {
+              // Extract ID from object storage URL or direct photo reference
+              if (url.includes('/objects/')) {
+                return url.split('/objects/')[1]?.split('?')[0] || '';
+              }
+              return url.split('/').pop()?.split('?')[0] || '';
+            }).filter(Boolean);
+            
+            filtered = filtered.filter(photo => 
+              logImageIds.some(id => 
+                photo.filename.includes(id) || 
+                photo.id === id ||
+                photo.filename.split('.')[0] === id
+              )
+            );
+          }
+        }
+        break;
+    }
+
+    return filtered;
+  }, [photos, searchTerm, filterType, selectedProject, selectedTag, selectedLog, logs]);
+
+  // Handle upload parameters
+  const handleGetUploadParameters = async () => {
+    const response = await fetch("/api/objects/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = await response.json();
+    return {
+      method: "PUT" as const,
+      url: data.uploadURL,
+    };
+  };
+
   const uploadPhotoMutation = useMutation({
-    mutationFn: async (data: { formData: FormData }) => {
-      const response = await fetch("/api/photos", {
-        method: "POST",
-        body: data.formData,
+    mutationFn: async (data: { uploadedUrls: string[]; formData: PhotoUploadData }) => {
+      // Create photo entries in database using uploaded URLs
+      const photoPromises = data.uploadedUrls.map(url => {
+        const photoData = {
+          projectId: data.formData.projectId,
+          userId: "sample-user-id", // In a real app, this would come from auth
+          filename: url.split('/').pop() || '',
+          originalName: url.split('/').pop() || '',
+          description: data.formData.description,
+          tags: data.formData.tags,
+        };
+        return apiRequest("/api/photos", { method: "POST", body: photoData });
       });
-      if (!response.ok) throw new Error("Upload failed");
-      return response.json();
+      
+      return Promise.all(photoPromises);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       setIsUploadDialogOpen(false);
-      setSelectedFiles(null);
+      uploaderRef.current?.clearFiles();
       form.reset();
       toast({
         title: "Success",
@@ -64,7 +162,7 @@ export default function Photos() {
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to upload photos",
+        description: "Failed to save photos",
         variant: "destructive",
       });
     },
@@ -97,17 +195,8 @@ export default function Photos() {
     },
   });
 
-  const onSubmit = (data: PhotoUploadData) => {
-    if (!selectedFiles || selectedFiles.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please select at least one photo",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!data.projectId || data.projectId.trim() === "") {
+  const onSubmit = async (data: PhotoUploadData) => {
+    if (!data.projectId) {
       toast({
         title: "Error",
         description: "Please select a project before uploading photos",
@@ -116,42 +205,37 @@ export default function Photos() {
       return;
     }
 
-    Array.from(selectedFiles).forEach((file) => {
-      const formData = new FormData();
-      formData.append("file", file);  // Backend expects "file" field name
-      formData.append("projectId", data.projectId);
-      formData.append("userId", "sample-user-id"); // In a real app, this would come from auth
-      formData.append("description", data.description);
-      formData.append("tags", JSON.stringify(data.tags));
+    try {
+      // Upload files using deferred uploader
+      const uploadedUrls = await uploaderRef.current?.uploadFiles() || [];
       
-      console.log("Photo upload - FormData entries:");
-      Array.from(formData.entries()).forEach(([key, value]) => {
-        console.log(`${key}:`, value);
-      });
+      if (uploadedUrls.length === 0) {
+        toast({
+          title: "Error",
+          description: "Please select at least one photo to upload",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      uploadPhotoMutation.mutate({ formData });
-    });
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files && files.length > 0 && !form.watch("projectId")) {
+      // Save photos to database
+      uploadPhotoMutation.mutate({ uploadedUrls, formData: data });
+    } catch (error) {
+      console.error('Photo upload error:', error);
       toast({
-        title: "Project Required",
-        description: "Please select a project first before choosing files",
+        title: "Error",
+        description: "Failed to upload photos",
         variant: "destructive",
       });
-      // Reset the file input
-      event.target.value = '';
-      return;
     }
-    setSelectedFiles(files);
   };
 
-  const handleDragDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const files = event.dataTransfer.files;
-    setSelectedFiles(files);
+  const resetFilters = () => {
+    setFilterType("all");
+    setSelectedProject("all");
+    setSelectedTag("all");
+    setSelectedLog("all");
+    setSearchTerm("");
   };
 
   const getProjectName = (projectId: string) => {
@@ -159,51 +243,17 @@ export default function Photos() {
     return project?.name || "Unknown Project";
   };
 
-  // Extract all unique tags from photos
-  const allTags = Array.from(new Set(
-    photos.flatMap(photo => {
-      try {
-        return typeof photo.tags === 'string' ? JSON.parse(photo.tags) : photo.tags || [];
-      } catch {
-        return [];
-      }
-    })
-  )).sort();
-
-  const filteredPhotos = photos.filter(photo => {
-    const matchesSearch = photo.originalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         photo.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesProject = selectedProject === "all" || photo.projectId === selectedProject;
-    
-    // Tag filtering
-    let matchesTag = true;
-    if (selectedTag !== "all") {
-      try {
-        const photoTags = typeof photo.tags === 'string' ? JSON.parse(photo.tags) : photo.tags || [];
-        matchesTag = photoTags.includes(selectedTag);
-      } catch {
-        matchesTag = false;
-      }
-    }
-    
-    return matchesSearch && matchesProject && matchesTag;
-  });
-
-  const photosByProject = projects.map(project => ({
-    project,
-    photos: filteredPhotos.filter(photo => photo.projectId === project.id)
-  })).filter(group => group.photos.length > 0);
+  const getLogTitle = (logId: string) => {
+    const log = logs.find(l => l.id === logId);
+    return log?.title || "Unknown Log";
+  };
 
   if (photosLoading) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Photos</h1>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="aspect-square bg-gray-200 rounded-lg animate-pulse"></div>
-          ))}
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-brand-text">Loading photos...</p>
         </div>
       </div>
     );
@@ -211,244 +261,356 @@ export default function Photos() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold construction-secondary">Project Photos</h1>
-        <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="construction-primary text-white">
-              <Camera size={16} className="mr-2" />
-              Upload Photos
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]" aria-describedby="upload-photos-description">
-            <DialogHeader>
-              <DialogTitle>Upload Photos</DialogTitle>
-              <div id="upload-photos-description" className="sr-only">
-                Upload photos to a specific project with optional descriptions.
-              </div>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="projectId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-red-600 font-semibold">
-                        Project *
-                        <span className="text-sm font-normal text-gray-500 ml-2">
-                          (Required - You must select a project before uploading)
-                        </span>
-                      </FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-brand-text">Photo Gallery</h1>
+          <p className="text-brand-muted">
+            {filteredPhotosData.length} of {photos.length} photos
+            {filterType !== "all" && ` (filtered by ${filterType})`}
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+            data-testid="button-toggle-view"
+          >
+            {viewMode === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
+            {viewMode === "grid" ? "List" : "Grid"}
+          </Button>
+          
+          <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-teal-600 hover:bg-teal-700" data-testid="button-upload-photos">
+                <Camera size={16} className="mr-2" />
+                Upload Photos
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md" aria-describedby={undefined}>
+              <DialogHeader>
+                <DialogTitle>Upload Photos</DialogTitle>
+              </DialogHeader>
+              
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="projectId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Project *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select project" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {projects.map((project) => (
+                              <SelectItem key={project.id} value={project.id}>
+                                {project.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
                         <FormControl>
-                          <SelectTrigger className={!field.value ? "border-red-300 bg-red-50" : ""}>
-                            <SelectValue placeholder="⚠️ Please select a project first" />
-                          </SelectTrigger>
+                          <Textarea 
+                            placeholder="Describe the photos..." 
+                            {...field} 
+                          />
                         </FormControl>
-                        <SelectContent>
-                          {projects.map(project => (
-                            <SelectItem key={project.id} value={project.id}>
-                              {project.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="space-y-4">
-                  <div
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
-                    onDrop={handleDragDrop}
-                    onDragOver={(e) => e.preventDefault()}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (form.watch("projectId")) {
-                        setTimeout(() => {
-                          fileInputRef.current?.click();
-                        }, 0);
-                      } else {
-                        toast({
-                          title: "Project Required",
-                          description: "Please select a project first before choosing files",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                  >
-                    <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p className="text-lg font-medium text-gray-600">
-                      {selectedFiles && selectedFiles.length > 0
-                        ? `${selectedFiles.length} file(s) selected`
-                        : "Drop photos here or click to browse"
-                      }
-                    </p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      Supports JPG, PNG, GIF up to 10MB
-                    </p>
-                  </div>
-
-                  <div className="text-center">
-                    <Button
-                      type="button"
-                      variant="default"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (form.watch("projectId")) {
-                          fileInputRef.current?.click();
-                        } else {
-                          toast({
-                            title: "Project Required",
-                            description: "Please select a project first before choosing files",
-                            variant: "destructive",
-                          });
-                        }
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 border-2 border-blue-600 font-medium rounded-md shadow-sm"
-                      style={{ minHeight: '40px', fontSize: '14px' }}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="tags"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tags (comma-separated)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="e.g., foundation, concrete, progress"
+                            value={field.value?.join(", ") || ""}
+                            onChange={(e) => {
+                              const tags = e.target.value.split(",").map(tag => tag.trim()).filter(Boolean);
+                              field.onChange(tags);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="space-y-3">
+                    <FormLabel>Select Photos</FormLabel>
+                    <DeferredObjectUploader
+                      ref={uploaderRef}
+                      maxNumberOfFiles={10}
+                      maxFileSize={10485760} // 10MB
+                      onGetUploadParameters={handleGetUploadParameters}
+                      buttonClassName="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-dashed border-gray-300 py-8"
                     >
-                      📁 Choose Files
+                      <div className="flex flex-col items-center gap-2">
+                        <Upload size={24} />
+                        <span>Select Photos</span>
+                        <span className="text-xs">Up to 10 photos, max 10MB each</span>
+                      </div>
+                    </DeferredObjectUploader>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => setIsUploadDialogOpen(false)}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      className="flex-1 bg-teal-600 hover:bg-teal-700"
+                      disabled={uploadPhotoMutation.isPending}
+                      data-testid="button-submit-upload"
+                    >
+                      {uploadPhotoMutation.isPending ? "Uploading..." : "Upload Photos"}
                     </Button>
                   </div>
-
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    className="sr-only"
-                    onChange={handleFileSelect}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Add a description for these photos..." 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="tags"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tags (comma-separated)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="e.g., foundation, electrical, progress"
-                          onChange={(e) => {
-                            const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
-                            field.onChange(tags);
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsUploadDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={uploadPhotoMutation.isPending}
-                    className="construction-primary text-white"
-                  >
-                    {uploadPhotoMutation.isPending ? "Uploading..." : "Upload Photos"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <div className="flex gap-4 flex-wrap">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-          <Input
-            placeholder="Search photos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
-        <Select value={selectedProject} onValueChange={setSelectedProject}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by project" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Projects</SelectItem>
-            {projects.map(project => (
-              <SelectItem key={project.id} value={project.id}>
-                {project.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={selectedTag} onValueChange={setSelectedTag}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by tag" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Tags</SelectItem>
-            {allTags.map(tag => (
-              <SelectItem key={tag} value={tag}>
-                {tag}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
-      <div className="space-y-8">
-        {photosByProject.length === 0 ? (
-          <div className="text-center py-12">
-            <Camera className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-            <p className="text-gray-500 text-lg">No photos found</p>
-            <p className="text-gray-400">Upload photos to get started</p>
+      {/* Filters */}
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Filters</CardTitle>
+            {(filterType !== "all" || searchTerm) && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={resetFilters}
+                data-testid="button-reset-filters"
+              >
+                Clear All
+              </Button>
+            )}
           </div>
-        ) : (
-          photosByProject.map(({ project, photos }) => (
-            <Card key={project.id}>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="construction-secondary">{project.name}</CardTitle>
-                  <Badge variant="outline">{photos.length} photos</Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <PhotoGallery 
-                  photos={photos} 
-                  onDelete={(id) => deletePhotoMutation.mutate(id)}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Search */}
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <Input
+              placeholder="Search photos by description, filename, or tags..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+              data-testid="input-search-photos"
+            />
+          </div>
+
+          {/* Filter Tabs */}
+          <Tabs value={filterType} onValueChange={(value) => setFilterType(value as any)}>
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="all" className="flex items-center gap-2">
+                <FolderOpen size={14} />
+                All
+              </TabsTrigger>
+              <TabsTrigger value="project" className="flex items-center gap-2">
+                <FolderOpen size={14} />
+                Project
+              </TabsTrigger>
+              <TabsTrigger value="tag" className="flex items-center gap-2">
+                <Tag size={14} />
+                Tag
+              </TabsTrigger>
+              <TabsTrigger value="log" className="flex items-center gap-2">
+                <FileText size={14} />
+                Log
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="project" className="mt-4">
+              <Select value={selectedProject} onValueChange={setSelectedProject}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Projects</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </TabsContent>
+            
+            <TabsContent value="tag" className="mt-4">
+              <Select value={selectedTag} onValueChange={setSelectedTag}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a tag" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Tags</SelectItem>
+                  {uniqueTags.map((tag) => (
+                    <SelectItem key={tag} value={tag}>
+                      {tag}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </TabsContent>
+            
+            <TabsContent value="log" className="mt-4">
+              <Select value={selectedLog} onValueChange={setSelectedLog}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a log" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Logs</SelectItem>
+                  {logsWithImages.map((log) => (
+                    <SelectItem key={log.id} value={log.id}>
+                      {log.title} ({log.images?.length || 0} photos)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* Photo Gallery */}
+      {filteredPhotosData.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Camera size={48} className="mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No photos found</h3>
+            <p className="text-gray-500 mb-4">
+              {photos.length === 0 
+                ? "Upload your first photos to get started" 
+                : "Try adjusting your filters or search terms"
+              }
+            </p>
+            {photos.length === 0 && (
+              <Button onClick={() => setIsUploadDialogOpen(true)} className="bg-teal-600 hover:bg-teal-700">
+                <Camera size={16} className="mr-2" />
+                Upload Photos
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className={viewMode === "grid" 
+          ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" 
+          : "space-y-4"
+        }>
+          {filteredPhotosData.map((photo) => (
+            <Card key={photo.id} className={viewMode === "list" ? "flex" : ""}>
+              <div className={viewMode === "list" ? "w-32 h-32 flex-shrink-0" : "aspect-square"}>
+                <img
+                  src={`/api/photos/${photo.id}`}
+                  alt={photo.description || photo.originalName}
+                  className="w-full h-full object-cover rounded-t-lg cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => window.open(`/api/photos/${photo.id}`, '_blank')}
+                  onError={(e) => {
+                    e.currentTarget.src = `data:image/svg+xml;base64,${btoa(`
+                      <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="200" height="200" fill="#f3f4f6"/>
+                        <text x="100" y="100" text-anchor="middle" dy=".3em" fill="#9ca3af">Photo</text>
+                      </svg>
+                    `)}`;
+                  }}
+                  data-testid={`image-photo-${photo.id}`}
                 />
+              </div>
+              
+              <CardContent className={viewMode === "list" ? "flex-1 p-4" : "p-3"}>
+                <div className="space-y-2">
+                  <h3 className="font-medium text-sm truncate" title={photo.originalName}>
+                    {photo.originalName}
+                  </h3>
+                  
+                  {photo.description && (
+                    <p className="text-xs text-gray-600 line-clamp-2">
+                      {photo.description}
+                    </p>
+                  )}
+                  
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{getProjectName(photo.projectId)}</span>
+                    <span>{new Date(photo.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  
+                  {photo.tags && photo.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {photo.tags.slice(0, 3).map((tag, index) => (
+                        <Badge key={index} variant="secondary" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                      {photo.tags.length > 3 && (
+                        <Badge variant="secondary" className="text-xs">
+                          +{photo.tags.length - 3}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(`/api/photos/${photo.id}`, '_blank')}
+                      data-testid={`button-view-photo-${photo.id}`}
+                    >
+                      <Download size={12} className="mr-1" />
+                      View
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (confirm('Are you sure you want to delete this photo?')) {
+                          deletePhotoMutation.mutate(photo.id);
+                        }
+                      }}
+                      className="text-red-600 hover:text-red-700"
+                      data-testid={`button-delete-photo-${photo.id}`}
+                    >
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
