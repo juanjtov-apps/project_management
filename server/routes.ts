@@ -1119,6 +1119,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/logs/:id', async (req, res) => {
+    try {
+      const logId = req.params.id;
+      const userId = (req.session as any)?.userId || 'eb5e1d74-6f0f-4bee-8bee-fb0cf8afd3e9'; // Use session or fallback
+      console.log('PRODUCTION: Deleting project log via Node.js backend');
+      console.log('Log ID:', logId);
+      console.log('Session userId:', userId);
+      
+      const wasDeleted = await storage.deleteProjectLog(logId);
+      
+      if (!wasDeleted) {
+        console.log('❌ Project log not found for deletion:', logId);
+        return res.status(404).json({ message: 'Project log not found' });
+      }
+      
+      console.log('✅ NODE.JS SUCCESS: Project log deleted:', logId);
+      res.status(200).json({ message: 'Project log deleted successfully' });
+    } catch (error) {
+      console.error('Project log deletion error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Object storage endpoints for image uploads
   app.post('/api/objects/upload', async (req, res) => {
     try {

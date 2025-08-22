@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, FileText, AlertTriangle, CheckCircle, Clock, User, Camera, X, Calendar, Filter, Tag, ChevronDown } from "lucide-react";
+import { Plus, FileText, AlertTriangle, CheckCircle, Clock, User, Camera, X, Calendar, Filter, Tag, ChevronDown, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProjectLogSchema } from "@shared/schema";
@@ -159,6 +160,25 @@ export default function Logs() {
       toast({
         title: "Error",
         description: "Failed to update log",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteLogMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/logs/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] }); // Refresh photos too since log photos are deleted
+      toast({
+        title: "Success",
+        description: "Log deleted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete log",
         variant: "destructive",
       });
     },
@@ -1449,6 +1469,38 @@ export default function Logs() {
                     >
                       Edit
                     </Button>
+                    
+                    {/* Delete button with confirmation */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-red-600 border-red-600 hover:bg-red-50"
+                          data-testid={`delete-log-${log.id}`}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Project Log</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{log.title}"? This action cannot be undone and will also remove all associated photos.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deleteLogMutation.mutate(log.id)}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                            disabled={deleteLogMutation.isPending}
+                          >
+                            {deleteLogMutation.isPending ? "Deleting..." : "Delete"}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                     
                     {/* Status action buttons */}
                     {log.status !== "closed" && (
