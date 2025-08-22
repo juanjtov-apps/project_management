@@ -110,10 +110,7 @@ export default function Logs() {
     return tags;
   }, []).sort();
   
-  console.log('🏷️ Existing tags found:', existingTags);
-  console.log('🏷️ Show dropdown state:', showTagDropdown);
-  console.log('🏷️ Tag input value:', tagInput);
-  console.log('🏷️ Tag input value:', tagInput);
+
 
   const createLogMutation = useMutation({
     mutationFn: (data: InsertProjectLog & { images?: string[] }) => apiRequest("/api/logs", { method: "POST", body: data }),
@@ -410,16 +407,12 @@ export default function Logs() {
   };
 
   const filteredLogs = logs.filter(log => {
-    console.log('🔍 Filtering log:', log.id, 'with filters:', { searchTerm, typeFilter, statusFilter, projectFilter, dateFilter });
-    
     const matchesSearch = searchTerm === "" || 
                          log.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          log.content.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = typeFilter === "all" || log.type === typeFilter;
     const matchesStatus = statusFilter === "all" || log.status === statusFilter;
     const matchesProject = projectFilter === "all" || log.projectId === projectFilter;
-    
-    console.log('🔍 Log matches:', { matchesSearch, matchesType, matchesStatus, matchesProject });
     
     // Date filtering logic
     let matchesDate = true;

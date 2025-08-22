@@ -99,16 +99,29 @@ Preferred communication style: Simple, everyday language.
 - **Users**: Role-based access (crew, manager, admin) and comprehensive user management.
 - **Projects**: Status tracking, progress monitoring, and CRUD operations.
 - **Tasks**: Assignment, priority management, inline status updates, and visual indicators.
-- **Project Logs**: Documentation for activities and issues.
-- **Photos**: Image documentation with project association and metadata.
+- **Project Logs**: Documentation for activities and issues with enhanced tag management system.
+- **Photos**: Image documentation with unified photo gallery, comprehensive filtering by tags/projects/logs, and advanced search capabilities.
 - **Schedule Changes**: System for schedule modifications with Timeline and Calendar views.
 - **Notifications**: Real-time notification system.
 - **Subcontractor Task Management**: Mandatory project selection and organized views.
 - **Visual Project Health Assessment Tool**: Project health monitoring with health score rings, risk matrices, project health cards, and a comprehensive dashboard, including real-time health score calculation and risk assessment.
+- **Advanced Tag Management**: Smart tag input system with dropdown suggestions, tag creation capabilities, visual badge management, and keyboard navigation support across Photos and Project Logs.
 
 ### Data Flow
 - **Client-Server Communication**: Frontend requests via TanStack Query are handled by the Node.js backend for all operations including authentication, data management, and file operations.
 - **Photo Storage Architecture**: All photos are stored professionally in Google Cloud Storage using Replit's object storage service for reliability, scalability, and automatic backups. Legacy local storage has been migrated to cloud storage.
+- **Enhanced Filtering System**: Comprehensive photo and log filtering with tag-based search, project filtering, log association, and real-time search capabilities with proper data validation and array handling.
+
+## Recent Enhancements (August 22, 2025)
+
+### Advanced Tag Management & Filtering System
+- **Smart Tag Input**: Enhanced dropdown system showing existing tags with ability to create new ones
+- **Visual Tag Management**: Tag badges with easy removal and keyboard navigation (Enter to add, Backspace to remove)
+- **Comprehensive Photo Filtering**: Multi-layer filtering by search terms, tags, projects, and associated logs
+- **Enhanced Search Logic**: Improved search filtering with proper trim handling and case-insensitive matching
+- **Unified Photo Gallery**: Complete photo management with tag-based organization and filtering
+- **Project Logs Integration**: Advanced tag system integrated into project logs with existing tag suggestions
+- **Production-Ready**: All debugging code removed, optimized for production performance
 
 ## External Dependencies
 
