@@ -1156,7 +1156,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const objectStorageService = new ObjectStorageService();
       
       // Convert the image ID to the object path format
-      const objectFile = await objectStorageService.getObjectEntityFile(`/objects/uploads/${imageId}`);
+      const objectPath = `${objectStorageService.getPrivateObjectDir()}/uploads/${imageId}`;
+      const objectFile = await objectStorageService.getObjectFile(objectPath);
+      
+      if (!objectFile) {
+        console.log('❌ Object storage file not found, returning 404:', objectPath);
+        return res.status(404).json({ message: "Image not found" });
+      }
       
       // Stream the image directly to the response
       await objectStorageService.downloadObject(objectFile, res);
