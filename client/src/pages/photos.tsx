@@ -83,34 +83,58 @@ export default function Photos() {
 
   // Filter photos based on current selection
   const filteredPhotosData = useMemo(() => {
+    console.log('🔍 Starting photo filtering...');
+    console.log('🔍 Total photos:', photos.length);
+    console.log('🔍 Filter type:', filterType);
+    console.log('🔍 Selected tag:', selectedTag);
+    console.log('🔍 Selected project:', selectedProject);
+    console.log('🔍 Selected log:', selectedLog);
+    
     let filtered = photos;
 
-    // Filter by search term
+    // Filter by search term first
     if (searchTerm) {
+      console.log('🔍 Applying search filter for:', searchTerm);
       filtered = filtered.filter(photo => 
         photo.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         photo.originalName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         photo.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
       );
+      console.log('🔍 After search filter:', filtered.length);
     }
 
     // Filter by type
     switch (filterType) {
       case "project":
         if (selectedProject !== "all") {
-          filtered = filtered.filter(photo => photo.projectId === selectedProject);
+          console.log('🔍 Applying project filter for project ID:', selectedProject);
+          filtered = filtered.filter(photo => {
+            const matches = photo.projectId === selectedProject;
+            console.log(`🔍 Photo ${photo.id} (project: ${photo.projectId}) matches: ${matches}`);
+            return matches;
+          });
+          console.log('🔍 After project filter:', filtered.length);
         }
         break;
       case "tag":
         if (selectedTag !== "all") {
-          filtered = filtered.filter(photo => photo.tags?.includes(selectedTag));
+          console.log('🔍 Applying tag filter for tag:', selectedTag);
+          filtered = filtered.filter(photo => {
+            const hasTags = photo.tags && Array.isArray(photo.tags);
+            const hasSelectedTag = hasTags && photo.tags.includes(selectedTag);
+            console.log(`🔍 Photo ${photo.id} tags:`, photo.tags, 'has selected tag:', hasSelectedTag);
+            return hasSelectedTag;
+          });
+          console.log('🔍 After tag filter:', filtered.length);
         }
         break;
       case "log":
         if (selectedLog !== "all") {
+          console.log('🔍 Applying log filter for log ID:', selectedLog);
           // Find photos that are referenced in the selected log
           const selectedLogData = logs.find(log => log.id === selectedLog);
           if (selectedLogData && selectedLogData.images) {
+            console.log('🔍 Selected log images:', selectedLogData.images);
             // Extract photo IDs from log image URLs and match with photos
             const logImageIds = selectedLogData.images.map(url => {
               // Extract ID from object storage URL or direct photo reference
@@ -120,18 +144,27 @@ export default function Photos() {
               return url.split('/').pop()?.split('?')[0] || '';
             }).filter(Boolean);
             
-            filtered = filtered.filter(photo => 
-              logImageIds.some(id => 
+            console.log('🔍 Extracted log image IDs:', logImageIds);
+            
+            filtered = filtered.filter(photo => {
+              const matches = logImageIds.some(id => 
                 photo.filename.includes(id) || 
                 photo.id === id ||
                 photo.filename.split('.')[0] === id
-              )
-            );
+              );
+              console.log(`🔍 Photo ${photo.id} (filename: ${photo.filename}) matches log: ${matches}`);
+              return matches;
+            });
+          } else {
+            console.log('🔍 No log found or no images in log');
+            filtered = []; // No photos match if log doesn't exist or has no images
           }
+          console.log('🔍 After log filter:', filtered.length);
         }
         break;
     }
 
+    console.log('🔍 Final filtered photos:', filtered.length);
     return filtered;
   }, [photos, searchTerm, filterType, selectedProject, selectedTag, selectedLog, logs]);
 
@@ -546,6 +579,11 @@ export default function Photos() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Debug Info */}
+      <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded mb-4">
+        Debug: {filteredPhotosData.length} filtered photos | Filter: {filterType} | Selected Tag: {selectedTag} | Total Photos: {photos.length}
+      </div>
 
       {/* Photo Gallery */}
       {filteredPhotosData.length === 0 ? (
