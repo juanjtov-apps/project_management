@@ -1066,6 +1066,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const log = await storage.createProjectLog(logData);
       
+      // CRITICAL FIX: Also create individual photo records for each image uploaded via logs
+      // This ensures that photos appear in both Project Logs and Photos tab
+      if (logData.images && Array.isArray(logData.images) && logData.images.length > 0) {
+        console.log(`📸 Creating ${logData.images.length} photo records for log images...`);
+        
+        for (const imageUrl of logData.images) {
+          try {
+            // Extract filename from object storage URL or use direct filename
+            let filename;
+            if (imageUrl.includes('storage.googleapis.com')) {
+              // Extract object ID from signed URL path
+              const urlPath = new URL(imageUrl).pathname;
+              const pathParts = urlPath.split('/');
+              const objectId = pathParts[pathParts.length - 1];
+              filename = objectId;
+            } else {
+              // Direct filename
+              filename = imageUrl;
+            }
+            
+            const photoData = {
+              projectId: logData.projectId,
+              userId: userId,
+              filename: filename,
+              originalName: filename,
+              description: `Photo from log: ${logData.title}`,
+              tags: ['log-photo']
+            };
+            
+            console.log(`📸 Creating photo record:`, photoData);
+            await storage.createPhoto(photoData);
+            console.log(`✅ Created photo record for log image: ${filename}`);
+          } catch (photoError) {
+            console.error(`❌ Failed to create photo record for image ${imageUrl}:`, photoError);
+            // Continue with other images even if one fails
+          }
+        }
+      }
+      
       console.log('✅ NODE.JS SUCCESS: Project log created:', log);
       res.status(201).json(log);
     } catch (error) {
