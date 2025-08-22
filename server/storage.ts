@@ -1063,69 +1063,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Photo management methods
-  async createPhoto(photoData: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-    try {
-      const { projectId, userId, filename, originalName, description, tags = [] } = photoData;
-      
-      if (!projectId || !userId || !filename || !originalName) {
-        throw new Error('ProjectId, userId, filename, and originalName are required');
-      }
-      
-      const result = await pool.query(`
-        INSERT INTO photos (project_id, user_id, filename, original_name, description, tags, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW())
-        RETURNING id, project_id, user_id, filename, original_name, description, tags, created_at
-      `, [projectId, userId, filename, originalName, description, tags]);
-      
-      const row = result.rows[0];
-      return {
-        id: row.id,
-        projectId: row.project_id,
-        userId: row.user_id,
-        filename: row.filename,
-        originalName: row.original_name,
-        description: row.description,
-        tags: row.tags || [],
-        createdAt: row.created_at
-      };
-    } finally {
-      await pool.end();
-    }
-  }
-
-  async getPhotos(projectId?: string): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-    try {
-      let query = 'SELECT id, project_id, user_id, filename, original_name, description, tags, created_at FROM photos';
-      const params: any[] = [];
-      
-      if (projectId) {
-        query += ' WHERE project_id = $1';
-        params.push(projectId);
-      }
-      
-      query += ' ORDER BY created_at DESC';
-      
-      const result = await pool.query(query, params);
-      
-      return result.rows.map(row => ({
-        id: row.id,
-        projectId: row.project_id,
-        userId: row.user_id,
-        filename: row.filename,
-        originalName: row.original_name,
-        description: row.description,
-        tags: row.tags || [],
-        createdAt: row.created_at
-      }));
-    } finally {
-      await pool.end();
-    }
-  }
+  // Photo management methods - duplicates removed
 }
 
 export const storage = new DatabaseStorage();
