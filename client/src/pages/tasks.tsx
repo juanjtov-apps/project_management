@@ -158,8 +158,8 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
     >
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
-          <div className="flex items-start space-x-2">
-            <div className="flex items-center">
+          <div className="flex items-start space-x-2 flex-1 min-w-0">
+            <div className="flex items-center flex-shrink-0">
               {(() => {
                 const IconComponent = getCategoryIcon(task.category || "general");
                 const iconClass = task.category === "project" ? "text-blue-600" : 
@@ -167,25 +167,27 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
                 return <IconComponent size={16} className={iconClass} />;
               })()}
             </div>
-            <div className="flex-1">
-              <CardTitle className="text-sm font-medium construction-secondary">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-sm font-medium construction-secondary truncate">
                 {task.title}
               </CardTitle>
               {project && (
-                <p className="text-xs text-gray-500 mt-1">{project.name}</p>
+                <p className="text-xs text-gray-500 mt-1 truncate">{project.name}</p>
               )}
-              <p className="text-xs text-blue-600 mt-1">Click to edit task</p>
+              <p className="text-xs text-blue-600 mt-1 hidden sm:block">Click to edit task</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <Badge className={getPriorityColor(task.priority)} variant="outline">
-              {task.priority}
-            </Badge>
+          <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
+            <div className="hidden sm:block">
+              <Badge className={getPriorityColor(task.priority)} variant="outline">
+                {task.priority}
+              </Badge>
+            </div>
             <div className="flex gap-1">
               <Button 
                 variant="ghost" 
                 size="sm"
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 hidden sm:flex"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(task);
@@ -197,7 +199,7 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
               <Button 
                 variant="ghost" 
                 size="sm"
-                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hidden sm:flex"
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsDeleteDialogOpen(true);
@@ -206,6 +208,35 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
               >
                 <Trash2 size={14} />
               </Button>
+              {/* Mobile actions */}
+              <div className="sm:hidden">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <MoreHorizontal size={14} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(task);
+                    }}>
+                      <Edit size={12} className="mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className="text-red-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 size={12} className="mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
         </div>
@@ -247,13 +278,56 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
         )}
         
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Badge className={getStatusColor(task.status)} variant="secondary">
-              {task.status.replace("-", " ")}
-            </Badge>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1">
+              <Badge className={getStatusColor(task.status)} variant="secondary">
+                {task.status.replace("-", " ")}
+              </Badge>
+              <div className="sm:hidden">
+                <Badge className={cn(getPriorityColor(task.priority), "text-xs")} variant="outline">
+                  {task.priority}
+                </Badge>
+              </div>
+            </div>
+            <div className="hidden sm:block">
+              <Select value={task.status} onValueChange={(value) => onStatusChange(task, value)}>
+                <SelectTrigger 
+                  className="h-6 w-auto text-xs border-0 bg-transparent p-1"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="blocked">Blocked</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+            {task.dueDate && (
+              <div className="flex items-center">
+                <Clock size={12} className="mr-1" />
+                Due: {new Date(task.dueDate).toLocaleDateString()}
+              </div>
+            )}
+            
+            {task.assigneeId && (
+              <div className="flex items-center">
+                <UserIcon size={12} className="mr-1" />
+                Assigned
+              </div>
+            )}
+          </div>
+          
+          {/* Mobile status change */}
+          <div className="sm:hidden mt-2">
             <Select value={task.status} onValueChange={(value) => onStatusChange(task, value)}>
               <SelectTrigger 
-                className="h-6 w-auto text-xs border-0 bg-transparent p-1"
+                className="h-8 text-sm w-full"
                 onClick={(e) => e.stopPropagation()}
               >
                 <SelectValue />
@@ -266,20 +340,6 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
               </SelectContent>
             </Select>
           </div>
-          
-          {task.dueDate && (
-            <div className="flex items-center text-xs text-gray-500">
-              <Clock size={12} className="mr-1" />
-              Due: {new Date(task.dueDate).toLocaleDateString()}
-            </div>
-          )}
-          
-          {task.assigneeId && (
-            <div className="flex items-center text-xs text-gray-500">
-              <UserIcon size={12} className="mr-1" />
-              Assigned
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>
@@ -722,7 +782,7 @@ export default function Tasks() {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Task Management Canvas</h1>
+          <h1 className="text-2xl font-bold">Task Management</h1>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -747,7 +807,7 @@ export default function Tasks() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold construction-secondary">Task Management Canvas</h1>
+        <h1 className="text-2xl font-semibold construction-secondary">Task Management</h1>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button className="construction-primary text-white h-9 rounded-lg">

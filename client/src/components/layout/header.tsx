@@ -15,6 +15,15 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
     queryKey: ["/api/notifications", "sample-user-id"],
   });
 
+  // Get companies to display company name instead of "Dashboard"
+  const { data: companies = [] } = useQuery<any[]>({
+    queryKey: ['/api/companies'],
+    retry: false
+  });
+
+  const userCompany = companies.find(c => c.id === user?.companyId);
+  const companyName = userCompany?.name || 'Proesphere';
+
   const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0;
   
   const getUserInitials = (user: User | undefined) => {
@@ -55,7 +64,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
               <Menu className="text-brand-text" size={20} />
             </Button>
             <div className="flex justify-center w-full lg:justify-start">
-              <h2 className="text-xl font-semibold text-brand-blue">Dashboard</h2>
+              <h2 className="text-xl font-semibold text-brand-blue">{companyName}</h2>
             </div>
           </div>
           
