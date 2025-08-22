@@ -857,65 +857,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Photo not found' });
       }
 
-      // Try object storage first (professional standard)
-      console.log(`📡 Attempting to serve from object storage: ${photo.filename}`);
+      // Serve directly from Google Cloud Storage (professional standard)
+      console.log(`☁️ Serving from Google Cloud Storage: ${photo.filename}`);
       
       try {
         const objectStorageService = new ObjectStorageService();
-        let objectPath;
         
-        // Handle both UUID-style filenames (object storage) and timestamp-style filenames (migrated)
-        if (photo.filename.includes('-') && photo.filename.match(/^[a-f0-9-]+\.(jpg|jpeg|png)$/)) {
-          // UUID-style object storage filename - try uploads first, then photos
-          const objectId = photo.filename.split('.')[0];
-          objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${objectId}`;
+        // If filename is already a full object storage path, use it directly
+        let objectPath = photo.filename;
+        
+        // If it's just a filename, construct the object storage path
+        if (!objectPath.startsWith('/replit-objstore-') && !objectPath.startsWith('replit-objstore-')) {
+          // For legacy photos, try both uploads and photos directories
+          const possiblePaths = [
+            `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${photo.filename}`,
+            `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/photos/${photo.filename}`
+          ];
           
-          // If not found in uploads, try photos directory
-          const objectFile = await objectStorageService.getObjectFile(objectPath);
-          if (!objectFile) {
-            objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/photos/${photo.filename}`;
+          for (const path of possiblePaths) {
+            try {
+              const testFile = await objectStorageService.getObjectFile(path);
+              if (testFile) {
+                objectPath = path;
+                break;
+              }
+            } catch (e) {
+              continue;
+            }
           }
-        } else {
-          // Migrated or new photos stored in object storage photos directory
-          objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/photos/${photo.filename}`;
         }
         
         const objectFile = await objectStorageService.getObjectFile(objectPath);
         
         if (objectFile) {
-          console.log(`✅ Found object storage file, streaming: ${objectPath}`);
+          console.log(`✅ Streaming from object storage: ${objectPath}`);
           return objectStorageService.downloadObject(objectFile, res);
         } else {
-          console.log(`❌ Object storage file not found: ${objectPath}`);
+          console.log(`❌ Photo not found in object storage: ${objectPath}`);
+          return res.status(404).json({ message: 'Photo not found in object storage' });
         }
       } catch (objectError) {
         console.error(`❌ Failed to serve from object storage:`, objectError);
+        return res.status(500).json({ message: 'Failed to retrieve photo from cloud storage' });
       }
-
-      // Fall back to local file serving for regular uploads
-      const uploadsDir = path.join(process.cwd(), 'uploads');
-      const filePath = path.join(uploadsDir, photo.filename);
-      
-      if (!fs.existsSync(filePath)) {
-        console.log(`❌ Photo file not found on disk: ${photo.filename}`);
-        return res.status(404).json({ message: 'Photo file not found on disk' });
-      }
-
-      console.log(`📁 Serving photo file: ${filePath}`);
-
-      // Determine content type
-      const ext = path.extname(filePath).toLowerCase();
-      const contentType = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg', 
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp'
-      }[ext] || 'image/jpeg';
-
-      res.contentType(contentType);
-      console.log(`✅ Serving photo file as ${contentType}`);
-      return res.sendFile(filePath);
       
     } catch (error: any) {
       console.error(`Error serving photo ${req.params.id}:`, error);
@@ -1073,31 +1057,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         for (const imageUrl of logData.images) {
           try {
-            // Extract filename from object storage URL or use direct filename
-            let filename;
+            // Store the full object storage path as the filename for direct cloud retrieval
+            let objectStoragePath;
             if (imageUrl.includes('storage.googleapis.com')) {
-              // Extract object ID from signed URL path
+              // Extract the full object path from the signed URL
               const urlPath = new URL(imageUrl).pathname;
-              const pathParts = urlPath.split('/');
-              const objectId = pathParts[pathParts.length - 1];
-              filename = objectId;
+              // Remove the leading slash and use the full path for object storage
+              objectStoragePath = urlPath.startsWith('/') ? urlPath.substring(1) : urlPath;
             } else {
-              // Direct filename
-              filename = imageUrl;
+              // For local filenames, assume they're in the private uploads directory
+              objectStoragePath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${imageUrl}`;
             }
             
             const photoData = {
               projectId: logData.projectId,
               userId: userId,
-              filename: filename,
-              originalName: filename,
+              filename: objectStoragePath, // Store full object storage path
+              originalName: imageUrl, // Keep original URL/filename
               description: `Photo from log: ${logData.title}`,
               tags: ['log-photo']
             };
             
-            console.log(`📸 Creating photo record:`, photoData);
+            console.log(`📸 Creating photo record with object storage path:`, photoData);
             await storage.createPhoto(photoData);
-            console.log(`✅ Created photo record for log image: ${filename}`);
+            console.log(`✅ Created photo record for log image: ${objectStoragePath}`);
           } catch (photoError) {
             console.error(`❌ Failed to create photo record for image ${imageUrl}:`, photoError);
             // Continue with other images even if one fails
