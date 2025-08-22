@@ -431,7 +431,7 @@ export default function Logs() {
               Create Log
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
+          <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Create Project Log</DialogTitle>
             </DialogHeader>
@@ -649,7 +649,7 @@ export default function Logs() {
 
         {/* Edit Log Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
+          <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Edit Project Log</DialogTitle>
             </DialogHeader>

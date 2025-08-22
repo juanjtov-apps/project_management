@@ -1178,15 +1178,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.session as any)?.userId || 'eb5e1d74-6f0f-4bee-8bee-fb0cf8afd3e9';
       console.log('PRODUCTION: Creating photo record via Node.js backend');
+      console.log('📸 Photo request body:', JSON.stringify(req.body, null, 2));
       
       const photoData = {
         ...req.body,
         userId // Override with session user
       };
       
+      console.log('📸 Photo data being sent to storage:', JSON.stringify(photoData, null, 2));
+      
       const photo = await storage.createPhoto(photoData);
       
-      console.log('✅ NODE.JS SUCCESS: Photo record created:', photo);
+      console.log('✅ NODE.JS SUCCESS: Photo record created:', JSON.stringify(photo, null, 2));
       res.status(201).json(photo);
     } catch (error: any) {
       console.error('Photo creation error:', error);
