@@ -49,6 +49,8 @@ export default function Photos() {
 
   const { data: photos = [], isLoading: photosLoading } = useQuery<Photo[]>({
     queryKey: ["/api/photos"],
+    staleTime: 0, // Always refetch to get latest photos and tags
+    cacheTime: 0, // Don't cache to ensure fresh data
   });
 
   const { data: projects = [] } = useQuery<Project[]>({
