@@ -866,26 +866,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // If filename is already a full object storage path, use it directly
         let objectPath = photo.filename;
         
-        // If it's just a filename, construct the object storage path
-        if (!objectPath.startsWith('/replit-objstore-') && !objectPath.startsWith('replit-objstore-')) {
-          // For legacy photos, try both uploads and photos directories
-          const possiblePaths = [
-            `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${photo.filename}`,
-            `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/photos/${photo.filename}`
-          ];
-          
-          for (const path of possiblePaths) {
-            try {
-              const testFile = await objectStorageService.getObjectFile(path);
-              if (testFile) {
-                objectPath = path;
-                break;
-              }
-            } catch (e) {
-              continue;
-            }
-          }
-        }
+        // Always construct the full object storage path from the object ID
+        objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${photo.filename}`;
         
         const objectFile = await objectStorageService.getObjectFile(objectPath);
         
@@ -1057,30 +1039,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         for (const imageUrl of logData.images) {
           try {
-            // Store the full object storage path as the filename for direct cloud retrieval
-            let objectStoragePath;
+            // Extract object ID from the Google Cloud Storage URL
+            let objectId;
             if (imageUrl.includes('storage.googleapis.com')) {
-              // Extract the full object path from the signed URL
+              // Extract object ID from the URL path
               const urlPath = new URL(imageUrl).pathname;
-              // Remove the leading slash and use the full path for object storage
-              objectStoragePath = urlPath.startsWith('/') ? urlPath.substring(1) : urlPath;
+              const pathParts = urlPath.split('/');
+              objectId = pathParts[pathParts.length - 1]; // Get the last part (object ID)
             } else {
-              // For local filenames, assume they're in the private uploads directory
-              objectStoragePath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${imageUrl}`;
+              // Direct filename - use as object ID
+              objectId = imageUrl;
+            }
+            
+            // Check if photo record already exists for this object ID to prevent duplicates
+            const existingPhotos = await storage.getPhotos();
+            const isDuplicate = existingPhotos.some(photo => 
+              photo.filename === objectId || 
+              photo.filename.endsWith(objectId) ||
+              photo.originalName === imageUrl
+            );
+            
+            if (isDuplicate) {
+              console.log(`📸 Skipping duplicate photo record for: ${objectId}`);
+              continue;
             }
             
             const photoData = {
               projectId: logData.projectId,
               userId: userId,
-              filename: objectStoragePath, // Store full object storage path
-              originalName: imageUrl, // Keep original URL/filename
+              filename: objectId, // Store just the object ID for consistent lookup
+              originalName: imageUrl, // Keep original URL/filename  
               description: `Photo from log: ${logData.title}`,
               tags: ['log-photo']
             };
             
-            console.log(`📸 Creating photo record with object storage path:`, photoData);
+            console.log(`📸 Creating photo record with object ID:`, photoData);
             await storage.createPhoto(photoData);
-            console.log(`✅ Created photo record for log image: ${objectStoragePath}`);
+            console.log(`✅ Created photo record for log image: ${objectId}`);
           } catch (photoError) {
             console.error(`❌ Failed to create photo record for image ${imageUrl}:`, photoError);
             // Continue with other images even if one fails
@@ -1118,28 +1113,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('✅ NODE.JS SUCCESS: Project log updated');
       res.json(updatedLog || { id: logId, ...req.body });
-    } catch (error) {
-      console.error('Project log update error:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
-
-  app.patch('/api/logs/:id', async (req, res) => {
-    try {
-      console.log(`PRODUCTION: Updating project log ${req.params.id} via Node.js backend`);
-      
-      const success = await storage.updateProjectLog(req.params.id, req.body);
-      
-      if (!success) {
-        return res.status(404).json({ message: 'Project log not found' });
-      }
-      
-      // Fetch updated log
-      const logs = await storage.getProjectLogs();
-      const updatedLog = logs.find(log => log.id === req.params.id);
-      
-      console.log('✅ NODE.JS SUCCESS: Project log updated');
-      res.json(updatedLog);
     } catch (error) {
       console.error('Project log update error:', error);
       res.status(500).json({ message: 'Internal server error' });
