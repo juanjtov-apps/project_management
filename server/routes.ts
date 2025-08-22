@@ -857,6 +857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Photo not found' });
       }
 
+
       // Serve directly from Google Cloud Storage (professional standard)
       console.log(`☁️ Serving from Google Cloud Storage: ${photo.filename}`);
       
@@ -868,10 +869,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Always construct the full object storage path from the object ID
         objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${photo.filename}`;
+
         
         const objectFile = await objectStorageService.getObjectFile(objectPath);
         
         if (objectFile) {
+
           console.log(`✅ Streaming from object storage: ${objectPath}`);
           return objectStorageService.downloadObject(objectFile, res);
         } else {
@@ -882,6 +885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error(`❌ Failed to serve from object storage:`, objectError);
         return res.status(500).json({ message: 'Failed to retrieve photo from cloud storage' });
       }
+
       
     } catch (error: any) {
       console.error(`Error serving photo ${req.params.id}:`, error);
@@ -1032,6 +1036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const log = await storage.createProjectLog(logData);
       
+
       // CRITICAL FIX: Also create individual photo records for each image uploaded via logs
       // This ensures that photos appear in both Project Logs and Photos tab
       if (logData.images && Array.isArray(logData.images) && logData.images.length > 0) {
@@ -1083,6 +1088,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+
       console.log('✅ NODE.JS SUCCESS: Project log created:', log);
       res.status(201).json(log);
     } catch (error) {
@@ -1119,6 +1125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
   app.delete('/api/logs/:id', async (req, res) => {
     try {
       const logId = req.params.id;
@@ -1138,6 +1145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(200).json({ message: 'Project log deleted successfully' });
     } catch (error) {
       console.error('Project log deletion error:', error);
+
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -1163,6 +1171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
 
   // One-time sync endpoint to migrate existing project log images to photos table
   app.post('/api/sync-log-photos', async (req, res) => {
@@ -1242,6 +1251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
   // Object storage image proxy endpoint
   app.get('/api/objects/image/:imageId', async (req, res) => {
     try {
@@ -1274,18 +1284,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.session as any)?.userId || 'eb5e1d74-6f0f-4bee-8bee-fb0cf8afd3e9';
       console.log('PRODUCTION: Creating photo record via Node.js backend');
+
       console.log('📸 Photo request body:', JSON.stringify(req.body, null, 2));
+
       
       const photoData = {
         ...req.body,
         userId // Override with session user
       };
-      
+
       console.log('📸 Photo data being sent to storage:', JSON.stringify(photoData, null, 2));
       
       const photo = await storage.createPhoto(photoData);
       
       console.log('✅ NODE.JS SUCCESS: Photo record created:', JSON.stringify(photo, null, 2));
+
       res.status(201).json(photo);
     } catch (error: any) {
       console.error('Photo creation error:', error);

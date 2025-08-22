@@ -64,6 +64,7 @@ export default function Photos() {
   // Extract all unique tags from photos
   const uniqueTags = useMemo(() => {
     const tagSet = new Set<string>();
+
     console.log('📸 Processing photos for tags:', photos.length);
     photos.forEach(photo => {
       if (photo.tags) {
@@ -74,6 +75,7 @@ export default function Photos() {
     const allTags = Array.from(tagSet).sort();
     console.log('📸 All unique tags found:', allTags);
     return allTags;
+
   }, [photos]);
 
   // Get logs that have images
@@ -85,6 +87,7 @@ export default function Photos() {
   const filteredPhotosData = useMemo(() => {
     let filtered = photos;
 
+
     // Filter by search term first
     if (searchTerm && searchTerm.trim() !== "") {
       const searchLower = searchTerm.toLowerCase().trim();
@@ -94,6 +97,7 @@ export default function Photos() {
         const matchesTags = photo.tags?.some(tag => tag.toLowerCase().includes(searchLower));
         return matchesDescription || matchesName || matchesTags;
       });
+
     }
 
     // Filter by type
@@ -105,10 +109,12 @@ export default function Photos() {
         break;
       case "tag":
         if (selectedTag !== "all") {
+
           filtered = filtered.filter(photo => {
             const hasTags = photo.tags && Array.isArray(photo.tags);
             return hasTags && photo.tags.includes(selectedTag);
           });
+
         }
         break;
       case "log":
@@ -132,8 +138,10 @@ export default function Photos() {
                 photo.filename.split('.')[0] === id
               )
             );
+
           } else {
             filtered = []; // No photos match if log doesn't exist or has no images
+
           }
         }
         break;
@@ -498,6 +506,7 @@ export default function Photos() {
                   <SelectValue placeholder="Select a tag" />
                 </SelectTrigger>
                 <SelectContent>
+
                   <SelectItem value="all">All Tags ({photos.length} photos)</SelectItem>
                   {uniqueTags.map((tag) => {
                     const photoCount = photos.filter(photo => photo.tags?.includes(tag)).length;
@@ -533,6 +542,7 @@ export default function Photos() {
                   </div>
                 </div>
               )}
+
             </TabsContent>
             
             <TabsContent value="log" className="mt-4">
@@ -553,7 +563,6 @@ export default function Photos() {
           </Tabs>
         </CardContent>
       </Card>
-
 
 
       {/* Photo Gallery */}
@@ -603,10 +612,12 @@ export default function Photos() {
               
               <CardContent className={viewMode === "list" ? "flex-1 p-4" : "p-3"}>
                 <div className="space-y-2">
+
                   <h3 className="font-medium text-sm truncate" title={photo.description || 'Project Photo'}>
                     {photo.description || 'Project Photo'}
                   </h3>
                   
+
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>{getProjectName(photo.projectId)}</span>
                     <span>{new Date(photo.createdAt).toLocaleDateString()}</span>
@@ -615,6 +626,7 @@ export default function Photos() {
                   {photo.tags && photo.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {photo.tags.slice(0, 3).map((tag, index) => (
+
                         <Badge 
                           key={index} 
                           variant={selectedTag === tag ? "default" : "secondary"} 
@@ -625,10 +637,12 @@ export default function Photos() {
                           }}
                           title={`Filter by tag: ${tag}`}
                         >
+
                           {tag}
                         </Badge>
                       ))}
                       {photo.tags.length > 3 && (
+
                         <Badge 
                           variant="secondary" 
                           className="text-xs cursor-pointer hover:bg-gray-200"
@@ -640,6 +654,7 @@ export default function Photos() {
                           }}
                           title={`All tags: ${photo.tags.join(', ')}`}
                         >
+
                           +{photo.tags.length - 3}
                         </Badge>
                       )}

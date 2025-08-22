@@ -993,8 +993,10 @@ export class DatabaseStorage implements IStorage {
     try {
       const { projectId, userId, title, content, type = 'general', status = 'open', images = [] } = logData;
       
+
       if (!projectId || !userId || !title) {
         throw new Error('ProjectId, userId, and title are required');
+
       }
       
       const result = await pool.query(`
@@ -1004,6 +1006,7 @@ export class DatabaseStorage implements IStorage {
       `, [projectId, userId, title, content, type, status, images]);
       
       const row = result.rows[0];
+
       
       // CRITICAL FIX: Also create individual photo records for each image uploaded via logs
       // This ensures photos appear in both Project Logs and Photos tab
@@ -1050,6 +1053,7 @@ export class DatabaseStorage implements IStorage {
         }
       }
       
+
       return {
         id: row.id,
         projectId: row.project_id,
@@ -1070,6 +1074,7 @@ export class DatabaseStorage implements IStorage {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
+
       // Get existing log to compare images
       const existingResult = await pool.query('SELECT project_id, user_id, title, images FROM project_logs WHERE id = $1', [id]);
       if (existingResult.rows.length === 0) {
@@ -1079,6 +1084,7 @@ export class DatabaseStorage implements IStorage {
       const existingLog = existingResult.rows[0];
       const existingImages = existingLog.images || [];
       
+
       const updateFields = [];
       const params = [];
       let paramIndex = 1;
@@ -1112,6 +1118,7 @@ export class DatabaseStorage implements IStorage {
       const query = `UPDATE project_logs SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`;
       
       const result = await pool.query(query, params);
+
       
       // CRITICAL FIX: Create photo records for any new images added during update
       if (data.images && data.images.length > existingImages.length) {
@@ -1161,10 +1168,12 @@ export class DatabaseStorage implements IStorage {
       }
       
       return (result.rowCount ?? 0) > 0;
+
     } finally {
       await pool.end();
     }
   }
+
 
   async deleteProjectLog(id: string): Promise<boolean> {
     const pg = await import('pg');
@@ -1218,12 +1227,15 @@ export class DatabaseStorage implements IStorage {
       await pool.query('ROLLBACK');
       console.error('❌ Failed to delete project log:', error);
       throw error;
+
     } finally {
       await pool.end();
     }
   }
 
+
   // Photo management methods - duplicates removed
+
 }
 
 export const storage = new DatabaseStorage();

@@ -9,7 +9,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Plus, FileText, AlertTriangle, CheckCircle, Clock, User, Camera, X, Calendar, Filter, Tag, ChevronDown, Trash2 } from "lucide-react";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProjectLogSchema } from "@shared/schema";
@@ -76,9 +78,11 @@ export default function Logs() {
   const [endDate, setEndDate] = useState("");
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [photoTags, setPhotoTags] = useState<string>("");
+
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [tagInput, setTagInput] = useState("");
+
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const createUploaderRef = useRef<DeferredObjectUploaderRef>(null);
   const editUploaderRef = useRef<DeferredObjectUploaderRef>(null);
@@ -123,6 +127,7 @@ export default function Logs() {
       setSelectedTags([]);
       setTagInput("");
       setShowTagDropdown(false);
+
       form.reset();
       toast({
         title: "Success",
@@ -141,6 +146,7 @@ export default function Logs() {
   const updateLogMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<InsertProjectLog> }) =>
       apiRequest(`/api/logs/${id}`, { method: "PATCH", body: updates }),
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
       setIsEditDialogOpen(false);
@@ -173,12 +179,15 @@ export default function Logs() {
       toast({
         title: "Success",
         description: "Log deleted successfully",
+
       });
     },
     onError: () => {
       toast({
         title: "Error",
+
         description: "Failed to delete log",
+
         variant: "destructive",
       });
     },
@@ -286,14 +295,17 @@ export default function Logs() {
     // Reset new uploads state (existing images shown separately)
     setUploadedImages([]);
     setPhotoTags("");
+
     setSelectedTags([]);
     setTagInput("");
     setShowTagDropdown(false);
+
     setIsEditDialogOpen(true);
   };
 
   const handleGetUploadParameters = async (file?: any) => {
     try {
+
       console.log('🔗 Requesting upload URL from server for file:', file?.name || 'unknown');
       const response = await fetch("/api/objects/upload", { 
         method: "POST", 
@@ -305,6 +317,7 @@ export default function Logs() {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
+
       const data = await response.json();
       
       console.log('✅ Got upload URL response:', { 
@@ -312,23 +325,27 @@ export default function Logs() {
         fullLength: data.uploadURL?.length 
       });
       
+
       if (!data.uploadURL) {
         throw new Error('No upload URL received from server');
       }
       
+
       const uploadParams = {
         method: "PUT" as const,
         url: data.uploadURL,
         headers: {}
       };
       
-      console.log('📤 Returning upload parameters:', uploadParams);
+
       return uploadParams;
     } catch (error) {
       console.error('❌ Failed to get upload parameters:', error);
       toast({
+
         title: "Upload Error", 
         description: `Failed to get upload URL: ${error.message}`,
+
         variant: "destructive",
       });
       throw error;
@@ -366,14 +383,15 @@ export default function Logs() {
         // Get current project ID from the appropriate form (create or edit)
         const currentProjectId = isEditDialogOpen ? editForm.watch('projectId') : form.watch('projectId');
         
+
         // Use selected tags from the new tag system
         const tags = [...selectedTags];
+
         if (!tags.includes('log-photo')) {
           tags.push('log-photo');
         }
         
-        console.log('🏷️ Parsed tags from input:', { photoTags, parsedTags: tags });
-        
+
         // Only save photo metadata if we have a project selected
         if (currentProjectId) {
           const photoPromises = uploadedUrls.map(async (imageUrl: string) => {
@@ -385,6 +403,7 @@ export default function Logs() {
               tags: tags
             };
             
+
             console.log('📸 Creating photo with data:', photoData);
             const result = await apiRequest("/api/photos", { method: "POST", body: photoData });
             console.log('📸 Photo creation result:', result);
@@ -395,6 +414,7 @@ export default function Logs() {
           
           // Invalidate photos cache to refresh the gallery
           queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+
         }
         
         // Store the image URLs for the log
@@ -505,7 +525,9 @@ export default function Logs() {
               Create Log
             </Button>
           </DialogTrigger>
+
           <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
+
             <DialogHeader>
               <DialogTitle>Create Project Log</DialogTitle>
             </DialogHeader>
@@ -622,6 +644,7 @@ export default function Logs() {
                 <div className="space-y-4">
                   <FormLabel>Photos (Optional)</FormLabel>
                   
+
                   {/* Enhanced Photo Tags Input with Dropdown */}
                   <div className="space-y-2">
                     <FormLabel className="text-sm text-gray-700 flex items-center gap-1">
@@ -783,6 +806,7 @@ export default function Logs() {
                     />
                   )}
 
+
                   {/* Streamlined Photo Upload */}
                   <div className="flex items-center gap-4">
                     <DeferredObjectUploader
@@ -866,7 +890,9 @@ export default function Logs() {
 
         {/* Edit Log Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+
           <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
+
             <DialogHeader>
               <DialogTitle>Edit Project Log</DialogTitle>
             </DialogHeader>
@@ -1025,6 +1051,7 @@ export default function Logs() {
                   
                   <FormLabel className="text-sm">Add More Photos (Optional)</FormLabel>
                   
+
                   {/* Enhanced Photo Tags Input with Dropdown */}
                   <div className="space-y-2">
                     <FormLabel className="text-sm text-gray-700 flex items-center gap-1">
@@ -1185,6 +1212,7 @@ export default function Logs() {
                       onClick={() => setShowTagDropdown(false)}
                     />
                   )}
+
 
                   {/* Streamlined Photo Upload */}
                   <div className="flex items-center gap-4">
@@ -1470,6 +1498,7 @@ export default function Logs() {
                       Edit
                     </Button>
                     
+
                     {/* Delete button with confirmation */}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -1502,6 +1531,7 @@ export default function Logs() {
                       </AlertDialogContent>
                     </AlertDialog>
                     
+
                     {/* Status action buttons */}
                     {log.status !== "closed" && (
                       <>

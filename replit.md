@@ -110,6 +110,7 @@ Preferred communication style: Simple, everyday language.
 ### Data Flow
 - **Client-Server Communication**: Frontend requests via TanStack Query are handled by the Node.js backend for all operations including authentication, data management, and file operations.
 - **Photo Storage Architecture**: All photos are stored professionally in Google Cloud Storage using Replit's object storage service for reliability, scalability, and automatic backups. Legacy local storage has been migrated to cloud storage.
+
 - **Enhanced Filtering System**: Comprehensive photo and log filtering with tag-based search, project filtering, log association, and real-time search capabilities with proper data validation and array handling.
 
 ## Recent Enhancements (August 22, 2025)
@@ -131,6 +132,7 @@ Preferred communication style: Simple, everyday language.
 - **Consistent Tagging**: All log-uploaded photos are tagged with "log-photo" for identification
 - **Real-time Synchronization**: Changes in Project Logs immediately reflect in Photos gallery
 - **Cross-Section Filtering**: Photos can be filtered by project, tag, or associated log across both sections
+
 
 ## External Dependencies
 

@@ -146,6 +146,10 @@ const DeferredObjectUploader = forwardRef<DeferredObjectUploaderRef, DeferredObj
         type="file"
         multiple
         accept="image/*"
+
+
+        capture="environment" // Enable mobile camera
+
         style={{ display: 'none' }}
         onChange={(e) => handleFileSelect(e.target.files)}
       />
