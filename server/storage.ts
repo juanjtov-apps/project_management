@@ -1166,6 +1166,63 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async deleteProjectLog(id: string): Promise<boolean> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      // Start transaction for atomic operation
+      await pool.query('BEGIN');
+      
+      // First, delete any associated photos from the photos table
+      // Get the log to find its images
+      const logResult = await pool.query('SELECT images FROM project_logs WHERE id = $1', [id]);
+      if (logResult.rows.length > 0) {
+        const logImages = logResult.rows[0].images || [];
+        
+        // For each image in the log, find and delete corresponding photo records
+        for (const imageUrl of logImages) {
+          try {
+            // Extract object ID from the Google Cloud Storage URL
+            let objectId;
+            if (imageUrl.includes('storage.googleapis.com')) {
+              const urlPath = new URL(imageUrl).pathname;
+              const pathParts = urlPath.split('/');
+              objectId = pathParts[pathParts.length - 1]; 
+            } else {
+              objectId = imageUrl;
+            }
+            
+            // Delete photo records that match this image
+            await pool.query(`
+              DELETE FROM photos 
+              WHERE filename = $1 OR filename LIKE $2
+            `, [objectId, `%${objectId}%`]);
+            
+            console.log(`🗑️ Deleted photo records for: ${objectId}`);
+          } catch (photoError) {
+            console.error(`❌ Failed to delete photo records for image:`, photoError);
+            // Continue with other images
+          }
+        }
+      }
+      
+      // Delete the project log
+      const result = await pool.query('DELETE FROM project_logs WHERE id = $1', [id]);
+      
+      // Commit transaction
+      await pool.query('COMMIT');
+      console.log(`🗑️ Deleted project log: ${id}`);
+      return (result.rowCount ?? 0) > 0;
+    } catch (error) {
+      // Rollback on error
+      await pool.query('ROLLBACK');
+      console.error('❌ Failed to delete project log:', error);
+      throw error;
+    } finally {
+      await pool.end();
+    }
+  }
+
   // Photo management methods - duplicates removed
 }
 
