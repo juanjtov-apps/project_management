@@ -1000,21 +1000,46 @@ export default function Tasks() {
 
       </div>
 
-      {/* Global Summary Bar - Enhancement #1 */}
-      <div className="bg-[#F8F9FB] border border-slate-200 rounded-lg p-4" style={{ marginBottom: '24px' }}>
+      {/* Task Statistics Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <Card className="bg-white border border-slate-200">
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-slate-900">{taskStats.total}</div>
+            <div className="text-sm text-slate-600 mt-1">Total Tasks</div>
+          </CardContent>
+        </Card>
+        
+        <Card className={cn(
+          "border",
+          taskStats.overdue > 0 ? "bg-red-50 border-red-200" : "bg-white border-slate-200"
+        )}>
+          <CardContent className="p-4 text-center">
+            <div className={cn(
+              "text-2xl font-bold",
+              taskStats.overdue > 0 ? "text-red-600" : "text-slate-900"
+            )}>{taskStats.overdue}</div>
+            <div className="text-sm text-slate-600 mt-1">Overdue</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-orange-50 border border-orange-200">
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-orange-600">{taskStats.dueThisWeek}</div>
+            <div className="text-sm text-slate-600 mt-1">Due This Week</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-green-50 border border-green-200">
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">{taskStats.completed}</div>
+            <div className="text-sm text-slate-600 mt-1">Completed</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Action Buttons Row */}
+      <div className="bg-white border border-slate-200 rounded-lg p-4 mb-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-6">
-            <div className="text-sm text-slate-700">
-              <span className="font-semibold">{taskStats.total} tasks</span>
-              <span className="mx-2 text-slate-400">|</span>
-              <span className={taskStats.overdue > 0 ? "text-[#E53935] font-normal ml-1" : "text-slate-600 font-normal ml-1"}>{taskStats.overdue} overdue</span>
-              <span className="mx-2 text-slate-400">|</span>
-              <span className="text-[#FB8C00] font-normal ml-1">{taskStats.dueThisWeek} due this week</span>
-              <span className="mx-2 text-slate-400">|</span>
-              <span className="text-[#43A047] font-normal ml-1">{taskStats.completed} completed</span>
-            </div>
-          </div>
-          
           <div className="flex items-center space-x-2">
             {/* Expand/Collapse All - Enhancement #11 */}
             <Button
