@@ -603,15 +603,9 @@ export default function Photos() {
               
               <CardContent className={viewMode === "list" ? "flex-1 p-4" : "p-3"}>
                 <div className="space-y-2">
-                  <h3 className="font-medium text-sm truncate" title={photo.originalName}>
-                    {photo.originalName}
+                  <h3 className="font-medium text-sm truncate" title={photo.description || 'Project Photo'}>
+                    {photo.description || 'Project Photo'}
                   </h3>
-                  
-                  {photo.description && (
-                    <p className="text-xs text-gray-600 line-clamp-2">
-                      {photo.description}
-                    </p>
-                  )}
                   
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>{getProjectName(photo.projectId)}</span>
