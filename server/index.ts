@@ -105,7 +105,7 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
   app.use('/api', (req, res, next) => {
     // Skip proxy for routes that we handle locally in Express or handle directly
     if (req.path.startsWith('/auth') || req.path === '/login' || req.path === '/logout' || req.path === '/callback' || req.path.startsWith('/rbac') || 
-        (req.path.startsWith('/logs') && req.method === 'DELETE')) {
+        (req.path.startsWith('/logs') && req.method === 'DELETE') || req.path.startsWith('/sync-log-photos')) {
       console.log(`Skipping proxy for local route: ${req.method} ${req.path}`);
       return next();
     }

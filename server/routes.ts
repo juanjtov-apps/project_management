@@ -1164,6 +1164,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // One-time sync endpoint to migrate existing project log images to photos table
+  app.post('/api/sync-log-photos', async (req, res) => {
+    try {
+      console.log('🔄 SYNC: Starting migration of existing project log images to photos table...');
+      
+      // Get all project logs with images
+      const allLogs = await storage.getProjectLogs();
+      const logsWithImages = allLogs.filter(log => log.images && Array.isArray(log.images) && log.images.length > 0);
+      
+      console.log(`📋 Found ${logsWithImages.length} logs with images to process`);
+      
+      let totalCreated = 0;
+      let totalSkipped = 0;
+      
+      for (const log of logsWithImages) {
+        console.log(`📝 Processing log: "${log.title}" (${log.images.length} images)`);
+        
+        for (const imageUrl of log.images) {
+          try {
+            // Extract object ID from the Google Cloud Storage URL
+            let objectId;
+            if (imageUrl.includes('storage.googleapis.com')) {
+              // Extract object ID from the URL path
+              const urlPath = new URL(imageUrl).pathname;
+              const pathParts = urlPath.split('/');
+              objectId = pathParts[pathParts.length - 1].split('?')[0]; // Remove query params
+            } else {
+              // Direct filename - use as object ID
+              objectId = imageUrl;
+            }
+            
+            // Check if photo record already exists for this object ID to prevent duplicates
+            const existingPhotos = await storage.getPhotos();
+            const isDuplicate = existingPhotos.some(photo => 
+              photo.filename === objectId || 
+              photo.filename.endsWith(objectId) ||
+              photo.originalName === imageUrl
+            );
+            
+            if (isDuplicate) {
+              console.log(`📸 Skipping duplicate photo record for: ${objectId}`);
+              totalSkipped++;
+              continue;
+            }
+            
+            const photoData = {
+              projectId: log.projectId,
+              userId: log.userId,
+              filename: objectId, // Store just the object ID for consistent lookup
+              originalName: imageUrl, // Keep original URL/filename  
+              description: log.title,
+              tags: ['log-photo']
+            };
+            
+            console.log(`📸 Creating photo record for: ${objectId}`);
+            await storage.createPhoto(photoData);
+            console.log(`✅ Created photo record for log image: ${objectId}`);
+            totalCreated++;
+          } catch (photoError) {
+            console.error(`❌ Failed to create photo record for image ${imageUrl}:`, photoError);
+            // Continue with other images even if one fails
+          }
+        }
+      }
+      
+      console.log(`🎉 SYNC COMPLETE: Created ${totalCreated} new photo records, skipped ${totalSkipped} duplicates`);
+      res.json({ 
+        success: true, 
+        created: totalCreated, 
+        skipped: totalSkipped,
+        logsProcessed: logsWithImages.length 
+      });
+    } catch (error) {
+      console.error('❌ SYNC ERROR:', error);
+      res.status(500).json({ message: 'Sync failed', error: error.message });
+    }
+  });
+
   // Object storage image proxy endpoint
   app.get('/api/objects/image/:imageId', async (req, res) => {
     try {
