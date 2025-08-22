@@ -1012,24 +1012,21 @@ export class DatabaseStorage implements IStorage {
         for (let i = 0; i < images.length; i++) {
           const imageUrl = images[i];
           try {
-            // Extract the actual object storage path from the URL
+            // Extract filename from object storage URL
             let filename = '';
             let originalName = `log-photo-${i + 1}.jpg`;
             
             if (imageUrl.includes('storage.googleapis.com')) {
-              // Direct GCS URL - extract the full path after the bucket
+              // Direct GCS URL - extract just the filename from the end of the path
               const url = new URL(imageUrl);
               const pathParts = url.pathname.split('/');
-              // Skip the first empty part and bucket name, get the object path
-              const objectPath = pathParts.slice(2).join('/').split('?')[0];
-              filename = objectPath;
-              originalName = pathParts[pathParts.length - 1].split('?')[0];
+              filename = pathParts[pathParts.length - 1].split('?')[0];
+              originalName = filename;
             } else if (imageUrl.includes('/objects/')) {
               // This is likely a local object reference, extract the ID
               const urlParts = imageUrl.split('/');
               const objectId = urlParts[urlParts.length - 1];
-              // For object storage uploads, the filename should match the actual uploaded path
-              filename = `uploads/${objectId}`;
+              filename = `${objectId}.jpg`;
               originalName = `log-photo-${i + 1}.jpg`;
             } else {
               // Fallback - create a unique filename
@@ -1125,24 +1122,21 @@ export class DatabaseStorage implements IStorage {
         for (let i = 0; i < newImages.length; i++) {
           const imageUrl = newImages[i];
           try {
-            // Extract the actual object storage path from the URL
+            // Extract filename from object storage URL
             let filename = '';
             let originalName = `log-photo-${existingImages.length + i + 1}.jpg`;
             
             if (imageUrl.includes('storage.googleapis.com')) {
-              // Direct GCS URL - extract the full path after the bucket
+              // Direct GCS URL - extract just the filename from the end of the path
               const url = new URL(imageUrl);
               const pathParts = url.pathname.split('/');
-              // Skip the first empty part and bucket name, get the object path
-              const objectPath = pathParts.slice(2).join('/').split('?')[0];
-              filename = objectPath;
-              originalName = pathParts[pathParts.length - 1].split('?')[0];
+              filename = pathParts[pathParts.length - 1].split('?')[0];
+              originalName = filename;
             } else if (imageUrl.includes('/objects/')) {
               // This is likely a local object reference, extract the ID
               const urlParts = imageUrl.split('/');
               const objectId = urlParts[urlParts.length - 1];
-              // For object storage uploads, the filename should match the actual uploaded path
-              filename = `uploads/${objectId}`;
+              filename = `${objectId}.jpg`;
               originalName = `log-photo-${existingImages.length + i + 1}.jpg`;
             } else {
               // Fallback - create a unique filename
