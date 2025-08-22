@@ -49,6 +49,8 @@ export default function Photos() {
 
   const { data: photos = [], isLoading: photosLoading } = useQuery<Photo[]>({
     queryKey: ["/api/photos"],
+    staleTime: 0, // Always refetch to get latest photos and tags
+    cacheTime: 0, // Don't cache to ensure fresh data
   });
 
   const { data: projects = [] } = useQuery<Project[]>({
@@ -62,12 +64,16 @@ export default function Photos() {
   // Extract all unique tags from photos
   const uniqueTags = useMemo(() => {
     const tagSet = new Set<string>();
+    console.log('📸 Processing photos for tags:', photos.length);
     photos.forEach(photo => {
       if (photo.tags) {
+        console.log(`📸 Photo ${photo.id} has tags:`, photo.tags);
         photo.tags.forEach(tag => tagSet.add(tag));
       }
     });
-    return Array.from(tagSet).sort();
+    const allTags = Array.from(tagSet).sort();
+    console.log('📸 All unique tags found:', allTags);
+    return allTags;
   }, [photos]);
 
   // Get logs that have images
@@ -79,13 +85,15 @@ export default function Photos() {
   const filteredPhotosData = useMemo(() => {
     let filtered = photos;
 
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(photo => 
-        photo.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        photo.originalName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        photo.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+    // Filter by search term first
+    if (searchTerm && searchTerm.trim() !== "") {
+      const searchLower = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(photo => {
+        const matchesDescription = photo.description?.toLowerCase().includes(searchLower);
+        const matchesName = photo.originalName?.toLowerCase().includes(searchLower);
+        const matchesTags = photo.tags?.some(tag => tag.toLowerCase().includes(searchLower));
+        return matchesDescription || matchesName || matchesTags;
+      });
     }
 
     // Filter by type
@@ -97,7 +105,10 @@ export default function Photos() {
         break;
       case "tag":
         if (selectedTag !== "all") {
-          filtered = filtered.filter(photo => photo.tags?.includes(selectedTag));
+          filtered = filtered.filter(photo => {
+            const hasTags = photo.tags && Array.isArray(photo.tags);
+            return hasTags && photo.tags.includes(selectedTag);
+          });
         }
         break;
       case "log":
@@ -121,6 +132,8 @@ export default function Photos() {
                 photo.filename.split('.')[0] === id
               )
             );
+          } else {
+            filtered = []; // No photos match if log doesn't exist or has no images
           }
         }
         break;
@@ -485,14 +498,41 @@ export default function Photos() {
                   <SelectValue placeholder="Select a tag" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Tags</SelectItem>
-                  {uniqueTags.map((tag) => (
-                    <SelectItem key={tag} value={tag}>
-                      {tag}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All Tags ({photos.length} photos)</SelectItem>
+                  {uniqueTags.map((tag) => {
+                    const photoCount = photos.filter(photo => photo.tags?.includes(tag)).length;
+                    return (
+                      <SelectItem key={tag} value={tag}>
+                        {tag} ({photoCount} photo{photoCount !== 1 ? 's' : ''})
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
+              
+              {uniqueTags.length === 0 && (
+                <div className="text-sm text-gray-500 text-center py-4">
+                  No tags found. Upload photos with tags to enable tag filtering.
+                </div>
+              )}
+              
+              {uniqueTags.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-600 mb-2">Popular tags:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {uniqueTags.slice(0, 6).map((tag) => (
+                      <Badge 
+                        key={tag} 
+                        variant={selectedTag === tag ? "default" : "secondary"}
+                        className="cursor-pointer text-xs hover:bg-gray-200"
+                        onClick={() => setSelectedTag(tag)}
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="log" className="mt-4">
@@ -513,6 +553,8 @@ export default function Photos() {
           </Tabs>
         </CardContent>
       </Card>
+
+
 
       {/* Photo Gallery */}
       {filteredPhotosData.length === 0 ? (
@@ -561,15 +603,9 @@ export default function Photos() {
               
               <CardContent className={viewMode === "list" ? "flex-1 p-4" : "p-3"}>
                 <div className="space-y-2">
-                  <h3 className="font-medium text-sm truncate" title={photo.originalName}>
-                    {photo.originalName}
+                  <h3 className="font-medium text-sm truncate" title={photo.description || 'Project Photo'}>
+                    {photo.description || 'Project Photo'}
                   </h3>
-                  
-                  {photo.description && (
-                    <p className="text-xs text-gray-600 line-clamp-2">
-                      {photo.description}
-                    </p>
-                  )}
                   
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>{getProjectName(photo.projectId)}</span>
@@ -579,12 +615,31 @@ export default function Photos() {
                   {photo.tags && photo.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {photo.tags.slice(0, 3).map((tag, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
+                        <Badge 
+                          key={index} 
+                          variant={selectedTag === tag ? "default" : "secondary"} 
+                          className="text-xs cursor-pointer hover:bg-gray-200"
+                          onClick={() => {
+                            setFilterType("tag");
+                            setSelectedTag(tag);
+                          }}
+                          title={`Filter by tag: ${tag}`}
+                        >
                           {tag}
                         </Badge>
                       ))}
                       {photo.tags.length > 3 && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge 
+                          variant="secondary" 
+                          className="text-xs cursor-pointer hover:bg-gray-200"
+                          onClick={() => {
+                            toast({
+                              title: "All Tags",
+                              description: `Full tags: ${photo.tags?.join(', ')}`,
+                            });
+                          }}
+                          title={`All tags: ${photo.tags.join(', ')}`}
+                        >
                           +{photo.tags.length - 3}
                         </Badge>
                       )}

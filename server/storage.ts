@@ -993,8 +993,8 @@ export class DatabaseStorage implements IStorage {
     try {
       const { projectId, userId, title, content, type = 'general', status = 'open', images = [] } = logData;
       
-      if (!projectId || !userId || !title || !content) {
-        throw new Error('ProjectId, userId, title, and content are required');
+      if (!projectId || !userId || !title) {
+        throw new Error('ProjectId, userId, and title are required');
       }
       
       const result = await pool.query(`
@@ -1004,6 +1004,52 @@ export class DatabaseStorage implements IStorage {
       `, [projectId, userId, title, content, type, status, images]);
       
       const row = result.rows[0];
+      
+      // CRITICAL FIX: Also create individual photo records for each image uploaded via logs
+      // This ensures photos appear in both Project Logs and Photos tab
+      if (images && images.length > 0) {
+        console.log(`📸 Creating ${images.length} photo records for log images...`);
+        for (let i = 0; i < images.length; i++) {
+          const imageUrl = images[i];
+          try {
+            // Extract filename from object storage URL
+            let filename = '';
+            let originalName = `log-photo-${i + 1}.jpg`;
+            
+            if (imageUrl.includes('storage.googleapis.com')) {
+              // Direct GCS URL - extract just the filename from the end of the path
+              const url = new URL(imageUrl);
+              const pathParts = url.pathname.split('/');
+              filename = pathParts[pathParts.length - 1].split('?')[0];
+              originalName = filename;
+            } else if (imageUrl.includes('/objects/')) {
+              // This is likely a local object reference, extract the ID
+              const urlParts = imageUrl.split('/');
+              const objectId = urlParts[urlParts.length - 1];
+              filename = `${objectId}.jpg`;
+              originalName = `log-photo-${i + 1}.jpg`;
+            } else {
+              // Fallback - create a unique filename
+              filename = `${Date.now()}-log-${i}.jpg`;
+              originalName = filename;
+            }
+            
+            console.log(`📸 Creating photo record: URL=${imageUrl}, filename=${filename}, originalName=${originalName}`);
+            
+            // Create photo record in photos table
+            await pool.query(`
+              INSERT INTO photos (project_id, user_id, filename, original_name, description, tags, created_at)
+              VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            `, [projectId, userId, filename, originalName, title, ['log-photo']]);
+            
+            console.log(`✅ Created photo record for log image: ${filename}`);
+          } catch (photoError) {
+            console.error(`❌ Failed to create photo record for image ${i}:`, photoError);
+            // Don't fail the entire log creation if photo creation fails
+          }
+        }
+      }
+      
       return {
         id: row.id,
         projectId: row.project_id,
@@ -1024,6 +1070,15 @@ export class DatabaseStorage implements IStorage {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
+      // Get existing log to compare images
+      const existingResult = await pool.query('SELECT project_id, user_id, title, images FROM project_logs WHERE id = $1', [id]);
+      if (existingResult.rows.length === 0) {
+        return false;
+      }
+      
+      const existingLog = existingResult.rows[0];
+      const existingImages = existingLog.images || [];
+      
       const updateFields = [];
       const params = [];
       let paramIndex = 1;
@@ -1057,7 +1112,112 @@ export class DatabaseStorage implements IStorage {
       const query = `UPDATE project_logs SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`;
       
       const result = await pool.query(query, params);
+      
+      // CRITICAL FIX: Create photo records for any new images added during update
+      if (data.images && data.images.length > existingImages.length) {
+        const newImages = data.images.slice(existingImages.length);
+        const logTitle = data.title || existingLog.title;
+        
+        console.log(`📸 Creating ${newImages.length} new photo records for updated log...`);
+        for (let i = 0; i < newImages.length; i++) {
+          const imageUrl = newImages[i];
+          try {
+            // Extract filename from object storage URL
+            let filename = '';
+            let originalName = `log-photo-${existingImages.length + i + 1}.jpg`;
+            
+            if (imageUrl.includes('storage.googleapis.com')) {
+              // Direct GCS URL - extract just the filename from the end of the path
+              const url = new URL(imageUrl);
+              const pathParts = url.pathname.split('/');
+              filename = pathParts[pathParts.length - 1].split('?')[0];
+              originalName = filename;
+            } else if (imageUrl.includes('/objects/')) {
+              // This is likely a local object reference, extract the ID
+              const urlParts = imageUrl.split('/');
+              const objectId = urlParts[urlParts.length - 1];
+              filename = `${objectId}.jpg`;
+              originalName = `log-photo-${existingImages.length + i + 1}.jpg`;
+            } else {
+              // Fallback - create a unique filename
+              filename = `${Date.now()}-log-${existingImages.length + i}.jpg`;
+              originalName = filename;
+            }
+            
+            console.log(`📸 Creating photo record for update: URL=${imageUrl}, filename=${filename}, originalName=${originalName}`);
+            
+            // Create photo record in photos table
+            await pool.query(`
+              INSERT INTO photos (project_id, user_id, filename, original_name, description, tags, created_at)
+              VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            `, [existingLog.project_id, existingLog.user_id, filename, originalName, logTitle, ['log-photo']]);
+            
+            console.log(`✅ Created photo record for new log image: ${filename}`);
+          } catch (photoError) {
+            console.error(`❌ Failed to create photo record for new image ${i}:`, photoError);
+            // Don't fail the entire update if photo creation fails
+          }
+        }
+      }
+      
       return (result.rowCount ?? 0) > 0;
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async deleteProjectLog(id: string): Promise<boolean> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      // Start transaction for atomic operation
+      await pool.query('BEGIN');
+      
+      // First, delete any associated photos from the photos table
+      // Get the log to find its images
+      const logResult = await pool.query('SELECT images FROM project_logs WHERE id = $1', [id]);
+      if (logResult.rows.length > 0) {
+        const logImages = logResult.rows[0].images || [];
+        
+        // For each image in the log, find and delete corresponding photo records
+        for (const imageUrl of logImages) {
+          try {
+            // Extract object ID from the Google Cloud Storage URL
+            let objectId;
+            if (imageUrl.includes('storage.googleapis.com')) {
+              const urlPath = new URL(imageUrl).pathname;
+              const pathParts = urlPath.split('/');
+              objectId = pathParts[pathParts.length - 1]; 
+            } else {
+              objectId = imageUrl;
+            }
+            
+            // Delete photo records that match this image
+            await pool.query(`
+              DELETE FROM photos 
+              WHERE filename = $1 OR filename LIKE $2
+            `, [objectId, `%${objectId}%`]);
+            
+            console.log(`🗑️ Deleted photo records for: ${objectId}`);
+          } catch (photoError) {
+            console.error(`❌ Failed to delete photo records for image:`, photoError);
+            // Continue with other images
+          }
+        }
+      }
+      
+      // Delete the project log
+      const result = await pool.query('DELETE FROM project_logs WHERE id = $1', [id]);
+      
+      // Commit transaction
+      await pool.query('COMMIT');
+      console.log(`🗑️ Deleted project log: ${id}`);
+      return (result.rowCount ?? 0) > 0;
+    } catch (error) {
+      // Rollback on error
+      await pool.query('ROLLBACK');
+      console.error('❌ Failed to delete project log:', error);
+      throw error;
     } finally {
       await pool.end();
     }

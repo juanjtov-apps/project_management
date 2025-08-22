@@ -857,65 +857,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Photo not found' });
       }
 
-      // Try object storage first (professional standard)
-      console.log(`📡 Attempting to serve from object storage: ${photo.filename}`);
+      // Serve directly from Google Cloud Storage (professional standard)
+      console.log(`☁️ Serving from Google Cloud Storage: ${photo.filename}`);
       
       try {
         const objectStorageService = new ObjectStorageService();
-        let objectPath;
         
-        // Handle both UUID-style filenames (object storage) and timestamp-style filenames (migrated)
-        if (photo.filename.includes('-') && photo.filename.match(/^[a-f0-9-]+\.(jpg|jpeg|png)$/)) {
-          // UUID-style object storage filename - try uploads first, then photos
-          const objectId = photo.filename.split('.')[0];
-          objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${objectId}`;
-          
-          // If not found in uploads, try photos directory
-          const objectFile = await objectStorageService.getObjectFile(objectPath);
-          if (!objectFile) {
-            objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/photos/${photo.filename}`;
-          }
-        } else {
-          // Migrated or new photos stored in object storage photos directory
-          objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/photos/${photo.filename}`;
-        }
+        // If filename is already a full object storage path, use it directly
+        let objectPath = photo.filename;
+        
+        // Always construct the full object storage path from the object ID
+        objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${photo.filename}`;
         
         const objectFile = await objectStorageService.getObjectFile(objectPath);
         
         if (objectFile) {
-          console.log(`✅ Found object storage file, streaming: ${objectPath}`);
+          console.log(`✅ Streaming from object storage: ${objectPath}`);
           return objectStorageService.downloadObject(objectFile, res);
         } else {
-          console.log(`❌ Object storage file not found: ${objectPath}`);
+          console.log(`❌ Photo not found in object storage: ${objectPath}`);
+          return res.status(404).json({ message: 'Photo not found in object storage' });
         }
       } catch (objectError) {
         console.error(`❌ Failed to serve from object storage:`, objectError);
+        return res.status(500).json({ message: 'Failed to retrieve photo from cloud storage' });
       }
-
-      // Fall back to local file serving for regular uploads
-      const uploadsDir = path.join(process.cwd(), 'uploads');
-      const filePath = path.join(uploadsDir, photo.filename);
-      
-      if (!fs.existsSync(filePath)) {
-        console.log(`❌ Photo file not found on disk: ${photo.filename}`);
-        return res.status(404).json({ message: 'Photo file not found on disk' });
-      }
-
-      console.log(`📁 Serving photo file: ${filePath}`);
-
-      // Determine content type
-      const ext = path.extname(filePath).toLowerCase();
-      const contentType = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg', 
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp'
-      }[ext] || 'image/jpeg';
-
-      res.contentType(contentType);
-      console.log(`✅ Serving photo file as ${contentType}`);
-      return res.sendFile(filePath);
       
     } catch (error: any) {
       console.error(`Error serving photo ${req.params.id}:`, error);
@@ -1066,6 +1032,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const log = await storage.createProjectLog(logData);
       
+      // CRITICAL FIX: Also create individual photo records for each image uploaded via logs
+      // This ensures that photos appear in both Project Logs and Photos tab
+      if (logData.images && Array.isArray(logData.images) && logData.images.length > 0) {
+        console.log(`📸 Creating ${logData.images.length} photo records for log images...`);
+        
+        for (const imageUrl of logData.images) {
+          try {
+            // Extract object ID from the Google Cloud Storage URL
+            let objectId;
+            if (imageUrl.includes('storage.googleapis.com')) {
+              // Extract object ID from the URL path
+              const urlPath = new URL(imageUrl).pathname;
+              const pathParts = urlPath.split('/');
+              objectId = pathParts[pathParts.length - 1]; // Get the last part (object ID)
+            } else {
+              // Direct filename - use as object ID
+              objectId = imageUrl;
+            }
+            
+            // Check if photo record already exists for this object ID to prevent duplicates
+            const existingPhotos = await storage.getPhotos();
+            const isDuplicate = existingPhotos.some(photo => 
+              photo.filename === objectId || 
+              photo.filename.endsWith(objectId) ||
+              photo.originalName === imageUrl
+            );
+            
+            if (isDuplicate) {
+              console.log(`📸 Skipping duplicate photo record for: ${objectId}`);
+              continue;
+            }
+            
+            const photoData = {
+              projectId: logData.projectId,
+              userId: userId,
+              filename: objectId, // Store just the object ID for consistent lookup
+              originalName: imageUrl, // Keep original URL/filename  
+              description: logData.title,
+              tags: ['log-photo']
+            };
+            
+            console.log(`📸 Creating photo record with object ID:`, photoData);
+            await storage.createPhoto(photoData);
+            console.log(`✅ Created photo record for log image: ${objectId}`);
+          } catch (photoError) {
+            console.error(`❌ Failed to create photo record for image ${imageUrl}:`, photoError);
+            // Continue with other images even if one fails
+          }
+        }
+      }
+      
       console.log('✅ NODE.JS SUCCESS: Project log created:', log);
       res.status(201).json(log);
     } catch (error) {
@@ -1102,24 +1119,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/logs/:id', async (req, res) => {
+  app.delete('/api/logs/:id', async (req, res) => {
     try {
-      console.log(`PRODUCTION: Updating project log ${req.params.id} via Node.js backend`);
+      const logId = req.params.id;
+      const userId = (req.session as any)?.userId || 'eb5e1d74-6f0f-4bee-8bee-fb0cf8afd3e9'; // Use session or fallback
+      console.log('PRODUCTION: Deleting project log via Node.js backend');
+      console.log('Log ID:', logId);
+      console.log('Session userId:', userId);
       
-      const success = await storage.updateProjectLog(req.params.id, req.body);
+      const wasDeleted = await storage.deleteProjectLog(logId);
       
-      if (!success) {
+      if (!wasDeleted) {
+        console.log('❌ Project log not found for deletion:', logId);
         return res.status(404).json({ message: 'Project log not found' });
       }
       
-      // Fetch updated log
-      const logs = await storage.getProjectLogs();
-      const updatedLog = logs.find(log => log.id === req.params.id);
-      
-      console.log('✅ NODE.JS SUCCESS: Project log updated');
-      res.json(updatedLog);
+      console.log('✅ NODE.JS SUCCESS: Project log deleted:', logId);
+      res.status(200).json({ message: 'Project log deleted successfully' });
     } catch (error) {
-      console.error('Project log update error:', error);
+      console.error('Project log deletion error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -1143,6 +1161,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: error.message,
         details: 'Check server logs for more information'
       });
+    }
+  });
+
+  // One-time sync endpoint to migrate existing project log images to photos table
+  app.post('/api/sync-log-photos', async (req, res) => {
+    try {
+      console.log('🔄 SYNC: Starting migration of existing project log images to photos table...');
+      
+      // Get all project logs with images
+      const allLogs = await storage.getProjectLogs();
+      const logsWithImages = allLogs.filter(log => log.images && Array.isArray(log.images) && log.images.length > 0);
+      
+      console.log(`📋 Found ${logsWithImages.length} logs with images to process`);
+      
+      let totalCreated = 0;
+      let totalSkipped = 0;
+      
+      for (const log of logsWithImages) {
+        console.log(`📝 Processing log: "${log.title}" (${log.images.length} images)`);
+        
+        for (const imageUrl of log.images) {
+          try {
+            // Extract object ID from the Google Cloud Storage URL
+            let objectId;
+            if (imageUrl.includes('storage.googleapis.com')) {
+              // Extract object ID from the URL path
+              const urlPath = new URL(imageUrl).pathname;
+              const pathParts = urlPath.split('/');
+              objectId = pathParts[pathParts.length - 1].split('?')[0]; // Remove query params
+            } else {
+              // Direct filename - use as object ID
+              objectId = imageUrl;
+            }
+            
+            // Check if photo record already exists for this object ID to prevent duplicates
+            const existingPhotos = await storage.getPhotos();
+            const isDuplicate = existingPhotos.some(photo => 
+              photo.filename === objectId || 
+              photo.filename.endsWith(objectId) ||
+              photo.originalName === imageUrl
+            );
+            
+            if (isDuplicate) {
+              console.log(`📸 Skipping duplicate photo record for: ${objectId}`);
+              totalSkipped++;
+              continue;
+            }
+            
+            const photoData = {
+              projectId: log.projectId,
+              userId: log.userId,
+              filename: objectId, // Store just the object ID for consistent lookup
+              originalName: imageUrl, // Keep original URL/filename  
+              description: log.title,
+              tags: ['log-photo']
+            };
+            
+            console.log(`📸 Creating photo record for: ${objectId}`);
+            await storage.createPhoto(photoData);
+            console.log(`✅ Created photo record for log image: ${objectId}`);
+            totalCreated++;
+          } catch (photoError) {
+            console.error(`❌ Failed to create photo record for image ${imageUrl}:`, photoError);
+            // Continue with other images even if one fails
+          }
+        }
+      }
+      
+      console.log(`🎉 SYNC COMPLETE: Created ${totalCreated} new photo records, skipped ${totalSkipped} duplicates`);
+      res.json({ 
+        success: true, 
+        created: totalCreated, 
+        skipped: totalSkipped,
+        logsProcessed: logsWithImages.length 
+      });
+    } catch (error) {
+      console.error('❌ SYNC ERROR:', error);
+      res.status(500).json({ message: 'Sync failed', error: error.message });
     }
   });
 
@@ -1178,15 +1274,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.session as any)?.userId || 'eb5e1d74-6f0f-4bee-8bee-fb0cf8afd3e9';
       console.log('PRODUCTION: Creating photo record via Node.js backend');
+      console.log('📸 Photo request body:', JSON.stringify(req.body, null, 2));
       
       const photoData = {
         ...req.body,
         userId // Override with session user
       };
       
+      console.log('📸 Photo data being sent to storage:', JSON.stringify(photoData, null, 2));
+      
       const photo = await storage.createPhoto(photoData);
       
-      console.log('✅ NODE.JS SUCCESS: Photo record created:', photo);
+      console.log('✅ NODE.JS SUCCESS: Photo record created:', JSON.stringify(photo, null, 2));
       res.status(201).json(photo);
     } catch (error: any) {
       console.error('Photo creation error:', error);

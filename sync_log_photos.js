@@ -58,7 +58,7 @@ async function syncLogPhotosToPhotosTable() {
             log.user_id,
             filename,
             originalName,
-            `Photo from log: ${log.title}`,
+            log.title,
             ['log-photo'], // Add a tag to identify these as log photos
             log.created_at
           ]);
