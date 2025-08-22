@@ -866,11 +866,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Handle both UUID-style filenames (object storage) and timestamp-style filenames (migrated)
         if (photo.filename.includes('-') && photo.filename.match(/^[a-f0-9-]+\.(jpg|jpeg|png)$/)) {
-          // UUID-style object storage filename
+          // UUID-style object storage filename - try uploads first, then photos
           const objectId = photo.filename.split('.')[0];
           objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${objectId}`;
+          
+          // If not found in uploads, try photos directory
+          const objectFile = await objectStorageService.getObjectFile(objectPath);
+          if (!objectFile) {
+            objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/photos/${photo.filename}`;
+          }
         } else {
-          // Migrated or new photos stored in object storage
+          // Migrated or new photos stored in object storage photos directory
           objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/photos/${photo.filename}`;
         }
         
