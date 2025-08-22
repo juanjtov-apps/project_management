@@ -242,8 +242,17 @@ export default function Logs() {
 
   const handleGetUploadParameters = async (file?: any) => {
     try {
-      console.log('🔗 Requesting upload URL from server for file:', file?.name);
-      const response = await apiRequest("/api/objects/upload", { method: "POST", body: {} });
+      console.log('🔗 Requesting upload URL from server for file:', file?.name || 'unknown');
+      const response = await fetch("/api/objects/upload", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
       
       console.log('✅ Got upload URL response:', { 
@@ -251,19 +260,23 @@ export default function Logs() {
         fullLength: data.uploadURL?.length 
       });
       
+      if (!data.uploadURL) {
+        throw new Error('No upload URL received from server');
+      }
+      
       const uploadParams = {
         method: "PUT" as const,
         url: data.uploadURL,
         headers: {}
       };
       
-      console.log('📤 Returning upload parameters for Uppy:', uploadParams);
+      console.log('📤 Returning upload parameters:', uploadParams);
       return uploadParams;
     } catch (error) {
       console.error('❌ Failed to get upload parameters:', error);
       toast({
-        title: "Error",
-        description: "Failed to get upload URL",
+        title: "Upload Error", 
+        description: `Failed to get upload URL: ${error.message}`,
         variant: "destructive",
       });
       throw error;
