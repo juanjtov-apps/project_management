@@ -1040,7 +1040,7 @@ export class DatabaseStorage implements IStorage {
             await pool.query(`
               INSERT INTO photos (project_id, user_id, filename, original_name, description, tags, created_at)
               VALUES ($1, $2, $3, $4, $5, $6, NOW())
-            `, [projectId, userId, filename, originalName, `Photo from log: ${title}`, ['log-photo']]);
+            `, [projectId, userId, filename, originalName, title, ['log-photo']]);
             
             console.log(`✅ Created photo record for log image: ${filename}`);
           } catch (photoError) {
@@ -1150,7 +1150,7 @@ export class DatabaseStorage implements IStorage {
             await pool.query(`
               INSERT INTO photos (project_id, user_id, filename, original_name, description, tags, created_at)
               VALUES ($1, $2, $3, $4, $5, $6, NOW())
-            `, [existingLog.project_id, existingLog.user_id, filename, originalName, `Photo from log: ${logTitle}`, ['log-photo']]);
+            `, [existingLog.project_id, existingLog.user_id, filename, originalName, logTitle, ['log-photo']]);
             
             console.log(`✅ Created photo record for new log image: ${filename}`);
           } catch (photoError) {
