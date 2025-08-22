@@ -1004,6 +1004,48 @@ export class DatabaseStorage implements IStorage {
       `, [projectId, userId, title, content, type, status, images]);
       
       const row = result.rows[0];
+      
+      // CRITICAL FIX: Also create individual photo records for each image uploaded via logs
+      // This ensures photos appear in both Project Logs and Photos tab
+      if (images && images.length > 0) {
+        console.log(`📸 Creating ${images.length} photo records for log images...`);
+        for (let i = 0; i < images.length; i++) {
+          const imageUrl = images[i];
+          try {
+            // Extract filename from object storage URL
+            let filename = '';
+            let originalName = `log-photo-${i + 1}.jpg`;
+            
+            if (imageUrl.includes('/objects/')) {
+              // Object storage URL format: /objects/image/uuid
+              const urlParts = imageUrl.split('/');
+              const imageId = urlParts[urlParts.length - 1];
+              filename = `${imageId}.jpg`;
+              originalName = `log-photo-${i + 1}.jpg`;
+            } else if (imageUrl.includes('storage.googleapis.com')) {
+              // Direct GCS URL - extract filename
+              const urlParts = imageUrl.split('/');
+              filename = urlParts[urlParts.length - 1].split('?')[0];
+              originalName = filename;
+            } else {
+              // Fallback - use image URL as filename
+              filename = `${Date.now()}-log-${i}.jpg`;
+            }
+            
+            // Create photo record in photos table
+            await pool.query(`
+              INSERT INTO photos (project_id, user_id, filename, original_name, description, tags, created_at)
+              VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            `, [projectId, userId, filename, originalName, `Photo from log: ${title}`, ['log-photo']]);
+            
+            console.log(`✅ Created photo record for log image: ${filename}`);
+          } catch (photoError) {
+            console.error(`❌ Failed to create photo record for image ${i}:`, photoError);
+            // Don't fail the entire log creation if photo creation fails
+          }
+        }
+      }
+      
       return {
         id: row.id,
         projectId: row.project_id,
@@ -1024,6 +1066,15 @@ export class DatabaseStorage implements IStorage {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
+      // Get existing log to compare images
+      const existingResult = await pool.query('SELECT project_id, user_id, title, images FROM project_logs WHERE id = $1', [id]);
+      if (existingResult.rows.length === 0) {
+        return false;
+      }
+      
+      const existingLog = existingResult.rows[0];
+      const existingImages = existingLog.images || [];
+      
       const updateFields = [];
       const params = [];
       let paramIndex = 1;
@@ -1057,6 +1108,50 @@ export class DatabaseStorage implements IStorage {
       const query = `UPDATE project_logs SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`;
       
       const result = await pool.query(query, params);
+      
+      // CRITICAL FIX: Create photo records for any new images added during update
+      if (data.images && data.images.length > existingImages.length) {
+        const newImages = data.images.slice(existingImages.length);
+        const logTitle = data.title || existingLog.title;
+        
+        console.log(`📸 Creating ${newImages.length} new photo records for updated log...`);
+        for (let i = 0; i < newImages.length; i++) {
+          const imageUrl = newImages[i];
+          try {
+            // Extract filename from object storage URL
+            let filename = '';
+            let originalName = `log-photo-${existingImages.length + i + 1}.jpg`;
+            
+            if (imageUrl.includes('/objects/')) {
+              // Object storage URL format: /objects/image/uuid
+              const urlParts = imageUrl.split('/');
+              const imageId = urlParts[urlParts.length - 1];
+              filename = `${imageId}.jpg`;
+              originalName = `log-photo-${existingImages.length + i + 1}.jpg`;
+            } else if (imageUrl.includes('storage.googleapis.com')) {
+              // Direct GCS URL - extract filename
+              const urlParts = imageUrl.split('/');
+              filename = urlParts[urlParts.length - 1].split('?')[0];
+              originalName = filename;
+            } else {
+              // Fallback - use image URL as filename
+              filename = `${Date.now()}-log-${existingImages.length + i}.jpg`;
+            }
+            
+            // Create photo record in photos table
+            await pool.query(`
+              INSERT INTO photos (project_id, user_id, filename, original_name, description, tags, created_at)
+              VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            `, [existingLog.project_id, existingLog.user_id, filename, originalName, `Photo from log: ${logTitle}`, ['log-photo']]);
+            
+            console.log(`✅ Created photo record for new log image: ${filename}`);
+          } catch (photoError) {
+            console.error(`❌ Failed to create photo record for new image ${i}:`, photoError);
+            // Don't fail the entire update if photo creation fails
+          }
+        }
+      }
+      
       return (result.rowCount ?? 0) > 0;
     } finally {
       await pool.end();
