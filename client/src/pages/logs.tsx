@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, FileText, AlertTriangle, CheckCircle, Clock, User, Camera, X } from "lucide-react";
+import { Plus, FileText, AlertTriangle, CheckCircle, Clock, User, Camera, X, Calendar, Filter } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProjectLogSchema } from "@shared/schema";
@@ -70,6 +70,9 @@ export default function Logs() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [photoTags, setPhotoTags] = useState<string>("");
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
@@ -356,7 +359,39 @@ export default function Logs() {
     const matchesType = typeFilter === "all" || log.type === typeFilter;
     const matchesStatus = statusFilter === "all" || log.status === statusFilter;
     const matchesProject = projectFilter === "all" || log.projectId === projectFilter;
-    return matchesSearch && matchesType && matchesStatus && matchesProject;
+    
+    // Date filtering logic
+    let matchesDate = true;
+    if (dateFilter !== "all") {
+      const logDate = new Date(log.createdAt);
+      const today = new Date();
+      
+      switch (dateFilter) {
+        case "today":
+          matchesDate = logDate.toDateString() === today.toDateString();
+          break;
+        case "week":
+          const weekAgo = new Date(today);
+          weekAgo.setDate(today.getDate() - 7);
+          matchesDate = logDate >= weekAgo;
+          break;
+        case "month":
+          const monthAgo = new Date(today);
+          monthAgo.setMonth(today.getMonth() - 1);
+          matchesDate = logDate >= monthAgo;
+          break;
+        case "custom":
+          if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999); // Include the entire end date
+            matchesDate = logDate >= start && logDate <= end;
+          }
+          break;
+      }
+    }
+    
+    return matchesSearch && matchesType && matchesStatus && matchesProject && matchesDate;
   });
 
   if (logsLoading) {
@@ -917,7 +952,74 @@ export default function Logs() {
             <SelectItem value="closed">Closed</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={dateFilter} onValueChange={setDateFilter}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Filter by date" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Dates</SelectItem>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="week">This Week</SelectItem>
+            <SelectItem value="month">This Month</SelectItem>
+            <SelectItem value="custom">Custom Range</SelectItem>
+          </SelectContent>
+        </Select>
+        
+        {/* Clear All Filters Button */}
+        {(searchTerm || projectFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || dateFilter !== "all") && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSearchTerm("");
+              setProjectFilter("all");
+              setTypeFilter("all");
+              setStatusFilter("all");
+              setDateFilter("all");
+              setStartDate("");
+              setEndDate("");
+            }}
+            className="text-gray-600 hover:text-gray-800"
+          >
+            <Filter size={16} className="mr-1" />
+            Clear All Filters
+          </Button>
+        )}
       </div>
+      
+      {/* Custom Date Range Inputs */}
+      {dateFilter === "custom" && (
+        <div className="flex gap-4 items-center bg-gray-50 p-4 rounded-lg">
+          <Calendar className="text-gray-500" size={16} />
+          <span className="text-sm font-medium text-gray-700">Custom Date Range:</span>
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-40"
+            placeholder="Start date"
+          />
+          <span className="text-gray-400">to</span>
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="w-40"
+            placeholder="End date"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setDateFilter("all");
+              setStartDate("");
+              setEndDate("");
+            }}
+          >
+            Clear
+          </Button>
+        </div>
+      )}
 
       <div className="space-y-4">
         {filteredLogs.length === 0 ? (
