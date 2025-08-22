@@ -646,20 +646,28 @@ export default function Projects() {
                         onClick={() => handleEditProject(project)}
                       >
                         <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-3 mb-2">
-                                <h3 className="font-medium text-lg construction-secondary">{project.name}</h3>
-                                <Badge className={getStatusColor(project.status)}>
-                                  {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                                </Badge>
-                                <div className="flex items-center text-sm text-gray-500">
-                                  <MapPin size={14} className="mr-1" />
-                                  {project.location}
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+                                <h3 className="font-medium text-lg construction-secondary truncate">{project.name}</h3>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Badge className={getStatusColor(project.status)}>
+                                    {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                                  </Badge>
+                                  {project.location && (
+                                    <div className="flex items-center text-sm text-gray-500">
+                                      <MapPin size={14} className="mr-1" />
+                                      <span className="truncate">{project.location}</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                              <p className="text-sm text-gray-600 mb-2">{project.description}</p>
-                              <div className="flex items-center gap-4 text-sm">
+                              
+                              {project.description && (
+                                <p className="text-sm text-gray-600 mb-3 line-clamp-2">{project.description}</p>
+                              )}
+                              
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-3 text-sm mb-3">
                                 <div className="flex items-center gap-2">
                                   <span className="text-gray-500">Progress:</span>
                                   <span className="font-medium">{project.progress}%</span>
@@ -683,7 +691,7 @@ export default function Projects() {
                               </div>
                               
                               {/* Gallery Button */}
-                              <div className="mt-3 pt-3 border-t">
+                              <div className="border-t pt-3">
                                 <ProjectGallery 
                                   projectId={project.id} 
                                   projectName={project.name}
@@ -691,7 +699,7 @@ export default function Projects() {
                               </div>
                             </div>
                             
-                            <div className="flex gap-1">
+                            <div className="flex sm:flex-col gap-1 self-start">
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
@@ -1147,62 +1155,52 @@ export default function Projects() {
   );
 }
 
-// Task Edit Form Component
-function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
-  const queryClient = useQueryClient();
+// Task Assignment Select for Forms
+function TaskAssignmentSelect({ value, onChange }: { value?: string | null; onChange: (value: string | null) => void }) {
+  const { data: managers = [], isLoading } = useQuery<User[]>({
+    queryKey: ["/api/users/managers"],
+  });
+
+  return (
+    <Select 
+      value={value || "unassigned"} 
+      onValueChange={(val) => onChange(val === "unassigned" ? null : val)}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Select assignee">
+          {isLoading ? (
+            "Loading..."
+          ) : value ? (
+            managers.find(m => m.id === value)?.name || "Unknown User"
+          ) : (
+            "Unassigned"
+          )}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="unassigned">Unassigned</SelectItem>
+        {managers.map((manager) => (
+          <SelectItem key={manager.id} value={manager.id}>
+            {manager.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+interface TaskFormProps {
+  form: any;
+  onSubmit: (data: InsertTask) => void;
+  projects: Project[];
+  isLoading: boolean;
+  submitText: string;
+}
+
+function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormProps) {
+  const watchedCategory = form.watch("category");
+  const isProjectRequired = watchedCategory === "project";
   
-  const form = useForm({
-    defaultValues: {
-      title: task.title || "",
-      description: task.description || "",
-      status: task.status || "pending",
-      priority: task.priority || "medium",
-      category: task.category || "project",
-      projectId: task.projectId || "none",
-      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-    },
-  });
-
-  const updateTaskMutation = useMutation({
-    mutationFn: async (values: any) => {
-      console.log("Updating task:", task.id, values);
-      const response = await apiRequest(`/api/tasks/${task.id}`, { method: 'PATCH', body: values });
-      const jsonData = await response.json();
-      console.log("Task update response:", jsonData);
-      return jsonData;
-    },
-    onSuccess: (updatedTask) => {
-      console.log("Task update success:", updatedTask);
-      console.log("About to close dialog and update cache");
-      
-      // Close dialog immediately
-      onClose();
-      console.log("Dialog closed successfully");
-      
-      // Simple invalidation approach - let React Query handle the refetch
-      console.log("Invalidating task queries...");
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      console.log("Task queries invalidated");
-    },
-    onError: (error: any) => {
-      console.error("Task update error:", error);
-      // Don't close the dialog on error so user can retry
-    },
-  });
-
-  const onSubmit = (values: any) => {
-    const submitValues = {
-      ...values,
-      projectId: values.projectId === "none" ? null : values.projectId,
-      dueDate: values.dueDate ? values.dueDate.toISOString() : null,
-    };
-    updateTaskMutation.mutate(submitValues);
-  };
-
-  const { data: projects = [] } = useQuery<Project[]>({
-    queryKey: ["/api/projects"],
-  });
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -1211,15 +1209,15 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Title</FormLabel>
+              <FormLabel>Task Title</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input placeholder="Enter task title" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
+        
         <FormField
           control={form.control}
           name="description"
@@ -1227,48 +1225,78 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea {...field} value={field.value || ""} rows={3} placeholder="Add a description..." />
+                <Textarea placeholder="Enter task description" {...field} value={field.value || ""} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
+        
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="status"
+            name="category"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <FormLabel>Category</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="blocked">Blocked</SelectItem>
+                    <SelectItem value="project">Project Related</SelectItem>
+                    <SelectItem value="administrative">Administrative</SelectItem>
+                    <SelectItem value="general">General</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
-
+          
+          <FormField
+            control={form.control}
+            name="projectId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Project {isProjectRequired ? "(Required)" : "(Optional)"}
+                  {isProjectRequired && <span className="text-red-500 ml-1">*</span>}
+                </FormLabel>
+                <Select onValueChange={(value) => field.onChange(value === "none" ? null : value)} defaultValue={field.value || "none"}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {!isProjectRequired && <SelectItem value="none">No Project</SelectItem>}
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="priority"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Priority</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select priority" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -1282,51 +1310,24 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
               </FormItem>
             )}
           />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+          
           <FormField
             control={form.control}
-            name="category"
+            name="status"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Category</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <FormLabel>Status</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="project">Project Related</SelectItem>
-                    <SelectItem value="administrative">Administrative</SelectItem>
-                    <SelectItem value="general">General</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="projectId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Project</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select project (optional)" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="none">No Project</SelectItem>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -1334,7 +1335,24 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
             )}
           />
         </div>
-
+        
+        <FormField
+          control={form.control}
+          name="assigneeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Assign To</FormLabel>
+              <FormControl>
+                <TaskAssignmentSelect 
+                  value={field.value} 
+                  onChange={field.onChange}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
         <FormField
           control={form.control}
           name="dueDate"
@@ -1365,9 +1383,7 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
                     mode="single"
                     selected={field.value || undefined}
                     onSelect={field.onChange}
-                    disabled={(date) =>
-                      date < new Date(new Date().setHours(0, 0, 0, 0))
-                    }
+                    disabled={(date) => date < new Date()}
                     initialFocus
                   />
                 </PopoverContent>
@@ -1376,17 +1392,10 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
             </FormItem>
           )}
         />
-
-        <div className="flex items-center justify-end space-x-2 pt-4">
-          <Button type="button" variant="outline" onClick={onClose} disabled={updateTaskMutation.isPending}>
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            disabled={updateTaskMutation.isPending} 
-            className="construction-primary"
-          >
-            {updateTaskMutation.isPending ? "Saving..." : "Save Changes"}
+        
+        <div className="flex justify-end space-x-2">
+          <Button type="submit" disabled={isLoading} className="construction-primary text-white">
+            {isLoading ? "Saving..." : submitText}
           </Button>
         </div>
       </form>
@@ -1394,9 +1403,64 @@ function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
   );
 }
 
-// Task Create Form Component
+// Task Edit Form Component
+function TaskEditForm({ task, onClose }: { task: Task; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const { data: projects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
+  
+  const form = useForm({
+    defaultValues: {
+      title: task.title || "",
+      description: task.description || "",
+      status: task.status || "pending",
+      priority: task.priority || "medium",
+      category: task.category || "project",
+      projectId: task.projectId || null,
+      assigneeId: task.assigneeId || null,
+      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+    },
+  });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: async (values: any) => {
+      const submitValues = {
+        ...values,
+        projectId: values.projectId === "none" ? null : values.projectId,
+        assigneeId: values.assigneeId === "unassigned" ? null : values.assigneeId,
+        dueDate: values.dueDate ? values.dueDate.toISOString() : null,
+      };
+      const response = await apiRequest(`/api/tasks/${task.id}`, { method: 'PATCH', body: submitValues });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      onClose();
+    },
+  });
+
+  const onSubmit = (values: any) => {
+    updateTaskMutation.mutate(values);
+  };
+
+  return (
+    <TaskForm
+      form={form}
+      onSubmit={onSubmit}
+      projects={projects}
+      isLoading={updateTaskMutation.isPending}
+      submitText="Save Changes"
+    />
+  );
+}
+
+// Task Create Form Component  
 function TaskCreateForm({ project, onClose }: { project: Project; onClose: () => void }) {
   const queryClient = useQueryClient();
+  const { data: projects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
   
   const form = useForm<InsertTask>({
     resolver: zodResolver(insertTaskSchema),
@@ -1404,22 +1468,25 @@ function TaskCreateForm({ project, onClose }: { project: Project; onClose: () =>
       title: "",
       description: "",
       projectId: project.id,
-      category: "project",
+      category: "project", 
       status: "pending",
       priority: "medium",
+      assigneeId: null,
+      dueDate: undefined,
     },
   });
 
   const createTaskMutation = useMutation({
     mutationFn: async (values: any) => {
-      // Format the data for API
-      const formattedData = {
+      const submitValues = {
         ...values,
+        projectId: values.projectId === "none" ? null : values.projectId,
+        assigneeId: values.assigneeId === "unassigned" ? null : values.assigneeId,
         dueDate: values.dueDate ? values.dueDate.toISOString() : null,
       };
       const response = await apiRequest("/api/tasks", {
         method: "POST",
-        body: formattedData,
+        body: submitValues,
       });
       return response.json();
     },
@@ -1436,137 +1503,12 @@ function TaskCreateForm({ project, onClose }: { project: Project; onClose: () =>
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Task Title *</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter task title" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Enter task description" {...field} value={field.value || ""} rows={3} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="priority"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Priority</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select priority" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="blocked">Blocked</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <FormField
-          control={form.control}
-          name="dueDate"
-          render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>Due Date</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full pl-3 text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value ? (
-                        format(field.value, "PPP")
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value ? (typeof field.value === 'string' ? new Date(field.value) : field.value) : undefined}
-                    onSelect={field.onChange}
-                    disabled={(date) =>
-                      date < new Date() || date < new Date("1900-01-01")
-                    }
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex items-center justify-end space-x-2 pt-4">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={createTaskMutation.isPending} className="construction-primary">
-            {createTaskMutation.isPending ? "Creating..." : "Create Task"}
-          </Button>
-        </div>
-      </form>
-    </Form>
+    <TaskForm
+      form={form}
+      onSubmit={onSubmit}
+      projects={projects}
+      isLoading={createTaskMutation.isPending}
+      submitText="Create Task"
+    />
   );
 }
