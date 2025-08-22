@@ -485,14 +485,41 @@ export default function Photos() {
                   <SelectValue placeholder="Select a tag" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Tags</SelectItem>
-                  {uniqueTags.map((tag) => (
-                    <SelectItem key={tag} value={tag}>
-                      {tag}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All Tags ({photos.length} photos)</SelectItem>
+                  {uniqueTags.map((tag) => {
+                    const photoCount = photos.filter(photo => photo.tags?.includes(tag)).length;
+                    return (
+                      <SelectItem key={tag} value={tag}>
+                        {tag} ({photoCount} photo{photoCount !== 1 ? 's' : ''})
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
+              
+              {uniqueTags.length === 0 && (
+                <div className="text-sm text-gray-500 text-center py-4">
+                  No tags found. Upload photos with tags to enable tag filtering.
+                </div>
+              )}
+              
+              {uniqueTags.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-600 mb-2">Popular tags:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {uniqueTags.slice(0, 6).map((tag) => (
+                      <Badge 
+                        key={tag} 
+                        variant={selectedTag === tag ? "default" : "secondary"}
+                        className="cursor-pointer text-xs hover:bg-gray-200"
+                        onClick={() => setSelectedTag(tag)}
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="log" className="mt-4">
@@ -579,12 +606,31 @@ export default function Photos() {
                   {photo.tags && photo.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {photo.tags.slice(0, 3).map((tag, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
+                        <Badge 
+                          key={index} 
+                          variant={selectedTag === tag ? "default" : "secondary"} 
+                          className="text-xs cursor-pointer hover:bg-gray-200"
+                          onClick={() => {
+                            setFilterType("tag");
+                            setSelectedTag(tag);
+                          }}
+                          title={`Filter by tag: ${tag}`}
+                        >
                           {tag}
                         </Badge>
                       ))}
                       {photo.tags.length > 3 && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge 
+                          variant="secondary" 
+                          className="text-xs cursor-pointer hover:bg-gray-200"
+                          onClick={() => {
+                            toast({
+                              title: "All Tags",
+                              description: `Full tags: ${photo.tags?.join(', ')}`,
+                            });
+                          }}
+                          title={`All tags: ${photo.tags.join(', ')}`}
+                        >
                           +{photo.tags.length - 3}
                         </Badge>
                       )}
