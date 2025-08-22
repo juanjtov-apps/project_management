@@ -993,8 +993,8 @@ export class DatabaseStorage implements IStorage {
     try {
       const { projectId, userId, title, content, type = 'general', status = 'open', images = [] } = logData;
       
-      if (!projectId || !userId || !title || !content) {
-        throw new Error('ProjectId, userId, title, and content are required');
+      if (!projectId || !userId || !title) {
+        throw new Error('ProjectId, userId, and title are required');
       }
       
       const result = await pool.query(`
