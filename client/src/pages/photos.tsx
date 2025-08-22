@@ -93,13 +93,17 @@ export default function Photos() {
     let filtered = photos;
 
     // Filter by search term first
-    if (searchTerm) {
+    if (searchTerm && searchTerm.trim() !== "") {
       console.log('🔍 Applying search filter for:', searchTerm);
-      filtered = filtered.filter(photo => 
-        photo.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        photo.originalName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        photo.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+      const searchLower = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(photo => {
+        const matchesDescription = photo.description?.toLowerCase().includes(searchLower);
+        const matchesName = photo.originalName?.toLowerCase().includes(searchLower);
+        const matchesTags = photo.tags?.some(tag => tag.toLowerCase().includes(searchLower));
+        const matches = matchesDescription || matchesName || matchesTags;
+        console.log(`🔍 Photo ${photo.id}: desc=${matchesDescription}, name=${matchesName}, tags=${matchesTags} => ${matches}`);
+        return matches;
+      });
       console.log('🔍 After search filter:', filtered.length);
     }
 
