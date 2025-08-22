@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, FileText, AlertTriangle, CheckCircle, Clock, User, Camera, X, Calendar, Filter } from "lucide-react";
+import { Plus, FileText, AlertTriangle, CheckCircle, Clock, User, Camera, X, Calendar, Filter, Tag, ChevronDown } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProjectLogSchema } from "@shared/schema";
@@ -75,6 +75,9 @@ export default function Logs() {
   const [endDate, setEndDate] = useState("");
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [photoTags, setPhotoTags] = useState<string>("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
+  const [tagInput, setTagInput] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const createUploaderRef = useRef<DeferredObjectUploaderRef>(null);
   const editUploaderRef = useRef<DeferredObjectUploaderRef>(null);
@@ -89,6 +92,24 @@ export default function Logs() {
     queryKey: ["/api/projects"],
   });
 
+  // Fetch photos to get existing tags
+  const { data: photos = [] } = useQuery<any[]>({
+    queryKey: ["/api/photos"],
+    staleTime: 0,
+  });
+
+  // Extract unique existing tags from photos
+  const existingTags = photos.reduce((tags: string[], photo) => {
+    if (photo.tags && Array.isArray(photo.tags)) {
+      photo.tags.forEach((tag: string) => {
+        if (tag && !tags.includes(tag)) {
+          tags.push(tag);
+        }
+      });
+    }
+    return tags;
+  }, []).sort();
+
   const createLogMutation = useMutation({
     mutationFn: (data: InsertProjectLog & { images?: string[] }) => apiRequest("/api/logs", { method: "POST", body: data }),
     onSuccess: () => {
@@ -96,6 +117,9 @@ export default function Logs() {
       setIsCreateDialogOpen(false);
       setUploadedImages([]);
       setPhotoTags("");
+      setSelectedTags([]);
+      setTagInput("");
+      setShowTagDropdown(false);
       form.reset();
       toast({
         title: "Success",
@@ -118,8 +142,11 @@ export default function Logs() {
       queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
       setIsEditDialogOpen(false);
       setEditingLog(null);
-      setUploadedImages([]); // Reset uploaded images
-      setPhotoTags(""); // Reset photo tags
+      setUploadedImages([]);
+      setPhotoTags("");
+      setSelectedTags([]);
+      setTagInput("");
+      setShowTagDropdown(false);
       editForm.reset();
       toast({
         title: "Success",
@@ -237,6 +264,9 @@ export default function Logs() {
     // Reset new uploads state (existing images shown separately)
     setUploadedImages([]);
     setPhotoTags("");
+    setSelectedTags([]);
+    setTagInput("");
+    setShowTagDropdown(false);
     setIsEditDialogOpen(true);
   };
 
@@ -314,8 +344,8 @@ export default function Logs() {
         // Get current project ID from the appropriate form (create or edit)
         const currentProjectId = isEditDialogOpen ? editForm.watch('projectId') : form.watch('projectId');
         
-        // Parse tags from input (comma-separated)
-        const tags = photoTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+        // Use selected tags from the new tag system
+        const tags = [...selectedTags];
         if (!tags.includes('log-photo')) {
           tags.push('log-photo');
         }
@@ -569,23 +599,166 @@ export default function Logs() {
                 <div className="space-y-4">
                   <FormLabel>Photos (Optional)</FormLabel>
                   
-                  {/* Photo Tags Input */}
+                  {/* Enhanced Photo Tags Input with Dropdown */}
                   <div className="space-y-2">
-                    <FormLabel htmlFor="photo-tags" className="text-sm text-gray-600">
-                      Photo Tags (comma-separated)
+                    <FormLabel className="text-sm text-gray-700 flex items-center gap-1">
+                      <Tag size={14} />
+                      Photo Tags
                     </FormLabel>
-                    <Input
-                      id="photo-tags"
-                      type="text"
-                      placeholder="e.g., foundation, concrete, progress"
-                      value={photoTags}
-                      onChange={(e) => setPhotoTags(e.target.value)}
-                      className="text-sm"
-                    />
+                    
+                    {/* Selected Tags Display */}
+                    {selectedTags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {selectedTags.map((tag, index) => (
+                          <Badge 
+                            key={index} 
+                            variant="secondary" 
+                            className="bg-teal-100 text-teal-800 hover:bg-teal-200 px-2 py-1 text-xs flex items-center gap-1"
+                          >
+                            {tag}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newTags = selectedTags.filter((_, i) => i !== index);
+                                setSelectedTags(newTags);
+                                setPhotoTags(newTags.join(', '));
+                              }}
+                              className="hover:bg-teal-300 rounded-full p-0.5"
+                            >
+                              <X size={10} />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Tag Input with Dropdown */}
+                    <div className="relative">
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          placeholder="Type to search existing tags or create new ones"
+                          value={tagInput}
+                          onChange={(e) => setTagInput(e.target.value)}
+                          onFocus={() => setShowTagDropdown(true)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (tagInput.trim() && !selectedTags.includes(tagInput.trim())) {
+                                const newTags = [...selectedTags, tagInput.trim()];
+                                setSelectedTags(newTags);
+                                setPhotoTags(newTags.join(', '));
+                                setTagInput('');
+                              }
+                            }
+                          }}
+                          className="text-sm flex-1"
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            if (tagInput.trim() && !selectedTags.includes(tagInput.trim())) {
+                              const newTags = [...selectedTags, tagInput.trim()];
+                              setSelectedTags(newTags);
+                              setPhotoTags(newTags.join(', '));
+                              setTagInput('');
+                            }
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="px-3"
+                        >
+                          Add
+                        </Button>
+                      </div>
+
+                      {/* Dropdown with existing tags */}
+                      {showTagDropdown && (
+                        <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                          <div className="p-2 border-b bg-gray-50">
+                            <p className="text-xs text-gray-600 font-medium">Existing Tags</p>
+                          </div>
+                          {existingTags.length > 0 ? (
+                            <div className="p-1">
+                              {existingTags
+                                .filter(tag => 
+                                  tag.toLowerCase().includes(tagInput.toLowerCase()) &&
+                                  !selectedTags.includes(tag)
+                                )
+                                .map(tag => (
+                                  <button
+                                    key={tag}
+                                    type="button"
+                                    onClick={() => {
+                                      const newTags = [...selectedTags, tag];
+                                      setSelectedTags(newTags);
+                                      setPhotoTags(newTags.join(', '));
+                                      setTagInput('');
+                                      setShowTagDropdown(false);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded flex items-center gap-2"
+                                  >
+                                    <Tag size={12} className="text-gray-400" />
+                                    {tag}
+                                  </button>
+                                ))}
+                              {tagInput.trim() && 
+                               !existingTags.some(tag => tag.toLowerCase() === tagInput.toLowerCase()) &&
+                               !selectedTags.includes(tagInput.trim()) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newTags = [...selectedTags, tagInput.trim()];
+                                    setSelectedTags(newTags);
+                                    setPhotoTags(newTags.join(', '));
+                                    setTagInput('');
+                                    setShowTagDropdown(false);
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-teal-50 rounded flex items-center gap-2 border-t"
+                                >
+                                  <Plus size={12} className="text-teal-600" />
+                                  <span>Create "<strong>{tagInput.trim()}</strong>"</span>
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="p-4 text-center text-sm text-gray-500">
+                              {tagInput.trim() ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newTags = [...selectedTags, tagInput.trim()];
+                                    setSelectedTags(newTags);
+                                    setPhotoTags(newTags.join(', '));
+                                    setTagInput('');
+                                    setShowTagDropdown(false);
+                                  }}
+                                  className="w-full px-3 py-2 text-sm hover:bg-teal-50 rounded flex items-center justify-center gap-2"
+                                >
+                                  <Plus size={12} className="text-teal-600" />
+                                  <span>Create "<strong>{tagInput.trim()}</strong>"</span>
+                                </button>
+                              ) : (
+                                "No existing tags found"
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
                     <p className="text-xs text-gray-500">
-                      Add tags to help organize and search photos later
+                      Select from existing tags or create new ones to organize photos
                     </p>
                   </div>
+
+                  {/* Click outside to close dropdown */}
+                  {showTagDropdown && (
+                    <div 
+                      className="fixed inset-0 z-5" 
+                      onClick={() => setShowTagDropdown(false)}
+                    />
+                  )}
 
                   {/* Streamlined Photo Upload */}
                   <div className="flex items-center gap-4">
