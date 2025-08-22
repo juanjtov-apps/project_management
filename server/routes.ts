@@ -1069,7 +1069,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               userId: userId,
               filename: objectId, // Store just the object ID for consistent lookup
               originalName: imageUrl, // Keep original URL/filename  
-              description: `Photo from log: ${logData.title}`,
+              description: logData.title,
               tags: ['log-photo']
             };
             
