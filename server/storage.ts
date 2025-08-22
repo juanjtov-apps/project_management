@@ -1012,25 +1012,32 @@ export class DatabaseStorage implements IStorage {
         for (let i = 0; i < images.length; i++) {
           const imageUrl = images[i];
           try {
-            // Extract filename from object storage URL
+            // Extract the actual object storage path from the URL
             let filename = '';
             let originalName = `log-photo-${i + 1}.jpg`;
             
-            if (imageUrl.includes('/objects/')) {
-              // Object storage URL format: /objects/image/uuid
+            if (imageUrl.includes('storage.googleapis.com')) {
+              // Direct GCS URL - extract the full path after the bucket
+              const url = new URL(imageUrl);
+              const pathParts = url.pathname.split('/');
+              // Skip the first empty part and bucket name, get the object path
+              const objectPath = pathParts.slice(2).join('/').split('?')[0];
+              filename = objectPath;
+              originalName = pathParts[pathParts.length - 1].split('?')[0];
+            } else if (imageUrl.includes('/objects/')) {
+              // This is likely a local object reference, extract the ID
               const urlParts = imageUrl.split('/');
-              const imageId = urlParts[urlParts.length - 1];
-              filename = `${imageId}.jpg`;
+              const objectId = urlParts[urlParts.length - 1];
+              // For object storage uploads, the filename should match the actual uploaded path
+              filename = `uploads/${objectId}`;
               originalName = `log-photo-${i + 1}.jpg`;
-            } else if (imageUrl.includes('storage.googleapis.com')) {
-              // Direct GCS URL - extract filename
-              const urlParts = imageUrl.split('/');
-              filename = urlParts[urlParts.length - 1].split('?')[0];
-              originalName = filename;
             } else {
-              // Fallback - use image URL as filename
+              // Fallback - create a unique filename
               filename = `${Date.now()}-log-${i}.jpg`;
+              originalName = filename;
             }
+            
+            console.log(`📸 Creating photo record: URL=${imageUrl}, filename=${filename}, originalName=${originalName}`);
             
             // Create photo record in photos table
             await pool.query(`
@@ -1118,25 +1125,32 @@ export class DatabaseStorage implements IStorage {
         for (let i = 0; i < newImages.length; i++) {
           const imageUrl = newImages[i];
           try {
-            // Extract filename from object storage URL
+            // Extract the actual object storage path from the URL
             let filename = '';
             let originalName = `log-photo-${existingImages.length + i + 1}.jpg`;
             
-            if (imageUrl.includes('/objects/')) {
-              // Object storage URL format: /objects/image/uuid
+            if (imageUrl.includes('storage.googleapis.com')) {
+              // Direct GCS URL - extract the full path after the bucket
+              const url = new URL(imageUrl);
+              const pathParts = url.pathname.split('/');
+              // Skip the first empty part and bucket name, get the object path
+              const objectPath = pathParts.slice(2).join('/').split('?')[0];
+              filename = objectPath;
+              originalName = pathParts[pathParts.length - 1].split('?')[0];
+            } else if (imageUrl.includes('/objects/')) {
+              // This is likely a local object reference, extract the ID
               const urlParts = imageUrl.split('/');
-              const imageId = urlParts[urlParts.length - 1];
-              filename = `${imageId}.jpg`;
+              const objectId = urlParts[urlParts.length - 1];
+              // For object storage uploads, the filename should match the actual uploaded path
+              filename = `uploads/${objectId}`;
               originalName = `log-photo-${existingImages.length + i + 1}.jpg`;
-            } else if (imageUrl.includes('storage.googleapis.com')) {
-              // Direct GCS URL - extract filename
-              const urlParts = imageUrl.split('/');
-              filename = urlParts[urlParts.length - 1].split('?')[0];
-              originalName = filename;
             } else {
-              // Fallback - use image URL as filename
+              // Fallback - create a unique filename
               filename = `${Date.now()}-log-${existingImages.length + i}.jpg`;
+              originalName = filename;
             }
+            
+            console.log(`📸 Creating photo record for update: URL=${imageUrl}, filename=${filename}, originalName=${originalName}`);
             
             // Create photo record in photos table
             await pool.query(`
