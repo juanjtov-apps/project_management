@@ -54,9 +54,8 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
             >
               <Menu className="text-brand-text" size={20} />
             </Button>
-            <div>
+            <div className="flex justify-center w-full lg:justify-start">
               <h2 className="text-xl font-semibold text-brand-blue">Dashboard</h2>
-              <p className="text-base text-brand-text opacity-60">Manage your construction projects with precision and efficiency.</p>
             </div>
           </div>
           
