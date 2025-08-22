@@ -62,12 +62,16 @@ export default function Photos() {
   // Extract all unique tags from photos
   const uniqueTags = useMemo(() => {
     const tagSet = new Set<string>();
+    console.log('📸 Processing photos for tags:', photos.length);
     photos.forEach(photo => {
       if (photo.tags) {
+        console.log(`📸 Photo ${photo.id} has tags:`, photo.tags);
         photo.tags.forEach(tag => tagSet.add(tag));
       }
     });
-    return Array.from(tagSet).sort();
+    const allTags = Array.from(tagSet).sort();
+    console.log('📸 All unique tags found:', allTags);
+    return allTags;
   }, [photos]);
 
   // Get logs that have images

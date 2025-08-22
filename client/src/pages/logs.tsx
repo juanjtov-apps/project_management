@@ -320,6 +320,8 @@ export default function Logs() {
           tags.push('log-photo');
         }
         
+        console.log('🏷️ Parsed tags from input:', { photoTags, parsedTags: tags });
+        
         // Only save photo metadata if we have a project selected
         if (currentProjectId) {
           const photoPromises = uploadedUrls.map(async (imageUrl: string) => {
@@ -331,10 +333,16 @@ export default function Logs() {
               tags: tags
             };
             
-            return apiRequest("/api/photos", { method: "POST", body: photoData });
+            console.log('📸 Creating photo with data:', photoData);
+            const result = await apiRequest("/api/photos", { method: "POST", body: photoData });
+            console.log('📸 Photo creation result:', result);
+            return result;
           });
           
           await Promise.all(photoPromises);
+          
+          // Invalidate photos cache to refresh the gallery
+          queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
         }
         
         // Store the image URLs for the log
