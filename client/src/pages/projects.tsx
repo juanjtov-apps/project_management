@@ -646,62 +646,57 @@ export default function Projects() {
                         onClick={() => handleEditProject(project)}
                       >
                         <CardContent className="p-4">
-                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
-                                <h3 className="font-medium text-lg construction-secondary truncate">{project.name}</h3>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <Badge className={getStatusColor(project.status)}>
-                                    {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                                  </Badge>
-                                  {project.location && (
-                                    <div className="flex items-center text-sm text-gray-500">
-                                      <MapPin size={14} className="mr-1" />
-                                      <span className="truncate">{project.location}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              
-                              {project.description && (
-                                <p className="text-sm text-gray-600 mb-3 line-clamp-2">{project.description}</p>
-                              )}
-                              
-                              <div className="flex flex-col sm:flex-row sm:items-center gap-3 text-sm mb-3">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-gray-500">Progress:</span>
-                                  <span className="font-medium">{project.progress}%</span>
-                                  <div className="w-16 bg-gray-200 rounded-full h-2">
-                                    <div
-                                      className={`h-2 rounded-full ${getProgressColor(project.status)}`}
-                                      style={{ width: `${project.progress}%` }}
-                                    ></div>
+                          <div className="space-y-4">
+                            {/* Header Section */}
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-col gap-2 mb-2">
+                                  <h3 className="font-medium text-lg construction-secondary truncate">{project.name}</h3>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Badge className={getStatusColor(project.status)}>
+                                      {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                                    </Badge>
+                                    {project.location && (
+                                      <div className="flex items-center text-sm text-gray-500">
+                                        <MapPin size={14} className="mr-1" />
+                                        <span className="truncate">{project.location}</span>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-1 text-gray-500">
-                                  <Users size={14} />
-                                  <span>{projectTasks.length} tasks</span>
-                                </div>
-                                {project.dueDate && (
-                                  <div className="flex items-center gap-1 text-gray-500">
-                                    <CalendarIcon size={14} />
-                                    <span>Due: {new Date(project.dueDate).toLocaleDateString()}</span>
-                                  </div>
+                                
+                                {project.description && (
+                                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">{project.description}</p>
                                 )}
+                                
+                                <div className="flex flex-col gap-2 text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-500">Progress:</span>
+                                    <span className="font-medium">{project.progress}%</span>
+                                    <div className="w-16 bg-gray-200 rounded-full h-2">
+                                      <div
+                                        className={`h-2 rounded-full ${getProgressColor(project.status)}`}
+                                        style={{ width: `${project.progress}%` }}
+                                      ></div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-1 text-gray-500">
+                                      <Users size={14} />
+                                      <span>{projectTasks.length} tasks</span>
+                                    </div>
+                                    {project.dueDate && (
+                                      <div className="flex items-center gap-1 text-gray-500">
+                                        <CalendarIcon size={14} />
+                                        <span>Due: {new Date(project.dueDate).toLocaleDateString()}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                               
-                            </div>
-                            
-                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-1 self-start">
-                              {/* Gallery Button - Mobile: Full width, Desktop: Inline */}
-                              <div className="w-full sm:w-auto">
-                                <ProjectGallery 
-                                  projectId={project.id} 
-                                  projectName={project.name}
-                                />
-                              </div>
-                              
-                              <div className="flex gap-1">
+                              {/* Action Buttons - Desktop Only */}
+                              <div className="hidden sm:flex flex-col gap-1">
                                 <Button 
                                   variant="ghost" 
                                   size="sm" 
@@ -726,19 +721,67 @@ export default function Projects() {
                                 >
                                   <Plus size={14} />
                                 </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteProject(project);
+                                  }}
+                                  title="Delete project"
+                                >
+                                  <Trash2 size={14} />
+                                </Button>
                               </div>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteProject(project);
-                                }}
-                                title="Delete project"
-                              >
-                                <Trash2 size={14} />
-                              </Button>
+                            </div>
+                            
+                            {/* Mobile Actions Row */}
+                            <div className="sm:hidden flex items-center justify-between gap-2 pt-2 border-t">
+                              <div className="flex-1">
+                                <ProjectGallery 
+                                  projectId={project.id} 
+                                  projectName={project.name}
+                                />
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-8 w-8 p-0" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditProject(project);
+                                  }}
+                                  title="Edit project"
+                                >
+                                  <Edit size={14} />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-8 w-8 p-0" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAddTask(project);
+                                  }}
+                                  title="Add task"
+                                >
+                                  <Plus size={14} />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteProject(project);
+                                  }}
+                                  title="Delete project"
+                                >
+                                  <Trash2 size={14} />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                           
@@ -881,12 +924,53 @@ export default function Projects() {
                                 </div>
                               </div>
                               
-                              {/* Gallery Button */}
-                              <div className="mt-3">
+                            </div>
+                            
+                            {/* Mobile Actions Row */}
+                            <div className="flex items-center justify-between gap-2 pt-3 mt-3 border-t">
+                              <div className="flex-1">
                                 <ProjectGallery 
                                   projectId={project.id} 
                                   projectName={project.name}
                                 />
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-8 w-8 p-0" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditProject(project);
+                                  }}
+                                  title="Edit project"
+                                >
+                                  <Edit size={14} />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-8 w-8 p-0" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAddTask(project);
+                                  }}
+                                  title="Add task"
+                                >
+                                  <Plus size={14} />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteProject(project);
+                                  }}
+                                  title="Delete project"
+                                >
+                                  <Trash2 size={14} />
+                                </Button>
                               </div>
                             </div>
                           </div>
@@ -908,26 +992,31 @@ export default function Projects() {
             return (
               <Card key={project.id} className="hover:shadow-sm">
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4">
-                        <h3 className="font-medium text-lg">{project.name}</h3>
-                        <Badge className={getStatusColor(project.status)}>
-                          {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                        </Badge>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <MapPin size={14} className="mr-1" />
-                          {project.location}
+                  <div className="space-y-4">
+                    {/* Header Section */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                          <h3 className="font-medium text-lg">{project.name}</h3>
+                          <Badge className={getStatusColor(project.status)}>
+                            {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                          </Badge>
                         </div>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <Users size={14} className="mr-1" />
-                          {projectTasks.length} tasks
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-gray-500">
+                          <div className="flex items-center">
+                            <MapPin size={14} className="mr-1" />
+                            {project.location}
+                          </div>
+                          <div className="flex items-center">
+                            <Users size={14} className="mr-1" />
+                            {projectTasks.length} tasks
+                          </div>
+                          <span>{project.progress}% complete</span>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">{project.progress}% complete</span>
-                      <div className="flex gap-1">
+                      
+                      {/* Desktop Actions */}
+                      <div className="hidden sm:flex items-center gap-1">
                         <Button 
                           variant="ghost" 
                           size="sm" 
@@ -952,12 +1041,54 @@ export default function Projects() {
                         >
                           <Plus size={14} />
                         </Button>
-                        <div className="mt-1">
-                          <ProjectGallery 
-                            projectId={project.id} 
-                            projectName={project.name}
-                          />
-                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProject(project);
+                          }}
+                          title="Delete project"
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Mobile Actions Row */}
+                    <div className="sm:hidden flex items-center justify-between gap-2 pt-2 border-t">
+                      <div className="flex-1">
+                        <ProjectGallery 
+                          projectId={project.id} 
+                          projectName={project.name}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditProject(project);
+                          }}
+                          title="Edit project"
+                        >
+                          <Edit size={14} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddTask(project);
+                          }}
+                          title="Add task"
+                        >
+                          <Plus size={14} />
+                        </Button>
                         <Button 
                           variant="ghost" 
                           size="sm" 
