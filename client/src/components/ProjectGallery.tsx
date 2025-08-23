@@ -279,7 +279,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
         <Button 
           variant="outline" 
           size="sm"
-          className="gap-2"
+          className="gap-2 w-full sm:w-auto"
         >
           <Camera size={14} />
           Gallery
