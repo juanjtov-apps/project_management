@@ -106,12 +106,12 @@ function AuthenticatedLayout({
   return (
     <div className="flex h-screen bg-construction-surface">
       <Sidebar />
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden">
         <Header 
           onToggleMobileMenu={() => setIsMobileMenuOpen(true)}
           onToggleNotifications={() => setIsNotificationModalOpen(true)}
         />
-        <div className="p-6 overflow-y-auto h-full">
+        <div className="flex-1 p-6 overflow-y-auto pb-safe">
           <Router />
         </div>
       </main>

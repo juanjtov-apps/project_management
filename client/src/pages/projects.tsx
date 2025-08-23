@@ -690,40 +690,43 @@ export default function Projects() {
                                 )}
                               </div>
                               
-                              {/* Gallery Button */}
-                              <div className="border-t pt-3">
+                            </div>
+                            
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-1 self-start">
+                              {/* Gallery Button - Mobile: Full width, Desktop: Inline */}
+                              <div className="w-full sm:w-auto">
                                 <ProjectGallery 
                                   projectId={project.id} 
                                   projectName={project.name}
                                 />
                               </div>
-                            </div>
-                            
-                            <div className="flex sm:flex-col gap-1 self-start">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-8 w-8 p-0" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditProject(project);
-                                }}
-                                title="Edit project"
-                              >
-                                <Edit size={14} />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-8 w-8 p-0" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAddTask(project);
-                                }}
-                                title="Add task"
-                              >
-                                <Plus size={14} />
-                              </Button>
+                              
+                              <div className="flex gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-8 w-8 p-0" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditProject(project);
+                                  }}
+                                  title="Edit project"
+                                >
+                                  <Edit size={14} />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-8 w-8 p-0" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAddTask(project);
+                                  }}
+                                  title="Add task"
+                                >
+                                  <Plus size={14} />
+                                </Button>
+                              </div>
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
@@ -879,7 +882,7 @@ export default function Projects() {
                               </div>
                               
                               {/* Gallery Button */}
-                              <div className="mt-3 pt-3 border-t">
+                              <div className="mt-3">
                                 <ProjectGallery 
                                   projectId={project.id} 
                                   projectName={project.name}
