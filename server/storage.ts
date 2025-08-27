@@ -215,8 +215,6 @@ export class DatabaseStorage implements IStorage {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
-      const companyId = parseInt(id);
-      
       // First, delete all user activities for this company
       await pool.query('DELETE FROM user_activities WHERE company_id = $1', [id]);
       console.log(`✅ Deleted all activities for company ${id} before deletion`);
@@ -234,8 +232,9 @@ export class DatabaseStorage implements IStorage {
       await pool.query('UPDATE users SET company_id = $1 WHERE company_id = $2', ['0', id]);
       console.log(`✅ Reassigned all users from company ${id} to default company before deletion`);
       
-      // Now we can safely delete the company
-      const result = await pool.query('DELETE FROM companies WHERE id = $1', [companyId]);
+      // Now we can safely delete the company (use string ID, not parseInt)
+      const result = await pool.query('DELETE FROM companies WHERE id = $1', [id]);
+      console.log(`✅ Company ${id} deleted successfully`);
       return (result.rowCount ?? 0) > 0;
     } finally {
       await pool.end();
