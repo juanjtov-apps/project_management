@@ -199,6 +199,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get users for a specific company
+  app.get('/api/rbac/companies/:id/users', async (req, res) => {
+    try {
+      console.log(`PRODUCTION RBAC: Fetching users for company ${req.params.id} via Node.js backend`);
+      const companyUsers = await storage.getCompanyUsers(req.params.id);
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${companyUsers.length} users for company ${req.params.id}`);
+      res.json(companyUsers);
+    } catch (error: any) {
+      console.error('Error fetching company users:', error);
+      res.status(500).json({ message: 'Failed to fetch company users', error: error.message });
+    }
+  });
+
   // PRODUCTION: Add users/managers endpoint for task assignment
   app.get('/api/users/managers', async (req, res) => {
     try {
