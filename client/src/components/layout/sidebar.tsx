@@ -31,26 +31,35 @@ const navigation = [
 export default function Sidebar() {
   const [location] = useLocation();
   
-  // Get current user to check admin access
+  // Get current user with permissions
   const { data: currentUser } = useQuery<any>({
     queryKey: ['/api/auth/user'],
     retry: false
   });
   
-  // Three-tier access control - only show RBAC Admin to admin users
-  const isRootAdmin = currentUser?.email?.includes('chacjjlegacy') || currentUser?.email === 'admin@proesphere.com';
-  const isCompanyAdmin = currentUser?.role === 'admin' || currentUser?.email?.includes('admin');
-  const hasRBACAccess = isRootAdmin || isCompanyAdmin;
+  // Role-based navigation filtering using backend permissions
+  const permissions = currentUser?.permissions || {};
   
-  // Filter navigation based on user role
+  // Map navigation items to their permission keys
+  const navigationPermissions = {
+    'Dashboard': 'dashboard',
+    'Projects': 'projects', 
+    'Tasks': 'tasks',
+    'Project Health': 'projectHealth',
+    'Schedule': 'schedule',
+    'Photos': 'photos',
+    'Project Logs': 'logs',
+    'Crew': 'crew',
+    'Subs': 'subs',
+    'RBAC Admin': 'rbacAdmin'
+  };
+  
+  // Filter navigation based on user permissions from backend
   const filteredNavigation = navigation.filter(item => {
-    if (item.name === 'RBAC Admin') {
-      return hasRBACAccess;
-    }
-    return true;
+    const permissionKey = navigationPermissions[item.name];
+    return permissions[permissionKey] === true;
   });
   
-  // Debug logging to check navigation items
   console.log('Sidebar navigation items:', filteredNavigation.length, filteredNavigation.map(item => item.name));
 
   return (

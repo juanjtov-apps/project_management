@@ -9,6 +9,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import express from "express";
+import { authorize, enforceCompanyScope, getNavigationPermissions, type AuthorizedRequest } from "./rbacMiddleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session configuration
@@ -73,7 +74,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get current user route
+  // Get current user route with navigation permissions
   app.get('/api/auth/user', async (req, res) => {
     try {
       const userId = (req.session as any)?.userId;
@@ -86,7 +87,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not found" });
       }
 
-      res.json({ ...user, password: undefined });
+      // Add navigation permissions
+      const isRootAdmin = user.id === '0' || 
+                          user.email === 'chacjjlegacy@proesphera.com' ||
+                          user.email === 'admin@proesphere.com';
+      
+      const permissions = getNavigationPermissions(user.role || 'user', isRootAdmin);
+
+      res.json({ 
+        ...user, 
+        password: undefined,
+        permissions,
+        isRootAdmin
+      });
     } catch (error) {
       console.error("Get user error:", error);
       res.status(500).json({ message: "Internal server error" });
@@ -145,12 +158,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PRODUCTION RBAC: Direct Node.js RBAC endpoints bypassing Python backend completely
   
   // Companies endpoints
-  app.get('/api/rbac/companies', async (req, res) => {
+  app.get('/api/rbac/companies', authorize(['admin']), enforceCompanyScope(), async (req: AuthorizedRequest, res) => {
     try {
       console.log('PRODUCTION RBAC: Fetching companies directly from Node.js backend');
-      const companies = await storage.getCompanies();
-      console.log(`✅ NODE.JS SUCCESS: Retrieved ${companies.length} companies`);
-      res.json(companies);
+      
+      // Root admin sees all companies, company admins see only their company
+      if (req.isRootAdmin) {
+        const companies = await storage.getCompanies();
+        console.log(`✅ NODE.JS SUCCESS: Root admin retrieved ${companies.length} companies`);
+        res.json(companies);
+      } else {
+        // Company admin sees only their own company
+        const companies = await storage.getCompanies();
+        const userCompanyId = req.currentUser?.company_id;
+        const filteredCompanies = companies.filter(c => c.id === userCompanyId);
+        console.log(`✅ NODE.JS SUCCESS: Company admin retrieved ${filteredCompanies.length} companies (filtered)`);
+        res.json(filteredCompanies);
+      }
     } catch (error: any) {
       console.error('Error fetching companies:', error);
       res.status(500).json({ message: 'Failed to fetch companies', error: error.message });
@@ -278,41 +302,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Users endpoints with multi-tenant security
-  app.get('/api/rbac/users', async (req, res) => {
+  app.get('/api/rbac/users', authorize(['admin']), enforceCompanyScope(), async (req: AuthorizedRequest, res) => {
     try {
       console.log('PRODUCTION RBAC: Fetching users directly from Node.js backend');
       
-      // Get current user session to apply company filtering
-      const userId = (req.session as any)?.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+      // Root admin sees all users, company admins see only their company users
+      if (req.isRootAdmin) {
+        console.log(`RBAC: Root admin ${req.currentUser?.email} requesting all users`);
+        const allUsers = await storage.getUsers();
+        console.log(`✅ NODE.JS SUCCESS: Retrieved ${allUsers.length} users for ${req.currentUser?.email} (root admin)`);
+        res.json(allUsers);
+      } else {
+        // Company admin sees only their company users
+        console.log(`RBAC: Company admin ${req.currentUser?.email} requesting company users`);
+        const companyUsers = await storage.getCompanyUsers(req.currentUser?.company_id);
+        console.log(`✅ NODE.JS SUCCESS: Retrieved ${companyUsers.length} users for company ${req.currentUser?.company_id}`);
+        res.json(companyUsers);
       }
-
-      const currentUser = await storage.getUser(userId);
-      if (!currentUser) {
-        return res.status(401).json({ message: "User not found" });
-      }
-
-      // Check admin access
-      const isRootAdmin = currentUser.email?.includes('chacjjlegacy') || currentUser.email === 'admin@proesphere.com';
-      const isCompanyAdmin = currentUser.role === 'admin' || currentUser.email?.includes('admin');
-      
-      if (!isRootAdmin && !isCompanyAdmin) {
-        return res.status(403).json({ message: "Access denied. Admin privileges required." });
-      }
-
-      const users = await storage.getUsers();
-      
-      // Filter users by company for company admins
-      // Handle companyId field for filtering
-      const currentUserCompanyId = currentUser.companyId;
-      const filteredUsers = isRootAdmin ? users : users.filter(user => {
-        const userCompanyId = user.companyId;
-        return userCompanyId === currentUserCompanyId || userCompanyId === '0';
-      });
-      
-      console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredUsers.length} users for ${currentUser.email} (${isRootAdmin ? 'root admin' : 'company admin'})`);
-      res.json(filteredUsers);
     } catch (error: any) {
       console.error('Error fetching users:', error);
       res.status(500).json({ message: 'Failed to fetch users', error: error.message });
