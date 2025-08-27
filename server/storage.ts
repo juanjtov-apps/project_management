@@ -25,6 +25,7 @@ export interface IStorage {
   updateCompany(id: string, data: any): Promise<any>;
   deleteCompany(id: string): Promise<boolean>;
   getUsers(): Promise<any[]>;
+  getCompanyUsers(companyId: string): Promise<any[]>;
   createRBACUser(user: any): Promise<any>;
   updateUser(id: string, data: any): Promise<any>;
   deleteUser(id: string): Promise<boolean>;
@@ -281,6 +282,49 @@ export class DatabaseStorage implements IStorage {
         username: row.username || row.email,
         isActive: true // Default to active since column doesn't exist
       }));
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async getCompanyUsers(companyId: string): Promise<any[]> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      console.log(`✅ Fetching users for company ${companyId}`);
+      const result = await pool.query(`
+        SELECT u.id, u.email, u.first_name, u.last_name, u.created_at, u.username, u.name, u.company_id,
+               COALESCE(u.role, 'User') as role_name,
+               c.name as company_name,
+               CASE 
+                  WHEN u.company_id IS NOT NULL THEN true
+                  ELSE false
+               END as is_active
+        FROM users u 
+        LEFT JOIN companies c ON c.id = u.company_id
+        WHERE u.company_id = $1
+        ORDER BY u.email
+      `, [companyId]);
+      
+      const users = result.rows.map(row => ({
+        id: row.id,
+        name: row.name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || row.email,
+        email: row.email,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        companyId: row.company_id,
+        role_id: '1',
+        is_active: row.is_active,
+        created_at: row.created_at,
+        last_login: null,
+        role_name: row.role_name,
+        company_name: row.company_name,
+        username: row.username || row.email,
+        isActive: row.is_active
+      }));
+      
+      console.log(`✅ Found ${users.length} users for company ${companyId}`);
+      return users;
     } finally {
       await pool.end();
     }
