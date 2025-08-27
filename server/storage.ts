@@ -368,24 +368,21 @@ export class DatabaseStorage implements IStorage {
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(userPassword, saltRounds);
 
-      // Get role name from role_id
-      const roleResult = await pool.query('SELECT name FROM roles WHERE id = $1', [role_id]);
-      if (roleResult.rows.length === 0) {
+      // Map role_id to role name and simple role codes using predefined roles
+      const roleMapping: any = {
+        '1': { name: 'Admin', code: 'admin' },
+        '2': { name: 'Project Manager', code: 'project_manager' },
+        '3': { name: 'Office Manager', code: 'office_manager' },
+        '4': { name: 'Subcontractor', code: 'subcontractor' },
+        '5': { name: 'Client', code: 'client' }
+      };
+      
+      const selectedRole = roleMapping[role_id];
+      if (!selectedRole) {
         throw new Error('Invalid role selected');
       }
-      const roleName = roleResult.rows[0].name;
-
-      // Map role names to simple role codes for backwards compatibility
-      const roleMapping: any = {
-        'Platform Administrator': 'admin',
-        'Company Administrator': 'admin', 
-        'Project Manager': 'manager',
-        'Office Manager': 'manager',
-        'Client': 'crew',
-        'Subcontractor': 'subcontractor',
-        'Viewer': 'crew'
-      };
-      const userRole = roleMapping[roleName] || 'crew';
+      
+      const userRole = selectedRole.code;
       
       const result = await pool.query(`
         INSERT INTO users (
