@@ -85,6 +85,7 @@ export const tasks = pgTable("tasks", {
   description: text("description"),
   projectId: varchar("project_id").references(() => projects.id), // Optional - null for general/admin tasks
   assigneeId: varchar("assignee_id").references(() => users.id),
+  companyId: varchar("company_id").references(() => companies.id), // Will be required after data migration
   category: text("category").notNull().default("project"), // project, administrative, general, subcontractor
   status: text("status").notNull().default("pending"), // pending, in-progress, completed, blocked
   priority: text("priority").notNull().default("medium"), // low, medium, high, critical
@@ -115,6 +116,19 @@ export const photos = pgTable("photos", {
   originalName: text("original_name").notNull(),
   description: text("description"),
   tags: text("tags").array(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+// User activity tracking for recent activity feed
+export const userActivities = pgTable("user_activities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  companyId: varchar("company_id").notNull().references(() => companies.id),
+  actionType: text("action_type").notNull(), // 'task_created', 'task_completed', 'project_created', etc.
+  description: text("description").notNull(),
+  entityType: text("entity_type"), // 'task', 'project', 'photo', 'user'
+  entityId: varchar("entity_id"), // ID of the related entity
+  metadata: jsonb("metadata"), // Additional data about the activity
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -292,6 +306,7 @@ export const insertSubcontractorAssignmentSchema = createInsertSchema(subcontrac
 export const insertProjectHealthMetricsSchema = createInsertSchema(projectHealthMetrics).omit({ id: true, calculatedAt: true });
 export const insertRiskAssessmentSchema = createInsertSchema(riskAssessments).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertHealthCheckTemplateSchema = createInsertSchema(healthCheckTemplates).omit({ id: true, createdAt: true });
+export const insertActivitySchema = createInsertSchema(userActivities).omit({ id: true, createdAt: true });
 
 // Types
 export type InsertCompany = z.infer<typeof insertCompanySchema>;
@@ -327,3 +342,5 @@ export type InsertRiskAssessment = z.infer<typeof insertRiskAssessmentSchema>;
 export type RiskAssessment = typeof riskAssessments.$inferSelect;
 export type InsertHealthCheckTemplate = z.infer<typeof insertHealthCheckTemplateSchema>;
 export type HealthCheckTemplate = typeof healthCheckTemplates.$inferSelect;
+export type InsertActivity = z.infer<typeof insertActivitySchema>;
+export type Activity = typeof userActivities.$inferSelect;

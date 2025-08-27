@@ -664,9 +664,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const tasks = await storage.getTasks();
       
-      // Filter tasks by company for non-admin users (tasks inherit company from projects)
+      // Filter tasks by company for non-admin users - STRICT MULTI-TENANCY
       const filteredTasks = isRootAdmin ? tasks : tasks.filter(task => 
-        task.companyId === user.companyId || task.companyId === '0' || task.projectId === null
+        task.companyId === user.companyId
       );
       
       console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredTasks.length} tasks for user ${user.email} (${isRootAdmin ? 'admin' : 'company-filtered'})`);
@@ -680,8 +680,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/tasks', async (req, res) => {
     try {
       console.log('PRODUCTION RBAC: Creating task via Node.js backend:', req.body);
-      const task = await storage.createTask(req.body);
-      console.log('✅ NODE.JS SUCCESS: Task created:', task);
+      
+      // Get current user to assign task to their company
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Ensure task is assigned to user's company - CRITICAL FOR MULTI-TENANCY
+      const taskData = {
+        ...req.body,
+        companyId: currentUser.companyId
+      };
+
+      const task = await storage.createTask(taskData);
+      
+      // Log activity for task creation
+      await storage.createActivity({
+        userId: currentUser.id,
+        companyId: currentUser.companyId,
+        actionType: 'task_created',
+        description: `Created task "${task.title}"`,
+        entityType: 'task',
+        entityId: task.id,
+        metadata: { category: task.category, priority: task.priority }
+      });
+      
+      console.log('✅ NODE.JS SUCCESS: Task created with company assignment:', task);
       res.status(201).json(task);
     } catch (error: any) {
       console.error('Error creating task:', error);
@@ -716,6 +746,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Error deleting task:', error);
       res.status(500).json({ message: 'Failed to delete task', error: error.message });
+    }
+  });
+
+  // Activities endpoint for recent activity feed  
+  app.get('/api/activities', async (req, res) => {
+    try {
+      console.log('PRODUCTION: Fetching activities for recent activity feed');
+      
+      // Get current user session to apply company filtering
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Get activities for user's company
+      const activities = await storage.getActivities(user.companyId, 10);
+      
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${activities.length} activities for company ${user.companyId}`);
+      res.json(activities);
+    } catch (error: any) {
+      console.error('Error fetching activities:', error);
+      res.status(500).json({ message: 'Failed to fetch activities', error: error.message });
     }
   });
 
