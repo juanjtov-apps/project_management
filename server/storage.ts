@@ -53,6 +53,10 @@ export interface IStorage {
   getProjectLogs(projectId?: string): Promise<any[]>;
   createProjectLog(log: any): Promise<any>;
   updateProjectLog(id: string, data: any): Promise<boolean>;
+  
+  // Activity operations
+  getActivities(companyId: string, limit?: number): Promise<any[]>;
+  createActivity(activity: any): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1388,6 +1392,40 @@ export class DatabaseStorage implements IStorage {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
         RETURNING *
       `, [data.projectId, data.invoiceNumber, data.clientName, data.clientEmail, data.amount, data.tax || 0, data.total, data.status || 'draft', data.dueDate, JSON.stringify(data.items)]);
+      return result.rows[0];
+    } finally {
+      await pool.end();
+    }
+  }
+
+  // Activity tracking methods
+  async getActivities(companyId: string, limit: number = 10): Promise<any[]> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        SELECT ua.*, u.first_name, u.email 
+        FROM user_activities ua
+        LEFT JOIN users u ON ua.user_id = u.id
+        WHERE ua.company_id = $1
+        ORDER BY ua.created_at DESC
+        LIMIT $2
+      `, [companyId, limit]);
+      return result.rows;
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async createActivity(data: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        INSERT INTO user_activities (user_id, company_id, action_type, description, entity_type, entity_id, metadata, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        RETURNING *
+      `, [data.userId, data.companyId, data.actionType, data.description, data.entityType, data.entityId, data.metadata ? JSON.stringify(data.metadata) : null]);
       return result.rows[0];
     } finally {
       await pool.end();

@@ -1,83 +1,72 @@
-import { Camera, CheckCircle, AlertTriangle, Users, Building } from "lucide-react";
+import { Camera, CheckCircle, AlertTriangle, Users, Building, Plus, Upload, Edit } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
 
 interface ActivityItem {
-  id: number;
-  icon: any;
-  user: string;
-  action: string;
-  timestamp: string;
-  type: string;
+  id: string;
+  user_id: string;
+  company_id: string;
+  action_type: string;
+  description: string;
+  entity_type: string;
+  entity_id: string;
+  metadata: any;
+  created_at: string;
+  first_name: string;
+  email: string;
 }
 
 export default function RecentActivity() {
-  // Get current user to determine activity scope
-  const { data: currentUser } = useQuery<any>({
-    queryKey: ['/api/auth/user'],
+  // Get real activities from API
+  const { data: activities = [], isLoading } = useQuery<ActivityItem[]>({
+    queryKey: ['/api/activities'],
     retry: false
   });
-  
-  // Get company data for root admin
-  const { data: companies = [] } = useQuery<any[]>({
-    queryKey: ['/api/companies'],
-    enabled: !!currentUser
-  });
-  
-  // Get users data for root admin
-  const { data: users = [] } = useQuery<any[]>({
-    queryKey: ['/api/rbac/users'],
-    enabled: !!currentUser
-  });
 
-  const isRootAdmin = currentUser?.email?.includes('chacjjlegacy') || currentUser?.email === 'admin@proesphere.com';
-  
-  // Generate relevant activity items based on user role
-  const getActivityItems = (): ActivityItem[] => {
-    if (isRootAdmin) {
-      // Root admin sees platform-wide activities
-      return [
-        {
-          id: 1,
-          icon: Building,
-          user: "Company Added",
-          action: `New company "${companies[companies.length - 1]?.name || 'Recent Company'}" added to platform`,
-          timestamp: "2h ago",
-          type: "company"
-        },
-        {
-          id: 2,
-          icon: Users,
-          user: "User Registered",
-          action: `${users[users.length - 1]?.name || users[users.length - 1]?.email || 'New user'} joined the platform`,
-          timestamp: "4h ago",
-          type: "user"
-        }
-      ];
-    } else {
-      // Company users see company-specific activities
-      const companyName = currentUser?.companyId ? companies.find(c => c.id.toString() === currentUser.companyId.toString())?.name || 'your company' : 'your company';
-      return [
-        {
-          id: 1,
-          icon: CheckCircle,
-          user: "Task Progress",
-          action: `Project tasks updated in ${companyName}`,
-          timestamp: "3h ago",
-          type: "task"
-        },
-        {
-          id: 2,
-          icon: Camera,
-          user: "Documentation",
-          action: `New project photos uploaded for ${companyName} projects`,
-          timestamp: "1d ago",
-          type: "photo"
-        }
-      ];
+  // Map activity types to icons
+  const getActivityIcon = (actionType: string) => {
+    switch (actionType) {
+      case 'task_created': return Plus;
+      case 'task_completed': return CheckCircle;
+      case 'project_created': return Building;
+      case 'photo_uploaded': return Camera;
+      case 'user_created': return Users;
+      case 'task_updated': return Edit;
+      default: return CheckCircle;
     }
   };
 
-  const activityItems = getActivityItems();
+  // Format relative time
+  const formatRelativeTime = (dateString: string) => {
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    } catch {
+      return 'Recently';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="elevated">
+        <div className="p-6 border-b border-brand-grey">
+          <h3 className="text-lg font-semibold text-brand-blue">Recent Activity</h3>
+        </div>
+        <div className="p-6">
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-start space-x-3 pb-4 border-b border-brand-grey/50 last:border-b-0">
+                <div className="w-2 h-2 bg-brand-grey rounded-full mt-2 flex-shrink-0 animate-pulse"></div>
+                <div className="flex-1">
+                  <div className="h-4 bg-brand-grey/20 rounded animate-pulse mb-2"></div>
+                  <div className="h-3 bg-brand-grey/20 rounded animate-pulse w-3/4"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="elevated">
@@ -90,25 +79,33 @@ export default function RecentActivity() {
         </div>
       </div>
       <div className="p-6">
-        <div className="space-y-4">
-          {activityItems.slice(0, 5).map((activity) => {
-            const Icon = activity.icon;
-            return (
-              <div key={activity.id} className="flex items-start space-x-3 pb-4 border-b border-brand-grey/50 last:border-b-0 relative">
-                <div className="w-2 h-2 bg-brand-teal rounded-full mt-2 flex-shrink-0"></div>
-                <div className="flex-1">
-                  <p className="text-sm text-brand-blue font-medium">
-                    {activity.user}
-                  </p>
-                  <p className="text-sm text-brand-text opacity-80 mt-1">
-                    {activity.action}
-                  </p>
-                  <p className="text-xs text-brand-text opacity-50 mt-1">{activity.timestamp}</p>
+        {activities.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-brand-text opacity-60">No recent activity in your company</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {activities.slice(0, 5).map((activity) => {
+              const Icon = getActivityIcon(activity.action_type);
+              return (
+                <div key={activity.id} className="flex items-start space-x-3 pb-4 border-b border-brand-grey/50 last:border-b-0 relative">
+                  <div className="w-2 h-2 bg-brand-teal rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="flex-1">
+                    <p className="text-sm text-brand-blue font-medium">
+                      {activity.first_name || activity.email || 'User'}
+                    </p>
+                    <p className="text-sm text-brand-text opacity-80 mt-1">
+                      {activity.description}
+                    </p>
+                    <p className="text-xs text-brand-text opacity-50 mt-1">
+                      {formatRelativeTime(activity.created_at)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
