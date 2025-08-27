@@ -1125,7 +1125,17 @@ export default function RBACAdmin() {
     const { data: companyUsers = [], isLoading: companyUsersLoading } = useQuery<any[]>({
       queryKey: [`/api/rbac/companies/${selectedCompanyId}/users`],
       enabled: !!selectedCompanyId && isViewUsersDialogOpen,
+      staleTime: 0, // Force fresh data
+      refetchOnMount: true
     });
+
+    // Debug logging
+    React.useEffect(() => {
+      if (selectedCompanyId && isViewUsersDialogOpen) {
+        console.log('Query should be enabled for company:', selectedCompanyId);
+        console.log('Company users data:', companyUsers);
+      }
+    }, [selectedCompanyId, isViewUsersDialogOpen, companyUsers]);
 
     return (
       <div className="space-y-6">
@@ -1555,6 +1565,7 @@ export default function RBACAdmin() {
                         size="sm" 
                         variant="outline"
                         onClick={() => {
+                          console.log('View Users clicked for company:', company.id, company.name);
                           setSelectedCompanyId(Number(company.id));
                           setIsViewUsersDialogOpen(true);
                         }}
