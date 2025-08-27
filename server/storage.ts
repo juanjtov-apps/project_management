@@ -227,10 +227,17 @@ export class DatabaseStorage implements IStorage {
       await pool.query('UPDATE projects SET company_id = NULL WHERE company_id = $1', [id]);
       console.log(`✅ Unassigned all projects for company ${id} before deletion`);
       
-      // Finally, handle users - either delete them or reassign to a default company
-      // For safety, we'll reassign users to company '0' (default) instead of deleting them
-      await pool.query('UPDATE users SET company_id = $1 WHERE company_id = $2', ['0', id]);
-      console.log(`✅ Reassigned all users from company ${id} to default company before deletion`);
+      // Finally, handle users - reassign to the first existing company to maintain referential integrity
+      // Find an existing company that's not the one being deleted
+      const fallbackCompanyResult = await pool.query('SELECT id FROM companies WHERE id != $1 LIMIT 1', [id]);
+      if (fallbackCompanyResult.rows.length > 0) {
+        const fallbackCompanyId = fallbackCompanyResult.rows[0].id;
+        await pool.query('UPDATE users SET company_id = $1 WHERE company_id = $2', [fallbackCompanyId, id]);
+        console.log(`✅ Reassigned all users from company ${id} to company ${fallbackCompanyId} before deletion`);
+      } else {
+        // If no other companies exist, we cannot safely delete this company
+        throw new Error('Cannot delete the last remaining company - at least one company must exist');
+      }
       
       // Now we can safely delete the company (use string ID, not parseInt)
       const result = await pool.query('DELETE FROM companies WHERE id = $1', [id]);
