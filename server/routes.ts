@@ -1321,6 +1321,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Communications endpoints
+  app.get('/api/communications', async (req, res) => {
+    try {
+      const communications = await storage.getCommunications();
+      res.json(communications);
+    } catch (error) {
+      console.error('Error fetching communications:', error);
+      res.status(500).json({ message: 'Failed to fetch communications' });
+    }
+  });
+
+  app.post('/api/communications', async (req, res) => {
+    try {
+      const communication = await storage.createCommunication(req.body);
+      res.status(201).json(communication);
+    } catch (error) {
+      console.error('Error creating communication:', error);
+      res.status(500).json({ message: 'Failed to create communication' });
+    }
+  });
+
+  // Change Orders endpoints
+  app.get('/api/change-orders', async (req, res) => {
+    try {
+      const changeOrders = await storage.getChangeOrders();
+      res.json(changeOrders);
+    } catch (error) {
+      console.error('Error fetching change orders:', error);
+      res.status(500).json({ message: 'Failed to fetch change orders' });
+    }
+  });
+
+  app.post('/api/change-orders', async (req, res) => {
+    try {
+      const changeOrder = await storage.createChangeOrder(req.body);
+      res.status(201).json(changeOrder);
+    } catch (error) {
+      console.error('Error creating change order:', error);
+      res.status(500).json({ message: 'Failed to create change order' });
+    }
+  });
+
+  app.patch('/api/change-orders/:id', async (req, res) => {
+    try {
+      const changeOrder = await storage.updateChangeOrder(req.params.id, req.body);
+      if (!changeOrder) {
+        return res.status(404).json({ message: 'Change order not found' });
+      }
+      res.json(changeOrder);
+    } catch (error) {
+      console.error('Error updating change order:', error);
+      res.status(500).json({ message: 'Failed to update change order' });
+    }
+  });
+
+  // Time Entries endpoints
+  app.get('/api/time-entries', async (req, res) => {
+    try {
+      const timeEntries = await storage.getTimeEntries();
+      res.json(timeEntries);
+    } catch (error) {
+      console.error('Error fetching time entries:', error);
+      res.status(500).json({ message: 'Failed to fetch time entries' });
+    }
+  });
+
+  app.post('/api/time-entries', async (req, res) => {
+    try {
+      const timeEntry = await storage.createTimeEntry(req.body);
+      res.status(201).json(timeEntry);
+    } catch (error) {
+      console.error('Error creating time entry:', error);
+      res.status(500).json({ message: 'Failed to create time entry' });
+    }
+  });
+
+  // Invoices endpoints
+  app.get('/api/invoices', async (req, res) => {
+    try {
+      const invoices = await storage.getInvoices();
+      res.json(invoices);
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      res.status(500).json({ message: 'Failed to fetch invoices' });
+    }
+  });
+
+  app.post('/api/invoices', async (req, res) => {
+    try {
+      const invoice = await storage.createInvoice(req.body);
+      res.status(201).json(invoice);
+    } catch (error) {
+      console.error('Error creating invoice:', error);
+      res.status(500).json({ message: 'Failed to create invoice' });
+    }
+  });
+
   // Notification endpoints to prevent 502 errors
   app.get('/api/notifications/:userId', async (req, res) => {
     try {
