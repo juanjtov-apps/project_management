@@ -356,6 +356,7 @@ export default function RBACAdmin() {
                     type="password"
                     value={newUser.password}
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    placeholder="Enter password"
                   />
                 </div>
                 {isRootAdmin && (
@@ -380,13 +381,7 @@ export default function RBACAdmin() {
                     <Label>Company</Label>
                     <div className="p-2 bg-gray-50 rounded border text-sm text-gray-600">
                       {(() => {
-                        console.log('Company display debug:', {
-                          companies: companies.length,
-                          companiesLoading,
-                          currentUser: currentUser,
-                          currentUserCompanyId: currentUser?.company_id || currentUser?.companyId,
-                          companiesList: companies.map(c => ({ id: c.id, name: c.name }))
-                        });
+                        // Display current user's company for non-root admins
                         
                         if (companiesLoading) return 'Loading company...';
                         if (!companies.length) return 'No companies available';
@@ -407,9 +402,7 @@ export default function RBACAdmin() {
                     </SelectTrigger>
                     <SelectContent>
                       {(() => {
-                        console.log('User creation - Available roles:', roles);
-                        console.log('User creation - Selected company:', newUser.company_id);
-                        console.log('User creation - Roles loading:', rolesLoading);
+                        // Removed debug logging
                         
                         if (rolesLoading) {
                           return <SelectItem value="loading" disabled>Loading roles...</SelectItem>;
@@ -428,13 +421,9 @@ export default function RBACAdmin() {
                           // Show platform roles (company_id 0) and treat all other roles as templates available to any company
                           const isPlatformRole = role.company_id === '0' || role.company_id === 0;
                           const isCompanyRole = role.company_id === '1' || role.company_id === 1; // These are role templates
-                          console.log(`Role ${role.name}: company_id=${role.company_id}, isPlatform=${isPlatformRole}, isTemplate=${isCompanyRole}`);
-                          
-                          // Platform roles and company role templates are available to all companies
+                            // Platform roles and company role templates are available to all companies
                           return isPlatformRole || isCompanyRole || role.is_template;
                         });
-                        
-                        console.log('Filtered roles for user creation:', filteredRoles);
                         
                         if (filteredRoles.length === 0) {
                           return <SelectItem value="none" disabled>No roles for selected company</SelectItem>;
