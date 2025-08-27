@@ -24,8 +24,27 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
+
 // User storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+// Companies table for multi-tenant support
+export const companies = pgTable("companies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  industry: text("industry").default("construction"),
+  address: text("address"),
+  phone: varchar("phone"),
+  email: varchar("email"),
+  website: text("website"),
+  logo: text("logo"),
+  domain: text("domain").unique(), // for domain-based access
+  settings: jsonb("settings"), // company-specific settings
+  planType: text("plan_type").notNull().default("basic"), // basic, premium, enterprise
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
@@ -40,7 +59,7 @@ export const users = pgTable("users", {
   password: text("password"),
   name: text("name"),
   role: text("role").notNull().default("crew"), // crew, manager, admin, subcontractor
-  companyId: varchar("company_id").default("0"), // Links user to a company for multi-tenancy
+  companyId: varchar("company_id").references(() => companies.id), // Links user to a company for multi-tenancy
 });
 
 export const projects = pgTable("projects", {
@@ -51,8 +70,13 @@ export const projects = pgTable("projects", {
   status: text("status").notNull().default("active"), // active, completed, on-hold, delayed
   progress: integer("progress").notNull().default(0), // 0-100
   dueDate: timestamp("due_date"),
+  budget: integer("budget"), // total project budget in cents
+  actualCost: integer("actual_cost").default(0), // actual cost so far in cents
+  clientName: text("client_name"),
+  clientEmail: varchar("client_email"),
+  clientPhone: varchar("client_phone"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-  companyId: varchar("company_id").default("0"), // Links project to a company for multi-tenancy
+  companyId: varchar("company_id").references(() => companies.id), // Links project to a company for multi-tenancy
 });
 
 export const tasks = pgTable("tasks", {
@@ -169,9 +193,84 @@ export const healthCheckTemplates = pgTable("health_check_templates", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+// New tables for enhanced functionality
+export const communications = pgTable("communications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  fromUserId: varchar("from_user_id").references(() => users.id),
+  fromEmail: varchar("from_email"), // for external communications
+  fromName: text("from_name"), // for external communications
+  toUserId: varchar("to_user_id").references(() => users.id),
+  toEmail: varchar("to_email"), // for external communications
+  subject: text("subject").notNull(),
+  message: text("message").notNull(),
+  type: text("type").notNull().default("message"), // message, change_order, dispute, invoice
+  status: text("status").notNull().default("open"), // open, resolved, approved, rejected
+  attachments: text("attachments").array(),
+  priority: text("priority").notNull().default("normal"), // low, normal, high, urgent
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const changeOrders = pgTable("change_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  requestedBy: varchar("requested_by").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  costImpact: integer("cost_impact").notNull().default(0), // in cents
+  timeImpact: integer("time_impact").notNull().default(0), // in days
+  status: text("status").notNull().default("pending"), // pending, approved, rejected, implemented
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  reason: text("reason"), // reason for approval/rejection
+  attachments: text("attachments").array(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const timeEntries = pgTable("time_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  projectId: varchar("project_id").references(() => projects.id),
+  taskId: varchar("task_id").references(() => tasks.id),
+  description: text("description").notNull(),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  totalHours: integer("total_hours"), // in minutes
+  hourlyRate: integer("hourly_rate"), // in cents per hour
+  billable: boolean("billable").notNull().default(true),
+  approved: boolean("approved").notNull().default(false),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const invoices = pgTable("invoices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  invoiceNumber: text("invoice_number").notNull().unique(),
+  clientName: text("client_name").notNull(),
+  clientEmail: varchar("client_email").notNull(),
+  amount: integer("amount").notNull(), // in cents
+  tax: integer("tax").notNull().default(0), // in cents
+  total: integer("total").notNull(), // in cents
+  status: text("status").notNull().default("draft"), // draft, sent, paid, overdue, cancelled
+  dueDate: timestamp("due_date").notNull(),
+  paidAt: timestamp("paid_at"),
+  items: jsonb("items").notNull(), // invoice line items
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
 // Insert schemas
+export const insertCompanySchema = createInsertSchema(companies).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
 export const upsertUserSchema = createInsertSchema(users).omit({ createdAt: true, updatedAt: true });
+export const insertCommunicationSchema = createInsertSchema(communications).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertChangeOrderSchema = createInsertSchema(changeOrders).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({ id: true, createdAt: true });
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, completedAt: true }).extend({
   dueDate: z.union([z.date(), z.string(), z.null()]).optional().nullable(),
@@ -195,9 +294,19 @@ export const insertRiskAssessmentSchema = createInsertSchema(riskAssessments).om
 export const insertHealthCheckTemplateSchema = createInsertSchema(healthCheckTemplates).omit({ id: true, createdAt: true });
 
 // Types
+export type InsertCompany = z.infer<typeof insertCompanySchema>;
+export type Company = typeof companies.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
+export type Communication = typeof communications.$inferSelect;
+export type InsertChangeOrder = z.infer<typeof insertChangeOrderSchema>;
+export type ChangeOrder = typeof changeOrders.$inferSelect;
+export type InsertTimeEntry = z.infer<typeof insertTimeEntrySchema>;
+export type TimeEntry = typeof timeEntries.$inferSelect;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+export type Invoice = typeof invoices.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type Project = typeof projects.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;

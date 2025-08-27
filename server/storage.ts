@@ -133,7 +133,7 @@ export class DatabaseStorage implements IStorage {
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
       const result = await pool.query(`
-        SELECT id, name, domain, status, settings, created_at, updated_at
+        SELECT id, name, domain, is_active, settings, created_at, updated_at
         FROM companies 
         ORDER BY name
       `);
@@ -141,10 +141,10 @@ export class DatabaseStorage implements IStorage {
         id: row.id.toString(),
         name: row.name,
         domain: row.domain,
-        status: row.status || 'active',
+        status: row.is_active ? 'active' : 'inactive',
         settings: row.settings || {},
         created_at: row.created_at,
-        is_active: row.status === 'active'
+        is_active: row.is_active
       }));
     } finally {
       await pool.end();
@@ -155,22 +155,23 @@ export class DatabaseStorage implements IStorage {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
-      const { name, domain, status, settings } = companyData;
+      const { name, domain, settings } = companyData;
+      const is_active = companyData.status !== 'inactive';
       const result = await pool.query(`
-        INSERT INTO companies (name, domain, status, settings, created_at, updated_at)
+        INSERT INTO companies (name, domain, is_active, settings, created_at, updated_at)
         VALUES ($1, $2, $3, $4, NOW(), NOW())
-        RETURNING id, name, domain, status, settings, created_at, updated_at
-      `, [name, domain, status, JSON.stringify(settings)]);
+        RETURNING id, name, domain, is_active, settings, created_at, updated_at
+      `, [name, domain, is_active, JSON.stringify(settings)]);
       
       const row = result.rows[0];
       return {
         id: row.id.toString(),
         name: row.name,
         domain: row.domain,
-        status: row.status,
+        status: row.is_active ? 'active' : 'inactive',
         settings: row.settings,
         created_at: row.created_at,
-        is_active: row.status === 'active'
+        is_active: row.is_active
       };
     } finally {
       await pool.end();
@@ -1234,7 +1235,164 @@ export class DatabaseStorage implements IStorage {
   }
 
 
-  // Photo management methods - duplicates removed
+  // Communications methods
+  async getCommunications(): Promise<any[]> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        SELECT * FROM communications
+        ORDER BY created_at DESC
+      `);
+      return result.rows;
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async createCommunication(data: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        INSERT INTO communications (project_id, from_email, subject, message, type, priority, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        RETURNING *
+      `, [data.projectId, data.fromEmail || 'internal@tiento.com', data.subject, data.message, data.type, data.priority]);
+      return result.rows[0];
+    } finally {
+      await pool.end();
+    }
+  }
+
+  // Change Orders methods
+  async getChangeOrders(): Promise<any[]> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        SELECT * FROM change_orders
+        ORDER BY created_at DESC
+      `);
+      return result.rows;
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async createChangeOrder(data: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        INSERT INTO change_orders (project_id, requested_by, title, description, cost_impact, time_impact, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        RETURNING *
+      `, [data.projectId, data.requestedBy || 'default-user', data.title, data.description, data.costImpact || 0, data.timeImpact || 0]);
+      return result.rows[0];
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async updateChangeOrder(id: string, updates: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const setPairs = [];
+      const values = [];
+      let paramIndex = 1;
+
+      for (const [key, value] of Object.entries(updates)) {
+        if (key === 'status') {
+          setPairs.push(`status = $${paramIndex}`);
+          values.push(value);
+          paramIndex++;
+        }
+        if (key === 'reason') {
+          setPairs.push(`reason = $${paramIndex}`);
+          values.push(value);
+          paramIndex++;
+        }
+      }
+
+      if (setPairs.length === 0) return null;
+
+      setPairs.push(`updated_at = NOW()`);
+      values.push(id);
+
+      const result = await pool.query(`
+        UPDATE change_orders 
+        SET ${setPairs.join(', ')}
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `, values);
+
+      return result.rows[0] || null;
+    } finally {
+      await pool.end();
+    }
+  }
+
+  // Time Entries methods
+  async getTimeEntries(): Promise<any[]> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        SELECT * FROM time_entries
+        ORDER BY created_at DESC
+      `);
+      return result.rows;
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async createTimeEntry(data: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        INSERT INTO time_entries (user_id, project_id, task_id, description, start_time, end_time, total_hours, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        RETURNING *
+      `, [data.userId, data.projectId, data.taskId, data.description, data.startTime, data.endTime, data.totalHours]);
+      return result.rows[0];
+    } finally {
+      await pool.end();
+    }
+  }
+
+  // Invoices methods
+  async getInvoices(): Promise<any[]> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        SELECT * FROM invoices
+        ORDER BY created_at DESC
+      `);
+      return result.rows;
+    } finally {
+      await pool.end();
+    }
+  }
+
+  async createInvoice(data: any): Promise<any> {
+    const pg = await import('pg');
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const result = await pool.query(`
+        INSERT INTO invoices (project_id, invoice_number, client_name, client_email, amount, tax, total, status, due_date, items, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+        RETURNING *
+      `, [data.projectId, data.invoiceNumber, data.clientName, data.clientEmail, data.amount, data.tax || 0, data.total, data.status || 'draft', data.dueDate, JSON.stringify(data.items)]);
+      return result.rows[0];
+    } finally {
+      await pool.end();
+    }
+  }
 
 }
 

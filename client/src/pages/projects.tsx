@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, CalendarIcon, MapPin, Users, MoreHorizontal, Edit, Trash2, ChevronDown, ChevronRight, Clock, CheckCircle, Grid3X3, List } from "lucide-react";
+import { Plus, CalendarIcon, MapPin, Users, MoreHorizontal, Edit, Trash2, ChevronDown, ChevronRight, Clock, CheckCircle, Grid3X3, List, MessageSquare, DollarSign } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProjectSchema, insertTaskSchema } from "@shared/schema";
@@ -31,6 +31,9 @@ import { format } from "date-fns";
 import type { Project, InsertProject, InsertTask, Task, User } from "@shared/schema";
 import { TaskAssignmentDropdown } from "@/components/TaskAssignmentDropdown";
 import { ProjectGallery } from "@/components/ProjectGallery";
+import CommunicationFeed from "@/components/communications/communication-feed";
+import FinancialHealthDashboard from "@/components/financial/financial-health-dashboard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const getStatusColor = (status: string) => {
   switch (status) {
