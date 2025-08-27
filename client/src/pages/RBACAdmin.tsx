@@ -1123,7 +1123,7 @@ export default function RBACAdmin() {
 
     // Fetch users for selected company
     const { data: companyUsers = [], isLoading: companyUsersLoading } = useQuery<any[]>({
-      queryKey: ['/api/rbac/companies', selectedCompanyId, 'users'],
+      queryKey: [`/api/rbac/companies/${selectedCompanyId}/users`],
       enabled: !!selectedCompanyId && isViewUsersDialogOpen,
     });
 
