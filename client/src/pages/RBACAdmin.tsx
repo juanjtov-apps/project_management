@@ -321,7 +321,10 @@ export default function RBACAdmin() {
               <DialogHeader>
                 <DialogTitle>Create New User</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
+              <form onSubmit={(e) => { 
+                e.preventDefault(); 
+                document.getElementById('create-user-button')?.click();
+              }} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="first_name">First Name</Label>
@@ -446,25 +449,19 @@ export default function RBACAdmin() {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
+              </form>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Cancel
                 </Button>
                 <Button 
+                  id="create-user-button"
                   onClick={() => {
                     // Auto-assign company for non-root admins - ensure it's the actual company ID, not '0'
                     const userCompanyId = currentUser?.company_id || currentUser?.companyId;
                     const effectiveCompanyId = isRootAdmin ? newUser.company_id : userCompanyId?.toString();
                     
-                    console.log('User creation debug:', {
-                      isRootAdmin,
-                      currentUser: currentUser,
-                      currentUserCompanyId: userCompanyId,
-                      newUserCompanyId: newUser.company_id,
-                      effectiveCompanyId,
-                      companiesAvailable: companies.length
-                    });
+                    // Removed debug logging
                     
                     // Validate required fields (company_id is auto-assigned for non-root admins)
                     if (!newUser.email || !newUser.first_name || !newUser.last_name || !effectiveCompanyId || !newUser.role_id) {
@@ -495,7 +492,7 @@ export default function RBACAdmin() {
                       password: newUser.password || 'defaultpassword123' // Ensure password is included
                     };
                     
-                    console.log('Creating user with mapped data:', userPayload); // Debug logging
+                    // Creating user with validated data
                     createUserMutation.mutate(userPayload);
                     setIsCreateDialogOpen(false);
                     setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '' });
