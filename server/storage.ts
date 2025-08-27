@@ -427,6 +427,10 @@ export class DatabaseStorage implements IStorage {
       await pool.query('UPDATE tasks SET assignee_id = NULL WHERE assignee_id = $1', [id]);
       console.log(`✅ Unassigned all tasks for user ${id} before deletion`);
       
+      // Delete all user activities for this user to prevent foreign key constraint violations
+      await pool.query('DELETE FROM user_activities WHERE user_id = $1', [id]);
+      console.log(`✅ Deleted all activities for user ${id} before deletion`);
+      
       // Now delete the user
       const result = await pool.query('DELETE FROM users WHERE id = $1', [id]);
       return (result.rowCount ?? 0) > 0;
