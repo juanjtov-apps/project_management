@@ -121,6 +121,7 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
       return res.status(404).json({ message: `API endpoint ${req.path} not found` });
     }
     // For frontend routes, serve the index.html (SPA routing)
+    // This ensures all client-side routes are handled properly
     next();
   });
 
@@ -173,10 +174,29 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
+    
+    // Additional SPA fallback - ensure any unmatched route serves index.html
+    app.get('*', (req, res) => {
+      // Skip API routes - they should return 404 JSON
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ message: `API endpoint ${req.path} not found` });
+      }
+      
+      // For all other routes, serve the index.html for client-side routing
+      const path = require('path');
+      const fs = require('fs');
+      const indexPath = path.resolve(__dirname, 'public', 'index.html');
+      
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send('Application not built. Run npm run build first.');
+      }
+    });
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
