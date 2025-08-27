@@ -215,7 +215,27 @@ export class DatabaseStorage implements IStorage {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
     try {
-      const result = await pool.query('DELETE FROM companies WHERE id = $1', [parseInt(id)]);
+      const companyId = parseInt(id);
+      
+      // First, delete all user activities for this company
+      await pool.query('DELETE FROM user_activities WHERE company_id = $1', [id]);
+      console.log(`✅ Deleted all activities for company ${id} before deletion`);
+      
+      // Then, handle tasks - set company_id to NULL for tasks belonging to this company
+      await pool.query('UPDATE tasks SET company_id = NULL WHERE company_id = $1', [id]);
+      console.log(`✅ Unassigned all tasks for company ${id} before deletion`);
+      
+      // Handle projects - set company_id to NULL for projects belonging to this company
+      await pool.query('UPDATE projects SET company_id = NULL WHERE company_id = $1', [id]);
+      console.log(`✅ Unassigned all projects for company ${id} before deletion`);
+      
+      // Finally, handle users - either delete them or reassign to a default company
+      // For safety, we'll reassign users to company '0' (default) instead of deleting them
+      await pool.query('UPDATE users SET company_id = $1 WHERE company_id = $2', ['0', id]);
+      console.log(`✅ Reassigned all users from company ${id} to default company before deletion`);
+      
+      // Now we can safely delete the company
+      const result = await pool.query('DELETE FROM companies WHERE id = $1', [companyId]);
       return (result.rowCount ?? 0) > 0;
     } finally {
       await pool.end();
