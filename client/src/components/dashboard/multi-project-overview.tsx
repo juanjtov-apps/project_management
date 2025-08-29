@@ -20,24 +20,24 @@ import {
 const getStatusColor = (status: string) => {
   switch (status) {
     case "completed":
-      return "bg-green-100 text-green-800 border-green-200";
+      return "bg-brand-teal/10 text-brand-teal border-brand-teal/30";
     case "active":
-      return "bg-blue-100 text-blue-800 border-blue-200";
+      return "bg-brand-blue/10 text-brand-blue border-brand-blue/30";
     case "on-hold":
-      return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      return "bg-brand-grey/10 text-brand-ink border-brand-grey/30";
     case "delayed":
-      return "bg-red-100 text-red-800 border-red-200";
+      return "bg-brand-coral/10 text-brand-coral border-brand-coral/30";
     default:
-      return "bg-gray-100 text-gray-800 border-gray-200";
+      return "bg-brand-grey/10 text-brand-ink border-brand-grey/30";
   }
 };
 
 const getHealthStatus = (progress: number, status: string) => {
-  if (status === "completed") return { icon: CheckCircle, color: "text-green-500", text: "Complete" };
-  if (status === "delayed") return { icon: AlertTriangle, color: "text-red-500", text: "At Risk" };
-  if (progress >= 80) return { icon: TrendingUp, color: "text-green-500", text: "On Track" };
-  if (progress >= 50) return { icon: Clock, color: "text-yellow-500", text: "Moderate" };
-  return { icon: TrendingDown, color: "text-red-500", text: "Behind" };
+  if (status === "completed") return { icon: CheckCircle, color: "text-brand-teal", text: "Complete" };
+  if (status === "delayed") return { icon: AlertTriangle, color: "text-brand-coral", text: "At Risk" };
+  if (progress >= 80) return { icon: TrendingUp, color: "text-brand-teal", text: "On Track" };
+  if (progress >= 50) return { icon: Clock, color: "text-brand-ink", text: "Moderate" };
+  return { icon: TrendingDown, color: "text-brand-coral", text: "Behind" };
 };
 
 export default function MultiProjectOverview() {
@@ -94,45 +94,45 @@ export default function MultiProjectOverview() {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <Card className="p-4 bg-gradient-to-br from-brand-blue/10 to-brand-blue/20 border-brand-blue/30">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-blue-600 font-medium">Active Projects</p>
-                <p className="text-2xl font-bold text-blue-800">{activeProjects.length}</p>
+                <p className="text-sm text-brand-blue font-medium">Active Projects</p>
+                <p className="text-2xl font-bold text-brand-blue">{activeProjects.length}</p>
               </div>
-              <Building className="text-blue-600" size={24} />
+              <Building className="text-brand-blue" size={24} />
             </div>
           </Card>
 
-          <Card className="p-4 bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <Card className="p-4 bg-gradient-to-br from-brand-teal/10 to-brand-teal/20 border-brand-teal/30">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-green-600 font-medium">Avg Progress</p>
-                <p className="text-2xl font-bold text-green-800">{averageProgress}%</p>
+                <p className="text-sm text-brand-teal font-medium">Avg Progress</p>
+                <p className="text-2xl font-bold text-brand-teal">{averageProgress}%</p>
               </div>
-              <TrendingUp className="text-green-600" size={24} />
+              <TrendingUp className="text-brand-teal" size={24} />
             </div>
           </Card>
 
-          <Card className="p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+          <Card className="p-4 bg-gradient-to-br from-brand-coral/10 to-brand-coral/20 border-brand-coral/30">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-yellow-600 font-medium">Budget Usage</p>
-                <p className="text-2xl font-bold text-yellow-800">
+                <p className="text-sm text-brand-coral font-medium">Budget Usage</p>
+                <p className="text-2xl font-bold text-brand-coral">
                   {totalBudget > 0 ? Math.round((totalActualCost / totalBudget) * 100) : 0}%
                 </p>
               </div>
-              <DollarSign className="text-yellow-600" size={24} />
+              <DollarSign className="text-brand-coral" size={24} />
             </div>
           </Card>
 
-          <Card className="p-4 bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+          <Card className="p-4 bg-gradient-to-br from-brand-coral/10 to-brand-coral/20 border-brand-coral/30">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-red-600 font-medium">Critical Projects</p>
-                <p className="text-2xl font-bold text-red-800">{criticalProjects.length}</p>
+                <p className="text-sm text-brand-coral font-medium">Critical Projects</p>
+                <p className="text-2xl font-bold text-brand-coral">{criticalProjects.length}</p>
               </div>
-              <AlertTriangle className="text-red-600" size={24} />
+              <AlertTriangle className="text-brand-coral" size={24} />
             </div>
           </Card>
         </div>
