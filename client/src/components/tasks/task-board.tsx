@@ -51,7 +51,10 @@ export default function TaskBoard({ projectId }: TaskBoardProps) {
 
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) =>
-      apiRequest("PATCH", `/api/tasks/${id}`, updates),
+      apiRequest(`/api/tasks/${id}`, {
+        method: "PATCH",
+        body: updates,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
@@ -142,7 +145,7 @@ export default function TaskBoard({ projectId }: TaskBoardProps) {
                               </h4>
                               {!projectId && (
                                 <p className="text-xs text-blue-600 mt-1">
-                                  {getProjectName(task.projectId)}
+                                  {task.projectId ? getProjectName(task.projectId) : 'No Project'}
                                 </p>
                               )}
                             </div>
