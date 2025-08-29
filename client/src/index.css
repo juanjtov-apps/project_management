@@ -101,6 +101,14 @@ input[type="file"] {
   --brand-grey: hsl(210, 15%, 85%); /* Mist Grey */
   --brand-ink: hsl(210, 25%, 20%); /* Graphite Ink */
   
+  /* Legacy Proesphere variable names for compatibility */
+  --proesphere-deep-blue: var(--brand-blue);
+  --proesphere-teal: var(--brand-teal);
+  --proesphere-coral: var(--brand-coral);
+  --proesphere-white: var(--brand-white);
+  --proesphere-grey: var(--brand-grey);
+  --proesphere-graphite: var(--brand-ink);
+  
   /* Modern Brand Scale for Components */
   --brand-50: hsl(180, 70%, 96%);
   --brand-100: hsl(180, 70%, 88%);

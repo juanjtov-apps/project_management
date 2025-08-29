@@ -1,6 +1,7 @@
 import { Building2, Shield, Users, BarChart3, CheckCircle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Logo } from "@/components/ui/logo";
 
 export default function Landing() {
   const handleSignIn = () => {
@@ -14,12 +15,7 @@ export default function Landing() {
         <div className="container mx-auto px-6 py-4">
           <nav className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 relative">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] shadow-lg flex items-center justify-center">
-                <div className="w-4 h-4 rounded-full bg-white opacity-30 absolute top-2 left-3"></div>
-                <div className="text-white font-bold text-lg">P</div>
-              </div>
-            </div>
+            <Logo size="lg" className="shadow-lg" />
             <h1 className="text-2xl font-bold bg-gradient-to-r from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] bg-clip-text text-transparent">
               Proesphere
             </h1>
