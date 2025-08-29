@@ -790,6 +790,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dashboard stats endpoint - Node.js backend
+  app.get('/api/dashboard/stats', async (req, res) => {
+    try {
+      console.log('PRODUCTION: Fetching dashboard stats via Node.js backend');
+      
+      // Get current user session to apply company filtering
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Get data for stats calculation
+      const [projects, tasks, users] = await Promise.all([
+        storage.getProjects(),
+        storage.getTasks(), 
+        storage.getUsers()
+      ]);
+
+      // Filter by company for non-root users
+      const isRootAdmin = user.email?.includes('chacjjlegacy') || user.email === 'admin@proesphere.com';
+      
+      const userProjects = isRootAdmin ? projects : projects.filter(p => p.companyId === user.companyId);
+      const userTasks = isRootAdmin ? tasks : tasks.filter(t => t.companyId === user.companyId);
+      const userUsers = isRootAdmin ? users : users.filter(u => u.companyId === user.companyId);
+
+      // Calculate stats
+      const stats = {
+        activeProjects: userProjects.filter(p => p.status === 'active').length,
+        pendingTasks: userTasks.filter(t => t.status === 'pending' || t.status === 'in-progress').length,
+        photosUploaded: 245, // Static for now - would come from photos table
+        photosUploadedToday: 12, // Static for now - would calculate today's uploads
+        crewMembers: userUsers.length
+      };
+      
+      console.log(`✅ NODE.JS SUCCESS: Dashboard stats calculated for company ${user.companyId}:`, stats);
+      res.json(stats);
+    } catch (error: any) {
+      console.error('Error fetching dashboard stats:', error);
+      res.status(500).json({ message: 'Failed to fetch dashboard stats', error: error.message });
+    }
+  });
+
   // Activities endpoint for recent activity feed  
   app.get('/api/activities', async (req, res) => {
     try {
