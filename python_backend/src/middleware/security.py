@@ -3,7 +3,7 @@ Security middleware for Python FastAPI backend
 Implements comprehensive security measures for Proesphere
 """
 from fastapi import Request, HTTPException, status
-from fastapi.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
 import time
 import re

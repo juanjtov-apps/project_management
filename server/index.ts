@@ -10,10 +10,10 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
   const isProduction = process.env.NODE_ENV === 'production';
   const pythonPort = parseInt(process.env.PYTHON_PORT || '8000', 10);
   
-  // PRODUCTION READY: Skip Python backend completely - Node.js handles all RBAC
-  console.log("🚀 PRODUCTION MODE: Node.js-only backend, skipping Python backend startup");
-  console.log("✅ All RBAC operations will be handled directly by Node.js backend");
-  console.log("🔧 This eliminates connection issues and provides stable production environment");
+  // MIGRATED TO PYTHON: Using Python FastAPI backend for all operations
+  console.log("🐍 PYTHON BACKEND MODE: Migrating all operations to Python FastAPI backend");
+  console.log("✅ All RBAC and API operations will be handled by Python FastAPI backend");
+  console.log("🔧 This provides a unified backend architecture with FastAPI");
 
   // Setup security middleware first
   setupSecurityMiddleware(app);
@@ -30,49 +30,31 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
   app.use(validateInput);
   app.use(csrfProtection);
 
-  // Register authentication routes first BEFORE any middleware that might interfere
-  try {
-    // Import and setup Replit Auth (OIDC-based authentication)
-    const { setupAuth } = await import('./replitAuth');
-    await setupAuth(app);
-    console.log('Replit OIDC authentication routes registered successfully');
-    
-    // Also register basic auth routes as fallback
-    const { registerRoutes } = await import('./routes');
-    await registerRoutes(app);
-    console.log('Basic authentication routes registered successfully');
-  } catch (error) {
-    console.error('Failed to register authentication routes:', error);
-    console.error('Authentication will not work properly:', error);
-  }
+  // MIGRATION: Skip Node.js authentication routes - Python backend handles all auth
+  console.log("🔄 MIGRATION: Skipping Node.js auth routes - Python FastAPI handles authentication");
+  console.log("🐍 All authentication will be proxied to Python backend on port", pythonPort);
 
-  // Use http-proxy-middleware for remaining API routes only
+  // Use http-proxy-middleware for ALL API routes to Python backend
   const { createProxyMiddleware } = await import('http-proxy-middleware');
   
   const proxy = createProxyMiddleware({
     target: `http://localhost:${pythonPort}`,
     changeOrigin: true,
     ws: false,
-    timeout: 10000,
-    proxyTimeout: 10000,
-    // Don't rewrite the path at all - by default express strips /api when mounting at /api
-    // So we need to add it back
+    timeout: 15000,
+    proxyTimeout: 15000,
+    // Python backend expects /api prefix for all routes
     pathRewrite: (path: string, req: any) => {
-      // For RBAC endpoints, don't double-add /api prefix
-      if (path.startsWith('/rbac/')) {
-        console.log(`Path rewrite: ${path} -> ${path} (RBAC endpoint)`);
-        return path;
-      }
-      // For other endpoints, add /api prefix
-      const fullPath = `/api${path}`;
-      console.log(`Path rewrite: ${path} -> ${fullPath}`);
-      return fullPath;
+      console.log(`🐍 PYTHON PROXY: ${path} -> /api${path}`);
+      return `/api${path}`;
     },
     on: {
       error: (err: any, req: any, res: any) => {
-        console.error('API Proxy error:', err.message);
+        console.error('🚨 PYTHON BACKEND PROXY ERROR:', err.message);
+        console.error('🐍 Target:', `http://localhost:${pythonPort}`);
+        console.error('📍 Path:', req.url);
         if (!res.headersSent) {
-          res.status(502).json({ message: 'Backend service unavailable', error: err.message });
+          res.status(502).json({ message: 'Python backend service unavailable', error: err.message });
         }
       },
       proxyReq: (proxyReq: any, req: any, res: any) => {
@@ -98,19 +80,11 @@ async function setupPythonBackend(app: express.Express): Promise<Server> {
     }
   });
   
-  // DISABLED: Direct RBAC proxy handler - now using Node.js backend only
-  // All RBAC operations are handled by Node.js backend via routes.ts
-
-  // Apply proxy to other API routes, but skip auth routes and RBAC routes
+  // MIGRATION: Proxy ALL API routes to Python backend
+  // All operations including auth, RBAC, CRUD are handled by Python FastAPI
+  
   app.use('/api', (req, res, next) => {
-    // Skip proxy for routes that we handle locally in Express or handle directly
-    if (req.path.startsWith('/auth') || req.path === '/login' || req.path === '/logout' || req.path === '/callback' || req.path.startsWith('/rbac') || 
-        (req.path.startsWith('/logs') && req.method === 'DELETE') || req.path.startsWith('/sync-log-photos') ||
-        req.path.startsWith('/activities') || req.path.startsWith('/tasks') || req.path.startsWith('/projects') || req.path.startsWith('/users') || req.path.startsWith('/companies')) {
-      console.log(`Skipping proxy for local route: ${req.method} ${req.path}`);
-      return next();
-    }
-    
+    console.log(`🐍 PROXYING TO PYTHON: ${req.method} ${req.path}`);
     return proxy(req, res, next);
   });
 
