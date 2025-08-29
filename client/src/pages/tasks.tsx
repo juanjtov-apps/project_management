@@ -394,120 +394,199 @@ function TaskListItem({
           const target = e.target as HTMLElement;
           const isClickableElement = target.closest('button, select, input, a, [role="button"], [data-radix-collection-item]');
           
-          console.log('🔍 Task card clicked:', {
-            taskTitle: task.title,
-            taskId: task.id,
-            isDeleteDialogOpen,
-            isClickableElement: !!isClickableElement,
-            targetElement: target.tagName
-          });
-          
           if (!isDeleteDialogOpen && !isClickableElement) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('✅ Opening edit dialog for task:', task.title);
             onScheduleChange?.(task);
-          } else {
-            console.log('❌ Click ignored:', { 
-              reason: isDeleteDialogOpen ? 'Delete dialog open' : 'Clicked on interactive element',
-              element: target.tagName 
-            });
           }
         } catch (error) {
           console.error('❌ Task click error:', error);
         }
       }}
     >
-      <CardContent className="px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3 flex-1">
-            {/* Bulk Selection Checkbox - Enhancement #2 */}
-            {showBulkSelect && (
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  onToggleSelect?.(task.id);
-                }}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-            )}
-            
-            {/* Status Icons for Accessibility - Enhancement #7 */}
-            {isOverdue && (
-              <AlarmClock size={14} className="text-red-500 flex-shrink-0" />
-            )}
-            {task.status === "completed" && (
-              <CheckCircle size={14} className="text-green-500 flex-shrink-0" />
-            )}
-            
-            <CategoryIcon size={16} className={`${iconClass} flex-shrink-0`} />
-            
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2 mb-1">
+      <CardContent className="p-4 md:px-4 md:py-3">
+        {/* Mobile-Optimized Layout */}
+        <div className="space-y-3 md:space-y-0">
+          {/* Top Row: Icons, Title, and Mobile Actions */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start space-x-2 flex-1 min-w-0">
+              {/* Bulk Selection Checkbox */}
+              {showBulkSelect && (
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    onToggleSelect?.(task.id);
+                  }}
+                  className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+              )}
+              
+              {/* Status Icons */}
+              <div className="flex items-center space-x-1 flex-shrink-0 mt-0.5">
+                {isOverdue && (
+                  <AlarmClock size={14} className="text-red-500" />
+                )}
+                {task.status === "completed" && (
+                  <CheckCircle size={14} className="text-green-500" />
+                )}
+                <CategoryIcon size={16} className={iconClass} />
+              </div>
+              
+              {/* Task Title and Project */}
+              <div className="flex-1 min-w-0">
                 <h3 className={cn(
-                  "font-medium text-sm truncate",
+                  "font-medium text-base leading-tight truncate",
                   isOverdue && "text-red-700"
-                )}>
+                )} title={task.title}>
                   {task.title}
                 </h3>
                 
-                {/* Enhanced Priority Chip - Enhancement #5 */}
-                <Badge variant="outline" className={`${getPriorityColor(task.priority)} text-xs font-medium h-5 rounded-lg px-2`}>
-                  {task.priority}
-                </Badge>
-                
-                {/* Enhanced Status Chip - Enhancement #5 */}
-                <Badge className={`${getStatusColor(task.status)} text-xs font-medium h-5 rounded-lg px-2`}>
-                  {task.status.replace("-", " ")}
-                </Badge>
-              </div>
-              
-              <p className="text-sm text-blue-600 mb-1">Click for task details</p>
-              
-              <div className="flex items-center space-x-4 text-sm text-gray-500">
                 {projectName && (
-                  <div className="flex items-center">
-                    <FolderOpen size={12} className="mr-1" />
-                    <span className="truncate max-w-32">{projectName}</span>
-                  </div>
-                )}
-                
-                {task.dueDate && (
-                  <div className={cn(
-                    "flex items-center",
-                    isOverdue && "text-red-600 font-medium"
-                  )}>
-                    <Clock size={12} className="mr-1" />
-                    <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
-                  </div>
-                )}
-                
-                {/* Enhanced Assignee Avatar - Enhancement #7 */}
-                {task.assigneeId && (
-                  <div className="flex items-center">
-                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-                      <span className="text-xs font-medium text-blue-700">
-                        {getAssigneeInitials(task.assigneeId)}
-                      </span>
-                    </div>
-                    <span>Assigned</span>
+                  <div className="flex items-center mt-1 text-sm text-muted-foreground">
+                    <FolderOpen size={12} className="mr-1 flex-shrink-0" />
+                    <span className="truncate">{projectName}</span>
                   </div>
                 )}
               </div>
+            </div>
+            
+            {/* Mobile Actions - Desktop Only */}
+            <div className="hidden md:flex items-center space-x-2 flex-shrink-0">
+              <Select value={task.status} onValueChange={(value) => onStatusChange(task, value)}>
+                <SelectTrigger 
+                  className="h-8 w-auto text-xs border px-2 py-1"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="blocked">Blocked</SelectItem>
+                </SelectContent>
+              </Select>
               
-              {task.description && (
-                <p className="text-sm text-gray-600 mt-1 line-clamp-1">{task.description}</p>
-              )}
+              <div className="flex gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 w-8 p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(task);
+                  }}
+                  title="Edit task"
+                >
+                  <Edit size={14} />
+                </Button>
+                <AlertDialog 
+                  open={isDeleteDialogOpen} 
+                  onOpenChange={setIsDeleteDialogOpen}
+                >
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsDeleteDialogOpen(true);
+                      }}
+                      title="Delete task"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete "{task.title}"? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel 
+                        onClick={() => setIsDeleteDialogOpen(false)}
+                      >
+                        Cancel
+                      </AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={() => {
+                          setIsDeleteDialogOpen(false);
+                          onDelete(task);
+                        }}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </div>
           </div>
           
-          <div className="flex items-center space-x-2 flex-shrink-0">
+          {/* Mobile: Priority and Status Chips - Better Alignment */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <Badge 
+              variant="outline" 
+              className={cn(
+                getPriorityColor(task.priority),
+                "h-6 px-2 text-xs font-medium rounded-full"
+              )}
+            >
+              {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+            </Badge>
+            
+            <Badge 
+              className={cn(
+                getStatusColor(task.status),
+                "h-6 px-2 text-xs font-medium rounded-full"
+              )}
+            >
+              {task.status.replace("-", " ")}
+            </Badge>
+          </div>
+          
+          {/* Task Details Row */}
+          <div className="flex items-center flex-wrap gap-3 text-sm text-muted-foreground">
+            {task.dueDate && (
+              <div className={cn(
+                "flex items-center gap-1",
+                isOverdue && "text-red-600 font-medium"
+              )}>
+                <CalendarIcon size={12} />
+                <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+              </div>
+            )}
+            
+            {task.assigneeId && (
+              <div className="flex items-center gap-1">
+                <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-xs font-medium text-blue-700">
+                    {getAssigneeInitials(task.assigneeId)}
+                  </span>
+                </div>
+                <span>Assigned</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Task Description */}
+          {task.description && (
+            <p className="text-sm text-gray-600 line-clamp-2">{task.description}</p>
+          )}
+          
+          {/* Mobile Actions - Full Width */}
+          <div className="md:hidden flex gap-2">
             <Select value={task.status} onValueChange={(value) => onStatusChange(task, value)}>
               <SelectTrigger 
-                className="h-7 w-auto text-xs border px-2 py-1"
+                className="h-9 flex-1 text-sm"
                 onClick={(e) => e.stopPropagation()}
+                aria-label={`Change status for task ${task.title}`}
               >
                 <SelectValue />
               </SelectTrigger>
@@ -519,63 +598,64 @@ function TaskListItem({
               </SelectContent>
             </Select>
             
-            <div className="flex gap-1">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-7 w-7 p-0"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(task);
-                }}
-                title="Edit task"
-              >
-                <Edit size={12} />
-              </Button>
-              <AlertDialog 
-                open={isDeleteDialogOpen} 
-                onOpenChange={setIsDeleteDialogOpen}
-              >
-                <AlertDialogTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsDeleteDialogOpen(true);
-                    }}
-                    title="Delete task"
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-9 w-12 p-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(task);
+              }}
+              title="Edit task"
+              aria-label={`Edit task ${task.title}`}
+            >
+              <Edit size={16} />
+            </Button>
+            
+            <AlertDialog 
+              open={isDeleteDialogOpen} 
+              onOpenChange={setIsDeleteDialogOpen}
+            >
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-9 w-12 p-0 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDeleteDialogOpen(true);
+                  }}
+                  title="Delete task"
+                  aria-label={`Delete task ${task.title}`}
+                >
+                  <Trash2 size={16} />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete "{task.title}"? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel 
+                    onClick={() => setIsDeleteDialogOpen(false)}
                   >
-                    <Trash2 size={12} />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Task</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete "{task.title}"? This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel 
-                      onClick={() => setIsDeleteDialogOpen(false)}
-                    >
-                      Cancel
-                    </AlertDialogCancel>
-                    <AlertDialogAction 
-                      onClick={() => {
-                        setIsDeleteDialogOpen(false);
-                        onDelete(task);
-                      }}
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={() => {
+                      setIsDeleteDialogOpen(false);
+                      onDelete(task);
+                    }}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </CardContent>
