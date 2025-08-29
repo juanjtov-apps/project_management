@@ -213,14 +213,14 @@ export default function Login() {
               type="submit" 
               className="w-full font-semibold py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl mt-8 focus-ring active:scale-95 min-h-[44px]"
               style={{
-                backgroundColor: 'var(--proesphere-deep-blue)',
+                backgroundColor: 'hsl(210, 100%, 15%)',
                 color: 'white'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'hsl(210, 100%, 20%)';
+                e.currentTarget.style.backgroundColor = 'hsl(210, 100%, 18%)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--proesphere-deep-blue)';
+                e.currentTarget.style.backgroundColor = 'hsl(210, 100%, 15%)';
               }}
               disabled={loginMutation.isPending || !isFormValid}
               aria-busy={loginMutation.isPending}
