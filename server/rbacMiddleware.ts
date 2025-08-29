@@ -90,9 +90,11 @@ export const enforceCompanyScope = () => {
 
       // For company-scoped operations, add company filtering
       // This middleware sets up the company scope for downstream operations
-      req.userCompanyId = currentUser.company_id;
+      // Use correct field name - database schema uses companyId (camelCase)
+      const companyId = currentUser.companyId || currentUser.company_id;
+      req.userCompanyId = companyId;
       
-      console.log(`📊 RBAC: Company scope enforced for user ${currentUser.email} - Company: ${currentUser.company_id}`);
+      console.log(`📊 RBAC: Company scope enforced for user ${currentUser.email} - Company: ${companyId}`);
       next();
     } catch (error) {
       console.error('Company scoping error:', error);
