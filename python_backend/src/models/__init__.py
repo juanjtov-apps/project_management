@@ -9,6 +9,7 @@ from .photo import *
 from .log import *
 from .notification import *
 from .schedule_change import *
+from .client_module import *
 
 __all__ = [
     # Base models
@@ -55,7 +56,18 @@ __all__ = [
     "NotificationUpdate",
     
     # Schedule change models
-    "ScheduleChange",
+    "ScheduleChange", 
     "ScheduleChangeCreate",
     "ScheduleChangeUpdate",
+
+    # Client module models
+    "IssueStatus",
+    "IssueBase",
+    "IssueCreate",
+    "Issue",
+    "ForumMessage",
+    "MaterialItem",
+    "Installment",
+    "FrequencyUnit",
+    "NotificationSetting",
 ]
