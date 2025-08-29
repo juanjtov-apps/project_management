@@ -1,4 +1,4 @@
-import { Building2, Shield, Users, BarChart3, CheckCircle, ArrowRight } from "lucide-react";
+import { Building2, Shield, Users, BarChart3, CheckCircle, ArrowRight, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
@@ -6,6 +6,16 @@ import { Logo } from "@/components/ui/logo";
 export default function Landing() {
   const handleSignIn = () => {
     window.location.href = "/login";
+  };
+
+  const scrollToProduct = () => {
+    const productSection = document.getElementById('product');
+    if (productSection) {
+      productSection.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
   };
 
   return (
@@ -22,16 +32,16 @@ export default function Landing() {
           </div>
           
           {/* Navigation Links */}
-          <div className="hidden md:flex items-center space-x-8">
-            <a href="#product" className="text-slate-600 hover:text-[var(--proesphere-teal)] transition-colors">Product</a>
-            <a href="#pricing" className="text-slate-600 hover:text-[var(--proesphere-teal)] transition-colors">Pricing</a>
-            <a href="#customers" className="text-slate-600 hover:text-[var(--proesphere-teal)] transition-colors">Customers</a>
-            <a href="#resources" className="text-slate-600 hover:text-[var(--proesphere-teal)] transition-colors">Resources</a>
+          <div className="hidden md:flex items-baseline space-x-8">
+            <a href="#product" className="text-slate-600 hover:text-[var(--proesphere-teal)] transition-colors font-medium focus-ring rounded px-2 py-1">Product</a>
+            <a href="#pricing" className="text-slate-600 hover:text-[var(--proesphere-teal)] transition-colors font-medium focus-ring rounded px-2 py-1">Pricing</a>
+            <a href="#customers" className="text-slate-600 hover:text-[var(--proesphere-teal)] transition-colors font-medium focus-ring rounded px-2 py-1">Customers</a>
+            <a href="#resources" className="text-slate-600 hover:text-[var(--proesphere-teal)] transition-colors font-medium focus-ring rounded px-2 py-1">Resources</a>
           </div>
           
           <Button 
             onClick={handleSignIn}
-            className="bg-[var(--proesphere-deep-blue)] hover:bg-[var(--proesphere-graphite)] text-white font-semibold px-6 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl focus-ring min-h-[44px]"
           >
             Sign In
           </Button>
@@ -49,11 +59,15 @@ export default function Landing() {
             <p className="text-lg font-semibold text-[var(--proesphere-deep-blue)] mb-4">
               "Client calls dropped by half because everyone sees the same live schedule." — Skyline Renovations
             </p>
-            <div className="flex items-center justify-center space-x-6 opacity-60">
-              <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium">Summit Construction</div>
-              <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium">Peak Construction</div>
-              <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium">Elite Properties</div>
-              <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium">Metro Contractors</div>
+            <div className="overflow-x-auto snap-x snap-mandatory">
+              <div className="flex items-center justify-center space-x-6 opacity-60 pb-2 min-w-max">
+                <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium whitespace-nowrap snap-center">Summit Construction</div>
+                <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium whitespace-nowrap snap-center">Peak Construction</div>
+                <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium whitespace-nowrap snap-center">Elite Properties</div>
+                <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium whitespace-nowrap snap-center">Metro Contractors</div>
+                <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium whitespace-nowrap snap-center">BuildTech Solutions</div>
+                <div className="bg-slate-200 px-4 py-1.5 rounded text-sm font-medium whitespace-nowrap snap-center">Urban Developers</div>
+              </div>
             </div>
           </div>
         </div>
@@ -63,21 +77,21 @@ export default function Landing() {
       <section className="container mx-auto px-6 py-20 text-center" id="product">
         <div className="max-w-4xl mx-auto">
           <p className="text-lg font-medium text-[var(--proesphere-teal)] mb-4">Your Construction Command Center</p>
-          <h2 className="text-5xl md:text-6xl font-bold text-[var(--proesphere-deep-blue)] mb-6 leading-tight">
+          <h2 className="font-bold text-[var(--proesphere-deep-blue)] mb-6 leading-tight">
             360° 
-            <span className="text-[var(--proesphere-teal)]">
+            <span className="text-[var(--proesphere-teal)] whitespace-nowrap">
               Project Management
             </span>
           </h2>
           <p className="text-xl text-[var(--proesphere-graphite)] mb-8 max-w-2xl mx-auto">
             Build Smarter. Deliver On Time, On-Budget and with the highest quality.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <div className="flex flex-col items-center">
+          <div className="mobile-stack gap-4 justify-center">
+            <div className="flex flex-col items-center mobile-full">
               <Button 
                 onClick={handleSignIn}
                 size="lg"
-                className="bg-[var(--proesphere-deep-blue)] hover:bg-[var(--proesphere-graphite)] text-white font-semibold px-8 py-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-lg"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 py-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-lg focus-ring active:scale-95 mobile-full min-h-[44px]"
               >
                 Get Started
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -87,21 +101,21 @@ export default function Landing() {
             <Button 
               variant="outline"
               size="lg"
-              className="border-2 border-[var(--proesphere-teal)] text-[var(--proesphere-teal)] hover:bg-[var(--proesphere-teal)] hover:text-white font-semibold px-8 py-4 rounded-lg transition-all duration-200 text-lg hover:shadow-md"
+              className="border-2 border-[var(--proesphere-teal)] text-[var(--proesphere-teal)] hover:bg-[var(--proesphere-teal)] hover:text-white font-semibold px-8 py-4 rounded-lg transition-all duration-200 text-lg hover:shadow-md focus-ring active:scale-95 mobile-full min-h-[44px]"
             >
               Learn More
             </Button>
           </div>
           
           {/* Scroll Cue */}
-          <div className="mt-12 animate-bounce">
-            <p className="text-sm text-slate-600 mb-2">Scroll to see it in action</p>
-            <div className="flex justify-center">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--proesphere-teal)]">
-                <polyline points="6,9 12,15 18,9"></polyline>
-              </svg>
-            </div>
-          </div>
+          <button 
+            onClick={scrollToProduct}
+            className="mt-12 flex flex-col items-center gap-2 focus-ring rounded-lg p-2 hover:bg-white/50 transition-colors group"
+            aria-label="Scroll to product demo"
+          >
+            <p className="text-sm text-slate-600 group-hover:text-[var(--proesphere-teal)] transition-colors">Scroll to see it in action</p>
+            <ChevronDown className="h-6 w-6 text-[var(--proesphere-teal)] animate-chevron-bounce group-hover:animate-none" />
+          </button>
           
           {/* Hero Visual - Task Dashboard */}
           <div className="mt-16 max-w-5xl mx-auto">

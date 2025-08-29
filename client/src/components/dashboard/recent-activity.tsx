@@ -1,6 +1,6 @@
 import { Camera, CheckCircle, AlertTriangle, Users, Building, Plus, Upload, Edit } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format, isToday, isYesterday, parseISO } from "date-fns";
 
 interface ActivityItem {
   id: string;
@@ -45,6 +45,41 @@ export default function RecentActivity() {
     }
   };
 
+  // Group activities by day
+  const groupActivitiesByDay = (activities: ActivityItem[]) => {
+    const groups: { [key: string]: ActivityItem[] } = {};
+    
+    activities.forEach(activity => {
+      try {
+        const date = parseISO(activity.created_at);
+        let dayLabel;
+        
+        if (isToday(date)) {
+          dayLabel = 'Today';
+        } else if (isYesterday(date)) {
+          dayLabel = 'Yesterday';
+        } else {
+          dayLabel = format(date, 'MMMM d, yyyy');
+        }
+        
+        if (!groups[dayLabel]) {
+          groups[dayLabel] = [];
+        }
+        groups[dayLabel].push(activity);
+      } catch {
+        // Fallback for invalid dates
+        if (!groups['Recently']) {
+          groups['Recently'] = [];
+        }
+        groups['Recently'].push(activity);
+      }
+    });
+    
+    return groups;
+  };
+
+  const groupedActivities = groupActivitiesByDay(activities);
+
   if (isLoading) {
     return (
       <div className="elevated">
@@ -84,26 +119,44 @@ export default function RecentActivity() {
             <p className="text-brand-text opacity-60">No recent activity in your company</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {activities.slice(0, 5).map((activity) => {
-              const Icon = getActivityIcon(activity.action_type);
-              return (
-                <div key={activity.id} className="flex items-start space-x-3 pb-4 border-b border-brand-grey/50 last:border-b-0 relative">
-                  <div className="w-2 h-2 bg-brand-teal rounded-full mt-2 flex-shrink-0"></div>
-                  <div className="flex-1">
-                    <p className="text-sm text-brand-blue font-medium">
-                      {activity.first_name || activity.email || 'User'}
-                    </p>
-                    <p className="text-sm text-brand-text opacity-80 mt-1">
-                      {activity.description}
-                    </p>
-                    <p className="text-xs text-brand-text opacity-50 mt-1">
-                      {formatRelativeTime(activity.created_at)}
-                    </p>
-                  </div>
+          <div className="space-y-6">
+            {Object.entries(groupedActivities).map(([dayLabel, dayActivities]) => (
+              <div key={dayLabel} className="space-y-3">
+                <div className="sticky top-0 bg-background/80 backdrop-blur-sm py-2 -mx-6 px-6">
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{dayLabel}</h4>
                 </div>
-              );
-            })}
+                <div className="space-y-3">
+                  {dayActivities.slice(0, 5).map((activity) => {
+                    const Icon = getActivityIcon(activity.action_type);
+                    return (
+                      <button
+                        key={activity.id}
+                        className="w-full flex items-start space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors text-left focus-ring"
+                        onClick={() => {
+                          console.log('Navigate to:', activity.entity_type, activity.entity_id);
+                        }}
+                      >
+                        <div className="w-2 h-2 bg-brand-teal rounded-full mt-2 flex-shrink-0"></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground font-medium truncate">
+                            {activity.first_name || activity.email || 'User'}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-1 truncate">
+                            {activity.description}
+                          </p>
+                          <div className="flex items-center justify-between mt-1">
+                            <p className="text-xs text-muted-foreground">
+                              {formatRelativeTime(activity.created_at)}
+                            </p>
+                            <Icon className="w-4 h-4 text-brand-teal flex-shrink-0" />
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
