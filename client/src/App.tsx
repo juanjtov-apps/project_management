@@ -20,7 +20,6 @@ import ProjectHealth from "@/pages/project-health";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
-import MobileSheet from "@/components/layout/mobile-sheet";
 import NotificationModal from "@/components/notifications/notification-modal";
 import { useState } from "react";
 
@@ -104,22 +103,20 @@ function AuthenticatedLayout({
   }
 
   return (
-    <div className="flex h-screen bg-construction-surface">
-      <Sidebar />
+    <div className="flex h-screen bg-background">
+      <Sidebar 
+        isMobileOpen={isMobileMenuOpen}
+        onMobileClose={() => setIsMobileMenuOpen(false)}
+      />
       <main className="flex-1 flex flex-col overflow-hidden">
         <Header 
           onToggleMobileMenu={() => setIsMobileMenuOpen(true)}
           onToggleNotifications={() => setIsNotificationModalOpen(true)}
         />
-        <div className="flex-1 p-6 overflow-y-auto pb-safe">
+        <div className="flex-1 p-6 overflow-y-auto section-padding" style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
           <Router />
         </div>
       </main>
-      
-      <MobileSheet 
-        open={isMobileMenuOpen} 
-        onOpenChange={setIsMobileMenuOpen} 
-      />
       
       <NotificationModal 
         isOpen={isNotificationModalOpen} 

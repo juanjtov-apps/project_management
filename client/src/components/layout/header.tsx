@@ -61,8 +61,9 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
 
   return (
     <header 
-      className="sticky top-0 z-40 h-14 sm:h-16 backdrop-blur-md bg-background/80 border-b border-border"
+      className="sticky top-0 z-40 backdrop-blur-md bg-background/80 border-b border-border"
       style={{
+        height: 'clamp(56px, 4vh, 64px)',
         paddingLeft: 'max(1rem, env(safe-area-inset-left))',
         paddingRight: 'max(1rem, env(safe-area-inset-right))'
       }}

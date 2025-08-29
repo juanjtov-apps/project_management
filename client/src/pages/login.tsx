@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Mail, Lock, AlertCircle, ArrowLeft } from "lucide-react";
+import { Building2, Mail, Lock, AlertCircle, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -12,6 +12,9 @@ import { useToast } from "@/hooks/use-toast";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -50,13 +53,48 @@ export default function Login() {
     },
   });
 
+  // Validation functions
+  const validateEmail = (email: string) => {
+    if (!email) return "Email is required";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Please enter a valid email address";
+    return "";
+  };
+
+  const validatePassword = (password: string) => {
+    if (!password) return "Password is required";
+    if (password.length < 6) return "Password must be at least 6 characters";
+    return "";
+  };
+
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    setEmailError(validateEmail(value));
+  };
+
+  const handlePasswordChange = (value: string) => {
+    setPassword(value);
+    setPasswordError(validatePassword(value));
+  };
+
+  const isFormValid = email && password && !emailError && !passwordError;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    loginMutation.mutate({ email, password });
+    
+    // Final validation
+    const emailErr = validateEmail(email);
+    const passwordErr = validatePassword(password);
+    
+    setEmailError(emailErr);
+    setPasswordError(passwordErr);
+    
+    if (!emailErr && !passwordErr) {
+      loginMutation.mutate({ email, password });
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[var(--proesphere-cloud)] via-[var(--proesphere-mist)] to-[var(--proesphere-cloud)] flex items-center justify-center p-6 relative">
+    <div className="min-h-[calc(100dvh-56px)] bg-gradient-to-br from-[var(--proesphere-cloud)] via-[var(--proesphere-mist)] to-[var(--proesphere-cloud)] grid place-items-center p-6 relative">
       {/* Decorative background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] opacity-5"></div>
@@ -103,12 +141,23 @@ export default function Login() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-12 pr-4 py-3 border-[var(--proesphere-mist)] focus:border-[var(--proesphere-teal)] focus:ring-[var(--proesphere-teal)] rounded-xl text-[var(--proesphere-graphite)] placeholder:text-[var(--proesphere-graphite)] placeholder:opacity-50"
+                  onChange={(e) => handleEmailChange(e.target.value)}
+                  className={`pl-12 pr-4 py-3 border-[var(--proesphere-mist)] focus:border-[var(--proesphere-teal)] focus:ring-[var(--proesphere-teal)] rounded-xl text-[var(--proesphere-graphite)] placeholder:text-[var(--proesphere-graphite)] placeholder:opacity-50 focus-ring min-h-[44px] ${
+                    emailError ? 'border-red-500 focus:border-red-500' : ''
+                  }`}
                   placeholder="Enter your email"
+                  autoComplete="username email"
+                  aria-invalid={!!emailError}
+                  aria-describedby={emailError ? 'email-error' : undefined}
                   required
                 />
               </div>
+              {emailError && (
+                <p id="email-error" className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  {emailError}
+                </p>
+              )}
             </div>
             <div className="space-y-3">
               <Label htmlFor="password" className="text-[var(--proesphere-deep-blue)] font-medium">Password</Label>
@@ -116,20 +165,55 @@ export default function Login() {
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--proesphere-teal)]" />
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-12 pr-4 py-3 border-[var(--proesphere-mist)] focus:border-[var(--proesphere-teal)] focus:ring-[var(--proesphere-teal)] rounded-xl text-[var(--proesphere-graphite)] placeholder:text-[var(--proesphere-graphite)] placeholder:opacity-50"
+                  onChange={(e) => handlePasswordChange(e.target.value)}
+                  className={`pl-12 pr-12 py-3 border-[var(--proesphere-mist)] focus:border-[var(--proesphere-teal)] focus:ring-[var(--proesphere-teal)] rounded-xl text-[var(--proesphere-graphite)] placeholder:text-[var(--proesphere-graphite)] placeholder:opacity-50 focus-ring min-h-[44px] ${
+                    passwordError ? 'border-red-500 focus:border-red-500' : ''
+                  }`}
                   placeholder="Enter your password"
+                  autoComplete="current-password"
+                  aria-invalid={!!passwordError}
+                  aria-describedby={passwordError ? 'password-error' : undefined}
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--proesphere-teal)] hover:text-[var(--proesphere-deep-blue)] focus-ring rounded p-1"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+              {passwordError && (
+                <p id="password-error" className="text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  {passwordError}
+                </p>
+              )}
+              <div className="text-right">
+                <button
+                  type="button"
+                  className="text-sm text-[var(--proesphere-teal)] hover:text-[var(--proesphere-deep-blue)] focus-ring rounded px-1 py-0.5"
+                  onClick={() => {
+                    toast({
+                      title: "Password Reset",
+                      description: "Password reset functionality will be available soon.",
+                      variant: "default",
+                    });
+                  }}
+                >
+                  Forgot password?
+                </button>
               </div>
             </div>
             
             <Button 
               type="submit" 
-              className="w-full bg-gradient-to-r from-[var(--proesphere-deep-blue)] to-[var(--proesphere-teal)] hover:from-[var(--proesphere-teal)] hover:to-[var(--proesphere-deep-blue)] text-white font-semibold py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl mt-8"
-              disabled={loginMutation.isPending}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl mt-8 focus-ring active:scale-95 min-h-[44px]"
+              disabled={loginMutation.isPending || !isFormValid}
+              aria-busy={loginMutation.isPending}
             >
               {loginMutation.isPending ? (
                 <div className="flex items-center justify-center space-x-2">

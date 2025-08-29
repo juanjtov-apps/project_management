@@ -1,0 +1,110 @@
+Proesphere UI/UX Task Checklist (Palette-Safe)
+**Scope:** Implement layout, typography, spacing, component, accessibility, performance, and mobile polish **without changing the color palette**.
+
+> Tip: Work top-down. Check off as you ship. Use commit tags like `feat(ui):`, `fix(a11y):`, `perf(img):`.
+
+---
+
+## 1) Global System (no color changes)
+- [ ] Add **fluid type** only (no color): headings `text-4xl sm:text-5xl md:text-6xl`; body `text-[15px] sm:text-base`; `leading-tight` + `text-balance` on H1/H2.
+- [ ] Standardize **spacing**: sections `py-8 sm:py-12`; cards `p-5 sm:p-6`; grids `gap-4 sm:gap-6`.
+- [ ] Add **focus-visible ring** utilities: `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2`.
+- [ ] Ensure **touch targets** ≥ 44×44px; icon buttons `h-11 w-11`.
+- [ ] **Safe-area** padding in header/footer: `pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]`.
+
+---
+
+## 2) Global Navigation & Layout
+- [ ] Header **sticky**: `sticky top-0 z-40 backdrop-blur-md` (keep existing bg class).
+- [ ] Mobile: convert sidebar to a **Sheet/Drawer**; hamburger opens it (`md:hidden`).
+- [ ] Replace “Sign Out” text on mobile with **avatar button** → dropdown (Profile, Settings, Sign out).
+- [ ] Header height: **56px mobile / 64px desktop**; hit targets meet 44×44px.
+
+---
+
+## 3) Landing Page (palette preserved)
+- [ ] Align nav links baseline; CTA uses current **primary** style.
+- [ ] Hero H1 with fluid sizes + `text-balance`; avoid awkward wraps (e.g., `360° <span class="whitespace-nowrap">Project Management</span>`).
+- [ ] CTAs: mobile stacked `w-full`; desktop inline. Secondary is outline (current colors).
+- [ ] Trust chips: make **horizontally scrollable** on mobile (`overflow-x-auto snap-x snap-mandatory`).
+- [ ] “Scroll to see it in action” button smooth-scrolls to demo (respect reduced motion).
+
+---
+
+## 4) Authentication / Login
+- [ ] Center card: `min-h-[calc(100dvh-56px)] grid place-items-center` (palette/shadow unchanged).
+- [ ] Email `autocomplete="username email"`.
+- [ ] Password with **show/hide** toggle + `autocomplete="current-password"`.
+- [ ] Inline validation; disable submit until valid.
+- [ ] Add **Forgot password?** link below password.
+- [ ] Submit button: current primary style + **loading** state (`aria-busy`, spinner).
+
+---
+
+## 5) Dashboard
+- [ ] Tabs: **scrollable** on mobile (`overflow-x-auto whitespace-nowrap snap-x`) with underline indicator (keep colors).
+- [ ] KPI tiles: icon-left, big number, small label; consistent paddings; neutral surfaces.
+- [ ] Project Health rows: title + city; **progress bar with %**; status chip (“On Track/At Risk/Behind”). Animate on first viewport entry.
+- [ ] Recent Activity: **group by day** (“Today”, “Yesterday”); each item links to detail.
+- [ ] Quick Actions: 4 equal tiles on desktop; **FAB (+)** on mobile opens sheet with same actions (keep existing colors).
+
+---
+
+## 6) Projects (Cards & List)
+- [ ] Segmented control with `rounded-full` and inset moving indicator; default **Cards** on mobile.
+- [ ] Project card (mobile): top (name + status + ⋮), middle (location, tasks, mini progress), bottom **Open** (full width). Move “Gallery” to icon+label in the footer.
+- [ ] Filters: chips (All/Active/On Hold/Completed) + Sort dropdown (Name, Progress, Updated).
+- [ ] New Project: desktop button remains; add mobile **FAB** (safe-area aware).
+
+---
+
+## 7) Photo Gallery
+- [ ] **Masonry grid**: 2 cols mobile (`columns-2 gap-2`), 3–4 desktop.
+- [ ] Real **thumbnails** (WebP/AVIF) with `loading="lazy"` & `decoding="async"`; blur-up placeholders.
+- [ ] Mobile capture-first: `<input accept="image/*" capture="environment" multiple">`.
+- [ ] Show **upload progress** + toasts; allow background upload.
+- [ ] Lightbox viewer: swipe/pinch on mobile; collapsible metadata (tags, project, timestamp).
+
+---
+
+## 8) Task Management Canvas
+- [ ] Make summary counts (“61 tasks | 12 overdue…”) **interactive chips** that filter.
+- [ ] Task row: min-h 64px; left checkbox + status, center title/meta, right priority chip + assignee avatar.
+- [ ] Add skeleton loaders + friendly empty state with CTA.
+
+---
+
+## 9) Modals & Sheets
+- [ ] `Dialog` on `md+`; **full-height `Sheet`** on mobile for gallery/project forms.
+- [ ] `aria-modal`, focus trap, ESC close, background **scroll lock**.
+- [ ] Visible “X” and swipe-down dismiss on mobile.
+
+---
+
+## 10) Forms & Inputs (component consistency)
+- [ ] Single `Input` component: `h-11 rounded-lg px-3`; label `text-sm font-medium`; helper & error slots.
+- [ ] Buttons: keep current **primary** and **outline**; add `active:scale-95` + `aria-busy` spinner for async.
+- [ ] Destructive actions: current **danger** style; confirm in `Dialog` with explicit copy.
+
+---
+
+## 11) Mobile-specific polish
+- [ ] Sticky page titles under header where helpful (`sticky top-[56px] bg-background/80 backdrop-blur`).
+- [ ] Add bottom padding `pb-24` on long lists (avoid iOS toolbar overlap).
+- [ ] Replace blocking full-screen modals with **bottom sheets** on phones.
+- [ ] Enable pull-to-refresh where supported.
+
+---
+
+## 12) Performance & QA (non-visual)
+- [ ] Preload current primary font only (no new fonts).
+- [ ] Defer non-critical JS; lazy-hydrate charts/cards with `IntersectionObserver`.
+- [ ] Convert uploaded images server-side to WebP/AVIF (no palette change).
+- [ ] Lighthouse ≥ 95 on P/A/BP/SEO (mobile & desktop).
+
+---
+
+### Done / Verification
+- [ ] Manual QA on iPhone SE/13/15 Pro Max, Pixel 7, iPad, 1440p desktop.
+- [ ] Keyboard-only navigation pass; verify all focus states visible.
+- [ ] No color regressions vs baseline screenshots.

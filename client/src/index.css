@@ -36,6 +36,28 @@ input[type="file"] {
     @apply border border-border shadow-soft rounded-lg bg-card;
   }
   
+  /* Standardized Spacing Patterns */
+  .section-padding {
+    @apply py-8 sm:py-12;
+  }
+  
+  .card-padding {
+    @apply p-5 sm:p-6;
+  }
+  
+  .grid-gap {
+    @apply gap-4 sm:gap-6;
+  }
+  
+  /* Mobile-first responsive patterns */
+  .mobile-stack {
+    @apply flex flex-col sm:flex-row;
+  }
+  
+  .mobile-full {
+    @apply w-full sm:w-auto;
+  }
+  
   @keyframes fadeUp {
     from {
       opacity: 0;
@@ -50,6 +72,47 @@ input[type="file"] {
   .animate-fade-up {
     animation: fadeUp 0.5s ease-out forwards;
     opacity: 0;
+  }
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+  
+  /* Progress bar animation */
+  @keyframes progressGrow {
+    from {
+      width: 0;
+    }
+  }
+  
+  .animate-progress {
+    animation: progressGrow 1s ease-out;
   }
 
   @keyframes chevronBounce {
@@ -76,10 +139,60 @@ input[type="file"] {
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Inter, sans-serif;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
   
-  h1, h2, h3, h4, h5, h6 {
+  /* Fluid Typography Implementation */
+  h1 {
+    @apply text-4xl sm:text-5xl md:text-6xl font-bold leading-tight;
     text-wrap: balance;
+  }
+  
+  h2 {
+    @apply text-3xl sm:text-4xl md:text-5xl font-semibold leading-tight;
+    text-wrap: balance;
+  }
+  
+  h3 {
+    @apply text-2xl sm:text-3xl md:text-4xl font-semibold leading-tight;
+    text-wrap: balance;
+  }
+  
+  h4 {
+    @apply text-xl sm:text-2xl md:text-3xl font-medium leading-tight;
+    text-wrap: balance;
+  }
+  
+  h5 {
+    @apply text-lg sm:text-xl md:text-2xl font-medium leading-tight;
+    text-wrap: balance;
+  }
+  
+  h6 {
+    @apply text-base sm:text-lg md:text-xl font-medium leading-tight;
+    text-wrap: balance;
+  }
+  
+  /* Fluid Body Text */
+  p, span, div {
+    @apply text-[15px] sm:text-base leading-relaxed;
+  }
+  
+  /* Focus Ring Utilities */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary;
+  }
+  
+  /* Touch Target Sizing */
+  button, [role="button"], input[type="button"], input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Icon Button Standard */
+  .icon-button {
+    @apply h-11 w-11 flex items-center justify-center rounded-lg focus-ring;
   }
 }
 
@@ -168,6 +281,16 @@ input[type="file"] {
   /* Safe Area Padding */
   --safe-area-inset-left: env(safe-area-inset-left);
   --safe-area-inset-right: env(safe-area-inset-right);
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+  
+  /* Touch Target Standards */
+  --touch-target: 44px;
+  --icon-button-size: 44px;
+  
+  /* Header Heights */
+  --header-height-mobile: 56px;
+  --header-height-desktop: 64px;
 }
 
 @media (prefers-color-scheme: dark) {

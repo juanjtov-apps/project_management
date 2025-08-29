@@ -31,63 +31,63 @@ export default function StatsCards() {
   if (!stats) return null;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-      <div className="elevated p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Active Projects</p>
-            <p className="text-2xl font-bold text-brand-blue tabular-nums">{stats.activeProjects}</p>
-            <p className="text-sm text-brand-teal mt-1 font-medium">
-              <TrendingUp size={12} className="inline mr-1" /> 2 new this week
-            </p>
-          </div>
-          <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(31, 167, 124, 0.1)' }}>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 grid-gap mb-8">
+      <div className="elevated card-padding hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-ring" tabIndex={0}>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(31, 167, 124, 0.1)' }}>
             <Building size={24} style={{ color: '#1FA77C', fill: 'none', stroke: '#1FA77C', strokeWidth: 2 }} />
           </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-muted-foreground font-medium">Active Projects</p>
+            <p className="text-3xl sm:text-4xl font-bold text-foreground tabular-nums leading-none">{stats.activeProjects}</p>
+            <p className="text-sm text-brand-teal mt-1 font-medium flex items-center gap-1">
+              <TrendingUp size={12} /> 2 new this week
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="elevated p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Tasks Due Today</p>
-            <p className="text-2xl font-bold text-brand-blue tabular-nums">{stats.pendingTasks}</p>
-            <p className="text-sm text-brand-coral mt-1 font-medium">
-              <Clock size={12} className="inline mr-1" /> 8 due today
-            </p>
-          </div>
-          <div className="w-12 h-12 bg-brand-teal/10 rounded-lg flex items-center justify-center">
+      <div className="elevated card-padding hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-ring" tabIndex={0}>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-brand-teal/10 rounded-lg flex items-center justify-center flex-shrink-0">
             <Clock className="text-brand-teal" size={24} style={{ color: '#1FA77C' }} />
           </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-muted-foreground font-medium">Tasks Due Today</p>
+            <p className="text-3xl sm:text-4xl font-bold text-foreground tabular-nums leading-none">{stats.pendingTasks}</p>
+            <p className="text-sm text-brand-coral mt-1 font-medium flex items-center gap-1">
+              <Clock size={12} /> 8 due today
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="elevated p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Completed Tasks</p>
-            <p className="text-2xl font-bold text-brand-blue tabular-nums">156</p>
-            <p className="text-sm text-brand-teal mt-1 font-medium">
-              <TrendingUp size={12} className="inline mr-1" /> {stats.photosUploadedToday} today
-            </p>
-          </div>
-          <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(31, 167, 124, 0.1)' }}>
+      <div className="elevated card-padding hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-ring" tabIndex={0}>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(31, 167, 124, 0.1)' }}>
             <CheckSquare size={24} style={{ color: '#1FA77C', fill: 'none', stroke: '#1FA77C', strokeWidth: 2 }} />
           </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-muted-foreground font-medium">Completed Tasks</p>
+            <p className="text-3xl sm:text-4xl font-bold text-foreground tabular-nums leading-none">156</p>
+            <p className="text-sm text-brand-teal mt-1 font-medium flex items-center gap-1">
+              <TrendingUp size={12} /> {stats.photosUploadedToday} today
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="elevated p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Photos Uploaded</p>
-            <p className="text-2xl font-bold text-brand-blue tabular-nums">{stats.photosUploaded}</p>
-            <p className="text-sm text-brand-coral mt-1 font-medium">
-              <Camera size={12} className="inline mr-1" /> {stats.photosUploadedToday} today
-            </p>
-          </div>
-          <div className="w-12 h-12 bg-brand-teal/10 rounded-lg flex items-center justify-center">
+      <div className="elevated card-padding hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer focus-ring" tabIndex={0}>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-brand-teal/10 rounded-lg flex items-center justify-center flex-shrink-0">
             <Camera className="text-brand-teal" size={24} style={{ color: '#1FA77C' }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-muted-foreground font-medium">Photos Uploaded</p>
+            <p className="text-3xl sm:text-4xl font-bold text-foreground tabular-nums leading-none">{stats.photosUploaded}</p>
+            <p className="text-sm text-brand-coral mt-1 font-medium flex items-center gap-1">
+              <Camera size={12} /> {stats.photosUploadedToday} today
+            </p>
           </div>
         </div>
       </div>

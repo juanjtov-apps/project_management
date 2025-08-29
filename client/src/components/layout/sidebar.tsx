@@ -15,6 +15,12 @@ import {
   Shield,
   TrendingUp
 } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -29,7 +35,12 @@ const navigation = [
   { name: "RBAC Admin", href: "/rbac", icon: Shield },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export default function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps = {}) {
   const [location] = useLocation();
   
   // Get current user with permissions
@@ -63,8 +74,8 @@ export default function Sidebar() {
   
   console.log('Sidebar navigation items:', filteredNavigation.length, filteredNavigation.map(item => item.name));
 
-  return (
-    <aside className="w-64 bg-surface/50 border-r border-border hidden lg:block backdrop-blur-sm">
+  const NavigationContent = () => (
+    <>
       <div className="p-6 border-b border-border">
         <div className="flex items-center gap-3">
           <Logo size="md" className="shadow-lg" />
@@ -84,13 +95,16 @@ export default function Sidebar() {
             return (
               <li key={item.name}>
                 <Link href={item.href}>
-                  <div className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer group",
-                    "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    isActive 
-                      ? "bg-brand-100 text-brand-600 border-l-4 border-brand-600 font-semibold" 
-                      : "text-muted-foreground hover:text-foreground"
-                  )}>
+                  <div 
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer group focus-ring min-h-[44px]",
+                      "hover:bg-muted active:scale-95",
+                      isActive 
+                        ? "bg-brand-100 text-brand-600 border-l-4 border-brand-600 font-semibold" 
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={() => onMobileClose?.()}
+                  >
                     <Icon 
                       className={cn(
                         "h-5 w-5 shrink-0 transition-colors",
@@ -105,6 +119,29 @@ export default function Sidebar() {
           })}
         </ul>
       </nav>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside className="w-64 bg-surface/50 border-r border-border hidden lg:block backdrop-blur-sm">
+        <NavigationContent />
+      </aside>
+
+      {/* Mobile Sheet Navigation */}
+      <Sheet open={isMobileOpen} onOpenChange={(open) => !open && onMobileClose?.()}>
+        <SheetContent 
+          side="left" 
+          className="w-80 p-0 focus-ring"
+          aria-describedby={undefined}
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Navigation Menu</SheetTitle>
+          </SheetHeader>
+          <NavigationContent />
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
