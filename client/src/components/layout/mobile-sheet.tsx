@@ -19,6 +19,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useQuery } from "@tanstack/react-query";
+import { Logo } from "@/components/ui/logo";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -84,9 +85,7 @@ export default function MobileSheet({ open, onOpenChange }: MobileSheetProps) {
       <SheetContent side="left" className="w-80 p-0">
         <SheetHeader className="p-6 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-brand-600 to-brand-500 flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-sm">P</span>
-            </div>
+            <Logo size="md" className="shadow-lg" />
             <div className="text-left">
               <SheetTitle className="text-fluid-lg font-semibold text-foreground">
                 Proesphere

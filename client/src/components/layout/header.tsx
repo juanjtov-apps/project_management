@@ -1,5 +1,6 @@
 import { Bell, Menu, LogOut, User as UserIcon, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/ui/logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -79,9 +80,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
           </Button>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-brand-600 to-brand-500 flex items-center justify-center">
-                <span className="text-white font-semibold text-sm">P</span>
-              </div>
+              <Logo size="sm" />
               <div className="hidden sm:block">
                 <h1 className="text-fluid-lg font-semibold text-foreground">Proesphere</h1>
                 <p className="text-xs text-muted-foreground hidden lg:block">{companyName}</p>
