@@ -145,10 +145,14 @@ interface TaskCardProps {
 
 function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleChange }: TaskCardProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const isOverdue = isTaskOverdue(task);
   
   return (
     <Card 
-      className="hover:shadow-md transition-shadow cursor-pointer"
+      className={cn(
+        "hover:shadow-md transition-shadow cursor-pointer p-4 space-y-3",
+        isOverdue && "border-l-4 border-l-red-500"
+      )}
       onClick={(e) => {
         // Prevent opening task detail if delete dialog is open
         if (!isDeleteDialogOpen) {
@@ -156,91 +160,94 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
         }
       }}
     >
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start">
-          <div className="flex items-start space-x-2 flex-1 min-w-0">
-            <div className="flex items-center flex-shrink-0">
-              {(() => {
-                const IconComponent = getCategoryIcon(task.category || "general");
-                const iconClass = task.category === "project" ? "text-blue-600" : 
-                                 task.category === "administrative" ? "text-purple-600" : "text-green-600";
-                return <IconComponent size={16} className={iconClass} />;
-              })()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <CardTitle className="text-sm font-medium construction-secondary truncate">
-                {task.title}
-              </CardTitle>
-              {project && (
-                <p className="text-xs text-gray-500 mt-1 truncate">{project.name}</p>
-              )}
-              <p className="text-xs text-blue-600 mt-1 hidden sm:block">Click to edit task</p>
-            </div>
+      {/* Header section with task title and actions */}
+      <div className="flex justify-between items-start gap-2">
+        <div className="flex items-start space-x-2 flex-1 min-w-0">
+          <div className="flex items-center flex-shrink-0">
+            {(() => {
+              const IconComponent = getCategoryIcon(task.category || "general");
+              const iconClass = task.category === "project" ? "text-blue-600" : 
+                               task.category === "administrative" ? "text-purple-600" : "text-green-600";
+              return <IconComponent size={16} className={iconClass} />;
+            })()}
           </div>
-          <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
-            <div className="hidden sm:block">
-              <Badge className={getPriorityColor(task.priority)} variant="outline">
-                {task.priority}
-              </Badge>
-            </div>
-            <div className="flex gap-1">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="h-8 w-8 p-0 hidden sm:flex"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(task);
-                }}
-                title="Edit task"
-              >
-                <Edit size={14} />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hidden sm:flex"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsDeleteDialogOpen(true);
-                }}
-                title="Delete task"
-              >
-                <Trash2 size={14} />
-              </Button>
-              {/* Mobile actions */}
-              <div className="sm:hidden">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <MoreHorizontal size={14} />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={(e) => {
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-medium construction-secondary truncate" title={task.title}>
+              {task.title}
+            </h3>
+            {project && (
+              <p className="text-sm text-muted-foreground mt-1 truncate">{project.name}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
+          <div className="hidden sm:block">
+            <Badge className={getPriorityColor(task.priority)} variant="outline">
+              {task.priority}
+            </Badge>
+          </div>
+          <div className="flex gap-1">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="h-8 w-8 p-0 hidden sm:flex"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(task);
+              }}
+              title="Edit task"
+            >
+              <Edit size={14} />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hidden sm:flex"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsDeleteDialogOpen(true);
+              }}
+              title="Delete task"
+            >
+              <Trash2 size={14} />
+            </Button>
+            {/* Mobile actions */}
+            <div className="sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-10 w-10 p-0 rounded-lg"
+                    aria-label={`Actions for task ${task.title}`}
+                  >
+                    <MoreHorizontal size={16} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(task);
+                  }}>
+                    <Edit size={12} className="mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="text-red-600"
+                    onClick={(e) => {
                       e.stopPropagation();
-                      onEdit(task);
-                    }}>
-                      <Edit size={12} className="mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="text-red-600"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsDeleteDialogOpen(true);
-                      }}
-                    >
-                      <Trash2 size={12} className="mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
+                      setIsDeleteDialogOpen(true);
+                    }}
+                  >
+                    <Trash2 size={12} className="mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
                 </DropdownMenu>
               </div>
             </div>
           </div>
         </div>
-      </CardHeader>
       
       {/* Delete confirmation dialog */}
       <AlertDialog 
@@ -272,76 +279,66 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <CardContent className="pt-0">
-        {task.description && (
-          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{task.description}</p>
+      
+      {/* Task description with proper truncation */}
+      {task.description && (
+        <p className="text-sm text-gray-600 line-clamp-2">{task.description}</p>
+      )}
+      
+      {/* Chips section with uniform height and consistent order */}
+      <div className="flex flex-wrap gap-2">
+        <Badge className={cn(
+          getPriorityColor(task.priority),
+          "h-7 px-3 rounded-full text-xs font-medium"
+        )} variant="outline">
+          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+        </Badge>
+        <Badge className={cn(
+          getStatusColor(task.status),
+          "h-7 px-3 rounded-full text-xs font-medium"
+        )} variant="secondary">
+          {task.status.replace("-", " ")}
+        </Badge>
+      </div>
+      
+      {/* Icons and indicators - consistent left-aligned stack */}
+      <div className="flex items-center flex-wrap gap-4 text-sm text-muted-foreground">
+        {task.dueDate && (
+          <div className={cn(
+            "flex items-center gap-1",
+            isOverdue && "text-red-600 font-medium"
+          )}>
+            <CalendarIcon size={14} />
+            <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+          </div>
         )}
         
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-1">
-              <Badge className={getStatusColor(task.status)} variant="secondary">
-                {task.status.replace("-", " ")}
-              </Badge>
-              <div className="sm:hidden">
-                <Badge className={cn(getPriorityColor(task.priority), "text-xs")} variant="outline">
-                  {task.priority}
-                </Badge>
-              </div>
-            </div>
-            <div className="hidden sm:block">
-              <Select value={task.status} onValueChange={(value) => onStatusChange(task, value)}>
-                <SelectTrigger 
-                  className="h-6 w-auto text-xs border-0 bg-transparent p-1"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="blocked">Blocked</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        {task.assigneeId && (
+          <div className="flex items-center gap-1">
+            <UserIcon size={14} />
+            <span>Assigned</span>
           </div>
-          
-          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-            {task.dueDate && (
-              <div className="flex items-center">
-                <Clock size={12} className="mr-1" />
-                Due: {new Date(task.dueDate).toLocaleDateString()}
-              </div>
-            )}
-            
-            {task.assigneeId && (
-              <div className="flex items-center">
-                <UserIcon size={12} className="mr-1" />
-                Assigned
-              </div>
-            )}
-          </div>
-          
-          {/* Mobile status change */}
-          <div className="sm:hidden mt-2">
-            <Select value={task.status} onValueChange={(value) => onStatusChange(task, value)}>
-              <SelectTrigger 
-                className="h-8 text-sm w-full"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="blocked">Blocked</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </CardContent>
+        )}
+      </div>
+      
+      {/* Mobile status change with proper sizing */}
+      <div className="md:hidden">
+        <Select value={task.status} onValueChange={(value) => onStatusChange(task, value)}>
+          <SelectTrigger 
+            className="h-9 min-w-[110px] text-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Change status for task ${task.title}`}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="in-progress">In Progress</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="blocked">Blocked</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </Card>
   );
 }
@@ -1051,11 +1048,11 @@ export default function Tasks() {
         </Card>
       </div>
 
-      {/* Action Buttons Row */}
+      {/* Mobile-Optimized Action Buttons Row */}
       <div className="bg-white border border-slate-200 rounded-lg p-4 mb-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            {/* Expand/Collapse All - Enhancement #11 */}
+          {/* Desktop: Show buttons normally */}
+          <div className="hidden md:flex items-center space-x-2">
             <Button
               variant="outline"
               size="sm"
@@ -1063,14 +1060,12 @@ export default function Tasks() {
                 const allExpanded = Object.keys(collapsedSections).length === 0 || 
                                    Object.values(collapsedSections).every(v => !v);
                 if (allExpanded) {
-                  // Collapse all
                   const newCollapsed: Record<string, boolean> = { projects: true, administrative: true, general: true };
                   Object.values(tasksByProject).forEach(({ project }) => {
                     newCollapsed[`project-${project.id}`] = true;
                   });
                   setCollapsedSections(newCollapsed);
                 } else {
-                  // Expand all
                   setCollapsedSections({});
                 }
               }}
@@ -1089,7 +1084,6 @@ export default function Tasks() {
               )}
             </Button>
             
-            {/* Bulk Actions Toggle - Enhancement #2 */}
             <Button
               variant={bulkActionMode ? "default" : "outline"}
               size="sm"
@@ -1103,13 +1097,68 @@ export default function Tasks() {
               Bulk Edit
             </Button>
           </div>
+
+          {/* Mobile: Bulk actions in dropdown */}
+          <div className="md:hidden w-full">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-9 w-full justify-between"
+                >
+                  <span className="flex items-center">
+                    <Settings size={14} className="mr-2" />
+                    Actions
+                  </span>
+                  <ChevronDown size={14} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => {
+                  const allExpanded = Object.keys(collapsedSections).length === 0 || 
+                                     Object.values(collapsedSections).every(v => !v);
+                  if (allExpanded) {
+                    const newCollapsed: Record<string, boolean> = { projects: true, administrative: true, general: true };
+                    Object.values(tasksByProject).forEach(({ project }) => {
+                      newCollapsed[`project-${project.id}`] = true;
+                    });
+                    setCollapsedSections(newCollapsed);
+                  } else {
+                    setCollapsedSections({});
+                  }
+                }}>
+                  {Object.keys(collapsedSections).length === 0 || Object.values(collapsedSections).every(v => !v) ? (
+                    <>
+                      <Minimize2 size={14} className="mr-2" />
+                      Collapse All
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 size={14} className="mr-2" />
+                      Expand All
+                    </>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  setBulkActionMode(!bulkActionMode);
+                  setSelectedTasks(new Set());
+                }}>
+                  <CheckSquare size={14} className="mr-2" />
+                  {bulkActionMode ? "Exit Bulk Edit" : "Bulk Edit"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 
-      {/* Sticky Filter & View Bar - Enhancement #8 */}
+      {/* Mobile-Optimized Sticky Filter & View Bar */}
       <div className="sticky top-0 z-10 bg-white border-b border-slate-200 p-4 -mx-6" style={{ marginBottom: '16px' }}>
-        <div className="flex gap-4 items-center justify-between">
-          <div className="flex gap-4 items-center flex-1">
+        {/* Mobile: Stack search on top, filters below */}
+        <div className="space-y-3 md:space-y-0">
+          {/* Search and view toggles */}
+          <div className="flex gap-2 items-center justify-between">
             <div className="flex items-center space-x-2 flex-1 max-w-sm">
               <Search size={16} className="text-slate-400" />
               <Input
@@ -1120,8 +1169,32 @@ export default function Tasks() {
               />
             </div>
             
+            <div className="flex items-center border rounded-lg">
+              <Button
+                variant={viewMode === "canvas" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("canvas")}
+                className="border-0 rounded-r-none h-9 px-3"
+              >
+                <Grid3X3 size={16} className="mr-1" />
+                <span className="hidden sm:inline">Canvas</span>
+              </Button>
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("list")}
+                className="border-0 rounded-l-none h-9 px-3"
+              >
+                <List size={16} className="mr-1" />
+                <span className="hidden sm:inline">List</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Mobile: Horizontally scrollable filters */}
+          <div className="flex gap-2 overflow-x-auto flex-nowrap pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[132px] h-9 rounded-lg">
+              <SelectTrigger className="min-w-[110px] h-9 rounded-lg">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -1134,7 +1207,7 @@ export default function Tasks() {
             </Select>
             
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-[132px] h-9 rounded-lg">
+              <SelectTrigger className="min-w-[110px] h-9 rounded-lg">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
               <SelectContent>
@@ -1146,44 +1219,32 @@ export default function Tasks() {
               </SelectContent>
             </Select>
             
-            {/* Advanced Filter Toggle - Enhancement #9 */}
+            {/* Clear filters chip */}
+            {(statusFilter !== "all" || priorityFilter !== "all") && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setStatusFilter("all");
+                  setPriorityFilter("all");
+                }}
+                className="h-9 px-3 rounded-lg whitespace-nowrap"
+              >
+                <RotateCcw size={14} className="mr-1" />
+                Clear
+              </Button>
+            )}
+            
+            {/* Advanced Filter Toggle */}
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className="text-xs h-9 rounded-lg"
+              className="h-9 px-3 rounded-lg whitespace-nowrap"
             >
               <SlidersHorizontal size={14} className="mr-1" />
               Filters
             </Button>
-          </div>
-          
-          <div className="flex items-center">
-            {/* Keyboard shortcuts tooltip for empty space utilization */}
-            <div className="text-xs text-[#6B7280] mr-4 hidden md:block">
-              ⌘F focuses search
-            </div>
-            
-            <div className="flex items-center border rounded-lg">
-              <Button
-                variant={viewMode === "canvas" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("canvas")}
-                className="border-0 rounded-r-none h-9 rounded-lg"
-              >
-                <Grid3X3 size={16} className="mr-1" />
-                Canvas
-              </Button>
-              <Button
-                variant={viewMode === "list" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("list")}
-                className="border-0 rounded-l-none h-9 rounded-lg"
-              >
-                <List size={16} className="mr-1" />
-                List
-              </Button>
-            </div>
           </div>
         </div>
         
@@ -1330,65 +1391,88 @@ export default function Tasks() {
                 
                 return (
                   <div key={project.id} className="space-y-2">
-                    <Button
-                      variant="ghost"
-                      onClick={() => toggleSection(`project-${project.id}`)}
-                      className="flex items-center w-full justify-start p-2 h-auto hover:bg-gray-50 ml-6"
-                    >
-                      {collapsedSections[`project-${project.id}`] ? 
-                        <ChevronRight size={16} className="mr-2" /> : 
-                        <ChevronDown size={16} className="mr-2" />
-                      }
-                      <Building size={16} className="mr-2 text-brand-teal" />
-                      <span className="text-md font-medium text-gray-700">{project.name}</span>
-                      
-                      {/* Project Progress Pill - Enhancement #4 */}
-                      <div className="flex items-center space-x-2 ml-2">
-                        <Badge variant="outline" className="text-xs">
-                          {tasks.length} task{tasks.length !== 1 ? 's' : ''}
-                        </Badge>
-                        
-                        <div className="flex items-center space-x-2">
-                          {/* Circular Progress Ring */}
-                          <div className="w-4 h-4 relative">
-                            <svg className="w-4 h-4 transform -rotate-90" viewBox="0 0 24 24">
-                              <circle
-                                cx="12"
-                                cy="12"
-                                r="8"
-                                stroke="#E5E7EB"
-                                strokeWidth="3"
-                                fill="none"
-                              />
-                              <circle
-                                cx="12"
-                                cy="12"
-                                r="8"
-                                stroke={projectProgress.progressColor}
-                                strokeWidth="3"
-                                fill="none"
-                                strokeDasharray={50.24}
-                                strokeDashoffset={50.24 - (50.24 * projectProgress.percentage) / 100}
-                                className="transition-all duration-300"
-                              />
-                            </svg>
+                    {/* Mobile-Optimized Sticky Project Header */}
+                    <div className="sticky top-20 z-5 bg-white border-b border-slate-100 rounded-lg">
+                      <Button
+                        variant="ghost"
+                        onClick={() => toggleSection(`project-${project.id}`)}
+                        className="flex items-center w-full justify-start p-3 h-auto hover:bg-gray-50 ml-6"
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center space-x-2 flex-1 min-w-0">
+                            {collapsedSections[`project-${project.id}`] ? 
+                              <ChevronRight size={16} className="text-gray-400 flex-shrink-0" /> : 
+                              <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
+                            }
+                            <Building size={16} className="text-brand-teal flex-shrink-0" />
+                            <span className="text-md font-medium text-gray-700 truncate">{project.name}</span>
+                            
+                            {/* Mobile: Compact task count pill */}
+                            <Badge 
+                              variant="outline" 
+                              className="h-6 px-2 text-xs bg-teal-50 text-teal-700 border-teal-200 rounded-full flex-shrink-0"
+                            >
+                              {tasks.length}
+                            </Badge>
                           </div>
                           
-                          {/* Mini Progress Bar with gradient */}
-                          <div className="w-8 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                            <div 
-                              className="h-full transition-all duration-300 rounded-full"
-                              style={{ 
-                                width: `${projectProgress.percentage}%`,
-                                background: `linear-gradient(90deg, ${projectProgress.progressColor}30 0%, ${projectProgress.progressColor} 100%)`
-                              }}
-                            />
+                          {/* Desktop: Show detailed progress */}
+                          <div className="hidden md:flex items-center space-x-2 flex-shrink-0">
+                            <div className="w-4 h-4 relative">
+                              <svg className="w-4 h-4 transform -rotate-90" viewBox="0 0 24 24">
+                                <circle
+                                  cx="12"
+                                  cy="12"
+                                  r="8"
+                                  stroke="#E5E7EB"
+                                  strokeWidth="3"
+                                  fill="none"
+                                />
+                                <circle
+                                  cx="12"
+                                  cy="12"
+                                  r="8"
+                                  stroke={projectProgress.progressColor}
+                                  strokeWidth="3"
+                                  fill="none"
+                                  strokeDasharray={50.24}
+                                  strokeDashoffset={50.24 - (50.24 * projectProgress.percentage) / 100}
+                                  className="transition-all duration-300"
+                                />
+                              </svg>
+                            </div>
+                            
+                            <div className="w-8 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full transition-all duration-300 rounded-full"
+                                style={{ 
+                                  width: `${projectProgress.percentage}%`,
+                                  background: `linear-gradient(90deg, ${projectProgress.progressColor}30 0%, ${projectProgress.progressColor} 100%)`
+                                }}
+                              />
+                            </div>
+                          </div>
+                          
+                          {/* Mobile: Simple progress indicator */}
+                          <div className="md:hidden flex items-center space-x-1 flex-shrink-0">
+                            <div className="w-6 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full transition-all duration-300 rounded-full"
+                                style={{ 
+                                  width: `${projectProgress.percentage}%`,
+                                  background: projectProgress.progressColor
+                                }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500 font-medium min-w-[30px]">
+                              {projectProgress.percentage}%
+                            </span>
                           </div>
                         </div>
-                      </div>
-                    </Button>
+                      </Button>
+                    </div>
                     {!collapsedSections[`project-${project.id}`] && (
-                      <div className="space-y-2 pl-12">
+                      <div className="space-y-3 pl-6 md:pl-12">
                         {tasks.map((task) => (
                           <TaskListItem
                             key={task.id}
