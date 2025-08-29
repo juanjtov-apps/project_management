@@ -98,7 +98,7 @@ export default function Login() {
             <div className="space-y-3">
               <Label htmlFor="email" className="text-[var(--proesphere-deep-blue)] font-medium">Email address</Label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--proesphere-teal)]" />
+                <Mail className="absolute left-4 top-4 h-5 w-5 text-[var(--proesphere-teal)]" />
                 <Input
                   id="email"
                   type="email"
@@ -113,7 +113,7 @@ export default function Login() {
             <div className="space-y-3">
               <Label htmlFor="password" className="text-[var(--proesphere-deep-blue)] font-medium">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--proesphere-teal)]" />
+                <Lock className="absolute left-4 top-4 h-5 w-5 text-[var(--proesphere-teal)]" />
                 <Input
                   id="password"
                   type="password"

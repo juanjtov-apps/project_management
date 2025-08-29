@@ -25,30 +25,30 @@ import type { Task, InsertTask, Project, User } from "@shared/schema";
 const getPriorityColor = (priority: string) => {
   switch (priority) {
     case "critical":
-      return "bg-brand-coral/10 text-brand-coral border-brand-coral/30 border-[1.5px]";
+      return "bg-red-50 text-red-700 border-red-300 border-[1.5px]";
     case "high":
-      return "bg-brand-coral/10 text-brand-coral border-brand-coral/30 border-[1.5px]";
+      return "bg-orange-50 text-orange-700 border-orange-300 border-[1.5px]";
     case "medium":
-      return "bg-brand-ink/10 text-brand-ink border-brand-ink/30 border-[1.5px]";
+      return "bg-amber-50 text-[#212121] border-amber-300 border-[1.5px]";
     case "low":
-      return "bg-brand-teal/10 text-brand-teal border-brand-teal/30 border-[1.5px]";
+      return "bg-green-50 text-green-700 border-green-300 border-[1.5px]";
     default:
-      return "bg-brand-grey/10 text-brand-ink border-brand-grey/30 border-[1.5px]";
+      return "bg-gray-50 text-gray-700 border-gray-300 border-[1.5px]";
   }
 };
 
 const getStatusColor = (status: string) => {
   switch (status) {
     case "completed":
-      return "bg-brand-teal/10 text-brand-teal border-brand-teal/30 border-[1.5px]";
+      return "bg-green-50 text-green-700 border-green-300 border-[1.5px]";
     case "in-progress":
-      return "bg-brand-blue/10 text-brand-blue border-brand-blue/30 border-[1.5px]";
+      return "bg-blue-50 text-blue-700 border-blue-300 border-[1.5px]";
     case "blocked":
-      return "bg-brand-coral/10 text-brand-coral border-brand-coral/30 border-[1.5px]";
+      return "bg-red-50 text-red-700 border-red-300 border-[1.5px]";
     case "pending":
-      return "bg-brand-grey/10 text-brand-ink border-brand-grey/30 border-[1.5px]";
+      return "bg-gray-50 text-gray-700 border-gray-300 border-[1.5px]";
     default:
-      return "bg-brand-grey/10 text-brand-ink border-brand-grey/30 border-[1.5px]";
+      return "bg-gray-50 text-gray-700 border-gray-300 border-[1.5px]";
   }
 };
 
