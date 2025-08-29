@@ -226,13 +226,13 @@ export default function MultiProjectOverview() {
                             ${(project.budget / 100).toLocaleString()}
                           </span>
                         </div>
-                        {project.actualCost > 0 && (
+                        {(project.actualCost ?? 0) > 0 && (
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600">Spent</span>
                             <span className={`font-medium ${
-                              project.actualCost > project.budget ? 'text-red-600' : 'text-gray-800'
+                              (project.actualCost ?? 0) > (project.budget ?? 0) ? 'text-red-600' : 'text-gray-800'
                             }`}>
-                              ${(project.actualCost / 100).toLocaleString()}
+                              ${((project.actualCost ?? 0) / 100).toLocaleString()}
                             </span>
                           </div>
                         )}
