@@ -700,6 +700,12 @@ export default function Projects() {
                               
                               {/* Action Buttons - Desktop Only */}
                               <div className="hidden sm:flex flex-col gap-1">
+                                <div className="mb-2">
+                                  <ProjectGallery 
+                                    projectId={project.id} 
+                                    projectName={project.name}
+                                  />
+                                </div>
                                 <Button 
                                   variant="ghost" 
                                   size="sm" 
@@ -1019,7 +1025,11 @@ export default function Projects() {
                       </div>
                       
                       {/* Desktop Actions */}
-                      <div className="hidden sm:flex items-center gap-1">
+                      <div className="hidden sm:flex items-center gap-2">
+                        <ProjectGallery 
+                          projectId={project.id} 
+                          projectName={project.name}
+                        />
                         <Button 
                           variant="ghost" 
                           size="sm" 
