@@ -392,14 +392,19 @@ function TaskListItem({
         isSelected && "bg-white border-l-blue-500 shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
       )}
       onClick={(e) => {
-        // Only trigger if clicked on the card itself, not on interactive elements
-        const target = e.target as HTMLElement;
-        const isClickableElement = target.closest('button, select, input, a, [role="button"]');
-        
-        if (!isDeleteDialogOpen && !isClickableElement) {
-          e.preventDefault();
-          e.stopPropagation();
-          onScheduleChange?.(task);
+        try {
+          // Only trigger if clicked on the card itself, not on interactive elements
+          const target = e.target as HTMLElement;
+          const isClickableElement = target.closest('button, select, input, a, [role="button"], [data-radix-collection-item]');
+          
+          if (!isDeleteDialogOpen && !isClickableElement) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Task clicked:', task.title);
+            onScheduleChange?.(task);
+          }
+        } catch (error) {
+          console.error('Task click error:', error);
         }
       }}
     >
