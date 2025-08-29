@@ -1,0 +1,82 @@
+Task Module (Mobile) – Checklist (Palette-Safe)
+1) Layout & Spacing
+
+ Increase vertical spacing between task cards (space-y-3) for better touch separation.
+
+ Ensure each task card has consistent padding (p-4 on mobile).
+
+ Reduce excessive horizontal whitespace inside task rows to fit better on narrow screens.
+
+2) Typography & Truncation
+
+ Truncate long task names with ellipsis (truncate + tooltip on hover/long press).
+
+ Use two-line clamp for task descriptions (line-clamp-2) instead of overflowing text.
+
+ Standardize text hierarchy:
+
+Task name → font-medium text-base.
+
+Labels/meta (project name, due date, assigned) → text-sm text-muted.
+
+3) Chips (Status, Priority, Tags)
+
+ Make chips uniform height (h-7 px-3 rounded-full text-xs font-medium).
+
+ Ensure consistent order: [Priority] [Status].
+
+ Wrap chips if space runs out (use flex-wrap gap-2).
+
+ Add margin between chips and task title for clarity.
+
+4) Controls & Actions
+
+ Resize dropdowns/buttons:
+
+Status dropdown → h-9 min-w-[110px] for tap comfort.
+
+Edit/Delete icons → h-10 w-10 with rounded-lg touch targets.
+
+ Move delete button away from dropdown (to avoid accidental taps).
+
+ Ensure bulk actions (Collapse, Bulk Edit) collapse into a dropdown on mobile.
+
+5) Hierarchy & Grouping
+
+ Show project group header (Project Tasks, Brookfield, etc.) as sticky when scrolling in its section (sticky top-[offset] bg-white z-10).
+
+ Collapse project sections by default on mobile; allow expand with chevron.
+
+ Display task count in project header with consistent pill style (rounded-full bg-gray-100 px-2 text-xs).
+
+6) Icons & Indicators
+
+ Use a consistent left-aligned icon stack (status/check, project, due date) → prevents clutter.
+
+ Show due date with calendar icon + date inline, not floating in red text.
+
+ Overdue → keep red text, but attach icon + label (e.g., “Due: 8/23/2025”).
+
+7) Scrolling & Filters
+
+ Make status/priority filters horizontally scrollable (overflow-x-auto flex-nowrap).
+
+ Keep filter row sticky under task summary on mobile.
+
+ Add a “Clear Filters” chip for quick reset.
+
+8) Performance & Interactions
+
+ Add skeleton loaders for tasks when fetching.
+
+ Swipe gesture on task row: left → delete, right → complete (optional progressive enhancement).
+
+ Toast confirmation for destructive actions (delete, bulk edit).
+
+9) Accessibility
+
+ Ensure task rows and controls are ≥ 44px tall.
+
+ Add aria-labels: e.g., “Mark task Final CRUD Test as In Progress.”
+
+ Focus ring visible on all chips, dropdowns, and buttons.
