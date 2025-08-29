@@ -41,7 +41,17 @@ export default function Landing() {
           
           <Button 
             onClick={handleSignIn}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl focus-ring min-h-[44px]"
+            className="font-semibold px-6 py-2 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl focus-ring min-h-[44px]"
+            style={{
+              backgroundColor: 'var(--proesphere-deep-blue)',
+              color: 'white'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'hsl(210, 100%, 20%)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--proesphere-deep-blue)';
+            }}
           >
             Sign In
           </Button>
@@ -91,7 +101,17 @@ export default function Landing() {
               <Button 
                 onClick={handleSignIn}
                 size="lg"
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 py-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-lg focus-ring active:scale-95 mobile-full min-h-[44px]"
+                className="font-semibold px-8 py-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-lg focus-ring active:scale-95 mobile-full min-h-[44px]"
+                style={{
+                  backgroundColor: 'var(--proesphere-deep-blue)',
+                  color: 'white'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'hsl(210, 100%, 20%)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--proesphere-deep-blue)';
+                }}
               >
                 Get Started
                 <ArrowRight className="ml-2 h-5 w-5" />

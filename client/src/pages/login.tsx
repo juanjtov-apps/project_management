@@ -211,7 +211,17 @@ export default function Login() {
             
             <Button 
               type="submit" 
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl mt-8 focus-ring active:scale-95 min-h-[44px]"
+              className="w-full font-semibold py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl mt-8 focus-ring active:scale-95 min-h-[44px]"
+              style={{
+                backgroundColor: 'var(--proesphere-deep-blue)',
+                color: 'white'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'hsl(210, 100%, 20%)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--proesphere-deep-blue)';
+              }}
               disabled={loginMutation.isPending || !isFormValid}
               aria-busy={loginMutation.isPending}
             >
