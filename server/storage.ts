@@ -345,7 +345,6 @@ export class DatabaseStorage implements IStorage {
         company_id,
         role_id,
         password,
-        is_active = true, 
         username 
       } = userData;
       
@@ -387,10 +386,10 @@ export class DatabaseStorage implements IStorage {
       const result = await pool.query(`
         INSERT INTO users (
           email, first_name, last_name, username, name, role, 
-          company_id, is_active, password, created_at, updated_at
+          company_id, password, created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-        RETURNING id, email, first_name, last_name, username, name, role, company_id, is_active, created_at
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+        RETURNING id, email, first_name, last_name, username, name, role, company_id, created_at
       `, [
         email, 
         first_name, 
@@ -399,7 +398,6 @@ export class DatabaseStorage implements IStorage {
         userName,
         userRole,
         company_id,
-        is_active,
         hashedPassword
       ]);
       
@@ -415,7 +413,6 @@ export class DatabaseStorage implements IStorage {
         name: row.name,
         email: row.email,
         role: row.role,
-        isActive: row.is_active,
         createdAt: row.created_at
       };
     } finally {
