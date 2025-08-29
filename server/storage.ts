@@ -759,8 +759,8 @@ export class DatabaseStorage implements IStorage {
       const result = await pool.query(`
         SELECT t.id, t.title, t.description, t.project_id, t.assignee_id, t.status, 
                t.priority, t.due_date, t.completed_at, t.created_at, t.category, 
-               t.is_milestone, t.estimated_hours,
-               p.name as project_name, p.company_id,
+               t.is_milestone, t.estimated_hours, t.company_id,
+               p.name as project_name, p.company_id as project_company_id,
                u.name as assignee_name
         FROM tasks t 
         LEFT JOIN projects p ON t.project_id = p.id
@@ -783,7 +783,7 @@ export class DatabaseStorage implements IStorage {
         category: row.category,
         isMilestone: row.is_milestone,
         estimatedHours: row.estimated_hours,
-        companyId: row.company_id || '0' // Inherit company from project
+        companyId: row.company_id || row.project_company_id || '0' // Use task company_id first, then project company_id
       }));
     } finally {
       await pool.end();
@@ -804,7 +804,8 @@ export class DatabaseStorage implements IStorage {
         dueDate,
         category = 'General',
         isMilestone = false,
-        estimatedHours 
+        estimatedHours,
+        companyId 
       } = taskData;
       
       if (!title) {
@@ -813,11 +814,11 @@ export class DatabaseStorage implements IStorage {
 
       const result = await pool.query(`
         INSERT INTO tasks (title, description, project_id, assignee_id, status, priority, 
-                          due_date, category, is_milestone, estimated_hours, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+                          due_date, category, is_milestone, estimated_hours, company_id, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
         RETURNING id, title, description, project_id, assignee_id, status, priority, 
-                  due_date, completed_at, created_at, category, is_milestone, estimated_hours
-      `, [title, description, projectId, assigneeId, status, priority, dueDate, category, isMilestone, estimatedHours]);
+                  due_date, completed_at, created_at, category, is_milestone, estimated_hours, company_id
+      `, [title, description, projectId, assigneeId, status, priority, dueDate, category, isMilestone, estimatedHours, companyId]);
       
       const row = result.rows[0];
 
@@ -834,7 +835,8 @@ export class DatabaseStorage implements IStorage {
         createdAt: row.created_at,
         category: row.category,
         isMilestone: row.is_milestone,
-        estimatedHours: row.estimated_hours
+        estimatedHours: row.estimated_hours,
+        companyId: row.company_id
       };
     } finally {
       await pool.end();
