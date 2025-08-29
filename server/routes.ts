@@ -315,8 +315,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Company admin sees only their company users
         console.log(`RBAC: Company admin ${req.currentUser?.email} requesting company users`);
-        const companyUsers = await storage.getCompanyUsers(req.currentUser?.company_id);
-        console.log(`✅ NODE.JS SUCCESS: Retrieved ${companyUsers.length} users for company ${req.currentUser?.company_id}`);
+        // Use correct field name - database schema uses companyId (camelCase)
+        const companyId = req.currentUser?.companyId || req.currentUser?.company_id;
+        console.log(`✅ Fetching users for company ${companyId}`);
+        const companyUsers = await storage.getCompanyUsers(companyId);
+        console.log(`✅ NODE.JS SUCCESS: Retrieved ${companyUsers.length} users for company ${companyId}`);
         res.json(companyUsers);
       }
     } catch (error: any) {
