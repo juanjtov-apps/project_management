@@ -1,14 +1,5 @@
-import { Bell, Menu, LogOut, User as UserIcon, Settings } from "lucide-react";
+import { Bell, Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/ui/logo";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import type { Notification, User } from "@shared/schema";
@@ -60,102 +51,58 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
   };
 
   return (
-    <header 
-      className="sticky top-0 z-40 h-14 sm:h-16 backdrop-blur-md bg-background/80 border-b border-border"
-      style={{
-        paddingLeft: 'max(1rem, env(safe-area-inset-left))',
-        paddingRight: 'max(1rem, env(safe-area-inset-right))'
-      }}
-    >
-      <div className="container flex h-full items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="lg:hidden h-11 w-11 p-0"
-            onClick={onToggleMobileMenu}
-            aria-label="Open navigation menu"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Logo size="sm" />
-              <div className="hidden sm:block">
-                <h1 className="text-fluid-lg font-semibold text-foreground">Proesphere</h1>
-                <p className="text-xs text-muted-foreground hidden lg:block">{companyName}</p>
-              </div>
+    <header className="bg-white border-b border-brand-grey px-6 py-4">
+      <div className="max-w-[1440px] mx-auto">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="lg:hidden p-2"
+              onClick={onToggleMobileMenu}
+            >
+              <Menu className="text-brand-text" size={20} />
+            </Button>
+            <div className="flex justify-center w-full lg:justify-start">
+              <h2 className="text-xl font-semibold text-brand-blue">{companyName}</h2>
             </div>
           </div>
-        </div>
           
-        <div className="flex items-center gap-3">
-          {/* Notifications */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="relative h-11 w-11 p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={onToggleNotifications}
-            aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
-          >
-            <Bell className="h-5 w-5" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-danger text-white text-xs rounded-full min-w-5 h-5 flex items-center justify-center px-1">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </Button>
-
-          {/* User Avatar with Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <div className="flex items-center space-x-6">
+            {/* Notifications */}
+            <div className="relative">
               <Button
                 variant="ghost"
-                className="h-11 p-0 data-[state=open]:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="User menu"
+                size="sm"
+                className="p-2 relative hover:bg-brand-teal/5 focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2"
+                onClick={onToggleNotifications}
               >
-                <div className="flex items-center gap-2 px-2">
-                  <div className="h-8 w-8 rounded-full bg-brand-600 text-white text-sm font-medium flex items-center justify-center">
-                    {getUserInitials(user)}
-                  </div>
-                  <div className="hidden sm:block text-left">
-                    <div className="text-sm font-medium text-foreground">
-                      {user?.firstName || user?.name || user?.email || "User"}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {userCompany?.name || 'Proesphere'}
-                    </div>
-                  </div>
-                </div>
+                <Bell className="text-brand-text" size={20} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-brand-coral text-white text-xs rounded-full flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium">
-                    {user?.firstName || user?.name || user?.email || "User"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {user?.email}
-                  </p>
+            </div>
+            
+            {/* User Profile */}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-brand-blue to-brand-teal rounded-full flex items-center justify-center">
+                  <span className="text-white font-semibold text-sm">{getUserInitials(user)}</span>
                 </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem disabled>
-                <UserIcon className="mr-2 h-4 w-4" />
-                Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-danger focus:text-danger">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <span className="hidden md:block font-medium text-brand-blue">{user?.firstName || user?.name || 'Root'}</span>
+              </div>
+              <button 
+                onClick={handleLogout}
+                className="flex items-center space-x-1 text-brand-text opacity-60 hover:text-brand-coral hover:underline text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2 rounded px-1"
+              >
+                <LogOut size={14} />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </header>
