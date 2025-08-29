@@ -76,6 +76,27 @@ except Exception as e:
     print(f"❌ Error importing rbac router: {e}")
     rbac_router = None
 
+try:
+    from .auth import router as auth_router
+    print("✅ Auth router imported")
+except Exception as e:
+    print(f"❌ Error importing auth router: {e}")
+    auth_router = None
+
+try:
+    from .user_management import router as user_management_router
+    print("✅ User management router imported")
+except Exception as e:
+    print(f"❌ Error importing user management router: {e}")
+    user_management_router = None
+
+try:
+    from .dashboard_stats import router as dashboard_stats_router
+    print("✅ Dashboard stats router imported")
+except Exception as e:
+    print(f"❌ Error importing dashboard stats router: {e}")
+    dashboard_stats_router = None
+
 # Import other routers as they are created
 # from .logs import router as logs_router
 
@@ -109,6 +130,12 @@ def create_api_router() -> APIRouter:
         print("✅ Dashboard router included")
     else:
         print("⚠️  Dashboard router skipped (import failed)")
+        
+    if dashboard_stats_router:
+        api_router.include_router(dashboard_stats_router, tags=["dashboard-stats"])
+        print("✅ Dashboard stats router included")
+    else:
+        print("⚠️  Dashboard stats router skipped (import failed)")
         
     if notifications_router:
         api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
@@ -150,6 +177,19 @@ def create_api_router() -> APIRouter:
         print("✅ RBAC router included")
     else:
         print("⚠️  RBAC router skipped (import failed)")
+        
+    if auth_router:
+        api_router.include_router(auth_router)
+        print("✅ Auth router included")
+    else:
+        print("⚠️  Auth router skipped (import failed)")
+        
+    if user_management_router:
+        api_router.include_router(user_management_router, prefix="/users", tags=["user-management"])
+        api_router.include_router(user_management_router, tags=["rbac"])  # Also include without prefix for RBAC endpoints
+        print("✅ User management router included")
+    else:
+        print("⚠️  User management router skipped (import failed)")
     
     # Include additional routers as they are implemented
     # api_router.include_router(logs_router)

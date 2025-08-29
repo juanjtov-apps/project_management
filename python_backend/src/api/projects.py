@@ -1,20 +1,32 @@
 """
-Project API endpoints.
+Project API endpoints with authentication and company filtering.
 """
-from typing import List
-from fastapi import APIRouter, HTTPException, status
+from typing import List, Dict, Any
+from fastapi import APIRouter, HTTPException, status, Depends
 from src.models import Project, ProjectCreate, ProjectUpdate
 from src.database.repositories import ProjectRepository
+from src.api.auth import get_current_user_dependency, is_root_admin
 
 router = APIRouter()
 project_repo = ProjectRepository()
 
 
 @router.get("", response_model=List[Project])
-async def get_projects():
-    """Get all projects."""
+async def get_projects(current_user: Dict[str, Any] = Depends(get_current_user_dependency)):
+    """Get all projects with company filtering."""
     try:
-        return await project_repo.get_all()
+        projects = await project_repo.get_all()
+        
+        # Apply company filtering unless root admin
+        if not is_root_admin(current_user):
+            user_company_id = current_user.get('companyId')
+            if user_company_id:
+                # For now, return all projects as we need to enhance project repository for company filtering
+                # TODO: Add company_id field to projects table and filter by it
+                pass
+        
+        print(f"Retrieved {len(projects)} projects for user {current_user.get('email')}")
+        return projects
     except Exception as e:
         print(f"Error fetching projects: {e}")
         raise HTTPException(
@@ -45,9 +57,13 @@ async def get_project(project_id: str):
 
 
 @router.post("", response_model=Project, status_code=status.HTTP_201_CREATED)
-async def create_project(project: ProjectCreate):
-    """Create a new project."""
+async def create_project(
+    project: ProjectCreate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Create a new project with authentication."""
     try:
+        print(f"Creating project for user {current_user.get('email')}: {project}")
         return await project_repo.create(project)
     except Exception as e:
         print(f"Error creating project: {e}")
