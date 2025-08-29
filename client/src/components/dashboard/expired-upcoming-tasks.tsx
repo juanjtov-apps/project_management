@@ -42,7 +42,10 @@ export default function ExpiredUpcomingTasks() {
 
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) =>
-      apiRequest("PATCH", `/api/tasks/${id}`, updates),
+      apiRequest(`/api/tasks/${id}`, {
+        method: "PATCH",
+        body: updates,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
@@ -85,8 +88,8 @@ export default function ExpiredUpcomingTasks() {
     });
   };
 
-  const formatDueDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDueDate = (dateString: string | Date) => {
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
     const now = new Date();
     const diffMs = date.getTime() - now.getTime();
     const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
@@ -100,6 +103,11 @@ export default function ExpiredUpcomingTasks() {
     } else {
       return `Due in ${diffDays} days`;
     }
+  };
+
+  const handleTaskClick = (task: Task) => {
+    console.log('🔍 Dashboard task clicked:', task.title);
+    setLocation(`/tasks`);
   };
 
   if (isLoading) {
@@ -174,8 +182,14 @@ export default function ExpiredUpcomingTasks() {
               expiredTasks.map((task) => (
                 <div
                   key={task.id}
-                  className="flex items-center space-x-3 p-3 rounded-lg bg-red-50 border border-red-100 hover:bg-red-100 transition-colors"
+                  className="flex items-center space-x-3 p-3 rounded-lg bg-red-50 border border-red-100 hover:bg-red-100 transition-colors cursor-pointer"
                   data-testid={`expired-task-${task.id}`}
+                  onClick={(e) => {
+                    // Don't trigger click if checkbox was clicked
+                    if (!(e.target as HTMLElement).closest('[role="checkbox"]')) {
+                      handleTaskClick(task);
+                    }
+                  }}
                 >
                   <Checkbox
                     checked={task.status === "completed"}
@@ -234,8 +248,14 @@ export default function ExpiredUpcomingTasks() {
               upcomingTasks.map((task, index) => (
                 <div
                   key={task.id}
-                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-blue-50 border border-blue-100 transition-colors"
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-blue-50 border border-blue-100 transition-colors cursor-pointer"
                   data-testid={`upcoming-task-${task.id}`}
+                  onClick={(e) => {
+                    // Don't trigger click if checkbox was clicked
+                    if (!(e.target as HTMLElement).closest('[role="checkbox"]')) {
+                      handleTaskClick(task);
+                    }
+                  }}
                 >
                   <div className="flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-600 rounded-full text-sm font-semibold">
                     {index + 1}
