@@ -392,8 +392,9 @@ function TaskListItem({
         isSelected && "bg-white border-l-blue-500 shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
       )}
       onClick={(e) => {
-        // Prevent opening task detail if delete dialog is open
-        if (!isDeleteDialogOpen) {
+        // Prevent opening task detail if delete dialog is open or clicking on interactive elements
+        if (!isDeleteDialogOpen && e.target === e.currentTarget) {
+          e.preventDefault();
           onScheduleChange?.(task);
         }
       }}
