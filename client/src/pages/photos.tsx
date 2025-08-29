@@ -309,9 +309,11 @@ export default function Photos() {
             size="sm"
             onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
             data-testid="button-toggle-view"
+            className="flex items-center gap-2"
           >
             {viewMode === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
-            {viewMode === "grid" ? "List" : "Grid"}
+            <span className="hidden sm:inline">{viewMode === "grid" ? "List" : "Grid"}</span>
+            <span className="sm:hidden">{viewMode === "grid" ? "List" : "Grid"}</span>
           </Button>
           
           <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
