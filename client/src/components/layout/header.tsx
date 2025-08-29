@@ -81,7 +81,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
           </Button>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <Logo size="sm" />
+              <Logo size="sm" className="rounded-full shadow-sm" />
               <div className="hidden sm:block">
                 <h1 className="text-fluid-lg font-semibold text-foreground">Proesphere</h1>
                 <p className="text-xs text-muted-foreground hidden lg:block">{companyName}</p>
