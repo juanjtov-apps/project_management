@@ -397,14 +397,27 @@ function TaskListItem({
           const target = e.target as HTMLElement;
           const isClickableElement = target.closest('button, select, input, a, [role="button"], [data-radix-collection-item]');
           
+          console.log('🔍 Task card clicked:', {
+            taskTitle: task.title,
+            taskId: task.id,
+            isDeleteDialogOpen,
+            isClickableElement: !!isClickableElement,
+            targetElement: target.tagName
+          });
+          
           if (!isDeleteDialogOpen && !isClickableElement) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Task clicked:', task.title);
+            console.log('✅ Opening edit dialog for task:', task.title);
             onScheduleChange?.(task);
+          } else {
+            console.log('❌ Click ignored:', { 
+              reason: isDeleteDialogOpen ? 'Delete dialog open' : 'Clicked on interactive element',
+              element: target.tagName 
+            });
           }
         } catch (error) {
-          console.error('Task click error:', error);
+          console.error('❌ Task click error:', error);
         }
       }}
     >
@@ -682,6 +695,7 @@ export default function Tasks() {
   };
 
   const handleEditTask = (task: Task) => {
+    console.log('📝 handleEditTask called for:', task.title, 'ID:', task.id);
     setEditingTask(task);
     editForm.reset({
       title: task.title,
@@ -694,6 +708,7 @@ export default function Tasks() {
       assigneeId: task.assigneeId,
     });
     setIsEditDialogOpen(true);
+    console.log('✅ Edit dialog opened successfully');
   };
 
   const handleDeleteTask = (task: Task) => {
