@@ -4,14 +4,41 @@ export default {
   darkMode: ["class"],
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
+    container: {
+      center: true,
+      padding: "1rem",
+    },
     extend: {
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        xl: "1rem",
+        "2xl": "1.5rem",
+      },
+      boxShadow: {
+        soft: "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+        elevated: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+      },
+      spacing: {
+        "safe-top": "env(safe-area-inset-top)",
+        "safe-bottom": "env(safe-area-inset-bottom)",
+        "safe-left": "env(safe-area-inset-left)",
+        "safe-right": "env(safe-area-inset-right)",
       },
       colors: {
         brand: {
+          50: "var(--brand-50)",
+          100: "var(--brand-100)",
+          200: "var(--brand-200)",
+          300: "var(--brand-300)",
+          400: "var(--brand-400)",
+          500: "var(--brand-500)",
+          600: "var(--brand-600)",
+          700: "var(--brand-700)",
+          800: "var(--brand-800)",
+          900: "var(--brand-900)",
+          // Legacy compatibility
           blue: '#1B2E4B',
           teal: '#1FA77C',
           coral: '#FF7849',
@@ -19,6 +46,21 @@ export default {
           white: '#F8FAFC',
           text: '#111827',
         },
+        navy: {
+          50: "var(--navy-50)",
+          100: "var(--navy-100)",
+          200: "var(--navy-200)",
+          300: "var(--navy-300)",
+          400: "var(--navy-400)",
+          500: "var(--navy-500)",
+          600: "var(--navy-600)",
+          700: "var(--navy-700)",
+          800: "var(--navy-800)",
+          900: "var(--navy-900)",
+        },
+        success: "var(--success)",
+        warning: "var(--warning)",
+        danger: "var(--danger)",
         background: "var(--background)",
         foreground: "var(--foreground)",
         card: {
