@@ -47,6 +47,13 @@ except Exception as e:
     schedule_router = None
 
 try:
+    from .client_module import router as client_router
+    print("✅ Client module router imported")
+except Exception as e:
+    print(f"❌ Error importing client module router: {e}")
+    client_router = None
+
+try:
     from .users import router as users_router
     print("✅ Users router imported")
 except Exception as e:
@@ -114,6 +121,12 @@ def create_api_router() -> APIRouter:
         print("✅ Schedule router included")
     else:
         print("⚠️  Schedule router skipped (import failed)")
+
+    if client_router:
+        api_router.include_router(client_router, tags=["client"])
+        print("✅ Client module router included")
+    else:
+        print("⚠️  Client module router skipped (import failed)")
     
     if users_router:
         try:
