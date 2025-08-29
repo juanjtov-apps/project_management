@@ -392,9 +392,13 @@ function TaskListItem({
         isSelected && "bg-white border-l-blue-500 shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
       )}
       onClick={(e) => {
-        // Prevent opening task detail if delete dialog is open or clicking on interactive elements
-        if (!isDeleteDialogOpen && e.target === e.currentTarget) {
+        // Only trigger if clicked on the card itself, not on interactive elements
+        const target = e.target as HTMLElement;
+        const isClickableElement = target.closest('button, select, input, a, [role="button"]');
+        
+        if (!isDeleteDialogOpen && !isClickableElement) {
           e.preventDefault();
+          e.stopPropagation();
           onScheduleChange?.(task);
         }
       }}
@@ -701,24 +705,13 @@ export default function Tasks() {
   };
 
   const handleScheduleChange = (task: Task) => {
-    // Open task detail modal instead of redirecting to schedule page
-    handleTaskDetailOpen(task);
+    // Simplified: just open edit dialog instead of separate task detail dialog
+    handleEditTask(task);
   };
 
   const handleTaskDetailOpen = (task: Task) => {
-    
-    setEditingTask(task);
-    editForm.reset({
-      title: task.title,
-      description: task.description || "",
-      projectId: task.projectId,
-      category: task.category || "general",
-      status: task.status,
-      priority: task.priority,
-      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-      assigneeId: task.assigneeId,
-    });
-    setIsTaskDetailDialogOpen(true);
+    // Redirect to edit instead to avoid modal conflicts
+    handleEditTask(task);
   };
 
   const toggleSection = (sectionId: string) => {
