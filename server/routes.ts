@@ -936,24 +936,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Photo not found' });
       }
 
-
-      // Serve directly from Google Cloud Storage (professional standard)
-      console.log(`☁️ Serving from Google Cloud Storage: ${photo.filename}`);
+      console.log(`☁️ Serving photo from Google Cloud Storage: ${photo.filename}`);
       
       try {
         const objectStorageService = new ObjectStorageService();
         
-        // If filename is already a full object storage path, use it directly
-        let objectPath = photo.filename;
+        // Extract object ID from filename (handle different formats)
+        let objectId = photo.filename;
         
-        // Always construct the full object storage path from the object ID
-        objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${photo.filename}`;
-
+        // If filename contains query parameters (signed URL), extract the object ID
+        if (objectId.includes('?')) {
+          // Extract from signed URL: get the part after last / and before ?
+          const urlParts = objectId.split('/');
+          const lastPart = urlParts[urlParts.length - 1];
+          objectId = lastPart.split('?')[0];
+        }
         
+        // If filename is already a full URL, extract just the object ID
+        if (objectId.startsWith('https://storage.googleapis.com/')) {
+          const match = objectId.match(/\/([a-f0-9-]+)(\?|$)/);
+          if (match) {
+            objectId = match[1];
+          }
+        }
+        
+        // Construct the correct object path using environment variables
+        const privateDir = objectStorageService.getPrivateObjectDir();
+        const objectPath = `${privateDir}/uploads/${objectId}`;
+        
+        console.log(`📂 Attempting to serve from path: ${objectPath}`);
         const objectFile = await objectStorageService.getObjectFile(objectPath);
         
         if (objectFile) {
-
           console.log(`✅ Streaming from object storage: ${objectPath}`);
           return objectStorageService.downloadObject(objectFile, res);
         } else {
@@ -964,7 +978,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error(`❌ Failed to serve from object storage:`, objectError);
         return res.status(500).json({ message: 'Failed to retrieve photo from cloud storage' });
       }
-
       
     } catch (error: any) {
       console.error(`Error serving photo ${req.params.id}:`, error);
@@ -972,71 +985,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Photo file serving route
+  // Photo file serving route (legacy endpoint, redirects to main photo endpoint)
   app.get('/api/photos/:id/file', async (req, res) => {
     try {
-      console.log(`PRODUCTION: Serving photo file for ID ${req.params.id}`);
+      console.log(`PRODUCTION: Legacy photo file route, redirecting to main photo endpoint`);
       
-      // Get photo metadata from database
-      const photos = await storage.getPhotos();
-      const photo = photos.find(p => p.id === req.params.id);
-      
-      if (!photo) {
-        console.log(`❌ Photo not found in database: ${req.params.id}`);
-        return res.status(404).json({ message: 'Photo not found' });
-      }
-
-      // Check if this is a photo from object storage (log photos)
-      if (photo.filename.includes('-') && photo.filename.match(/^[a-f0-9-]+\.(jpg|jpeg|png)$/)) {
-        console.log(`📡 Photo from object storage, attempting to serve: ${photo.filename}`);
-        
-        // Extract the object ID from the filename (before the extension)
-        const objectId = photo.filename.split('.')[0];
-        const objectPath = `/replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4/.private/uploads/${objectId}`;
-        
-        try {
-          const objectStorageService = new ObjectStorageService();
-          const objectFile = await objectStorageService.getObjectFile(objectPath);
-          
-          if (objectFile) {
-            console.log(`✅ Found object storage file, streaming: ${objectPath}`);
-            return objectStorageService.downloadObject(objectFile, res);
-          } else {
-            console.log(`❌ Object storage file not found: ${objectPath}`);
-          }
-        } catch (objectError) {
-          console.error(`❌ Failed to serve from object storage:`, objectError);
-        }
-      }
-
-      // Fall back to local file serving for regular uploads
-      const uploadsDir = path.join(process.cwd(), 'uploads');
-      const filePath = path.join(uploadsDir, photo.filename);
-      
-      if (!fs.existsSync(filePath)) {
-        console.log(`❌ Photo file not found on disk: ${photo.filename}`);
-        return res.status(404).json({ message: 'Photo file not found on disk' });
-      }
-
-      console.log(`📁 Serving photo file: ${filePath}`);
-
-      // Determine content type
-      const ext = path.extname(filePath).toLowerCase();
-      const contentType = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg', 
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp'
-      }[ext] || 'image/jpeg';
-
-      res.contentType(contentType);
-      console.log(`✅ Serving photo file as ${contentType}`);
-      return res.sendFile(filePath);
+      // Redirect to the main photo serving endpoint
+      return res.redirect(307, `/api/photos/${req.params.id}`);
       
     } catch (error: any) {
-      console.error(`Error serving photo file ${req.params.id}:`, error);
-      res.status(500).json({ message: 'Failed to serve photo file', error: error.message });
+      console.error(`Error in legacy photo file route ${req.params.id}:`, error);
+      res.status(500).json({ message: 'Failed to serve photo', error: error.message });
     }
   });
 
