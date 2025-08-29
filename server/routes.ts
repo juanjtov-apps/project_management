@@ -741,13 +741,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/tasks/:id', async (req, res) => {
+  app.patch('/api/tasks/:id', requireAuth, async (req, res) => {
     try {
       console.log(`PRODUCTION RBAC: Updating task ${req.params.id} via Node.js backend:`, req.body);
+      
+      // Get current user for activity logging
+      const userId = (req.session as any)?.userId;
+      const currentUser = await storage.getUser(userId);
+      
       const task = await storage.updateTask(req.params.id, req.body);
       if (!task) {
         return res.status(404).json({ message: 'Task not found' });
       }
+      
+      // Log activity for task update
+      if (currentUser) {
+        await storage.createActivity({
+          userId: currentUser.id,
+          companyId: currentUser.companyId,
+          actionType: 'task_updated',
+          description: `Updated task "${task.title}"`,
+          entityType: 'task',
+          entityId: task.id,
+          metadata: { updates: req.body }
+        });
+      }
+      
       console.log('✅ NODE.JS SUCCESS: Task updated:', task);
       res.json(task);
     } catch (error: any) {
