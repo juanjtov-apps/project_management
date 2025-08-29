@@ -20,7 +20,7 @@ import ProjectHealth from "@/pages/project-health";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
-import MobileMenu from "@/components/layout/mobile-menu";
+import MobileSheet from "@/components/layout/mobile-sheet";
 import NotificationModal from "@/components/notifications/notification-modal";
 import { useState } from "react";
 
@@ -116,9 +116,9 @@ function AuthenticatedLayout({
         </div>
       </main>
       
-      <MobileMenu 
-        isOpen={isMobileMenuOpen} 
-        onClose={() => setIsMobileMenuOpen(false)} 
+      <MobileSheet 
+        open={isMobileMenuOpen} 
+        onOpenChange={setIsMobileMenuOpen} 
       />
       
       <NotificationModal 

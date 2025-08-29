@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Plus, Camera, ClipboardList, UserPlus, FileText, Calendar, TrendingUp } from "lucide-react";
+import { Plus, Camera, ClipboardList, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
-import { cn } from "@/lib/utils";
 
 function QuickActions() {
   const [, setLocation] = useLocation();
@@ -12,48 +11,42 @@ function QuickActions() {
   // Force re-render test
   console.log("Current timestamp:", Date.now());
 
-  const quickActions = [
+  const actions = [
     {
       icon: Plus,
-      label: "New Project",
-      description: "Create project",
-      variant: "primary" as const,
-      href: "/projects"
+      label: "Add Project",
+      isPrimary: true,
+      onClick: () => {
+        console.log("Navigating to projects");
+        setLocation("/projects");
+      }
     },
     {
       icon: ClipboardList,
-      label: "Add Task",
-      description: "Create task",
-      variant: "secondary" as const,
-      href: "/tasks"
+      label: "Add Tasks",
+      isPrimary: false,
+      onClick: () => {
+        console.log("Navigating to tasks");
+        setLocation("/tasks");
+      }
     },
     {
       icon: Camera,
-      label: "Upload Photo",
-      description: "Add photos",
-      variant: "secondary" as const,
-      href: "/photos"
+      label: "Upload Photos",
+      isPrimary: false,
+      onClick: () => {
+        console.log("Navigating to photos");
+        setLocation("/photos");
+      }
     },
     {
-      icon: FileText,
-      label: "Project Log",
-      description: "Add entry",
-      variant: "secondary" as const,
-      href: "/logs"
-    },
-    {
-      icon: Calendar,
-      label: "Schedule",
-      description: "View calendar",
-      variant: "secondary" as const,
-      href: "/schedule"
-    },
-    {
-      icon: TrendingUp,
-      label: "Project Health",
-      description: "Check status",
-      variant: "secondary" as const,
-      href: "/project-health"
+      icon: UserPlus,
+      label: "Assign Task",
+      isPrimary: false,
+      onClick: () => {
+        console.log("Navigating to subs");
+        setLocation("/subs");
+      }
     }
   ];
 
@@ -73,57 +66,40 @@ function QuickActions() {
   }
 
   return (
-    <div className="bg-card rounded-xl border border-border">
-      <div className="p-6 border-b border-border">
-        <h3 className="text-lg font-semibold text-foreground">Quick Actions</h3>
-        <p className="text-sm text-muted-foreground mt-1">Common tasks and workflows</p>
+    <div className="elevated w-full">
+      <div className="p-6 border-b border-brand-grey">
+        <h3 className="text-lg font-semibold text-brand-blue">Quick Actions</h3>
       </div>
-      
-      <div className="p-6">
-        <div className="grid grid-cols-2 gap-3">
-          {quickActions.map((action, index) => {
-            const Icon = action.icon;
-            const isPrimary = action.variant === "primary";
-            
-            return (
-              <Button
-                key={`action-${index}-${action.label}`}
-                variant={isPrimary ? "default" : "outline"}
-                onClick={() => setLocation(action.href)}
-                className={cn(
-                  "flex flex-col items-center justify-center h-20 p-4 gap-2",
-                  "transition-all duration-200 group",
-                  "btn-press",
-                  isPrimary 
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90" 
-                    : "hover:bg-muted hover:border-primary/20"
-                )}
-              >
-                <Icon 
-                  size={20} 
-                  className={cn(
-                    "transition-transform duration-200 group-hover:scale-110",
-                    isPrimary ? "text-primary-foreground" : "text-primary"
-                  )}
-                />
-                <div className="text-center">
-                  <div className={cn(
-                    "text-xs font-medium leading-none",
-                    isPrimary ? "text-primary-foreground" : "text-foreground"
-                  )}>
-                    {action.label}
-                  </div>
-                  <div className={cn(
-                    "text-[10px] leading-none mt-0.5 opacity-75",
-                    isPrimary ? "text-primary-foreground/80" : "text-muted-foreground"
-                  )}>
-                    {action.description}
-                  </div>
-                </div>
-              </Button>
-            );
-          })}
-        </div>
+      <div className="p-6 grid grid-cols-2 gap-4">
+        {actions.map((action, index) => {
+          const Icon = action.icon;
+          console.log(`Rendering action ${index}:`, action.label);
+          return (
+            <Button
+              key={`action-${index}-${action.label}`}
+              variant="outline"
+              className={`border border-gray-200 shadow-sm flex flex-col items-center py-6 gap-2 h-24 transition-all duration-200 cursor-pointer hover:shadow-md hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-teal/40 focus-visible:outline-offset-2 ${
+                action.isPrimary 
+                  ? "bg-brand-coral text-white hover:bg-brand-coral/90 border-brand-coral" 
+                  : "bg-white text-brand-blue hover:bg-brand-teal/10 hover:border-brand-teal"
+              }`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("Button clicked:", action.label);
+                action.onClick();
+              }}
+            >
+              <Icon 
+                className={`transition-all duration-200 ${action.isPrimary ? "text-white" : "text-brand-teal hover:-translate-y-0.5"}`}
+                size={24} 
+              />
+              <span className="font-medium text-inherit text-sm text-center leading-tight">
+                {action.label}
+              </span>
+            </Button>
+          );
+        })}
       </div>
     </div>
   );
