@@ -20,24 +20,39 @@ import {
 const getStatusColor = (status: string) => {
   switch (status) {
     case "completed":
-      return "bg-brand-teal/10 text-brand-teal border-brand-teal/30";
+      return "border" + " " + "text-xs" + " " + "px-2" + " " + "py-1" + " " + "rounded";
     case "active":
-      return "bg-brand-blue/10 text-brand-blue border-brand-blue/30";
+      return "border" + " " + "text-xs" + " " + "px-2" + " " + "py-1" + " " + "rounded";
     case "on-hold":
-      return "bg-brand-grey/10 text-brand-ink border-brand-grey/30";
+      return "border" + " " + "text-xs" + " " + "px-2" + " " + "py-1" + " " + "rounded";
     case "delayed":
-      return "bg-brand-coral/10 text-brand-coral border-brand-coral/30";
+      return "border" + " " + "text-xs" + " " + "px-2" + " " + "py-1" + " " + "rounded";
     default:
-      return "bg-brand-grey/10 text-brand-ink border-brand-grey/30";
+      return "border" + " " + "text-xs" + " " + "px-2" + " " + "py-1" + " " + "rounded";
+  }
+};
+
+const getStatusStyle = (status: string) => {
+  switch (status) {
+    case "completed":
+      return { backgroundColor: 'hsl(180, 70%, 40%, 0.1)', color: 'var(--brand-teal)', borderColor: 'hsl(180, 70%, 40%, 0.3)' };
+    case "active":
+      return { backgroundColor: 'hsl(210, 100%, 15%, 0.1)', color: 'var(--brand-blue)', borderColor: 'hsl(210, 100%, 15%, 0.3)' };
+    case "on-hold":
+      return { backgroundColor: 'hsl(210, 15%, 85%, 0.1)', color: 'var(--brand-ink)', borderColor: 'hsl(210, 15%, 85%, 0.3)' };
+    case "delayed":
+      return { backgroundColor: 'hsl(15, 85%, 65%, 0.1)', color: 'var(--brand-coral)', borderColor: 'hsl(15, 85%, 65%, 0.3)' };
+    default:
+      return { backgroundColor: 'hsl(210, 15%, 85%, 0.1)', color: 'var(--brand-ink)', borderColor: 'hsl(210, 15%, 85%, 0.3)' };
   }
 };
 
 const getHealthStatus = (progress: number, status: string) => {
-  if (status === "completed") return { icon: CheckCircle, color: "text-brand-teal", text: "Complete" };
-  if (status === "delayed") return { icon: AlertTriangle, color: "text-brand-coral", text: "At Risk" };
-  if (progress >= 80) return { icon: TrendingUp, color: "text-brand-teal", text: "On Track" };
-  if (progress >= 50) return { icon: Clock, color: "text-brand-ink", text: "Moderate" };
-  return { icon: TrendingDown, color: "text-brand-coral", text: "Behind" };
+  if (status === "completed") return { icon: CheckCircle, color: { color: 'var(--brand-teal)' }, text: "Complete" };
+  if (status === "delayed") return { icon: AlertTriangle, color: { color: 'var(--brand-coral)' }, text: "At Risk" };
+  if (progress >= 80) return { icon: TrendingUp, color: { color: 'var(--brand-teal)' }, text: "On Track" };
+  if (progress >= 50) return { icon: Clock, color: { color: 'var(--brand-ink)' }, text: "Moderate" };
+  return { icon: TrendingDown, color: { color: 'var(--brand-coral)' }, text: "Behind" };
 };
 
 export default function MultiProjectOverview() {
@@ -81,11 +96,11 @@ export default function MultiProjectOverview() {
       {/* Overview Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-brand-blue">Multi-Project Overview</h2>
+          <h2 className="text-xl font-semibold" style={{color: 'var(--brand-blue)'}}>Multi-Project Overview</h2>
           <Button
             variant="outline"
             onClick={() => setLocation("/projects")}
-            className="text-brand-teal border-brand-teal hover:bg-brand-teal hover:text-white"
+            className="hover:text-white" style={{color: 'var(--brand-teal)', borderColor: 'var(--brand-teal)'}} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--brand-teal)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             data-testid="view-all-projects"
           >
             View All Projects
@@ -94,45 +109,45 @@ export default function MultiProjectOverview() {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="p-4 bg-gradient-to-br from-brand-blue/10 to-brand-blue/20 border-brand-blue/30">
+          <Card className="p-4" style={{background: 'linear-gradient(to bottom right, hsl(210, 100%, 15%, 0.1), hsl(210, 100%, 15%, 0.2))', borderColor: 'hsl(210, 100%, 15%, 0.3)'}}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-brand-blue font-medium">Active Projects</p>
-                <p className="text-2xl font-bold text-brand-blue">{activeProjects.length}</p>
+                <p className="text-sm font-medium" style={{color: 'var(--brand-blue)'}}>Active Projects</p>
+                <p className="text-2xl font-bold" style={{color: 'var(--brand-blue)'}}>{activeProjects.length}</p>
               </div>
-              <Building className="text-brand-blue" size={24} />
+              <Building style={{color: 'var(--brand-blue)'}} size={24} />
             </div>
           </Card>
 
-          <Card className="p-4 bg-gradient-to-br from-brand-teal/10 to-brand-teal/20 border-brand-teal/30">
+          <Card className="p-4" style={{background: 'linear-gradient(to bottom right, hsl(180, 70%, 40%, 0.1), hsl(180, 70%, 40%, 0.2))', borderColor: 'hsl(180, 70%, 40%, 0.3)'}}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-brand-teal font-medium">Avg Progress</p>
-                <p className="text-2xl font-bold text-brand-teal">{averageProgress}%</p>
+                <p className="text-sm font-medium" style={{color: 'var(--brand-teal)'}}>Avg Progress</p>
+                <p className="text-2xl font-bold" style={{color: 'var(--brand-teal)'}}>{averageProgress}%</p>
               </div>
-              <TrendingUp className="text-brand-teal" size={24} />
+              <TrendingUp style={{color: 'var(--brand-teal)'}} size={24} />
             </div>
           </Card>
 
-          <Card className="p-4 bg-gradient-to-br from-brand-coral/10 to-brand-coral/20 border-brand-coral/30">
+          <Card className="p-4" style={{background: 'linear-gradient(to bottom right, hsl(15, 85%, 65%, 0.1), hsl(15, 85%, 65%, 0.2))', borderColor: 'hsl(15, 85%, 65%, 0.3)'}}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-brand-coral font-medium">Budget Usage</p>
-                <p className="text-2xl font-bold text-brand-coral">
+                <p className="text-sm font-medium" style={{color: 'var(--brand-coral)'}}>Budget Usage</p>
+                <p className="text-2xl font-bold" style={{color: 'var(--brand-coral)'}}>
                   {totalBudget > 0 ? Math.round((totalActualCost / totalBudget) * 100) : 0}%
                 </p>
               </div>
-              <DollarSign className="text-brand-coral" size={24} />
+              <DollarSign style={{color: 'var(--brand-coral)'}} size={24} />
             </div>
           </Card>
 
-          <Card className="p-4 bg-gradient-to-br from-brand-coral/10 to-brand-coral/20 border-brand-coral/30">
+          <Card className="p-4" style={{background: 'linear-gradient(to bottom right, hsl(15, 85%, 65%, 0.1), hsl(15, 85%, 65%, 0.2))', borderColor: 'hsl(15, 85%, 65%, 0.3)'}}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-brand-coral font-medium">Critical Projects</p>
-                <p className="text-2xl font-bold text-brand-coral">{criticalProjects.length}</p>
+                <p className="text-sm font-medium" style={{color: 'var(--brand-coral)'}}>Critical Projects</p>
+                <p className="text-2xl font-bold" style={{color: 'var(--brand-coral)'}}>{criticalProjects.length}</p>
               </div>
-              <AlertTriangle className="text-brand-coral" size={24} />
+              <AlertTriangle style={{color: 'var(--brand-coral)'}} size={24} />
             </div>
           </Card>
         </div>
@@ -140,7 +155,7 @@ export default function MultiProjectOverview() {
 
       {/* Project Health Cards */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-brand-blue mb-4">Project Health Status</h3>
+        <h3 className="text-lg font-semibold mb-4" style={{color: 'var(--brand-blue)'}}>Project Health Status</h3>
         
         {projects.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
@@ -148,7 +163,7 @@ export default function MultiProjectOverview() {
             <p className="text-lg mb-2">No projects yet</p>
             <p className="text-sm">Create your first project to get started</p>
             <Button 
-              className="mt-4 bg-brand-teal hover:bg-brand-teal/90"
+              className="mt-4" style={{backgroundColor: 'var(--brand-teal)'}} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(180, 70%, 35%)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--brand-teal)'}
               onClick={() => setLocation("/projects")}
             >
               Create Project
@@ -170,14 +185,14 @@ export default function MultiProjectOverview() {
                   <div className="space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className="font-semibold text-brand-blue truncate" title={project.name}>
+                        <h4 className="font-semibold truncate" title={project.name} style={{color: 'var(--brand-blue)'}}>
                           {project.name}
                         </h4>
                         <p className="text-sm text-gray-600 truncate" title={project.location}>
                           {project.location}
                         </p>
                       </div>
-                      <Badge className={getStatusColor(project.status)}>
+                      <Badge className={getStatusColor(project.status)} style={getStatusStyle(project.status)}>
                         {project.status}
                       </Badge>
                     </div>
@@ -192,7 +207,7 @@ export default function MultiProjectOverview() {
 
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-1">
-                        <HealthIcon size={16} className={health.color} />
+                        <HealthIcon size={16} style={health.color} />
                         <span className="text-sm font-medium">{health.text}</span>
                       </div>
                       {project.dueDate && (
@@ -235,7 +250,7 @@ export default function MultiProjectOverview() {
             <Button
               variant="outline"
               onClick={() => setLocation("/projects")}
-              className="text-brand-teal border-brand-teal hover:bg-brand-teal hover:text-white"
+              className="hover:text-white" style={{color: 'var(--brand-teal)', borderColor: 'var(--brand-teal)'}} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--brand-teal)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
               View All {projects.length} Projects
             </Button>

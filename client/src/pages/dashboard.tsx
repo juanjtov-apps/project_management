@@ -18,11 +18,11 @@ export default function Dashboard() {
       <StatsCards />
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Project Overview</TabsTrigger>
-          <TabsTrigger value="tasks">Task Management</TabsTrigger>
-          <TabsTrigger value="communications">Communications</TabsTrigger>
-          <TabsTrigger value="financial">Financial Health</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4" style={{backgroundColor: 'hsl(210, 15%, 95%)', border: '1px solid hsl(210, 15%, 85%)'}}>
+          <TabsTrigger value="overview" className="data-[state=active]:bg-white data-[state=active]:shadow-sm" style={{color: 'var(--brand-blue)'}}>Project Overview</TabsTrigger>
+          <TabsTrigger value="tasks" className="data-[state=active]:bg-white data-[state=active]:shadow-sm" style={{color: 'var(--brand-blue)'}}>Task Management</TabsTrigger>
+          <TabsTrigger value="communications" className="data-[state=active]:bg-white data-[state=active]:shadow-sm" style={{color: 'var(--brand-blue)'}}>Communications</TabsTrigger>
+          <TabsTrigger value="financial" className="data-[state=active]:bg-white data-[state=active]:shadow-sm" style={{color: 'var(--brand-blue)'}}>Financial Health</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-8">
