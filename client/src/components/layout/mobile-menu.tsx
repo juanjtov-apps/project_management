@@ -15,7 +15,6 @@ import {
   TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useQuery } from "@tanstack/react-query";
 
 const navigation = [
@@ -67,26 +66,31 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
     return true;
   });
 
+  if (!isOpen) return null;
+
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent side="left" className="w-80 p-0">
-        <SheetHeader className="p-6 border-b">
+    <div className="lg:hidden fixed inset-0 z-50 bg-black bg-opacity-50" onClick={onClose}>
+      <div className="w-64 bg-white h-full shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 border-b border-brand-grey flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 relative">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-600 to-brand-500 shadow-lg flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-blue to-brand-teal shadow-lg flex items-center justify-center">
                 <div className="w-3 h-3 rounded-full bg-white opacity-30 absolute top-2 left-3"></div>
                 <div className="text-white font-bold text-xs">P</div>
               </div>
             </div>
             <div>
-              <SheetTitle className="text-lg font-bold text-foreground">{companyName}</SheetTitle>
-              <p className="text-sm text-muted-foreground">Construction Management</p>
+              <h1 className="text-xl font-bold text-brand-blue">{companyName}</h1>
+              <p className="text-sm text-brand-text opacity-70">Construction Management</p>
             </div>
           </div>
-        </SheetHeader>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X size={20} className="text-brand-text" />
+          </Button>
+        </div>
         
-        <nav className="p-4 flex-1">
-          <ul className="space-y-1">
+        <nav className="p-4">
+          <ul className="space-y-2">
             {filteredNavigation.map((item) => {
               const isActive = location === item.href;
               const Icon = item.icon;
@@ -96,15 +100,15 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
                   <Link href={item.href}>
                     <span 
                       className={cn(
-                        "flex items-center space-x-3 p-3 rounded-lg font-medium transition-all duration-200 cursor-pointer touch-target",
+                        "flex items-center space-x-3 p-3 rounded-lg font-medium transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2",
                         isActive 
-                          ? "bg-primary/10 text-primary border-l-4 border-primary font-semibold" 
-                          : "text-foreground hover:bg-primary/5 hover:text-primary"
+                          ? "bg-brand-teal/5 text-brand-blue border-l-4 border-brand-teal font-semibold" 
+                          : "text-brand-text hover:bg-brand-teal/5 hover:text-brand-blue"
                       )}
                       onClick={onClose}
                     >
-                      <Icon size={20} className={isActive ? "text-primary" : "text-muted-foreground"} />
-                      <span className={isActive ? "font-semibold text-primary" : "text-foreground"}>{item.name}</span>
+                      <Icon size={20} className={isActive ? "text-brand-teal" : "opacity-60"} />
+                      <span className={isActive ? "font-semibold text-brand-blue" : "text-brand-text"}>{item.name}</span>
                     </span>
                   </Link>
                 </li>
@@ -112,7 +116,7 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
             })}
           </ul>
         </nav>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </div>
   );
 }

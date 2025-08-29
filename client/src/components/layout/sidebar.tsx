@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
+import { Logo } from "@/components/ui/logo";
 import { 
   LayoutDashboard, 
   Building, 
@@ -56,52 +57,48 @@ export default function Sidebar() {
   
   // Filter navigation based on user permissions from backend
   const filteredNavigation = navigation.filter(item => {
-    const permissionKey = navigationPermissions[item.name];
+    const permissionKey = navigationPermissions[item.name as keyof typeof navigationPermissions];
     return permissions[permissionKey] === true;
   });
   
   console.log('Sidebar navigation items:', filteredNavigation.length, filteredNavigation.map(item => item.name));
 
   return (
-    <aside className="w-64 bg-brand-blue/5 shadow-lg border-r border-brand-grey hidden lg:block">
-      <div className="p-6 border-b border-brand-grey">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 relative">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-blue to-brand-teal shadow-lg flex items-center justify-center">
-              <div className="w-3 h-3 rounded-full bg-white opacity-30 absolute top-2 left-3"></div>
-              <div className="text-white font-bold text-xs">P</div>
-            </div>
-          </div>
+    <aside className="w-64 bg-surface/50 border-r border-border hidden lg:block backdrop-blur-sm">
+      <div className="p-6 border-b border-border">
+        <div className="flex items-center gap-3">
+          <Logo size="md" className="shadow-lg" />
           <div>
-            <h1 className="text-xl font-bold text-brand-blue">Proesphere</h1>
-            <p className="text-sm text-brand-text opacity-70">Construction Management</p>
+            <h1 className="text-fluid-lg font-semibold text-foreground">Proesphere</h1>
+            <p className="text-xs text-muted-foreground">Construction Management</p>
           </div>
         </div>
       </div>
       
-      <nav className="p-4">
-        <ul className="space-y-2">
+      <nav className="flex-1 p-6">
+        <ul className="space-y-1">
           {filteredNavigation.map((item) => {
             const isActive = location === item.href;
             const Icon = item.icon;
             
             return (
-              <li key={item.name} className="relative">
-
-                <Link 
-                  href={item.href}
-                  className={cn(
-                    "flex items-center p-3 rounded-lg font-medium transition-all duration-200 relative focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2",
+              <li key={item.name}>
+                <Link href={item.href}>
+                  <div className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer group",
+                    "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     isActive 
-                      ? "bg-brand-teal/5 text-brand-blue border-l-4 border-brand-teal" 
-                      : "text-brand-text hover:bg-brand-teal/5 hover:text-brand-blue"
-                  )}
-                >
-                  <Icon size={20} className={isActive ? "text-brand-teal" : "opacity-60"} />
-                  <span className={cn(
-                    "ml-3", // Increased spacing between icon and text
-                    isActive ? "font-semibold text-brand-blue" : "text-brand-text"
-                  )}>{item.name}</span>
+                      ? "bg-brand-100 text-brand-600 border-l-4 border-brand-600 font-semibold" 
+                      : "text-muted-foreground hover:text-foreground"
+                  )}>
+                    <Icon 
+                      className={cn(
+                        "h-5 w-5 shrink-0 transition-colors",
+                        isActive ? "text-brand-600" : "text-muted-foreground group-hover:text-foreground"
+                      )} 
+                    />
+                    <span className="truncate">{item.name}</span>
+                  </div>
                 </Link>
               </li>
             );
