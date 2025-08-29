@@ -5,7 +5,14 @@ import uuid
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from src.database.connection import db_manager
-from src.models import *
+from src.models import (
+    Project, ProjectCreate, ProjectUpdate,
+    Task, TaskCreate, TaskUpdate, 
+    User, UserCreate, UserUpdate,
+    Photo, PhotoCreate,
+    ScheduleChange, ScheduleChangeCreate, ScheduleChangeUpdate,
+    ProjectLog, Notification
+)
 from src.utils.data_conversion import to_camel_case, to_snake_case
 
 def normalize_datetime(dt):
@@ -44,13 +51,13 @@ class ProjectRepository(BaseRepository):
     def __init__(self):
         super().__init__("projects")
     
-    async def get_all(self) -> List[Project]:
+    async def get_all(self) -> List[Dict[str, Any]]:
         """Get all projects."""
         query = f"SELECT * FROM {self.table_name} ORDER BY created_at DESC"
         rows = await db_manager.execute_query(query)
-        return [Project(**self._convert_to_camel_case(dict(row))) for row in rows]
+        return [self._convert_to_camel_case(dict(row)) for row in rows]
     
-    async def get_by_id(self, project_id: str) -> Optional[Project]:
+    async def get_by_id(self, project_id: str) -> Optional[Dict[str, Any]]:
         """Get project by ID."""
         query = f"SELECT * FROM {self.table_name} WHERE id = $1"
         row = await db_manager.execute_one(query, project_id)
@@ -136,7 +143,7 @@ class ProjectRepository(BaseRepository):
     async def delete(self, project_id: str) -> bool:
         """Delete a project."""
         query = f"DELETE FROM {self.table_name} WHERE id = $1"
-        result = await db_manager.execute_command(query, project_id)
+        result = await db_manager.execute(query, project_id)
         return "DELETE 1" in result
 
 
@@ -259,19 +266,19 @@ class TaskRepository(BaseRepository):
             new_due_date = new_due_date.replace(tzinfo=None)
         
         query = f"UPDATE {self.table_name} SET due_date = $1 WHERE id = $2"
-        result = await db_manager.execute_command(query, new_due_date, task_id)
+        result = await db_manager.execute(query, new_due_date, task_id)
         return "UPDATE 1" in result
     
     async def update_assignee(self, task_id: str, assignee_id: Optional[str]) -> bool:
         """Update the assignee of a task."""
         query = f"UPDATE {self.table_name} SET assignee_id = $1 WHERE id = $2"
-        result = await db_manager.execute_command(query, assignee_id, task_id)
+        result = await db_manager.execute(query, assignee_id, task_id)
         return "UPDATE 1" in result
     
     async def delete(self, task_id: str) -> bool:
         """Delete a task."""
         query = f"DELETE FROM {self.table_name} WHERE id = $1"
-        result = await db_manager.execute_command(query, task_id)
+        result = await db_manager.execute(query, task_id)
         return "DELETE 1" in result
 
 
@@ -333,7 +340,7 @@ class PhotoRepository(BaseRepository):
     async def delete(self, photo_id: str) -> bool:
         """Delete a photo."""
         query = f"DELETE FROM {self.table_name} WHERE id = $1"
-        result = await db_manager.execute_command(query, photo_id)
+        result = await db_manager.execute(query, photo_id)
         return "DELETE 1" in result
 
 
@@ -543,23 +550,23 @@ class SubcontractorAssignmentRepository(BaseRepository):
     def __init__(self):
         super().__init__("subcontractor_assignments")
     
-    async def get_all(self) -> List["SubcontractorAssignment"]:
+    async def get_all(self) -> List[Dict[str, Any]]:
         """Get all subcontractor assignments."""
         from ..models.subcontractor_assignment import SubcontractorAssignment
         query = f"SELECT * FROM {self.table_name} ORDER BY created_at DESC"
         rows = await db_manager.execute_query(query)
-        return [SubcontractorAssignment(**self._convert_to_camel_case(dict(row))) for row in rows]
+        return [self._convert_to_camel_case(dict(row)) for row in rows]
     
-    async def get_by_id(self, assignment_id: str) -> Optional["SubcontractorAssignment"]:
+    async def get_by_id(self, assignment_id: str) -> Optional[Dict[str, Any]]:
         """Get subcontractor assignment by ID."""
         from ..models.subcontractor_assignment import SubcontractorAssignment
         query = f"SELECT * FROM {self.table_name} WHERE id = $1"
         row = await db_manager.execute_one(query, assignment_id)
         if row:
-            return SubcontractorAssignment(**self._convert_to_camel_case(dict(row)))
+            return self._convert_to_camel_case(dict(row))
         return None
     
-    async def create(self, assignment_data: Dict[str, Any]) -> Optional["SubcontractorAssignment"]:
+    async def create(self, assignment_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Create a new subcontractor assignment."""
         from ..models.subcontractor_assignment import SubcontractorAssignment
         assignment_id = str(uuid.uuid4())
@@ -580,7 +587,7 @@ class SubcontractorAssignmentRepository(BaseRepository):
             data.get('specialization'), data.get('status', 'active'), now
         )
         if row:
-            return SubcontractorAssignment(**self._convert_to_camel_case(dict(row)))
+            return self._convert_to_camel_case(dict(row))
         return None
     
     async def update(self, assignment_id: str, assignment_data: Dict[str, Any]) -> Optional["SubcontractorAssignment"]:
@@ -611,7 +618,7 @@ class SubcontractorAssignmentRepository(BaseRepository):
         
         row = await db_manager.execute_one(query, *values)
         if row:
-            return SubcontractorAssignment(**self._convert_to_camel_case(dict(row)))
+            return self._convert_to_camel_case(dict(row))
         return None
     
     async def delete(self, assignment_id: str) -> bool:
@@ -625,11 +632,11 @@ class SubcontractorAssignmentRepository(BaseRepository):
         from ..models.subcontractor_assignment import SubcontractorAssignment
         query = f"SELECT * FROM {self.table_name} WHERE subcontractor_id = $1 ORDER BY created_at DESC"
         rows = await db_manager.execute_query(query, subcontractor_id)
-        return [SubcontractorAssignment(**self._convert_to_camel_case(dict(row))) for row in rows]
+        return [self._convert_to_camel_case(dict(row)) for row in rows]
     
     async def get_by_project(self, project_id: str) -> List["SubcontractorAssignment"]:
         """Get all assignments for a specific project."""
         from ..models.subcontractor_assignment import SubcontractorAssignment
         query = f"SELECT * FROM {self.table_name} WHERE project_id = $1 ORDER BY created_at DESC"
         rows = await db_manager.execute_query(query, project_id)
-        return [SubcontractorAssignment(**self._convert_to_camel_case(dict(row))) for row in rows]
+        return [self._convert_to_camel_case(dict(row)) for row in rows]
