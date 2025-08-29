@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
+import { Logo } from "@/components/ui/logo";
 import { 
   LayoutDashboard, 
   Building, 
@@ -66,9 +67,7 @@ export default function Sidebar() {
     <aside className="w-64 bg-surface/50 border-r border-border hidden lg:block backdrop-blur-sm">
       <div className="p-6 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-brand-600 to-brand-500 shadow-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">P</span>
-          </div>
+          <Logo size="md" className="shadow-lg" />
           <div>
             <h1 className="text-fluid-lg font-semibold text-foreground">Proesphere</h1>
             <p className="text-xs text-muted-foreground">Construction Management</p>

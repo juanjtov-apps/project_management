@@ -93,18 +93,26 @@ input[type="file"] {
   --step-4: clamp(2.25rem, 2.4vw + 1.5rem, 2.75rem);
   --step-5: clamp(2.875rem, 3.2vw + 1.875rem, 3.75rem);
 
-  /* Brand Color Palette - Deep Teal to Emerald Gradient */
-  --brand-50: hsl(158, 64%, 96%);
-  --brand-100: hsl(156, 73%, 88%);
-  --brand-200: hsl(156, 71%, 76%);
-  --brand-300: hsl(156, 68%, 60%);
-  --brand-400: hsl(156, 63%, 47%);
-  --brand-500: hsl(156, 85%, 35%);
-  --brand-600: hsl(156, 100%, 29%);
-  --brand-700: hsl(156, 100%, 24%);
-  --brand-800: hsl(156, 100%, 19%);
-  --brand-900: hsl(156, 100%, 14%);
-  --brand-950: hsl(156, 100%, 8%);
+  /* Brand Color Palette - Original Construction Theme */
+  --brand-blue: hsl(210, 100%, 15%); /* Deep Space Blue */
+  --brand-teal: hsl(180, 70%, 40%); /* Sphere Teal */
+  --brand-coral: hsl(15, 85%, 65%); /* Spark Coral */
+  --brand-white: hsl(0, 0%, 100%); /* Cloud White */
+  --brand-grey: hsl(210, 15%, 85%); /* Mist Grey */
+  --brand-ink: hsl(210, 25%, 20%); /* Graphite Ink */
+  
+  /* Modern Brand Scale for Components */
+  --brand-50: hsl(180, 70%, 96%);
+  --brand-100: hsl(180, 70%, 88%);
+  --brand-200: hsl(180, 70%, 76%);
+  --brand-300: hsl(180, 70%, 60%);
+  --brand-400: hsl(180, 70%, 47%);
+  --brand-500: hsl(180, 70%, 40%);
+  --brand-600: hsl(180, 70%, 35%);
+  --brand-700: hsl(180, 70%, 30%);
+  --brand-800: hsl(180, 70%, 25%);
+  --brand-900: hsl(180, 70%, 20%);
+  --brand-950: hsl(180, 70%, 15%);
 
   /* Navy Neutral Palette */
   --navy-50: hsl(226, 45%, 96%);
@@ -120,9 +128,9 @@ input[type="file"] {
   --navy-950: hsl(226, 45%, 8%);
 
   /* Semantic Tokens - Light Mode */
-  --accent: var(--brand-600);
-  --bg: hsl(0, 0%, 100%);
-  --surface: hsl(0, 0%, 100%);
+  --accent: var(--brand-teal);
+  --bg: var(--brand-white);
+  --surface: var(--brand-white);
   --text: var(--navy-900);
   --muted: var(--navy-100);
   --success: hsl(142, 71%, 45%);
