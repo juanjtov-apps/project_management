@@ -14,20 +14,30 @@ if not DATABASE_URL:
 _pool = None
 
 async def get_db_pool() -> asyncpg.Pool:
-    """Get the database connection pool"""
+    """Get the database connection pool with robust error handling"""
     global _pool
     if _pool is None:
-        # Add SSL configuration for production Neon database
-        ssl_context = 'require' if 'neon.tech' in DATABASE_URL else None
-        _pool = await asyncpg.create_pool(
-            DATABASE_URL, 
-            ssl=ssl_context,
-            command_timeout=30,
-            server_settings={
-                'jit': 'off'  # Disable JIT for better connection stability
-            }
-        )
-        print("Database connection pool created successfully")
+        try:
+            # Add SSL configuration for production Neon database
+            ssl_context = 'require' if 'neon.tech' in DATABASE_URL else None
+            _pool = await asyncpg.create_pool(
+                DATABASE_URL, 
+                ssl=ssl_context,
+                command_timeout=30,
+                max_size=20,  # Limit pool size
+                min_size=1,   # Keep at least one connection
+                server_settings={
+                    'jit': 'off'  # Disable JIT for better connection stability
+                }
+            )
+            # Test the connection
+            async with _pool.acquire() as conn:
+                await conn.fetchval("SELECT 1")
+            print("✅ Database connection pool created and tested successfully")
+        except Exception as e:
+            print(f"❌ Failed to create database pool: {e}")
+            _pool = None
+            raise
     return _pool
 
 async def close_db_pool():

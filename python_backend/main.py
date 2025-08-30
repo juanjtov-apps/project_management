@@ -18,23 +18,43 @@ from src.database.connection import db_manager, get_db_pool, close_db_pool
 from src.api import create_api_router
 
 
+import logging
+logger = logging.getLogger("uvicorn.error")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan events."""
-    # Startup
+    """Robust application lifespan with proper error handling."""
     try:
-        await get_db_pool()
-        print("Database connection pool created successfully")
+        logger.info("🚀 Starting up application...")
+        
+        # Initialize database pool with retry logic
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                await get_db_pool()
+                logger.info("✅ Database connection pool created successfully")
+                break
+            except Exception as e:
+                logger.warning(f"Database connection attempt {attempt + 1}/{max_retries} failed: {e}")
+                if attempt == max_retries - 1:
+                    logger.error("❌ Failed to establish database connection after all retries")
+                    raise
+                import asyncio
+                await asyncio.sleep(1)  # Wait before retry
+        
+        logger.info("🎯 Application startup complete")
+        yield
+        
     except Exception as e:
-        print(f"Failed to create database connection pool: {e}")
+        logger.exception("💥 Startup error: %s", e)
         raise
-    yield
-    # Shutdown
-    try:
-        await close_db_pool()
-        print("Database connections closed successfully")
-    except Exception as e:
-        print(f"Error closing database connections: {e}")
+    finally:
+        logger.info("🔄 Shutting down application...")
+        try:
+            await close_db_pool()
+            logger.info("✅ Database connections closed successfully")
+        except Exception as e:
+            logger.exception("❌ Error closing database connections: %s", e)
 
 
 # Create FastAPI app
