@@ -20,3 +20,17 @@ Project management app for the construction industry
 - Role-based permissions<br>
 - Email with daily tasks
 
+## Development
+
+### Backend
+
+Run the FastAPI backend with automatic restart and heartbeat checks:
+
+```bash
+./start_backend.sh
+```
+
+This script uses `python_backend/keep_alive.py` to restart the server if it
+crashes and to periodically ping the `/health` endpoint so hosting platforms do
+not suspend the process due to inactivity.
+
