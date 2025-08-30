@@ -6,70 +6,6 @@ Proesphere is a comprehensive construction project management application design
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
-## Production Emergency Fixes Applied
-
-🚨 **CRITICAL PRODUCTION FIXES (Applied 2025-08-04 20:35 UTC - FULLY COMPLETED)**
-
-**Complete Backend Migration to Node.js**: Resolved all Python backend dependency issues
-- Tasks endpoint: ✅ Working (200/201 status) - Full CRUD operations via Node.js backend
-- Projects endpoint: ✅ Working (200/201 status) - Full CRUD operations via Node.js backend  
-- Users endpoint: ✅ Working (200 status via direct database access)
-- Companies endpoint: ✅ Working (200 status via direct database access)
-- **Roles endpoint: ✅ Working (200/201 status) - Complete CRUD operations via Node.js backend**
-- **Authentication System: ✅ Working (200 status) - Login/logout/session management fully operational**
-
-**Role Creation System**: Fixed the critical missing role management functionality
-- Role creation now fully operational with mock data system ✅
-- Complete CRUD operations (Create, Read, Update, Delete) for roles ✅
-- Permissions management integrated with role assignments ✅
-- Frontend role creation form working with proper validation ✅
-
-**DialogContent Accessibility Warnings**: Completely resolved React warnings (August 9, 2025)
-- Applied aria-describedby={undefined} approach across all DialogContent components ✅
-- Removed complex ARIA structure requirements that caused warnings ✅
-- Updated RBACAdmin.tsx, tasks.tsx, ProjectGallery.tsx, RoleManagement.tsx ✅
-- Updated add-risk-dialog.tsx, schedule.tsx, projects.tsx dialogs ✅
-- Photo upload functionality maintained with robust file picker implementation ✅
-
-**User Deletion Authorization Fix**: Resolved admin user deletion error (August 8, 2025)
-- Added comprehensive RBAC authorization to user deletion endpoint ✅
-- Company admins can only delete users within their own company ✅
-- Root admins can delete users across all companies ✅
-- Fixed TypeScript schema mismatches between company_id and companyId fields ✅
-- Enhanced security validation with proper error logging ✅
-- **Cascade Deletion Fix**: Resolved foreign key constraint violations ✅
-- Tasks assigned to deleted users are automatically unassigned (set to NULL) ✅
-- Prevents database integrity errors during user deletion ✅
-
-**Task Creation & Project Dropdown**: Fixed the critical task creation functionality
-- Project dropdown now properly populated with 42+ available projects ✅
-- Task creation working with proper project associations ✅
-- Foreign key constraints and database schema alignment completed ✅
-- **Project cascade deletion working with 6-level foreign key handling** ✅
-- **Task assignment dropdown now fully operational with user filtering** ✅
-
-**Backend Server Error Resolution**: Eliminated Python backend dependency entirely
-- No more "ECONNREFUSED" connection errors ✅
-- All operations now handled by stable Node.js backend ✅
-- Database schema aligned with existing production data ✅
-- **Disabled Python backend proxy completely** ✅
-- **Authentication system confirmed stable and production-ready** ✅
-
-**Database Verified**: All core tables operational with production data
-- Companies: 28+ records (with automatic domain generation) ✅
-- Users: 25+ records ✅  
-- Projects: 42 records (with cascade deletion capability) ✅
-- Tasks: 92+ records ✅
-
-**Three-Tier RBAC System**: Fully operational with multi-tenant security
-- **Root Admin Access**: Complete access to all companies and data ✅
-- **Company Admin Access**: Manage users/roles within own company only ✅
-- **Regular User Access**: View own company's projects and tasks only ✅
-- User management with company-filtered data ✅
-- Role management with company-specific filtering ✅
-- **Multi-tenant security enforced at API level** ✅
-- **RBAC admin panel hidden from non-admin users** ✅
-
 ## System Architecture
 
 ### Frontend Architecture
@@ -83,7 +19,6 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Architecture
 - **Primary Backend**: Python FastAPI (port 8000) for all API logic and database operations.
-- **Proxy Layer**: Node.js Express.js server (port 5000) serves the frontend and proxies API requests.
 - **Language**: Python with Pydantic models and async/await.
 - **API Design**: RESTful API architecture with automatic OpenAPI documentation.
 - **Database Operations**: Direct PostgreSQL queries with asyncpg and a repository pattern.
@@ -106,64 +41,13 @@ Preferred communication style: Simple, everyday language.
 - **Subcontractor Task Management**: Mandatory project selection and organized views.
 - **Visual Project Health Assessment Tool**: Project health monitoring with health score rings, risk matrices, project health cards, and a comprehensive dashboard, including real-time health score calculation and risk assessment.
 - **Advanced Tag Management**: Smart tag input system with dropdown suggestions, tag creation capabilities, visual badge management, and keyboard navigation support across Photos and Project Logs.
+- **Photo-Log Integration**: Photos uploaded via Project Logs automatically appear in Photos tab with proper project association and consistent tagging.
+- **Task Filtering & Company Scoping**: All tasks have proper `company_id` assignments, ensuring multi-tenant security where users only see tasks within their company scope.
+- **Gallery Button Fixes**: Consistent visibility of List/Grid toggle and Gallery buttons across desktop and mobile views on Photos and Projects pages.
 
 ### Data Flow
-- **Client-Server Communication**: Frontend requests via TanStack Query are handled by the Node.js backend for all operations including authentication, data management, and file operations.
-- **Photo Storage Architecture**: All photos are stored professionally in Google Cloud Storage using Replit's object storage service for reliability, scalability, and automatic backups. Legacy local storage has been migrated to cloud storage.
-
-- **Enhanced Filtering System**: Comprehensive photo and log filtering with tag-based search, project filtering, log association, and real-time search capabilities with proper data validation and array handling.
-
-## Recent Enhancements (August 22, 2025)
-
-### Advanced Tag Management & Filtering System
-- **Smart Tag Input**: Enhanced dropdown system showing existing tags with ability to create new ones
-- **Visual Tag Management**: Tag badges with easy removal and keyboard navigation (Enter to add, Backspace to remove)
-- **Comprehensive Photo Filtering**: Multi-layer filtering by search terms, tags, projects, and associated logs
-- **Enhanced Search Logic**: Improved search filtering with proper trim handling and case-insensitive matching
-- **Unified Photo Gallery**: Complete photo management with tag-based organization and filtering
-- **Project Logs Integration**: Advanced tag system integrated into project logs with existing tag suggestions
-- **Production-Ready**: All debugging code removed, optimized for production performance
-
-### Photo-Log Integration System ✅ COMPLETED
-- **Unified Photo Management**: Photos uploaded via Project Logs automatically appear in Photos tab
-- **Automatic Photo Record Creation**: When logs are created with images, individual photo records are automatically generated
-- **Proper Project Association**: Photos maintain correct project relationships across both sections
-- **Smart Filename Extraction**: Improved logic for extracting filenames from Google Cloud Storage URLs
-- **Consistent Tagging**: All log-uploaded photos are tagged with "log-photo" for identification
-- **Real-time Synchronization**: Changes in Project Logs immediately reflect in Photos gallery
-- **Cross-Section Filtering**: Photos can be filtered by project, tag, or associated log across both sections
-
-## Current State Before Major UI/UX Overhaul (August 29, 2025)
-
-### Task Filtering & Company Scoping ✅ COMPLETED (August 29, 2025)
-- **Complete Task Filtering**: All 71 tasks now have proper company_id assignments
-- **Multi-Tenant Security**: Users can only see tasks within their company scope
-- **Project Tasks**: Tasks linked to projects properly filtered by company
-- **Administrative Tasks**: General and administrative tasks assigned to correct companies
-- **General Tasks**: All task categories now respect company boundaries
-- **Root User Access**: Root user (ID: '0') maintains system-wide access across all companies
-
-### Gallery Button Fixes ✅ COMPLETED (August 29, 2025)
-- **Photos Page**: Fixed List/Grid toggle button visibility on desktop
-- **Projects Page**: Added Gallery button to desktop views for both grid and list layouts
-- **Mobile vs Desktop**: Gallery buttons now consistently appear across all screen sizes
-- **Grid View**: Gallery button appears above action buttons in card view
-- **List View**: Gallery button appears horizontally with other action buttons
-
-### Current UI Design System State
-- **Color Palette**: Custom construction-themed colors (Deep Space Blue, Sphere Teal, Spark Coral, Cloud White, Mist Grey, Graphite Ink)
-- **Component Library**: Radix UI components with shadcn/ui design system
-- **Styling**: Basic Tailwind CSS implementation
-- **Icons**: Lucide React icons with mixed weights and sizes
-- **Typography**: Standard browser typography without fluid scaling
-- **Layout**: Basic responsive design without systematic spacing tokens
-- **Navigation**: Simple sidebar navigation without mobile optimization
-- **Authentication**: Basic login form without advanced UX features
-- **Dashboard**: Basic layout with colored KPI blocks
-- **Projects**: Card and list views with basic responsive behavior
-- **Photo Gallery**: Standard grid layout without masonry or performance optimizations
-- **Forms**: Basic form components without consistent styling patterns
-
+- **Client-Server Communication**: Frontend requests via TanStack Query are handled by the Python FastAPI backend for all operations including authentication, data management, and file operations.
+- **Photo Storage Architecture**: All photos are stored professionally in Google Cloud Storage using Replit's object storage service.
 
 ## External Dependencies
 
@@ -180,23 +64,3 @@ Preferred communication style: Simple, everyday language.
 - **tailwindcss**: Utility-first CSS framework.
 - **lucide-react**: Icon library.
 - **date-fns**: Date manipulation and formatting.
-
----
-
-## MAJOR UI/UX DESIGN SYSTEM OVERHAUL - STARTING AUGUST 29, 2025
-
-**Objective**: Implement a comprehensive design system transformation with modern UI/UX patterns, performance optimizations, and accessibility improvements.
-
-**Scope**: Complete redesign of all user interfaces including:
-- Global design system with CSS variables and tokens
-- Mobile-first responsive layouts  
-- Modern navigation patterns
-- Enhanced authentication flows
-- Redesigned dashboard and project management interfaces
-- Performance-optimized photo gallery
-- Standardized forms and micro-interactions
-- Accessibility and dark mode support
-
-**Status**: 🚧 In Progress - Major refactoring in development
-
-**Note**: All current functionality will be preserved while enhancing the user experience and visual design.
