@@ -39,7 +39,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: https:; "
             "font-src 'self' data:; "
-            "connect-src 'self'; "
+            "connect-src 'self' http://localhost:8000 http://localhost:5000; "
             "frame-ancestors 'none';"
         )
         
