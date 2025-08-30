@@ -81,6 +81,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Health check endpoint for keep_alive monitoring
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for monitoring scripts"""
+    return {"status": "healthy", "service": "proesphere-api"}
+
 # Include API routes
 app.include_router(create_api_router())
 

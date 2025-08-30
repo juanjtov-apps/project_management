@@ -64,6 +64,10 @@ def keep_backend_alive():
     print("🐍 Starting Python FastAPI backend with auto-restart...")
     
     while restart_count < MAX_RESTARTS:
+        process = None
+        stop_event = None
+        hb_thread = None
+        
         try:
             # Start the backend process
             print(f"🚀 Starting backend (attempt {restart_count + 1})...")
@@ -82,6 +86,10 @@ def keep_backend_alive():
 
             # Monitor the process
             while True:
+                if process.stdout is None:
+                    print("⚠️ Process stdout is None, process may have died")
+                    break
+                    
                 line = process.stdout.readline()
                 if line:
                     print(line.strip())
@@ -96,14 +104,18 @@ def keep_backend_alive():
                 time.sleep(0.1)
 
             # Stop heartbeat when process exits
-            stop_event.set()
-            hb_thread.join(timeout=1)
+            if stop_event:
+                stop_event.set()
+            if hb_thread:
+                hb_thread.join(timeout=1)
 
         except KeyboardInterrupt:
             print("🛑 Interrupted by user")
             try:
-                stop_event.set()
-                hb_thread.join(timeout=1)
+                if stop_event:
+                    stop_event.set()
+                if hb_thread:
+                    hb_thread.join(timeout=1)
             except Exception:
                 pass
             if process and process.poll() is None:
