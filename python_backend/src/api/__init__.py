@@ -97,6 +97,13 @@ except Exception as e:
     print(f"❌ Error importing dashboard stats router: {e}")
     dashboard_stats_router = None
 
+try:
+    from .activities import router as activities_router
+    print("✅ Activities router imported")
+except Exception as e:
+    print(f"❌ Error importing activities router: {e}")
+    activities_router = None
+
 # Import other routers as they are created
 # from .logs import router as logs_router
 
@@ -190,6 +197,12 @@ def create_api_router() -> APIRouter:
         print("✅ User management router included")
     else:
         print("⚠️  User management router skipped (import failed)")
+        
+    if activities_router:
+        api_router.include_router(activities_router, tags=["activities"])
+        print("✅ Activities router included")
+    else:
+        print("⚠️  Activities router skipped (import failed)")
     
     # Include additional routers as they are implemented
     # api_router.include_router(logs_router)
