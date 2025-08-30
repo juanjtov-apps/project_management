@@ -20,13 +20,8 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads"
     max_file_size: int = 10 * 1024 * 1024  # 10MB
     
-    # CORS - specific origins required when using credentials
-    cors_origins: list = [
-        "http://localhost:5000",
-        "http://127.0.0.1:5000", 
-        "https://*.replit.dev",
-        "https://*.replit.app"
-    ]
+    # CORS - allow all origins for development (will restrict later)
+    cors_origins: list = ["*"]
     
     class Config:
         env_file = ".env"

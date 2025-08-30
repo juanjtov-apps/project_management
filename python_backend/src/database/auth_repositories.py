@@ -38,7 +38,7 @@ class AuthRepository:
     
     async def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user by ID (without password for general use)."""
-        query = f"SELECT id, first_name, last_name, email, role, is_active, company_id, created_at, last_login FROM {self.table_name} WHERE id = $1"
+        query = f"SELECT id, first_name, last_name, email, role, company_id, created_at FROM {self.table_name} WHERE id = $1"
         row = await db_manager.execute_one(query, user_id)
         if row:
             user_data = dict(row)
@@ -50,7 +50,7 @@ class AuthRepository:
     
     async def get_users(self) -> List[Dict[str, Any]]:
         """Get all users (without passwords)."""
-        query = f"SELECT id, first_name, last_name, email, role, is_active, company_id, created_at, last_login FROM {self.table_name} ORDER BY first_name, last_name"
+        query = f"SELECT id, first_name, last_name, email, role, company_id, created_at FROM {self.table_name} ORDER BY first_name, last_name"
         rows = await db_manager.execute_query(query)
         users = []
         for row in rows:
@@ -63,7 +63,7 @@ class AuthRepository:
     
     async def get_company_users(self, company_id: str) -> List[Dict[str, Any]]:
         """Get all users for a specific company."""
-        query = f"SELECT id, first_name, last_name, email, role, is_active, company_id, created_at, last_login FROM {self.table_name} WHERE company_id = $1 ORDER BY first_name, last_name"
+        query = f"SELECT id, first_name, last_name, email, role, company_id, created_at FROM {self.table_name} WHERE company_id = $1 ORDER BY first_name, last_name"
         rows = await db_manager.execute_query(query, company_id)
         users = []
         for row in rows:
@@ -90,9 +90,9 @@ class AuthRepository:
         
         query = f"""
             INSERT INTO {self.table_name} 
-            (id, first_name, last_name, email, password, role, is_active, company_id, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING id, first_name, last_name, email, role, is_active, company_id, created_at
+            (id, first_name, last_name, email, password, role, company_id, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id, first_name, last_name, email, role, company_id, created_at
         """
         
         row = await db_manager.execute_one(

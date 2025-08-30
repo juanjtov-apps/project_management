@@ -30,7 +30,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
     retry: false
   });
 
-  const userCompany = companies.find(c => c.id === user?.companyId);
+  const userCompany = companies?.find?.(c => c.id === user?.companyId);
   const companyName = userCompany?.name || 'Proesphere';
 
   const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0;
