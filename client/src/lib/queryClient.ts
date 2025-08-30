@@ -2,12 +2,12 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    // Handle authentication errors gracefully - don't throw for expected 401s
-    if (res.status === 401) {
-      const text = (await res.text()) || res.statusText;
-      throw new Error(`${res.status}: ${text}`);
-    }
     const text = (await res.text()) || res.statusText;
+    // Handle authentication errors gracefully - don't throw for expected 401s on auth endpoints
+    if (res.status === 401 && res.url.includes('/api/auth/')) {
+      // Expected authentication failure - return silently without throwing
+      throw new Error(`Authentication check: ${res.status}`);
+    }
     throw new Error(`${res.status}: ${text}`);
   }
 }
@@ -116,10 +116,11 @@ export const getQueryFn: <T>(options: {
         return null;
       }
       // Handle authentication errors gracefully - return null for 401s
-      if (error?.message?.includes('401') || error?.message?.includes('Unauthorized') || error?.message?.includes('Authentication required')) {
+      if (error?.message?.includes('401') || error?.message?.includes('Unauthorized') || error?.message?.includes('Authentication required') || error?.message?.includes('Authentication check:')) {
+        // Silent return for expected auth failures - don't log these
         return null;
       }
-      // Log other errors for debugging (but not 401s which are expected)
+      // Log other errors for debugging (but not auth checks which are expected)
       console.error('Query function error:', error);
       throw error;
     }
