@@ -11,25 +11,27 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
   console.log("✅ Frontend on port 5000, Python FastAPI backend on port 8000");
   console.log("🔧 Direct communication - no proxy layer");
   
-  // Start Python backend as a child process
+  // Start Python backend as a child process with proper startup delay
   console.log("🐍 Starting Python FastAPI backend...");
-  const pythonBackend = spawn('python', ['main.py'], {
-    cwd: '/home/runner/workspace/python_backend',
-    stdio: 'pipe',
-    detached: false
-  });
-  
-  pythonBackend.stdout?.on('data', (data) => {
-    console.log(`[Python Backend] ${data.toString().trim()}`);
-  });
-  
-  pythonBackend.stderr?.on('data', (data) => {
-    console.error(`[Python Backend Error] ${data.toString().trim()}`);
-  });
-  
-  pythonBackend.on('close', (code) => {
-    console.log(`[Python Backend] Process exited with code ${code}`);
-  });
+  setTimeout(() => {
+    const pythonBackend = spawn('python', ['main.py'], {
+      cwd: '/home/runner/workspace/python_backend',
+      stdio: 'pipe',
+      detached: false
+    });
+    
+    pythonBackend.stdout?.on('data', (data) => {
+      console.log(`[Python Backend] ${data.toString().trim()}`);
+    });
+    
+    pythonBackend.stderr?.on('data', (data) => {
+      console.error(`[Python Backend Error] ${data.toString().trim()}`);
+    });
+    
+    pythonBackend.on('close', (code) => {
+      console.log(`[Python Backend] Process exited with code ${code}`);
+    });
+  }, 1000); // 1 second delay to ensure proper startup
 
   // Setup security middleware
   setupSecurityMiddleware(app);
