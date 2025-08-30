@@ -44,7 +44,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Setup security middleware first
+# Add debug logging middleware first
+from debug_middleware import LogRequests
+app.add_middleware(LogRequests)
+
+# Setup security middleware
 from src.middleware.security import setup_security_middleware
 setup_security_middleware(app)
 
