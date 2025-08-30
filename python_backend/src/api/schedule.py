@@ -7,7 +7,7 @@ from datetime import datetime
 from ..database.repositories import ScheduleChangeRepository
 from ..models.schedule_change import ScheduleChange, ScheduleChangeCreate, ScheduleChangeUpdate
 
-router = APIRouter(prefix="/schedule-changes", tags=["schedule"])
+router = APIRouter(prefix="/schedule", tags=["schedule"])
 schedule_repo = ScheduleChangeRepository()
 
 @router.get("", response_model=List[ScheduleChange])
