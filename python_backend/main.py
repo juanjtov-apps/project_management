@@ -71,15 +71,21 @@ if not settings.debug:
 if __name__ == "__main__":
     import uvicorn
     
-    if settings.debug:
-        print("Starting Python backend in development mode...")
-        print(f"Note: Frontend should be served by Vite dev server on a different port")
+    print("🐍 Starting Python FastAPI backend...")
+    print("🌐 Server will be available at http://0.0.0.0:8000")
+    print("📋 API documentation at http://0.0.0.0:8000/docs")
     
-    # Force port 8000 for Python backend
-    backend_port = int(os.getenv("PORT", "8000")) if os.getenv("PORT") != "5000" else 8000
-    uvicorn.run(
-        app, 
-        host=settings.host, 
-        port=backend_port,
-        reload=False  # Disable reload to avoid conflicts
-    )
+    try:
+        uvicorn.run(
+            app,  # Use app instance directly
+            host="0.0.0.0",
+            port=8000,
+            reload=False,
+            log_level="info",
+            access_log=True
+        )
+    except KeyboardInterrupt:
+        print("🛑 Python backend shutdown requested")
+    except Exception as e:
+        print(f"❌ Python backend error: {e}")
+        raise
