@@ -6,87 +6,24 @@ import { setupSecurityMiddleware, validateInput, csrfProtection } from "./securi
 
 const app = express();
 
-async function setupPythonBackend(app: express.Express): Promise<Server> {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const pythonPort = parseInt(process.env.PYTHON_PORT || '8000', 10);
-  
-  // MIGRATED TO PYTHON: Using Python FastAPI backend for all operations
-  console.log("🐍 PYTHON BACKEND MODE: Migrating all operations to Python FastAPI backend");
-  console.log("✅ All RBAC and API operations will be handled by Python FastAPI backend");
-  console.log("🔧 This provides a unified backend architecture with FastAPI");
+async function setupFrontendOnly(app: express.Express): Promise<Server> {
+  console.log("🚀 FRONTEND-ONLY MODE: Serving frontend, Python backend runs independently");
+  console.log("✅ Frontend on port 5000, Python FastAPI backend on port 8000");
+  console.log("🔧 Direct communication - no proxy layer");
 
-  // Setup security middleware first
+  // Setup security middleware
   setupSecurityMiddleware(app);
   
   // Add security logging
   const { securityLogging } = await import('./security');
   securityLogging(app);
   
-  // Add JSON parsing for auth routes
-  app.use(express.json({ limit: '10mb' })); // Limit payload size for security
+  // Add JSON parsing
+  app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: false, limit: '10mb' }));
-  
-  // Add input validation and CSRF protection
-  app.use(validateInput);
-  app.use(csrfProtection);
 
-  // MIGRATION: Skip Node.js authentication routes - Python backend handles all auth
-  console.log("🔄 MIGRATION: Skipping Node.js auth routes - Python FastAPI handles authentication");
-  console.log("🐍 All authentication will be proxied to Python backend on port", pythonPort);
-
-  // Use http-proxy-middleware for ALL API routes to Python backend
-  const { createProxyMiddleware } = await import('http-proxy-middleware');
-  
-  const proxy = createProxyMiddleware({
-    target: `http://localhost:${pythonPort}`,
-    changeOrigin: true,
-    ws: false,
-    timeout: 15000,
-    proxyTimeout: 15000,
-    // Python backend expects /api prefix for all routes
-    pathRewrite: (path: string, req: any) => {
-      console.log(`🐍 PYTHON PROXY: ${path} -> /api${path}`);
-      return `/api${path}`;
-    },
-    on: {
-      error: (err: any, req: any, res: any) => {
-        console.error('🚨 PYTHON BACKEND PROXY ERROR:', err.message);
-        console.error('🐍 Target:', `http://localhost:${pythonPort}`);
-        console.error('📍 Path:', req.url);
-        if (!res.headersSent) {
-          res.status(502).json({ message: 'Python backend service unavailable', error: err.message });
-        }
-      },
-      proxyReq: (proxyReq: any, req: any, res: any) => {
-        console.log(`Proxying ${req.method} request to: ${proxyReq.path}`);
-        
-        // For PATCH/PUT/POST with body, properly handle the request body
-        if (req.body && Object.keys(req.body).length > 0 && ['PATCH', 'PUT', 'POST'].includes(req.method)) {
-          const bodyData = JSON.stringify(req.body);
-          console.log(`Forwarding body:`, bodyData);
-          
-          // Remove any existing content-length header and set new one
-          proxyReq.removeHeader('content-length');
-          proxyReq.setHeader('Content-Type', 'application/json');
-          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData, 'utf8'));
-          
-          // Write the body
-          proxyReq.write(bodyData);
-        }
-      },
-      proxyRes: (proxyRes: any, req: any, res: any) => {
-        console.log(`API Proxy Response: ${req.method} ${req.originalUrl} ${proxyRes.statusCode}`);
-      }
-    }
-  });
-  
-  // MIGRATION: Proxy ALL API routes to Python backend
-  // All operations including auth, RBAC, CRUD are handled by Python FastAPI
-  
-  app.use('/api', (req, res, next) => {
-    console.log(`🐍 PROXYING TO PYTHON: ${req.method} ${req.path}`);
-    return proxy(req, res, next);
-  });
+  // No proxy - frontend makes direct requests to Python backend on port 8000
+  console.log("📱 Frontend will make direct requests to http://localhost:8000");
 
   // Add catch-all route handler to prevent 404s during authentication flows
   app.use((req, res, next) => {
@@ -134,8 +71,8 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Use Python backend routes instead of TypeScript routes
-  const server = await setupPythonBackend(app);
+  // Use frontend-only setup
+  const server = await setupFrontendOnly(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

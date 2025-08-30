@@ -7,6 +7,9 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// API Base URL for direct communication with Python backend
+const API_BASE_URL = "http://localhost:8000";
+
 export async function apiRequest(
   url: string,
   options?: {
@@ -16,7 +19,8 @@ export async function apiRequest(
   }
 ): Promise<Response> {
   const method = options?.method || "GET";
-  const res = await fetch(url, {
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+  const res = await fetch(fullUrl, {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -35,7 +39,8 @@ export async function apiRequestWithMethod(
   url: string,
   data?: unknown
 ): Promise<Response> {
-  const res = await fetch(url, {
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+  const res = await fetch(fullUrl, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -52,8 +57,9 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const url = Array.isArray(queryKey) ? queryKey[0] as string : queryKey as string;
-    const res = await fetch(url, {
+    const url = Array.isArray(queryKey) ? String(queryKey[0]) : String(queryKey);
+    const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+    const res = await fetch(fullUrl, {
       credentials: "include",
     });
 
