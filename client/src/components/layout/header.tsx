@@ -24,14 +24,15 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
     queryKey: ["/api/notifications", "sample-user-id"],
   });
 
-  // Get companies to display company name instead of "Dashboard"
+  // Get companies to display company name - only for platform admins
   const { data: companies = [] } = useQuery<any[]>({
     queryKey: ['/api/companies'],
-    retry: false
+    retry: false,
+    enabled: false, // Disable since this requires platform admin access
   });
 
-  const userCompany = companies?.find?.(c => c.id === user?.companyId);
-  const companyName = userCompany?.name || 'Proesphere';
+  // Use company name from user data or default to Proesphere
+  const companyName = 'Proesphere';
 
   const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0;
   
@@ -124,7 +125,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
                       {user?.firstName || user?.name || user?.email || "User"}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {userCompany?.name || 'Proesphere'}
+                      Proesphere
                     </div>
                   </div>
                 </div>
