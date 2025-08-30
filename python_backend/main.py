@@ -72,12 +72,18 @@ app.add_middleware(LogRequests)
 from src.middleware.security import setup_security_middleware
 setup_security_middleware(app)
 
-# Add CORS middleware - must be configured properly for browser requests
+# Add CORS middleware - full access for development with credentials support
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_origins=[
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
+        "http://0.0.0.0:5000",
+        "https://localhost:5000",
+        "https://127.0.0.1:5000"
+    ],
+    allow_credentials=True,  # Enable credentials for session auth
+    allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )

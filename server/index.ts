@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { spawn } from "child_process";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupSecurityMiddleware, validateInput, csrfProtection } from "./security";
+// Removed proxy middleware, using manual fetch forwarding instead
 
 const app = express();
 
@@ -63,8 +64,34 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-  // No proxy - frontend makes direct requests to Python backend on port 8000
-  console.log("📱 Frontend will make direct requests to http://localhost:8000");
+  // Add manual API forwarding to Python backend to solve browser CORS issues
+  console.log("🔄 Setting up API forwarding to Python backend");
+  
+  app.all('/api/*', async (req, res) => {
+    try {
+      const backendUrl = `http://127.0.0.1:8000${req.originalUrl}`;
+      console.log(`📡 Forwarding ${req.method} ${req.originalUrl} → ${backendUrl}`);
+      
+      const response = await fetch(backendUrl, {
+        method: req.method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': req.headers.cookie || '',
+          'Authorization': req.headers.authorization || '',
+        },
+        body: req.method !== 'GET' && req.method !== 'HEAD' && req.body ? JSON.stringify(req.body) : undefined,
+      });
+      
+      const data = await response.text();
+      res.status(response.status);
+      res.set(Object.fromEntries(response.headers.entries()));
+      res.send(data);
+      
+    } catch (error) {
+      console.log('API forwarding error:', error.message);
+      res.status(503).json({ detail: 'Backend unavailable' });
+    }
+  });
 
   // Add catch-all route handler to prevent 404s during authentication flows
   app.use((req, res, next) => {

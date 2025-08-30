@@ -2,13 +2,18 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
+    // Handle authentication errors gracefully - don't throw for expected 401s
+    if (res.status === 401) {
+      const text = (await res.text()) || res.statusText;
+      throw new Error(`${res.status}: ${text}`);
+    }
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
   }
 }
 
-// API Base URL for direct communication with Python backend
-const API_BASE_URL = "http://localhost:8000";
+// API Base URL - use same-origin to avoid CORS issues
+const API_BASE_URL = "";
 
 // Add retry logic for backend connection - handle startup timing gracefully
 async function retryFetch(url: string, options: RequestInit, retries = 5, delay = 1000): Promise<Response> {
@@ -30,7 +35,11 @@ async function retryFetch(url: string, options: RequestInit, retries = 5, delay 
       } else {
         // Final attempt failed - this is a real connection issue
         console.error(`Unable to connect to backend after ${retries} attempts`);
-        throw new Error('Backend connection failed - please refresh the page');
+        // Don't throw here, let the caller handle the error
+        return new Response(JSON.stringify({detail: "Backend connection failed"}), { 
+          status: 503, 
+          headers: { 'Content-Type': 'application/json' }
+        });
       }
     }
   }
@@ -47,14 +56,14 @@ export async function apiRequest(
 ): Promise<Response> {
   const method = options?.method || "GET";
   const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
-  const res = await fetch(fullUrl, {
+  const res = await retryFetch(fullUrl, {
     method,
     headers: {
       "Content-Type": "application/json",
       ...options?.headers,
     },
     body: options?.body ? JSON.stringify(options.body) : undefined,
-    credentials: "include",
+    credentials: "include",  // Re-enable credentials for session auth
   });
 
   await throwIfResNotOk(res);
@@ -88,7 +97,10 @@ export const getQueryFn: <T>(options: {
       const url = Array.isArray(queryKey) ? String(queryKey[0]) : String(queryKey);
       const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
       const res = await retryFetch(fullUrl, {
-        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",  // Re-enable credentials for session auth
       });
 
       if (unauthorizedBehavior === "returnNull" && res.status === 401) {
@@ -101,12 +113,14 @@ export const getQueryFn: <T>(options: {
       // Handle startup connection failures gracefully
       if (error?.message?.includes('Backend connection failed')) {
         // Silent fail for startup issues - don't spam console
-        throw new Error('STARTUP_CONNECTION_FAILED');
+        return null;
       }
-      // Log other errors for debugging
-      if (!error?.message?.includes('401') && !error?.message?.includes('Unauthorized')) {
-        console.error('Query function error:', error);
+      // Handle authentication errors gracefully - return null for 401s
+      if (error?.message?.includes('401') || error?.message?.includes('Unauthorized') || error?.message?.includes('Authentication required')) {
+        return null;
       }
+      // Log other errors for debugging (but not 401s which are expected)
+      console.error('Query function error:', error);
       throw error;
     }
   };

@@ -116,6 +116,7 @@ export const photos = pgTable("photos", {
   originalName: text("original_name").notNull(),
   description: text("description"),
   tags: text("tags").array(),
+  fileSize: integer("file_size"), // File size in bytes
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
