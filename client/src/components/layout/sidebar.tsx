@@ -52,18 +52,18 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   // Role-based navigation filtering using backend permissions
   const permissions = currentUser?.permissions || {};
   
-  // Map navigation items to their permission keys
+  // Map navigation items to their permission keys (match backend permission structure)
   const navigationPermissions = {
-    'Dashboard': 'dashboard',
-    'Projects': 'projects', 
-    'Tasks': 'tasks',
-    'Project Health': 'projectHealth',
-    'Schedule': 'schedule',
-    'Photos': 'photos',
-    'Project Logs': 'logs',
-    'Crew': 'crew',
-    'Subs': 'subs',
-    'RBAC Admin': 'rbacAdmin'
+    'Dashboard': 'canAccessDashboard',
+    'Projects': 'canAccessProjects', 
+    'Tasks': 'canAccessTasks',
+    'Project Health': 'canAccessReports',
+    'Schedule': 'canAccessSchedule',
+    'Photos': 'canAccessPhotos',
+    'Project Logs': 'canAccessProjects',
+    'Crew': 'canAccessUsers',
+    'Subs': 'canAccessUsers',
+    'RBAC Admin': 'canAccessRBAC'
   };
   
   // Filter navigation based on user permissions from backend
