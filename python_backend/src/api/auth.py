@@ -66,14 +66,23 @@ async def create_session(user_id: str, user_data: Dict[str, Any]) -> str:
     
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        # Store session in database
+        # Store session in database (match existing schema: sid, sess, expire)
+        import json
+        # Convert user_data to JSON-serializable format
+        serializable_data = {}
+        for key, value in user_data.items():
+            if isinstance(value, datetime):
+                serializable_data[key] = value.isoformat()
+            else:
+                serializable_data[key] = value
+        session_data = json.dumps(serializable_data)
         await conn.execute("""
-            INSERT INTO sessions (sess, expire, data)
+            INSERT INTO sessions (sid, sess, expire)
             VALUES ($1, $2, $3)
-            ON CONFLICT (sess) DO UPDATE SET
-                expire = EXCLUDED.expire,
-                data = EXCLUDED.data
-        """, session_id, expires_at, f'{{"userId": "{user_id}"}}')
+            ON CONFLICT (sid) DO UPDATE SET
+                sess = EXCLUDED.sess,
+                expire = EXCLUDED.expire
+        """, session_id, session_data, expires_at)
     
     # Store session data in memory for quick access
     session_store[session_id] = {
