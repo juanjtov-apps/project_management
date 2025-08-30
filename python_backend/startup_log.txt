@@ -1,0 +1,37 @@
+/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/pydantic/_internal/_config.py:373: UserWarning: Valid config keys have changed in V2:
+* 'allow_population_by_field_name' has been renamed to 'validate_by_name'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [1206]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+✅ Projects router imported
+✅ Tasks router imported
+✅ Photos router imported
+✅ Dashboard router imported
+✅ Notifications router imported
+✅ Schedule router imported
+✅ Client module router imported
+✅ Users router imported
+✅ Subcontractor assignments router imported
+✅ RBAC router imported
+✅ Auth router imported
+✅ User management router imported
+✅ Dashboard stats router imported
+🔍 DEBUG: Including API routers...
+✅ Projects router included
+✅ Tasks router included
+✅ Photos router included
+✅ Dashboard router included
+✅ Dashboard stats router included
+✅ Notifications router included
+✅ Schedule router included
+✅ Client module router included
+✅ Users router included successfully
+✅ Subcontractor assignments router included
+✅ RBAC router included
+✅ Auth router included
+✅ User management router included
+Database connection pool created successfully
+Database connection pool created successfully
+INFO:     127.0.0.1:33944 - "GET /api/auth/user HTTP/1.1" 401 Unauthorized
