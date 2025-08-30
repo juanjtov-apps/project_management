@@ -120,13 +120,13 @@ def create_api_router() -> APIRouter:
         print("⚠️  Tasks router skipped (import failed)")
         
     if photos_router:
-        api_router.include_router(photos_router, prefix="/photos", tags=["photos"])
+        api_router.include_router(photos_router, tags=["photos"])
         print("✅ Photos router included")
     else:
         print("⚠️  Photos router skipped (import failed)")
         
     if dashboard_router:
-        api_router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
+        api_router.include_router(dashboard_router, tags=["dashboard"])
         print("✅ Dashboard router included")
     else:
         print("⚠️  Dashboard router skipped (import failed)")
@@ -138,13 +138,13 @@ def create_api_router() -> APIRouter:
         print("⚠️  Dashboard stats router skipped (import failed)")
         
     if notifications_router:
-        api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
+        api_router.include_router(notifications_router, tags=["notifications"])
         print("✅ Notifications router included")
     else:
         print("⚠️  Notifications router skipped (import failed)")
         
     if schedule_router:
-        api_router.include_router(schedule_router, prefix="/schedule-changes", tags=["schedule"])
+        api_router.include_router(schedule_router, tags=["schedule"])
         print("✅ Schedule router included")
     else:
         print("⚠️  Schedule router skipped (import failed)")
