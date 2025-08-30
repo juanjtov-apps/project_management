@@ -104,38 +104,43 @@ async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
             # Session expired, remove it
             del session_store[session_id]
     
-    # Check database
+    # Check database if not found in memory
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("""
-            SELECT data, expire FROM sessions 
-            WHERE sess = $1 AND expire > NOW()
-        """, session_id)
-        
+        row = await conn.fetchrow(
+            """
+            SELECT sess, expire FROM sessions
+            WHERE sid = $1 AND expire > NOW()
+            """,
+            session_id,
+        )
+
         if row:
-            # Parse JSON data - it's stored as {"userId": "..."}
-            import json
-            try:
-                data = json.loads(row["data"])
-                user_id = data.get("userId")
+            data = row["sess"]
+            if isinstance(data, str):
+                import json
+                try:
+                    data = json.loads(data)
+                except json.JSONDecodeError:
+                    data = None
+
+            if isinstance(data, dict):
+                user_id = data.get("userId") or data.get("id")
                 if user_id:
-                    # Get fresh user data
-                    user_row = await conn.fetchrow("""
-                        SELECT * FROM users WHERE id = $1
-                    """, user_id)
-                    
+                    user_row = await conn.fetchrow(
+                        """SELECT * FROM users WHERE id = $1""",
+                        user_id,
+                    )
                     if user_row:
                         user_data = dict(user_row)
                         session_data = {
                             "userId": user_id,
                             "expires_at": row["expire"],
-                            "user_data": user_data
+                            "user_data": user_data,
                         }
                         # Cache in memory
                         session_store[session_id] = session_data
                         return session_data
-            except json.JSONDecodeError:
-                pass
     
     return None
 
@@ -148,7 +153,7 @@ async def destroy_session(session_id: str):
     # Remove from database
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        await conn.execute("DELETE FROM sessions WHERE sess = $1", session_id)
+        await conn.execute("DELETE FROM sessions WHERE sid = $1", session_id)
 
 @router.post("/login", response_model=LoginResponse)
 async def login(request: LoginRequest, response: Response):
