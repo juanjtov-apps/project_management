@@ -10,6 +10,21 @@ async function throwIfResNotOk(res: Response) {
 // API Base URL for direct communication with Python backend
 const API_BASE_URL = "http://localhost:8000";
 
+// Add retry logic for backend connection
+async function retryFetch(url: string, options: RequestInit, retries = 3, delay = 1000): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      return response;
+    } catch (error) {
+      console.log(`Fetch attempt ${i + 1} failed for ${url}, retrying in ${delay}ms...`);
+      if (i === retries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error('All retry attempts failed');
+}
+
 export async function apiRequest(
   url: string,
   options?: {
@@ -59,7 +74,7 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const url = Array.isArray(queryKey) ? String(queryKey[0]) : String(queryKey);
     const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
-    const res = await fetch(fullUrl, {
+    const res = await retryFetch(fullUrl, {
       credentials: "include",
     });
 
