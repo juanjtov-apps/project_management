@@ -10,21 +10,27 @@ async function throwIfResNotOk(res: Response) {
 // API Base URL for direct communication with Python backend
 const API_BASE_URL = "http://localhost:8000";
 
-// Add retry logic for backend connection - only retry actual network failures
-async function retryFetch(url: string, options: RequestInit, retries = 3, delay = 1000): Promise<Response> {
+// Add retry logic for backend connection - handle startup timing gracefully
+async function retryFetch(url: string, options: RequestInit, retries = 5, delay = 1000): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     try {
       const response = await fetch(url, options);
-      // Don't retry HTTP status codes - only retry network failures
+      // Success - return response immediately
       return response;
     } catch (error) {
-      // Only log and retry actual network connection failures
+      // Handle network connection failures during backend startup
       if (i < retries - 1) {
-        console.log(`Network connection failed for ${url}, retrying in ${delay}ms... (attempt ${i + 1}/${retries})`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        // Only log on first few attempts to reduce noise
+        if (i < 2) {
+          console.log(`Backend starting up, retrying connection... (attempt ${i + 1}/${retries})`);
+        }
+        // Use exponential backoff for startup delays
+        const backoffDelay = delay * Math.pow(1.5, i);
+        await new Promise(resolve => setTimeout(resolve, Math.min(backoffDelay, 5000)));
       } else {
-        console.error(`Network connection failed after ${retries} attempts for ${url}`);
-        throw error;
+        // Final attempt failed - this is a real connection issue
+        console.error(`Unable to connect to backend after ${retries} attempts`);
+        throw new Error('Backend connection failed - please refresh the page');
       }
     }
   }
@@ -91,9 +97,16 @@ export const getQueryFn: <T>(options: {
 
       await throwIfResNotOk(res);
       return await res.json();
-    } catch (error) {
-      // Properly handle and rethrow errors to prevent unhandled rejections
-      console.error('Query function error:', error);
+    } catch (error: any) {
+      // Handle startup connection failures gracefully
+      if (error?.message?.includes('Backend connection failed')) {
+        // Silent fail for startup issues - don't spam console
+        throw new Error('STARTUP_CONNECTION_FAILED');
+      }
+      // Log other errors for debugging
+      if (!error?.message?.includes('401') && !error?.message?.includes('Unauthorized')) {
+        console.error('Query function error:', error);
+      }
       throw error;
     }
   };

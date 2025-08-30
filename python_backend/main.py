@@ -72,13 +72,14 @@ app.add_middleware(LogRequests)
 from src.middleware.security import setup_security_middleware
 setup_security_middleware(app)
 
-# Add CORS middleware
+# Add CORS middleware - must be configured properly for browser requests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Health check endpoint for keep_alive monitoring

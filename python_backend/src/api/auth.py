@@ -16,6 +16,22 @@ import os
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+# Add explicit OPTIONS handler for CORS preflight
+@router.options("/user")
+async def user_options():
+    """Handle CORS preflight for /auth/user endpoint"""
+    return {"message": "OK"}
+
+@router.options("/login") 
+async def login_options():
+    """Handle CORS preflight for /auth/login endpoint"""
+    return {"message": "OK"}
+
+@router.options("/logout")
+async def logout_options():
+    """Handle CORS preflight for /auth/logout endpoint"""
+    return {"message": "OK"}
+
 # Session configuration
 SESSION_TTL = 7 * 24 * 60 * 60  # 1 week in seconds
 SESSION_SECRET = os.getenv("SESSION_SECRET", "default-secret-key")
