@@ -11,27 +11,46 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
   console.log("✅ Frontend on port 5000, Python FastAPI backend on port 8000");
   console.log("🔧 Direct communication - no proxy layer");
   
-  // Start Python backend as a child process with proper startup delay
+  // Start Python backend as a child process with proper startup verification
   console.log("🐍 Starting Python FastAPI backend...");
-  setTimeout(() => {
-    const pythonBackend = spawn('python', ['main.py'], {
-      cwd: '/home/runner/workspace/python_backend',
-      stdio: 'pipe',
-      detached: false
-    });
+  
+  const pythonBackend = spawn('python', ['main.py'], {
+    cwd: '/home/runner/workspace/python_backend',
+    stdio: 'pipe',
+    detached: false
+  });
+  
+  let backendReady = false;
+  
+  pythonBackend.stdout?.on('data', (data) => {
+    const output = data.toString().trim();
+    console.log(`[Python Backend] ${output}`);
     
-    pythonBackend.stdout?.on('data', (data) => {
-      console.log(`[Python Backend] ${data.toString().trim()}`);
-    });
-    
-    pythonBackend.stderr?.on('data', (data) => {
-      console.error(`[Python Backend Error] ${data.toString().trim()}`);
-    });
-    
-    pythonBackend.on('close', (code) => {
-      console.log(`[Python Backend] Process exited with code ${code}`);
-    });
-  }, 1000); // 1 second delay to ensure proper startup
+    // Mark backend as ready when we see the startup completion message
+    if (output.includes('Application startup complete') || output.includes('Uvicorn running')) {
+      backendReady = true;
+      console.log("✅ Python backend is ready to accept connections");
+    }
+  });
+  
+  pythonBackend.stderr?.on('data', (data) => {
+    console.error(`[Python Backend Error] ${data.toString().trim()}`);
+  });
+  
+  pythonBackend.on('close', (code) => {
+    console.log(`[Python Backend] Process exited with code ${code}`);
+    backendReady = false;
+  });
+  
+  pythonBackend.on('error', (error) => {
+    console.error(`[Python Backend] Process error: ${error}`);
+    backendReady = false;
+  });
+  
+  // Add health check endpoint to verify backend status
+  app.get('/api/backend-status', (req, res) => {
+    res.json({ ready: backendReady, message: backendReady ? 'Backend ready' : 'Backend starting up' });
+  });
 
   // Setup security middleware
   setupSecurityMiddleware(app);

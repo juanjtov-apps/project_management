@@ -10,16 +10,22 @@ async function throwIfResNotOk(res: Response) {
 // API Base URL for direct communication with Python backend
 const API_BASE_URL = "http://localhost:8000";
 
-// Add retry logic for backend connection
+// Add retry logic for backend connection - only retry actual network failures
 async function retryFetch(url: string, options: RequestInit, retries = 3, delay = 1000): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     try {
       const response = await fetch(url, options);
+      // Don't retry HTTP status codes - only retry network failures
       return response;
     } catch (error) {
-      console.log(`Fetch attempt ${i + 1} failed for ${url}, retrying in ${delay}ms...`);
-      if (i === retries - 1) throw error;
-      await new Promise(resolve => setTimeout(resolve, delay));
+      // Only log and retry actual network connection failures
+      if (i < retries - 1) {
+        console.log(`Network connection failed for ${url}, retrying in ${delay}ms... (attempt ${i + 1}/${retries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.error(`Network connection failed after ${retries} attempts for ${url}`);
+        throw error;
+      }
     }
   }
   throw new Error('All retry attempts failed');
@@ -72,18 +78,24 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const url = Array.isArray(queryKey) ? String(queryKey[0]) : String(queryKey);
-    const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
-    const res = await retryFetch(fullUrl, {
-      credentials: "include",
-    });
+    try {
+      const url = Array.isArray(queryKey) ? String(queryKey[0]) : String(queryKey);
+      const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+      const res = await retryFetch(fullUrl, {
+        credentials: "include",
+      });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+        return null;
+      }
+
+      await throwIfResNotOk(res);
+      return await res.json();
+    } catch (error) {
+      // Properly handle and rethrow errors to prevent unhandled rejections
+      console.error('Query function error:', error);
+      throw error;
     }
-
-    await throwIfResNotOk(res);
-    return await res.json();
   };
 
 export const queryClient = new QueryClient({
@@ -94,9 +106,12 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       staleTime: 5000,
       retry: false,
+      // Add global error handling to prevent unhandled rejections
+      throwOnError: false,
     },
     mutations: {
       retry: false,
+      throwOnError: false,
     },
   },
 });
