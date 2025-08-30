@@ -44,6 +44,16 @@ export function TaskAssignmentDropdown({ task, onAssignmentChange }: TaskAssignm
   const currentAssignee = managers.find(manager => manager.id === task.assigneeId);
   const currentValue = task.assigneeId || "unassigned";
 
+  // Helper function to get display name
+  const getDisplayName = (user: User) => {
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user.firstName) return user.firstName;
+    if (user.lastName) return user.lastName;
+    return user.email || 'Unknown User';
+  };
+
   return (
     <Select
       value={currentValue}
@@ -55,7 +65,7 @@ export function TaskAssignmentDropdown({ task, onAssignmentChange }: TaskAssignm
           {managersLoading ? (
             "Loading..."
           ) : currentAssignee ? (
-            currentAssignee.name
+            getDisplayName(currentAssignee)
           ) : (
             "Unassigned"
           )}
@@ -65,7 +75,7 @@ export function TaskAssignmentDropdown({ task, onAssignmentChange }: TaskAssignm
         <SelectItem value="unassigned">Unassigned</SelectItem>
         {managers.map((manager) => (
           <SelectItem key={manager.id} value={manager.id}>
-            {manager.name}
+            {getDisplayName(manager)}
           </SelectItem>
         ))}
       </SelectContent>
