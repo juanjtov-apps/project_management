@@ -210,14 +210,11 @@ async def get_photo_file(photo_id: str):
             print(f"Redirecting to GCS URL: {photo.filename}")
             return RedirectResponse(url=photo.filename, status_code=302)
         
-        # For Replit object storage, construct the URL
-        # Check if this looks like a UUID (Replit object storage filename)
+        # For simple UUID filenames, redirect to Node.js object storage
         if photo.filename and len(photo.filename) == 36 and '-' in photo.filename:
-            # This is likely a Replit object storage file - construct the URL
-            # Use the frontend's approach to serve via the Node.js server
             from fastapi.responses import RedirectResponse
             object_url = f"http://127.0.0.1:5000/api/objects/image/{photo.filename}"
-            print(f"Redirecting to Node.js object storage: {object_url}")
+            print(f"🔄 Redirecting to Node.js object storage: {object_url}")
             return RedirectResponse(url=object_url, status_code=302)
         
         # For local files, serve from filesystem

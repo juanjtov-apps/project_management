@@ -64,10 +64,21 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
+  // Import Node.js routes BEFORE the catch-all proxy
+  console.log("🔧 Loading Node.js routes...");
+  const { registerRoutes } = await import('./routes');
+  await registerRoutes(app);
+  console.log("✅ Node.js routes loaded");
+
   // Add manual API forwarding to Python backend to solve browser CORS issues
   console.log("🔄 Setting up API forwarding to Python backend");
   
   app.all('/api/*', async (req, res) => {
+    // Exclude /api/objects/ requests - let Node.js handle object storage
+    if (req.originalUrl.startsWith('/api/objects/')) {
+      return res.status(404).json({ message: 'Route should be handled by Node.js, not forwarded' });
+    }
+    
     try {
       const backendUrl = `http://127.0.0.1:8000${req.originalUrl}`;
       console.log(`📡 Forwarding ${req.method} ${req.originalUrl} → ${backendUrl}`);
