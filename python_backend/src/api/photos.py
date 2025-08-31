@@ -173,8 +173,27 @@ async def get_photo_file(photo_id: str):
                 detail="Photo not found"
             )
         
+        # Check if filename is a Google Cloud Storage URL
+        if photo.filename and ('googleapis.com' in photo.filename or photo.filename.startswith('http')):
+            # For Google Cloud Storage URLs, redirect to the URL
+            from fastapi.responses import RedirectResponse
+            print(f"Redirecting to GCS URL: {photo.filename}")
+            return RedirectResponse(url=photo.filename, status_code=302)
+        
+        # For Replit object storage, construct the URL
+        # Check if this looks like a UUID (Replit object storage filename)
+        if photo.filename and len(photo.filename) == 36 and '-' in photo.filename:
+            # This is likely a Replit object storage file - construct the URL
+            # Use the frontend's approach to serve via the Node.js server
+            from fastapi.responses import RedirectResponse
+            object_url = f"http://127.0.0.1:5000/api/objects/image/{photo.filename}"
+            print(f"Redirecting to Node.js object storage: {object_url}")
+            return RedirectResponse(url=object_url, status_code=302)
+        
+        # For local files, serve from filesystem
         file_path = os.path.join(settings.upload_dir, photo.filename)
         if not os.path.exists(file_path):
+            print(f"Local file not found: {file_path}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Photo file not found"

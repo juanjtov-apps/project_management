@@ -104,6 +104,13 @@ except Exception as e:
     print(f"❌ Error importing activities router: {e}")
     activities_router = None
 
+try:
+    from .objects import router as objects_router
+    print("✅ Objects router imported")
+except Exception as e:
+    print(f"❌ Error importing objects router: {e}")
+    objects_router = None
+
 # Import other routers as they are created
 # from .logs import router as logs_router
 
@@ -203,6 +210,12 @@ def create_api_router() -> APIRouter:
         print("✅ Activities router included")
     else:
         print("⚠️  Activities router skipped (import failed)")
+        
+    if objects_router:
+        api_router.include_router(objects_router, tags=["objects"])
+        print("✅ Objects router included")
+    else:
+        print("⚠️  Objects router skipped (import failed)")
     
     # Include additional routers as they are implemented
     # api_router.include_router(logs_router)
