@@ -43,12 +43,33 @@ class ForumMessage(BaseEntity):
     content: str
 
 
+class MaterialCategory(str, Enum):
+    """Categories for organizing materials by space/type."""
+    bathrooms = "bathrooms"
+    kitchen = "kitchen"
+    bedrooms = "bedrooms"
+    living_rooms = "living_rooms"
+    exterior = "exterior"
+    flooring = "flooring"
+    electrical = "electrical"
+    plumbing = "plumbing"
+    hvac = "hvac"
+    general = "general"
+
+
 class MaterialItem(BaseEntity):
     """Item within the collaborative material list."""
     project_id: str = Field(alias="projectId")
     name: str
+    category: MaterialCategory = Field(default=MaterialCategory.general)
     link: Optional[str] = None
     specification: Optional[str] = None
+    notes: Optional[str] = None
+    quantity: Optional[str] = None
+    unit_cost: Optional[float] = Field(default=None, alias="unitCost")
+    total_cost: Optional[float] = Field(default=None, alias="totalCost")
+    supplier: Optional[str] = None
+    status: Optional[str] = Field(default="pending")
     added_by: str = Field(alias="addedBy")
 
 
@@ -83,6 +104,7 @@ __all__ = [
     "IssueCreate",
     "Issue",
     "ForumMessage",
+    "MaterialCategory",
     "MaterialItem",
     "Installment",
     "FrequencyUnit",

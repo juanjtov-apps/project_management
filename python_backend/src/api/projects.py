@@ -15,17 +15,20 @@ project_repo = ProjectRepository()
 async def get_projects(current_user: Dict[str, Any] = Depends(get_current_user_dependency)):
     """Get all projects with company filtering."""
     try:
-        projects = await project_repo.get_all()
-        
         # Apply company filtering unless root admin
-        if not is_root_admin(current_user):
+        if is_root_admin(current_user):
+            projects = await project_repo.get_all()
+            print(f"Root admin retrieved {len(projects)} projects")
+        else:
             user_company_id = current_user.get('companyId')
             if user_company_id:
-                # For now, return all projects as we need to enhance project repository for company filtering
-                # TODO: Add company_id field to projects table and filter by it
-                pass
+                projects = await project_repo.get_by_company(str(user_company_id))
+                print(f"User {current_user.get('email')} (company {user_company_id}) retrieved {len(projects)} projects")
+            else:
+                # User has no company assigned, return empty list
+                projects = []
+                print(f"User {current_user.get('email')} has no company assigned, returning empty project list")
         
-        print(f"Retrieved {len(projects)} projects for user {current_user.get('email')}")
         return projects
     except Exception as e:
         print(f"Error fetching projects: {e}")
@@ -61,10 +64,23 @@ async def create_project(
     project: ProjectCreate,
     current_user: Dict[str, Any] = Depends(get_current_user_dependency)
 ):
-    """Create a new project with authentication."""
+    """Create a new project with authentication and company assignment."""
     try:
-        print(f"Creating project for user {current_user.get('email')}: {project}")
-        return await project_repo.create(project)
+        user_company_id = current_user.get('companyId')
+        if not user_company_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User must be assigned to a company to create projects"
+            )
+        
+        # Assign project to user's company
+        project_data = project.dict()
+        project_data['company_id'] = str(user_company_id)
+        
+        print(f"Creating project for user {current_user.get('email')} (company {user_company_id}): {project}")
+        return await project_repo.create(ProjectCreate(**project_data))
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error creating project: {e}")
         raise HTTPException(
