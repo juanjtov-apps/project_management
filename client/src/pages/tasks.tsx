@@ -316,7 +316,7 @@ function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleC
         {task.assigneeId && (
           <div className="flex items-center gap-1">
             <UserIcon size={14} />
-            <span>Assigned</span>
+            <span>{getUserDisplayName(task.assigneeId)}</span>
           </div>
         )}
       </div>
@@ -570,7 +570,7 @@ function TaskListItem({
                     {getAssigneeInitials(task.assigneeId)}
                   </span>
                 </div>
-                <span>Assigned</span>
+                <span>{getUserDisplayName(task.assigneeId)}</span>
               </div>
             )}
           </div>
@@ -671,6 +671,7 @@ export default function Tasks() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"canvas" | "list">("list");
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
@@ -818,13 +819,35 @@ export default function Tasks() {
     }));
   };
 
+  // Fetch users for assignee filtering and display
+  const { data: managers = [], isLoading: managersLoading } = useQuery<User[]>({
+    queryKey: ["/api/users/managers"],
+  });
+
+  // Helper function to get user display name
+  const getUserDisplayName = (userId: string | null) => {
+    if (!userId) return null;
+    const user = managers.find(m => m.id === userId);
+    if (!user) return "Unknown User";
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user.firstName) return user.firstName;
+    if (user.lastName) return user.lastName;
+    return user.email || 'Unknown User';
+  };
+
   // Filter and organize tasks
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || task.status === statusFilter;
     const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
-    return matchesSearch && matchesStatus && matchesPriority;
+    const matchesAssignee = assigneeFilter === "all" || 
+                           (assigneeFilter === "unassigned" && !task.assigneeId) ||
+                           (assigneeFilter === "me" && task.assigneeId === user?.id) ||
+                           task.assigneeId === assigneeFilter;
+    return matchesSearch && matchesStatus && matchesPriority && matchesAssignee;
   });
 
   // Calculate task statistics for global summary
@@ -1299,14 +1322,31 @@ export default function Tasks() {
               </SelectContent>
             </Select>
             
+            <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+              <SelectTrigger className="min-w-[120px] h-9 rounded-lg">
+                <SelectValue placeholder="Assignee" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All People</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                <SelectItem value="me">Assigned to Me</SelectItem>
+                {managers.map((manager) => (
+                  <SelectItem key={manager.id} value={manager.id}>
+                    {getUserDisplayName(manager.id)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
             {/* Clear filters chip */}
-            {(statusFilter !== "all" || priorityFilter !== "all") && (
+            {(statusFilter !== "all" || priorityFilter !== "all" || assigneeFilter !== "all") && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
                   setStatusFilter("all");
                   setPriorityFilter("all");
+                  setAssigneeFilter("all");
                 }}
                 className="h-9 px-3 rounded-lg whitespace-nowrap"
               >
@@ -1365,7 +1405,7 @@ export default function Tasks() {
               
               <div>
                 <label className="text-xs font-medium text-slate-600 mb-1 block">Assignee</label>
-                <Select value="all" onValueChange={() => {}}>
+                <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
                   <SelectTrigger className="h-8">
                     <SelectValue placeholder="Anyone" />
                   </SelectTrigger>
@@ -1373,6 +1413,11 @@ export default function Tasks() {
                     <SelectItem value="all">Anyone</SelectItem>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
                     <SelectItem value="me">Assigned to Me</SelectItem>
+                    {managers.map((manager) => (
+                      <SelectItem key={manager.id} value={manager.id}>
+                        {getUserDisplayName(manager.id)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1381,7 +1426,12 @@ export default function Tasks() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowAdvancedFilters(false)}
+                  onClick={() => {
+                    setStatusFilter("all");
+                    setPriorityFilter("all");
+                    setAssigneeFilter("all");
+                    setShowAdvancedFilters(false);
+                  }}
                   className="h-8 text-xs"
                 >
                   <RotateCcw size={12} className="mr-1" />
@@ -1694,32 +1744,21 @@ export default function Tasks() {
                 <List size={48} className="mx-auto text-gray-400 mb-4" />
                 <h3 className="text-lg font-medium text-gray-600 mb-2">No tasks found</h3>
                 <p className="text-gray-500 mb-4">
-                  {searchTerm && statusFilter !== "all" && priorityFilter !== "all"
-                    ? `No tasks match "${searchTerm}" with status "${statusFilter}" and priority "${priorityFilter}". Try clearing some filters.`
-                    : searchTerm && statusFilter !== "all"
-                    ? `No tasks match "${searchTerm}" with status "${statusFilter}". Try clearing the status filter or adjusting your search.`
-                    : searchTerm && priorityFilter !== "all"
-                    ? `No tasks match "${searchTerm}" with priority "${priorityFilter}". Try clearing the priority filter or adjusting your search.`
-                    : searchTerm
-                    ? `No tasks match "${searchTerm}". Try a different search term or clear the search.`
-                    : statusFilter !== "all" && priorityFilter !== "all"
-                    ? `No tasks have status "${statusFilter}" and priority "${priorityFilter}". Try clearing some filters.`
-                    : statusFilter !== "all"
-                    ? `No tasks have status "${statusFilter}". Try clearing the status filter.`
-                    : priorityFilter !== "all"
-                    ? `No tasks have priority "${priorityFilter}". Try clearing the priority filter.`
+                  {(searchTerm || statusFilter !== "all" || priorityFilter !== "all" || assigneeFilter !== "all")
+                    ? "No tasks match your current filters. Try clearing some filters or adjusting your search."
                     : "Create your first task to get started with project management"
                   }
                 </p>
                 
                 <div className="flex justify-center space-x-3">
-                  {(searchTerm || statusFilter !== "all" || priorityFilter !== "all") && (
+                  {(searchTerm || statusFilter !== "all" || priorityFilter !== "all" || assigneeFilter !== "all") && (
                     <Button 
                       variant="outline"
                       onClick={() => {
                         setSearchTerm("");
                         setStatusFilter("all");
                         setPriorityFilter("all");
+                        setAssigneeFilter("all");
                         setShowAdvancedFilters(false);
                       }}
                       className="text-sm"
