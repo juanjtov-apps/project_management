@@ -128,24 +128,42 @@ class ClientModuleRepository:
 
     async def add_material(self, item: MaterialItem) -> MaterialItem:
         query = """
-            INSERT INTO client_materials (project_id, name, link, specification, added_by)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id, project_id, name, link, specification, added_by, created_at
+            INSERT INTO client_materials (
+                project_id, name, category, link, specification, notes, 
+                quantity, unit_cost, total_cost, supplier, status, added_by
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            RETURNING id, project_id, name, category, link, specification, notes,
+                     quantity, unit_cost, total_cost, supplier, status, added_by, created_at
         """
         row = await self.db.execute_one(
             query, 
             item.project_id, 
             item.name, 
+            item.category,
             item.link, 
-            item.specification, 
+            item.specification,
+            item.notes,
+            item.quantity,
+            item.unit_cost,
+            item.total_cost,
+            item.supplier,
+            item.status,
             item.added_by
         )
         return MaterialItem(
             id=row["id"],
             project_id=row["project_id"],
             name=row["name"],
+            category=row["category"],
             link=row["link"],
             specification=row["specification"],
+            notes=row["notes"],
+            quantity=row["quantity"],
+            unit_cost=row["unit_cost"],
+            total_cost=row["total_cost"],
+            supplier=row["supplier"],
+            status=row["status"],
             added_by=row["added_by"],
             created_at=row["created_at"],
         )
@@ -156,10 +174,11 @@ class ClientModuleRepository:
 
     async def list_materials(self, project_id: str) -> List[MaterialItem]:
         query = """
-            SELECT id, project_id, name, link, specification, added_by, created_at
+            SELECT id, project_id, name, category, link, specification, notes,
+                   quantity, unit_cost, total_cost, supplier, status, added_by, created_at
             FROM client_materials 
             WHERE project_id = $1 
-            ORDER BY created_at DESC
+            ORDER BY category, name
         """
         rows = await self.db.execute_query(query, project_id)
         return [
@@ -167,8 +186,15 @@ class ClientModuleRepository:
                 id=row["id"],
                 project_id=row["project_id"],
                 name=row["name"],
+                category=row["category"] or "general",
                 link=row["link"],
                 specification=row["specification"],
+                notes=row["notes"],
+                quantity=row["quantity"],
+                unit_cost=row["unit_cost"],
+                total_cost=row["total_cost"],
+                supplier=row["supplier"],
+                status=row["status"] or "pending",
                 added_by=row["added_by"],
                 created_at=row["created_at"],
             )

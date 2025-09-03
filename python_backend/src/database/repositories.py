@@ -57,6 +57,12 @@ class ProjectRepository(BaseRepository):
         rows = await db_manager.execute_query(query)
         return [self._convert_to_camel_case(dict(row)) for row in rows]
     
+    async def get_by_company(self, company_id: str) -> List[Dict[str, Any]]:
+        """Get projects filtered by company ID."""
+        query = f"SELECT * FROM {self.table_name} WHERE company_id = $1 ORDER BY created_at DESC"
+        rows = await db_manager.execute_query(query, company_id)
+        return [self._convert_to_camel_case(dict(row)) for row in rows]
+    
     async def get_by_id(self, project_id: str) -> Optional[Dict[str, Any]]:
         """Get project by ID."""
         query = f"SELECT * FROM {self.table_name} WHERE id = $1"
@@ -86,15 +92,15 @@ class ProjectRepository(BaseRepository):
         
         query = f"""
             INSERT INTO {self.table_name} 
-            (id, name, description, location, status, progress, due_date, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (id, name, description, location, status, progress, due_date, company_id, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING *
         """
         
         row = await db_manager.execute_one(
             query, project_id, data.get('name'), data.get('description'), 
             data.get('location'), data.get('status'), data.get('progress'),
-            due_date, now
+            due_date, data.get('company_id'), now
         )
         return Project(**self._convert_to_camel_case(dict(row)))
     
