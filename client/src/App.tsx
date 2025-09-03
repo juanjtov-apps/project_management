@@ -24,9 +24,7 @@ import Header from "@/components/layout/header";
 import NotificationModal from "@/components/notifications/notification-modal";
 import { useState } from "react";
 
-function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
-
+function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLoading: boolean }) {
   // If still loading auth state, show loading with proper delay to prevent 404 flash
   if (isLoading) {
     return (
@@ -75,7 +73,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthenticatedLayout
+        <AppWithAuth
           isMobileMenuOpen={isMobileMenuOpen}
           setIsMobileMenuOpen={setIsMobileMenuOpen}
           isNotificationModalOpen={isNotificationModalOpen}
@@ -87,7 +85,7 @@ function App() {
   );
 }
 
-function AuthenticatedLayout({ 
+function AppWithAuth({ 
   isMobileMenuOpen, 
   setIsMobileMenuOpen, 
   isNotificationModalOpen, 
@@ -100,10 +98,38 @@ function AuthenticatedLayout({
 }) {
   const { isAuthenticated, isLoading } = useAuth();
 
+  // Always render the basic router if loading or not authenticated
   if (isLoading || !isAuthenticated) {
-    return <Router />;
+    return <Router isAuthenticated={isAuthenticated} isLoading={isLoading} />;
   }
 
+  return (
+    <AuthenticatedLayout
+      isAuthenticated={isAuthenticated}
+      isLoading={isLoading}
+      isMobileMenuOpen={isMobileMenuOpen}
+      setIsMobileMenuOpen={setIsMobileMenuOpen}
+      isNotificationModalOpen={isNotificationModalOpen}
+      setIsNotificationModalOpen={setIsNotificationModalOpen}
+    />
+  );
+}
+
+function AuthenticatedLayout({ 
+  isAuthenticated,
+  isLoading,
+  isMobileMenuOpen, 
+  setIsMobileMenuOpen, 
+  isNotificationModalOpen, 
+  setIsNotificationModalOpen 
+}: {
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  isMobileMenuOpen: boolean;
+  setIsMobileMenuOpen: (open: boolean) => void;
+  isNotificationModalOpen: boolean;
+  setIsNotificationModalOpen: (open: boolean) => void;
+}) {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar 
@@ -116,7 +142,7 @@ function AuthenticatedLayout({
           onToggleNotifications={() => setIsNotificationModalOpen(true)}
         />
         <div className="flex-1 p-6 overflow-y-auto section-padding" style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
-          <Router />
+          <Router isAuthenticated={isAuthenticated} isLoading={isLoading} />
         </div>
       </main>
       
