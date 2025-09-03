@@ -13,6 +13,7 @@ import Tasks from "@/pages/tasks";
 import Schedule from "@/pages/schedule";
 import Photos from "@/pages/photos";
 import Logs from "@/pages/logs";
+import ClientPortal from "@/pages/client-portal";
 import Crew from "@/pages/crew";
 import Subs from "@/pages/subs";
 import RBACAdmin from "@/pages/RBACAdmin";
@@ -55,6 +56,7 @@ function Router() {
           <Route path="/schedule" component={Schedule} />
           <Route path="/photos" component={Photos} />
           <Route path="/logs" component={Logs} />
+          <Route path="/client-portal" component={ClientPortal} />
           <Route path="/crew" component={Crew} />
           <Route path="/subs" component={Subs} />
           <Route path="/rbac" component={RBACAdmin} />

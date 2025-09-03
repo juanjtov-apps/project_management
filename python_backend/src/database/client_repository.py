@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Dict, List
+from typing import List, Optional
 
 from src.models import (
     ForumMessage,
@@ -12,93 +12,284 @@ from src.models import (
     MaterialItem,
     NotificationSetting,
 )
+from .connection import DatabaseManager
 
 
 class ClientModuleRepository:
-    """In-memory repository for client related operations.
-
-    The existing application relies on a database, however for this module we
-    provide an in-memory implementation so the rest of the system can interact
-    with well defined async methods without requiring additional infrastructure.
-    """
+    """Database repository for client module operations."""
 
     def __init__(self) -> None:
-        self.issues: Dict[str, Issue] = {}
-        self.forum_messages: List[ForumMessage] = []
-        self.materials: Dict[str, MaterialItem] = {}
-        self.installments: Dict[str, Installment] = {}
-        self.notification_settings: Dict[str, NotificationSetting] = {}
+        self.db = DatabaseManager()
 
     async def create_issue(self, issue: IssueCreate) -> Issue:
-        issue_id = str(uuid.uuid4())
-        new_issue = Issue(
-            id=issue_id,
-            project_id=issue.project_id,
-            title=issue.title,
-            description=issue.description,
-            photos=issue.photos,
-            created_by=issue.created_by,
-            status="open",
-            created_at=datetime.utcnow(),
+        query = """
+            INSERT INTO client_issues (project_id, title, description, photos, created_by, status)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, project_id, title, description, photos, created_by, status, created_at
+        """
+        row = await self.db.execute_one(
+            query, 
+            issue.project_id, 
+            issue.title, 
+            issue.description, 
+            issue.photos, 
+            issue.created_by, 
+            "open"
         )
-        self.issues[issue_id] = new_issue
-        return new_issue
+        return Issue(
+            id=row["id"],
+            project_id=row["project_id"],
+            title=row["title"],
+            description=row["description"],
+            photos=row["photos"] or [],
+            created_by=row["created_by"],
+            status=row["status"],
+            created_at=row["created_at"],
+        )
 
     async def list_issues(self, project_id: str) -> List[Issue]:
-        return [i for i in self.issues.values() if i.project_id == project_id]
+        query = """
+            SELECT id, project_id, title, description, photos, created_by, status, created_at
+            FROM client_issues 
+            WHERE project_id = $1 
+            ORDER BY created_at DESC
+        """
+        rows = await self.db.execute_query(query, project_id)
+        return [
+            Issue(
+                id=row["id"],
+                project_id=row["project_id"],
+                title=row["title"],
+                description=row["description"],
+                photos=row["photos"] or [],
+                created_by=row["created_by"],
+                status=row["status"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
 
     async def close_issue(self, issue_id: str) -> Issue | None:
-        issue = self.issues.get(issue_id)
-        if issue:
-            issue.status = "closed"  # type: ignore[assignment]
-        return issue
+        query = """
+            UPDATE client_issues 
+            SET status = 'closed'
+            WHERE id = $1
+            RETURNING id, project_id, title, description, photos, created_by, status, created_at
+        """
+        row = await self.db.execute_one(query, issue_id)
+        if not row:
+            return None
+        return Issue(
+            id=row["id"],
+            project_id=row["project_id"],
+            title=row["title"],
+            description=row["description"],
+            photos=row["photos"] or [],
+            created_by=row["created_by"],
+            status=row["status"],
+            created_at=row["created_at"],
+        )
 
     async def add_forum_message(
         self, project_id: str, author_id: str, content: str
     ) -> ForumMessage:
-        message = ForumMessage(
-            id=str(uuid.uuid4()),
-            project_id=project_id,
-            author_id=author_id,
-            content=content,
-            created_at=datetime.utcnow(),
+        query = """
+            INSERT INTO client_forum_messages (project_id, author_id, content)
+            VALUES ($1, $2, $3)
+            RETURNING id, project_id, author_id, content, created_at
+        """
+        row = await self.db.execute_one(query, project_id, author_id, content)
+        return ForumMessage(
+            id=row["id"],
+            project_id=row["project_id"],
+            author_id=row["author_id"],
+            content=row["content"],
+            created_at=row["created_at"],
         )
-        self.forum_messages.append(message)
-        return message
 
     async def list_forum_messages(self, project_id: str) -> List[ForumMessage]:
-        return [m for m in self.forum_messages if m.project_id == project_id]
+        query = """
+            SELECT id, project_id, author_id, content, created_at
+            FROM client_forum_messages 
+            WHERE project_id = $1 
+            ORDER BY created_at ASC
+        """
+        rows = await self.db.execute_query(query, project_id)
+        return [
+            ForumMessage(
+                id=row["id"],
+                project_id=row["project_id"],
+                author_id=row["author_id"],
+                content=row["content"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
 
     async def add_material(self, item: MaterialItem) -> MaterialItem:
-        self.materials[item.id] = item
-        return item
+        query = """
+            INSERT INTO client_materials (project_id, name, link, specification, added_by)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id, project_id, name, link, specification, added_by, created_at
+        """
+        row = await self.db.execute_one(
+            query, 
+            item.project_id, 
+            item.name, 
+            item.link, 
+            item.specification, 
+            item.added_by
+        )
+        return MaterialItem(
+            id=row["id"],
+            project_id=row["project_id"],
+            name=row["name"],
+            link=row["link"],
+            specification=row["specification"],
+            added_by=row["added_by"],
+            created_at=row["created_at"],
+        )
 
     async def remove_material(self, material_id: str) -> None:
-        self.materials.pop(material_id, None)
+        query = "DELETE FROM client_materials WHERE id = $1"
+        await self.db.execute(query, material_id)
 
     async def list_materials(self, project_id: str) -> List[MaterialItem]:
-        return [m for m in self.materials.values() if m.project_id == project_id]
+        query = """
+            SELECT id, project_id, name, link, specification, added_by, created_at
+            FROM client_materials 
+            WHERE project_id = $1 
+            ORDER BY created_at DESC
+        """
+        rows = await self.db.execute_query(query, project_id)
+        return [
+            MaterialItem(
+                id=row["id"],
+                project_id=row["project_id"],
+                name=row["name"],
+                link=row["link"],
+                specification=row["specification"],
+                added_by=row["added_by"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
 
     async def add_installment(self, installment: Installment) -> Installment:
-        self.installments[installment.id] = installment
-        return installment
+        query = """
+            INSERT INTO client_installments (project_id, amount, due_date, is_paid, payment_method)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id, project_id, amount, due_date, is_paid, payment_method, created_at
+        """
+        # Convert amount to cents for storage
+        amount_cents = int(installment.amount * 100)
+        row = await self.db.execute_one(
+            query, 
+            installment.project_id, 
+            amount_cents, 
+            installment.due_date, 
+            installment.is_paid, 
+            installment.payment_method
+        )
+        return Installment(
+            id=row["id"],
+            project_id=row["project_id"],
+            amount=row["amount"] / 100.0,  # Convert back from cents
+            due_date=row["due_date"],
+            is_paid=row["is_paid"],
+            payment_method=row["payment_method"],
+            created_at=row["created_at"],
+        )
 
     async def mark_installment_paid(
         self, installment_id: str, payment_method: str
     ) -> Installment | None:
-        inst = self.installments.get(installment_id)
-        if inst:
-            inst.is_paid = True  # type: ignore[assignment]
-            inst.payment_method = payment_method
-        return inst
+        query = """
+            UPDATE client_installments 
+            SET is_paid = true, payment_method = $2
+            WHERE id = $1
+            RETURNING id, project_id, amount, due_date, is_paid, payment_method, created_at
+        """
+        row = await self.db.execute_one(query, installment_id, payment_method)
+        if not row:
+            return None
+        return Installment(
+            id=row["id"],
+            project_id=row["project_id"],
+            amount=row["amount"] / 100.0,  # Convert back from cents
+            due_date=row["due_date"],
+            is_paid=row["is_paid"],
+            payment_method=row["payment_method"],
+            created_at=row["created_at"],
+        )
 
     async def list_installments(self, project_id: str) -> List[Installment]:
-        return [i for i in self.installments.values() if i.project_id == project_id]
+        query = """
+            SELECT id, project_id, amount, due_date, is_paid, payment_method, created_at
+            FROM client_installments 
+            WHERE project_id = $1 
+            ORDER BY due_date ASC
+        """
+        rows = await self.db.execute_query(query, project_id)
+        return [
+            Installment(
+                id=row["id"],
+                project_id=row["project_id"],
+                amount=row["amount"] / 100.0,  # Convert back from cents
+                due_date=row["due_date"],
+                is_paid=row["is_paid"],
+                payment_method=row["payment_method"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
 
     async def set_notification(self, setting: NotificationSetting) -> NotificationSetting:
-        self.notification_settings[setting.id] = setting
-        return setting
+        query = """
+            INSERT INTO client_notification_settings 
+            (project_id, material_id, group_name, frequency_value, frequency_unit, notify_via_email)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, project_id, material_id, group_name, frequency_value, frequency_unit, notify_via_email, created_at
+        """
+        row = await self.db.execute_one(
+            query, 
+            setting.project_id, 
+            setting.material_id, 
+            setting.group_name, 
+            setting.frequency_value, 
+            setting.frequency_unit, 
+            setting.notify_via_email
+        )
+        return NotificationSetting(
+            id=row["id"],
+            project_id=row["project_id"],
+            material_id=row["material_id"],
+            group_name=row["group_name"],
+            frequency_value=row["frequency_value"],
+            frequency_unit=row["frequency_unit"],
+            notify_via_email=row["notify_via_email"],
+            created_at=row["created_at"],
+        )
 
     async def list_notifications(self, project_id: str) -> List[NotificationSetting]:
-        return [n for n in self.notification_settings.values() if n.project_id == project_id]
+        query = """
+            SELECT id, project_id, material_id, group_name, frequency_value, frequency_unit, notify_via_email, created_at
+            FROM client_notification_settings 
+            WHERE project_id = $1 
+            ORDER BY created_at DESC
+        """
+        rows = await self.db.execute_query(query, project_id)
+        return [
+            NotificationSetting(
+                id=row["id"],
+                project_id=row["project_id"],
+                material_id=row["material_id"],
+                group_name=row["group_name"],
+                frequency_value=row["frequency_value"],
+                frequency_unit=row["frequency_unit"],
+                notify_via_email=row["notify_via_email"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
 
