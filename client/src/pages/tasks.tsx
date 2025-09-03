@@ -21,6 +21,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { Task, InsertTask, Project, User } from "@shared/schema";
+import { useAuth } from "@/hooks/useAuth";
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
@@ -141,9 +142,10 @@ interface TaskCardProps {
   onDelete: (task: Task) => void;
   onStatusChange: (task: Task, newStatus: string) => void;
   onScheduleChange?: (task: Task) => void;
+  getUserDisplayName: (userId: string | null) => string | null;
 }
 
-function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleChange }: TaskCardProps) {
+function TaskCard({ task, project, onEdit, onDelete, onStatusChange, onScheduleChange, getUserDisplayName }: TaskCardProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const isOverdue = isTaskOverdue(task);
   
@@ -353,6 +355,7 @@ interface TaskListItemProps {
   isSelected?: boolean;
   onToggleSelect?: (taskId: string) => void;
   showBulkSelect?: boolean;
+  getUserDisplayName: (userId: string | null) => string | null;
 }
 
 function TaskListItem({ 
@@ -364,7 +367,8 @@ function TaskListItem({
   onScheduleChange,
   isSelected = false,
   onToggleSelect,
-  showBulkSelect = false
+  showBulkSelect = false,
+  getUserDisplayName
 }: TaskListItemProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const CategoryIcon = getCategoryIcon(task.category || "general");
@@ -680,6 +684,7 @@ export default function Tasks() {
   const [bulkActionMode, setBulkActionMode] = useState(false);
 
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
@@ -845,7 +850,7 @@ export default function Tasks() {
     const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
     const matchesAssignee = assigneeFilter === "all" || 
                            (assigneeFilter === "unassigned" && !task.assigneeId) ||
-                           (assigneeFilter === "me" && task.assigneeId === user?.id) ||
+                           (assigneeFilter === "me" && task.assigneeId === (user as any)?.id) ||
                            task.assigneeId === assigneeFilter;
     return matchesSearch && matchesStatus && matchesPriority && matchesAssignee;
   });
@@ -1623,6 +1628,7 @@ export default function Tasks() {
                               setSelectedTasks(newSelected);
                             }}
                             showBulkSelect={bulkActionMode}
+                            getUserDisplayName={getUserDisplayName}
                           />
                         ))}
                       </div>
@@ -1678,6 +1684,7 @@ export default function Tasks() {
                         setSelectedTasks(newSelected);
                       }}
                       showBulkSelect={bulkActionMode}
+                      getUserDisplayName={getUserDisplayName}
                     />
                   ))
                 )}
@@ -1730,6 +1737,7 @@ export default function Tasks() {
                         setSelectedTasks(newSelected);
                       }}
                       showBulkSelect={bulkActionMode}
+                      getUserDisplayName={getUserDisplayName}
                     />
                   ))
                 )}
@@ -1857,6 +1865,7 @@ export default function Tasks() {
                     onDelete={handleDeleteTask}
                     onStatusChange={handleStatusChange}
                     onScheduleChange={handleScheduleChange}
+                    getUserDisplayName={getUserDisplayName}
                   />
                 );
               })}
@@ -1891,6 +1900,7 @@ export default function Tasks() {
                       onDelete={handleDeleteTask}
                       onStatusChange={handleStatusChange}
                       onScheduleChange={handleScheduleChange}
+                      getUserDisplayName={getUserDisplayName}
                     />
                   ))}
                 </div>
@@ -1920,6 +1930,7 @@ export default function Tasks() {
                   onDelete={handleDeleteTask}
                   onStatusChange={handleStatusChange}
                   onScheduleChange={handleScheduleChange}
+                  getUserDisplayName={getUserDisplayName}
                 />
               ))}
             </div>
@@ -1947,6 +1958,7 @@ export default function Tasks() {
                   onDelete={handleDeleteTask}
                   onStatusChange={handleStatusChange}
                   onScheduleChange={handleScheduleChange}
+                  getUserDisplayName={getUserDisplayName}
                 />
               ))}
             </div>
