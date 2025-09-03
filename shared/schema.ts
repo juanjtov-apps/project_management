@@ -208,6 +208,57 @@ export const healthCheckTemplates = pgTable("health_check_templates", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+// Client Module Tables
+export const clientIssues = pgTable("client_issues", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  photos: text("photos").array().default([]), // Array of photo URLs, max 3
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  status: text("status").notNull().default("open"), // open, closed
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const clientForumMessages = pgTable("client_forum_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  authorId: varchar("author_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const clientMaterials = pgTable("client_materials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  name: text("name").notNull(),
+  link: text("link"),
+  specification: text("specification"),
+  addedBy: varchar("added_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const clientInstallments = pgTable("client_installments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  amount: integer("amount").notNull(), // amount in cents
+  dueDate: timestamp("due_date").notNull(),
+  isPaid: boolean("is_paid").notNull().default(false),
+  paymentMethod: text("payment_method"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const clientNotificationSettings = pgTable("client_notification_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  materialId: varchar("material_id").references(() => clientMaterials.id),
+  groupName: text("group_name"),
+  frequencyValue: integer("frequency_value").notNull(),
+  frequencyUnit: text("frequency_unit").notNull(), // day, week, month
+  notifyViaEmail: boolean("notify_via_email").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 // New tables for enhanced functionality
 export const communications = pgTable("communications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -309,6 +360,13 @@ export const insertRiskAssessmentSchema = createInsertSchema(riskAssessments).om
 export const insertHealthCheckTemplateSchema = createInsertSchema(healthCheckTemplates).omit({ id: true, createdAt: true });
 export const insertActivitySchema = createInsertSchema(userActivities).omit({ id: true, createdAt: true });
 
+// Client Module Schemas
+export const insertClientIssueSchema = createInsertSchema(clientIssues).omit({ id: true, createdAt: true });
+export const insertClientForumMessageSchema = createInsertSchema(clientForumMessages).omit({ id: true, createdAt: true });
+export const insertClientMaterialSchema = createInsertSchema(clientMaterials).omit({ id: true, createdAt: true });
+export const insertClientInstallmentSchema = createInsertSchema(clientInstallments).omit({ id: true, createdAt: true });
+export const insertClientNotificationSettingSchema = createInsertSchema(clientNotificationSettings).omit({ id: true, createdAt: true });
+
 // Types
 export type InsertCompany = z.infer<typeof insertCompanySchema>;
 export type Company = typeof companies.$inferSelect;
@@ -345,3 +403,15 @@ export type InsertHealthCheckTemplate = z.infer<typeof insertHealthCheckTemplate
 export type HealthCheckTemplate = typeof healthCheckTemplates.$inferSelect;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type Activity = typeof userActivities.$inferSelect;
+
+// Client Module Types
+export type InsertClientIssue = z.infer<typeof insertClientIssueSchema>;
+export type ClientIssue = typeof clientIssues.$inferSelect;
+export type InsertClientForumMessage = z.infer<typeof insertClientForumMessageSchema>;
+export type ClientForumMessage = typeof clientForumMessages.$inferSelect;
+export type InsertClientMaterial = z.infer<typeof insertClientMaterialSchema>;
+export type ClientMaterial = typeof clientMaterials.$inferSelect;
+export type InsertClientInstallment = z.infer<typeof insertClientInstallmentSchema>;
+export type ClientInstallment = typeof clientInstallments.$inferSelect;
+export type InsertClientNotificationSetting = z.infer<typeof insertClientNotificationSettingSchema>;
+export type ClientNotificationSetting = typeof clientNotificationSettings.$inferSelect;
