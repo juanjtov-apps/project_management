@@ -323,6 +323,7 @@ export const PERMISSIONS = {
   COMMENT_ON_UPDATES: 42,
   REQUEST_CHANGES: 43,
   DOWNLOAD_REPORTS: 44,
+  CLIENT_PORTAL: 45,
 } as const;
 
 export type PermissionId = typeof PERMISSIONS[keyof typeof PERMISSIONS];

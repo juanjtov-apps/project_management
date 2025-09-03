@@ -113,6 +113,7 @@ export const getNavigationPermissions = (userRole: string, isRootAdmin: boolean)
     schedule: false,
     photos: false,
     logs: false,
+    clientPortal: false,
     crew: false,
     subs: false,
     rbacAdmin: false,
@@ -137,6 +138,7 @@ export const getNavigationPermissions = (userRole: string, isRootAdmin: boolean)
       permissions.schedule = true;
       permissions.photos = true;
       permissions.logs = true;
+      permissions.clientPortal = true;
       permissions.crew = true;
       permissions.subs = true;
       permissions.rbacAdmin = true;
