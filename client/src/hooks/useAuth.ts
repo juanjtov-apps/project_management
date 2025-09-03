@@ -8,7 +8,7 @@ export function useAuth() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setStartupDelay(false);
-    }, 1000); // Reduced delay since backend is working
+    }, 500); // Reduced delay for production
     
     return () => clearTimeout(timer);
   }, []);
@@ -16,7 +16,7 @@ export function useAuth() {
   const { data: user, isLoading, error } = useQuery({
     queryKey: ["/api/auth/user"],
     // Don't start the query until after startup delay
-    enabled: !startupDelay, // Re-enable auth check
+    enabled: !startupDelay,
     retry: false, // Disable all retries for auth to prevent cascading failures
     refetchOnMount: false,
     staleTime: 0,
