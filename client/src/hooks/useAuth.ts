@@ -26,8 +26,8 @@ export function useAuth() {
     throwOnError: false,
   });
 
-  // Skip loading screen since backend is working - let users access login immediately
-  const actuallyLoading = false;
+  // Show loading while auth query is in progress
+  const actuallyLoading = isLoading && !startupDelay;
   
   // Consider user authenticated if we have user data and no auth errors
   const isAuthenticated = !!user && !error;
