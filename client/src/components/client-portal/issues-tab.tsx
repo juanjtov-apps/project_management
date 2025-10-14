@@ -55,24 +55,26 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
 
   // Get issues for the project
   const { data: issues = [], isLoading } = useQuery<Issue[]>({
-    queryKey: ["/api/client-issues", projectId],
+    queryKey: [`/api/client-issues?project_id=${projectId}`],
     enabled: !!projectId,
   });
 
   // Create issue mutation
   const createIssueMutation = useMutation({
     mutationFn: async (data: IssueFormData) => {
-      return apiRequest(`/projects/${projectId}/issues`, {
+      const res = await apiRequest(`/api/client-issues`, {
         method: "POST",
-        body: JSON.stringify({
-          ...data,
-          projectId,
-          createdBy: "current-user", // This should come from auth context
-        }),
+        body: {
+          project_id: projectId,
+          title: data.title,
+          description: data.description,
+          // photos will be handled separately via attachments
+        },
       });
+      return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/client-issues", projectId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/client-issues?project_id=${projectId}`] });
       toast({
         title: "Issue Created",
         description: "Your issue has been submitted successfully.",
@@ -93,12 +95,13 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
   // Close issue mutation
   const closeIssueMutation = useMutation({
     mutationFn: async (issueId: string) => {
-      return apiRequest(`/issues/${issueId}`, {
+      const res = await apiRequest(`/api/client-issues/${issueId}?status=closed`, {
         method: "PATCH",
       });
+      return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/client-issues", projectId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/client-issues?project_id=${projectId}`] });
       toast({
         title: "Issue Closed",
         description: "The issue has been marked as resolved.",
@@ -107,12 +110,13 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
   });
 
   const handleGetUploadParameters = async () => {
-    const response = await apiRequest("/objects/upload", {
+    const response = await apiRequest("/api/objects/upload", {
       method: "POST",
     });
+    const data = await response.json();
     return {
       method: "PUT" as const,
-      url: response.uploadURL,
+      url: data.uploadURL,
     };
   };
 

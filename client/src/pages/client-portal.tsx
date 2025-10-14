@@ -30,7 +30,7 @@ export default function ClientPortal() {
 
   // Get client module stats for selected project
   const { data: stats } = useQuery({
-    queryKey: ["/api/client-stats", selectedProject],
+    queryKey: [`/api/client-stats?project_id=${selectedProject}`],
     enabled: !!selectedProject,
   });
 

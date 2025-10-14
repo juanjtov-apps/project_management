@@ -64,24 +64,25 @@ export function InstallmentsTab({ projectId }: InstallmentsTabProps) {
 
   // Get installments for the project
   const { data: installments = [], isLoading } = useQuery<Installment[]>({
-    queryKey: ["/api/client-installments", projectId],
+    queryKey: [`/api/client-installments?project_id=${projectId}`],
     enabled: !!projectId,
   });
 
   // Create installment mutation
   const createInstallmentMutation = useMutation({
     mutationFn: async (data: InstallmentFormData) => {
-      return apiRequest(`/projects/${projectId}/installments`, {
+      const response = await apiRequest(`/api/client-installments`, {
         method: "POST",
-        body: JSON.stringify({
-          projectId,
+        body: {
+          project_id: projectId,
           amount: data.amount,
-          dueDate: new Date(data.dueDate).toISOString(),
-        }),
+          due_date: new Date(data.dueDate).toISOString(),
+        },
       });
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/client-installments", projectId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/client-installments?project_id=${projectId}`] });
       toast({
         title: "Installment Created",
         description: "Payment installment has been added to the schedule.",
@@ -101,15 +102,16 @@ export function InstallmentsTab({ projectId }: InstallmentsTabProps) {
   // Mark installment as paid mutation
   const markPaidMutation = useMutation({
     mutationFn: async (data: { installmentId: string; paymentMethod: string }) => {
-      return apiRequest(`/installments/${data.installmentId}`, {
+      const response = await apiRequest(`/api/client-installments/${data.installmentId}`, {
         method: "PATCH",
-        body: JSON.stringify({
-          paymentMethod: data.paymentMethod,
-        }),
+        body: {
+          payment_method: data.paymentMethod,
+        },
       });
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/client-installments", projectId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/client-installments?project_id=${projectId}`] });
       toast({
         title: "Payment Recorded",
         description: "Installment has been marked as paid.",

@@ -96,33 +96,33 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
 
   // Get materials for the project
   const { data: materials = [], isLoading } = useQuery<Material[]>({
-    queryKey: ["/api/client-materials", projectId],
+    queryKey: [`/api/client-materials?project_id=${projectId}`],
     enabled: !!projectId,
   });
 
   // Create material mutation
   const createMaterialMutation = useMutation({
     mutationFn: async (data: MaterialFormData) => {
-      return apiRequest(`/projects/${projectId}/materials`, {
+      const response = await apiRequest(`/api/client-materials`, {
         method: "POST",
-        body: JSON.stringify({
-          projectId,
+        body: {
+          project_id: projectId,
           name: data.name,
           category: data.category,
           link: data.link || null,
           specification: data.specification || null,
           notes: data.notes || null,
           quantity: data.quantity || null,
-          unitCost: data.unitCost || null,
-          totalCost: data.totalCost || null,
+          unit_cost: data.unitCost || null,
+          total_cost: data.totalCost || null,
           supplier: data.supplier || null,
           status: data.status || "pending",
-          addedBy: "current-user", // This should come from auth context
-        }),
+        },
       });
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/client-materials", projectId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/client-materials?project_id=${projectId}`] });
       toast({
         title: "Material Added",
         description: "Material has been added to the project list.",
@@ -142,12 +142,13 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
   // Remove material mutation
   const removeMaterialMutation = useMutation({
     mutationFn: async (materialId: string) => {
-      return apiRequest(`/materials/${materialId}`, {
+      const response = await apiRequest(`/api/client-materials/${materialId}`, {
         method: "DELETE",
       });
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/client-materials", projectId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/client-materials?project_id=${projectId}`] });
       toast({
         title: "Material Removed",
         description: "Material has been removed from the project list.",

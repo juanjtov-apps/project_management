@@ -43,24 +43,24 @@ export function ForumTab({ projectId }: ForumTabProps) {
 
   // Get forum messages for the project
   const { data: messages = [], isLoading } = useQuery<ForumMessage[]>({
-    queryKey: ["/api/client-forum", projectId],
+    queryKey: [`/api/client-forum?project_id=${projectId}`],
     enabled: !!projectId,
   });
 
   // Create message mutation
   const createMessageMutation = useMutation({
     mutationFn: async (data: MessageFormData) => {
-      return apiRequest(`/projects/${projectId}/forum`, {
+      const response = await apiRequest(`/api/client-forum`, {
         method: "POST",
-        body: JSON.stringify({
-          projectId,
-          authorId: "current-user", // This should come from auth context
+        body: {
+          project_id: projectId,
           content: data.content,
-        }),
+        },
       });
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/client-forum", projectId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/client-forum?project_id=${projectId}`] });
       toast({
         title: "Message Sent",
         description: "Your message has been posted to the forum.",
