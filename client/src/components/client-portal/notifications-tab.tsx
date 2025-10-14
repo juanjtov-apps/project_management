@@ -66,33 +66,34 @@ export function NotificationsTab({ projectId }: NotificationsTabProps) {
 
   // Get notification settings for the project
   const { data: notifications = [], isLoading } = useQuery<NotificationSetting[]>({
-    queryKey: ["/api/client-notifications", projectId],
+    queryKey: [`/api/client-notifications?project_id=${projectId}`],
     enabled: !!projectId,
   });
 
   // Get materials for the project
   const { data: materials = [] } = useQuery<Material[]>({
-    queryKey: ["/api/client-materials", projectId],
+    queryKey: [`/api/client-materials?project_id=${projectId}`],
     enabled: !!projectId,
   });
 
   // Create notification setting mutation
   const createNotificationMutation = useMutation({
     mutationFn: async (data: NotificationFormData) => {
-      return apiRequest(`/projects/${projectId}/notifications`, {
+      const response = await apiRequest(`/api/client-notifications`, {
         method: "POST",
-        body: JSON.stringify({
-          projectId,
-          materialId: data.materialId || null,
-          groupName: data.groupName || null,
-          frequencyValue: data.frequencyValue,
-          frequencyUnit: data.frequencyUnit,
-          notifyViaEmail: data.notifyViaEmail,
-        }),
+        body: {
+          project_id: projectId,
+          material_id: data.materialId || null,
+          group_name: data.groupName || null,
+          frequency_value: data.frequencyValue,
+          frequency_unit: data.frequencyUnit,
+          notify_via_email: data.notifyViaEmail,
+        },
       });
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/client-notifications", projectId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/client-notifications?project_id=${projectId}`] });
       toast({
         title: "Notification Setting Created",
         description: "Your notification preference has been saved.",
@@ -112,12 +113,13 @@ export function NotificationsTab({ projectId }: NotificationsTabProps) {
   // Remove notification setting mutation
   const removeNotificationMutation = useMutation({
     mutationFn: async (notificationId: string) => {
-      return apiRequest(`/notifications/${notificationId}`, {
+      const response = await apiRequest(`/api/client-notifications/${notificationId}`, {
         method: "DELETE",
       });
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/client-notifications", projectId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/client-notifications?project_id=${projectId}`] });
       toast({
         title: "Notification Setting Removed",
         description: "Notification preference has been deleted.",
