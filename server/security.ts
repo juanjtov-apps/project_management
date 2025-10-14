@@ -88,14 +88,15 @@ export function setupSecurityMiddleware(app: express.Express) {
   // Progressive rate limiting with safer limits for development testing
   const isProduction = process.env.NODE_ENV === 'production';
   
-  // Authentication rate limiting (stricter in production)
-  const authLimit = isProduction ? 10 : 50;
-  app.use("/auth", rateLimit(authLimit, 15 * 60 * 1000));
-  app.use("/api/auth", rateLimit(authLimit, 15 * 60 * 1000));
+  // Authentication rate limiting - more reasonable limits to allow normal login/logout cycles
+  // Using shorter 5-minute windows with higher limits to prevent lockouts during normal use
+  const authLimit = isProduction ? 50 : 200;
+  app.use("/auth", rateLimit(authLimit, 5 * 60 * 1000)); // 50/200 requests per 5 minutes
+  app.use("/api/auth", rateLimit(authLimit, 5 * 60 * 1000));
   
   // API rate limiting (allow reasonable testing in development)
-  const apiLimit = isProduction ? 100 : 500;
-  app.use("/api", rateLimit(apiLimit, 15 * 60 * 1000));
+  const apiLimit = isProduction ? 300 : 1000;
+  app.use("/api", rateLimit(apiLimit, 5 * 60 * 1000)); // 300/1000 requests per 5 minutes
 
   // Hide Express server information
   app.disable("x-powered-by");
