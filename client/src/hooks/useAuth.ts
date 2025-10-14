@@ -26,8 +26,8 @@ export function useAuth() {
     throwOnError: false,
   });
 
-  // Show loading while auth query is in progress
-  const actuallyLoading = isLoading && !startupDelay;
+  // Show loading during startup delay OR while auth query is in progress
+  const actuallyLoading = startupDelay || isLoading;
   
   // Consider user authenticated if we have user data and no auth errors
   const isAuthenticated = !!user && !error;
