@@ -42,6 +42,15 @@ async def lifespan(app: FastAPI):
                 import asyncio
                 await asyncio.sleep(1)  # Wait before retry
         
+        # Initialize client portal schema
+        try:
+            from src.database.init_client_portal import init_client_portal_schema
+            await init_client_portal_schema()
+            logger.info("✅ Client portal schema verified/initialized")
+        except Exception as e:
+            logger.warning(f"⚠️ Client portal schema initialization error: {e}")
+            # Don't fail startup if schema initialization fails
+        
         logger.info("🎯 Application startup complete")
         yield
         
