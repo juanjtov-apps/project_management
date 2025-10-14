@@ -44,6 +44,13 @@ Preferred communication style: Simple, everyday language.
 - **Photo-Log Integration**: Photos uploaded via Project Logs automatically appear in Photos tab with proper project association and consistent tagging.
 - **Task Filtering & Company Scoping**: All tasks have proper `company_id` assignments, ensuring multi-tenant security where users only see tasks within their company scope.
 - **Gallery Button Fixes**: Consistent visibility of List/Grid toggle and Gallery buttons across desktop and mobile views on Photos and Projects pages.
+- **Client Portal**: Comprehensive collaboration module enabling project managers and clients to interact seamlessly with 5 core features:
+  - **Issues Reporting**: Create and track project issues with up to 3 photo uploads, priority levels (Low/Medium/High/Critical), status tracking (Open/In Progress/Resolved/Closed), and threaded comments for discussion.
+  - **Forum Messaging**: Simplified project-level messaging system with real-time updates, allowing stakeholders to communicate directly within project context.
+  - **Material Lists**: Collaborative material management with 10 predefined categories (Concrete, Steel, Lumber, Drywall, Electrical, Plumbing, HVAC, Roofing, Flooring, Paint/Finishes), quantity tracking, and cost estimation.
+  - **Payment Installments**: Track payment schedules with installment amounts, due dates, status monitoring (Pending/Paid/Overdue), and file upload support for invoices/receipts.
+  - **Notifications System**: Customizable notification preferences with type-based settings (Issues/Forum/Materials/Payments), enabling users to control their communication flow.
+  - All features maintain strict company scoping and project access verification for multi-tenant security.
 
 ### Data Flow
 - **Client-Server Communication**: Frontend requests via TanStack Query are handled by the Python FastAPI backend for all operations including authentication, data management, and file operations.
