@@ -1,0 +1,300 @@
+You are extending an existing construction project management app. 
+The goal is to implement the full Client Portal module (frontend + backend + database) 
+without modifying or dropping any existing data or tables.
+
+────────────────────────────
+SAFETY & DATABASE RULES
+────────────────────────────
+1. Never modify, drop, or alter any existing schemas, tables, columns, enums, or constraints.
+2. Create a new Postgres schema named client_portal for all new tables.
+3. Every DDL must use IF NOT EXISTS and be wrapped in a transaction.
+4. All migrations must be additive. No destructive operations.
+5. Use existing env var DATABASE_URL. Do not overwrite or recreate the DB.
+6. For tests/codegen use SHADOW_DATABASE_URL only.
+7. Foreign keys must reference existing public.projects(id) and public.users(id) 
+   (use uuid or the existing id type) with ON DELETE RESTRICT.
+8. Store Alembic or migration metadata in client_portal.alembic_version.
+9. Seed data only runs if DEMO_SEED=true and DEMO_PROJECT_ID is provided.
+   Never auto-create or overwrite users/projects.
+10. Rollback strategy: everything lives inside client_portal schema so dropping 
+    that schema removes the module safely in staging.
+
+────────────────────────────
+STACK & STRUCTURE
+────────────────────────────
+• Frontend: React (Vite + React Router + React Query + TailwindCSS)
+• Backend: FastAPI + SQLAlchemy + Pydantic
+• Database: PostgreSQL (using existing instance)
+• Auth: JWT (reuse existing auth middleware)
+• File Storage: Supabase Storage or MinIO for local dev
+• Notifications: table-driven + console email stub
+• Mount backend routes at /client-portal
+• Do not modify existing routers or auth modules.
+
+────────────────────────────
+FRONTEND MODULE (Client Portal)
+────────────────────────────
+Create a React feature folder: client/src/modules/clientPortal/
+
+Main route: /client-portal/:projectId
+Tabs: Issues | Forum | Materials | Payments | Notifications
+
+Each tab must have functional Add buttons connected to the backend API and React Query refetch.
+Use role-based access (Client, PM, Admin) from JWT payload.
+
+Features per tab:
+1. Issues  
+   - List all issues with filters (status, priority, mine).  
+   - Create Issue modal (title, description, priority, due_date, attachments).  
+   - Issue detail drawer with comments, attachments, and status updates.  
+   - Client: create and comment. PM/Admin: assign, change status.
+
+2. Forum  
+   - Global project forum.  
+   - Post new message, reply threads, attach files.  
+   - PM/Admin can pin or delete messages.
+
+3. Materials  
+   - Editable table for materials (name, vendor, qty, price, needed_by, status).  
+   - Totals at top, Add Material modal.  
+   - PM/Admin approve or reject.
+
+4. Payments  
+   - Track installments with fields (label, due_date, amount, status, method, reference).  
+   - Add Installment modal.  
+   - Client can upload proof of payment.  
+   - PM/Admin approve and mark as paid.  
+   - Summary cards: Total, Paid, Pending.
+
+5. Notifications  
+   - Manage per-project preferences (channel, cadence, event).  
+   - Store in client_portal.notification_settings.  
+   - In-app table shows generated notifications.
+
+UI requirements:
+- Responsive, minimal, modern Tailwind look (like your current layout).
+- Reuse existing navbar and auth context.
+- Toasts for success/error (React Hot Toast).
+- Loading skeletons on fetch.
+
+────────────────────────────
+BACKEND ROUTES (FastAPI)
+────────────────────────────
+Mount new router at /client-portal
+
+Endpoints:
+
+Issues:
+  GET /projects/{id}/issues
+  POST /projects/{id}/issues
+  GET /issues/{id}
+  PATCH /issues/{id}
+  POST /issues/{id}/comments
+  POST /issues/{id}/attachments
+
+Forum:
+  GET /projects/{id}/threads
+  POST /projects/{id}/threads
+  GET /threads/{id}/messages
+  POST /threads/{id}/messages
+  POST /messages/{id}/attachments
+
+Materials:
+  GET /projects/{id}/materials
+  POST /projects/{id}/materials
+  PATCH /materials/{id}
+
+Payments:
+  GET /projects/{id}/installments
+  POST /projects/{id}/installments
+  PATCH /installments/{id}
+  POST /installments/{id}/files
+
+Notifications:
+  GET /projects/{id}/notification-settings
+  POST /projects/{id}/notification-settings
+  GET /me/notifications
+  PATCH /notifications/{id}
+
+Upload:
+  POST /upload  → returns public URL
+
+RBAC:
+- Client: can read project, create issues, comment, propose materials, upload proofs, set notifications.
+- PM: can approve, update, assign, mark paid.
+- Admin: full control.
+
+────────────────────────────
+DATABASE SCHEMA (client_portal)
+────────────────────────────
+Run this SQL at startup only if client_portal schema doesn’t exist:
+
+BEGIN;
+CREATE SCHEMA IF NOT EXISTS client_portal;
+CREATE TABLE IF NOT EXISTS client_portal.alembic_version(version_num text PRIMARY KEY);
+
+CREATE TABLE IF NOT EXISTS client_portal.issues(
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id uuid NOT NULL,
+    created_by uuid NOT NULL,
+    assigned_to uuid,
+    title text NOT NULL,
+    description text,
+    category text,
+    priority text,
+    status text NOT NULL DEFAULT 'open',
+    due_date date,
+    visibility text NOT NULL DEFAULT 'client',
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_issue_project FOREIGN KEY(project_id) REFERENCES public.projects(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_issue_creator FOREIGN KEY(created_by) REFERENCES public.users(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_issue_assignee FOREIGN KEY(assigned_to) REFERENCES public.users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS client_portal.issue_comments(
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    issue_id uuid NOT NULL,
+    author_id uuid NOT NULL,
+    body text NOT NULL,
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT fk_comment_issue FOREIGN KEY(issue_id) REFERENCES client_portal.issues(id) ON DELETE CASCADE,
+    CONSTRAINT fk_comment_author FOREIGN KEY(author_id) REFERENCES public.users(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS client_portal.issue_attachments(
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    issue_id uuid NOT NULL,
+    url text NOT NULL,
+    mime text,
+    uploaded_by uuid NOT NULL,
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT fk_attach_issue FOREIGN KEY(issue_id) REFERENCES client_portal.issues(id) ON DELETE CASCADE,
+    CONSTRAINT fk_attach_user FOREIGN KEY(uploaded_by) REFERENCES public.users(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS client_portal.forum_threads(
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id uuid NOT NULL,
+    title text NOT NULL,
+    created_by uuid NOT NULL,
+    pinned boolean DEFAULT false,
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT fk_thread_project FOREIGN KEY(project_id) REFERENCES public.projects(id),
+    CONSTRAINT fk_thread_creator FOREIGN KEY(created_by) REFERENCES public.users(id)
+);
+
+CREATE TABLE IF NOT EXISTS client_portal.forum_messages(
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    thread_id uuid NOT NULL,
+    parent_message_id uuid,
+    author_id uuid NOT NULL,
+    body text NOT NULL,
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT fk_message_thread FOREIGN KEY(thread_id) REFERENCES client_portal.forum_threads(id) ON DELETE CASCADE,
+    CONSTRAINT fk_message_parent FOREIGN KEY(parent_message_id) REFERENCES client_portal.forum_messages(id) ON DELETE SET NULL,
+    CONSTRAINT fk_message_author FOREIGN KEY(author_id) REFERENCES public.users(id)
+);
+
+CREATE TABLE IF NOT EXISTS client_portal.materials(
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id uuid NOT NULL,
+    added_by uuid NOT NULL,
+    name text NOT NULL,
+    spec text,
+    link text,
+    vendor text,
+    unit text,
+    qty numeric,
+    unit_price numeric,
+    needed_by date,
+    status text DEFAULT 'pending',
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT fk_material_project FOREIGN KEY(project_id) REFERENCES public.projects(id),
+    CONSTRAINT fk_material_user FOREIGN KEY(added_by) REFERENCES public.users(id)
+);
+
+CREATE TABLE IF NOT EXISTS client_portal.installments(
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id uuid NOT NULL,
+    label text NOT NULL,
+    due_date date NOT NULL,
+    amount numeric NOT NULL,
+    status text DEFAULT 'scheduled',
+    method text,
+    reference text,
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT fk_installment_project FOREIGN KEY(project_id) REFERENCES public.projects(id)
+);
+
+CREATE TABLE IF NOT EXISTS client_portal.installment_files(
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    installment_id uuid NOT NULL,
+    url text NOT NULL,
+    kind text,
+    uploaded_by uuid NOT NULL,
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT fk_install_file FOREIGN KEY(installment_id) REFERENCES client_portal.installments(id) ON DELETE CASCADE,
+    CONSTRAINT fk_install_user FOREIGN KEY(uploaded_by) REFERENCES public.users(id)
+);
+
+CREATE TABLE IF NOT EXISTS client_portal.notification_settings(
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    channel text NOT NULL,
+    event text NOT NULL,
+    cadence text NOT NULL,
+    UNIQUE(project_id,user_id,event,channel),
+    CONSTRAINT fk_notif_set_project FOREIGN KEY(project_id) REFERENCES public.projects(id),
+    CONSTRAINT fk_notif_set_user FOREIGN KEY(user_id) REFERENCES public.users(id)
+);
+
+CREATE TABLE IF NOT EXISTS client_portal.notifications(
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    event text NOT NULL,
+    payload jsonb DEFAULT '{}'::jsonb,
+    read boolean DEFAULT false,
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT fk_notif_project FOREIGN KEY(project_id) REFERENCES public.projects(id),
+    CONSTRAINT fk_notif_user FOREIGN KEY(user_id) REFERENCES public.users(id)
+);
+COMMIT;
+
+────────────────────────────
+EVENT TRIGGERS & NOTIFICATIONS
+────────────────────────────
+Whenever an issue, comment, material, or payment changes state,
+insert a row into client_portal.notifications with payload and event.
+Send console email or log line to simulate email.
+
+────────────────────────────
+DEMO SEED (Optional)
+────────────────────────────
+If DEMO_SEED=true and DEMO_PROJECT_ID is set:
+- Insert one thread and one open issue linked to that project for testing.
+Otherwise, skip all seeding.
+
+────────────────────────────
+DELIVERABLES
+────────────────────────────
+1. New folder server/client_portal with FastAPI routers & models.
+2. client_portal schema creation verified on startup.
+3. React UI for all 5 tabs with working CRUD via React Query.
+4. README explaining:
+   - How to enable/disable DEMO_SEED.
+   - How to remove safely by dropping the schema.
+   - Role matrix for each action.
+   - API reference per endpoint.
+
+────────────────────────────
+DEVELOPER UTILITIES
+────────────────────────────
+Provide commands:
+  make dev              → runs frontend & backend together
+  make db-up            → starts Postgres & runs safe migrations
+  make seed             → runs demo seeding if flag enabled
+
+End of prompt.
