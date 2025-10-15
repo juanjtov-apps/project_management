@@ -94,8 +94,6 @@ async def verify_project_access(project_id: str, current_user: Dict[str, Any], p
         user_company_id = str(current_user.get('company_id') or current_user.get('companyId') or '')
         project_company_id = str(project.get('company_id', ''))
         
-        print(f"🔍 DEBUG ACCESS CHECK - Project: {project_id}, User Company: '{user_company_id}', Project Company: '{project_company_id}', Match: {project_company_id == user_company_id}")
-        
         if project_company_id != user_company_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
