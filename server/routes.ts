@@ -1276,6 +1276,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Object storage endpoint for file downloads
+  app.post('/api/objects/download', async (req, res) => {
+    try {
+      const { filePath } = req.body;
+      console.log('PRODUCTION: Getting download URL for file:', filePath);
+      
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+      const downloadURL = await objectStorageService.getObjectEntityDownloadURL(filePath);
+      
+      console.log('✅ Generated download URL successfully');
+      res.json({ downloadURL });
+    } catch (error: any) {
+      console.error('❌ Object storage download URL error:', error);
+      console.error('Error details:', error.message, error.stack);
+      res.status(500).json({ 
+        message: 'Internal server error', 
+        error: error.message,
+        details: 'Check server logs for more information'
+      });
+    }
+  });
+
 
   // One-time sync endpoint to migrate existing project log images to photos table
   app.post('/api/sync-log-photos', async (req, res) => {
