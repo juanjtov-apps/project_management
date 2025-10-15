@@ -141,6 +141,28 @@ export class ObjectStorageService {
       ttlSec: 900,
     });
   }
+
+  // Gets the download URL for an object entity by file path.
+  async getObjectEntityDownloadURL(filePath: string): Promise<string> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    if (!privateObjectDir) {
+      throw new Error(
+        "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
+          "tool and set PRIVATE_OBJECT_DIR env var."
+      );
+    }
+
+    const fullPath = `${privateObjectDir}/${filePath}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+
+    // Sign URL for GET method with TTL
+    return signObjectURL({
+      bucketName,
+      objectName,
+      method: "GET",
+      ttlSec: 900,
+    });
+  }
 }
 
 function parseObjectPath(path: string): {
