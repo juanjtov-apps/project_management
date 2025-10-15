@@ -1,0 +1,375 @@
+Goal
+Update the Payments module inside the Client Portal that lets the contractor upload payment documents that are always visible, define and update the next milestone, and lets the client always see the next milestone. When a check or wire is issued, either the contractor or the client can upload proof of payment. The contractor then marks the installment as completed and an invoice is generated. The module must track installments and notify clients about the next installment. It must show in real time the total contract amount, how much has been paid, and how much is pending. Project managers must see this per project.
+Context
+This module must be additive and must not break the current database or other modules. It can be visualized by the company’s project managers and at the same time it can be seen to the client that has permission over the project.
+Hard constraints
+Never modify or drop existing schemas, tables, columns, enums, or constraints.
+
+
+Put all new database objects in schema client_portal.
+
+
+Wrap every migration in a transaction and use IF NOT EXISTS for all creates.
+
+
+Use additive migrations only.
+
+
+Use env var DATABASE_URL. Never overwrite or recreate the database.
+
+
+Use SHADOW_DATABASE_URL only for tests or code generation.
+
+
+Foreign keys must reference public.projects(id) and public.users(id) with ON DELETE RESTRICT and the same id type as those tables.
+
+
+Store Alembic metadata for this module in client_portal.alembic_version.
+
+
+Seed data only when DEMO_SEED is true and DEMO_PROJECT_ID is provided. Never auto create or overwrite users or projects.
+
+
+Everything for this module must live in client_portal so dropping that schema removes the module safely in staging.
+
+
+Functional requirements
+Installments schedule per project
+ a. Create a payment schedule with one or more installments.
+ b. Each installment has name, description, amount, currency, due date, status planned or payable or paid, display order, and an optional milestone note to describe what unlocks the payment.
+ c. Exactly one installment per project is flagged as next_milestone true when status is planned or payable.
+ d. The next milestone is always visible to contractor, client, and project manager.
+
+
+Documents always visible
+ a. Contractor can upload payment documents such as PDF proposals, progress statements, lien waivers, or scope confirmations.
+ b. These documents are visible to client, contractor, and project manager for the project.
+
+
+Proof of payment
+ a. Either the contractor or the client can upload a receipt to an installment. Examples are a photo of a check, a bank wire confirmation, or an ACH confirmation.
+ b. The uploader chooses a receipt type and enters an optional reference number and optional payment date.
+
+
+Completion and invoicing
+ a. The contractor can mark an installment as paid after a valid proof of payment is present.
+ b. When marked paid, the system generates an invoice record and a PDF invoice file with a unique invoice number.
+ c. Invoice numbers use a safe format like INV projectId short code sequential number per project and year.
+ d. The invoice PDF contains project name, client name, contractor name, installment name, description, amount, currency, tax breakdown when applicable, receipt references, and the payment date.
+
+
+Roll up totals and real time view
+ a. Show per project the total contract amount, total paid, total pending, and percent complete.
+ b. Update these values in real time for users viewing the project using the existing websocket if available. If no websocket exists, poll every fifteen seconds with updated_since support.
+ c. All totals must be calculated server side from installment rows with status paid for total paid and planned or payable for pending.
+
+
+Notifications
+ a. Notify client users when the next milestone changes or when an installment becomes payable or overdue.
+ b. Notifications are sent as in app alerts. If the system already supports email, also send email.
+ c. Overdue means now is past the due date and the status is not paid.
+ d. Respect user notification preferences if the app has them.
+
+
+Permissions
+ a. View
+ Contractor, Client, and Project Manager assigned to the project can view schedules, installments, documents, receipts, and invoices.
+ b. Create and update
+ Contractor and Project Manager can create and edit the schedule and installments.
+ Client can upload receipts and can comment on installments if comment threads exist in the app.
+ Only Contractor and Project Manager can mark installments as paid and trigger invoice generation.
+ c. Enforce all permission checks server side.
+
+
+Validation
+ a. Required fields for installment are name, amount, currency, and status.
+ b. Amount must be greater than or equal to zero.
+ c. Currency must be a valid ISO code present in the app or use a simple text with a whitelist like USD or CAD.
+ d. An installment can only transition to paid when at least one receipt is attached.
+
+
+Search and filters
+ a. Filter installments by status and due date window.
+ b. Search by installment name or description.
+ c. Sort by display order, due date, or updated at.
+
+
+Audit trail
+ a. Store created_by, updated_by, created_at, and updated_at on all new rows.
+ b. For status changes record an event row with previous and new values.
+
+
+Accessibility and usability
+ a. All actions available through keyboard and screen readers.
+ b. Provide empty states and helper copy for first time setup.
+
+
+Database design in client_portal
+ Create one additive migration that creates these objects if not existing.
+Table client_portal.payment_schedules
+ Columns
+ id uuid primary key default gen_random_uuid
+ project_id references public.projects(id) on delete restrict not null
+ title text not null
+ notes text
+ created_by references public.users(id) on delete restrict not null
+ updated_by references public.users(id) on delete restrict not null
+ created_at timestamptz not null default now
+ updated_at timestamptz not null default now
+ Unique on project_id and lower(title)
+
+
+Table client_portal.payment_installments
+ Columns
+ id uuid primary key default gen_random_uuid
+ project_id references public.projects(id) on delete restrict not null
+ schedule_id references client_portal.payment_schedules(id) on delete restrict not null
+ name text not null
+ description text
+ amount numeric not null
+ currency text not null
+ due_date date
+ status text not null
+ next_milestone boolean not null default false
+ display_order integer not null default 0
+ created_by references public.users(id) on delete restrict not null
+ updated_by references public.users(id) on delete restrict not null
+ created_at timestamptz not null default now
+ updated_at timestamptz not null default now
+ Indexes on project_id, schedule_id, status, due_date, display_order
+
+ Notes
+ a. Allowed status values planned, payable, paid. You can enforce with a check constraint or reuse an existing enum if the app has one.
+ b. Add a constraint to ensure at most one row with next_milestone true per project where status is not paid. This can be done with a partial unique index on project_id and next_milestone where next_milestone is true and status is not equal to paid.
+
+
+Table client_portal.payment_documents
+ Purpose
+ Contractor uploaded documents that are always visible for the project.
+ Columns
+ id uuid primary key default gen_random_uuid
+ project_id references public.projects(id) on delete restrict not null
+ schedule_id references client_portal.payment_schedules(id) on delete restrict
+ title text not null
+ file_id uuid not null
+ uploaded_by references public.users(id) on delete restrict not null
+ created_at timestamptz not null default now
+ Index on project_id and created_at
+
+
+Table client_portal.payment_receipts
+ Purpose
+ Proof of payment for an installment from contractor or client.
+ Columns
+ id uuid primary key default gen_random_uuid
+ project_id references public.projects(id) on delete restrict not null
+ installment_id references client_portal.payment_installments(id) on delete restrict not null
+ receipt_type text not null
+ reference_no text
+ payment_date date
+ file_id uuid not null
+ uploaded_by references public.users(id) on delete restrict not null
+ created_at timestamptz not null default now
+ Index on project_id and installment_id
+
+
+Table client_portal.invoices
+ Purpose
+ Store invoice records for paid installments and link to the generated PDF.
+ Columns
+ id uuid primary key default gen_random_uuid
+ project_id references public.projects(id) on delete restrict not null
+ installment_id references client_portal.payment_installments(id) on delete restrict not null
+ invoice_no text not null
+ issue_date date not null default current_date
+ subtotal numeric not null
+ tax numeric default 0
+ total numeric not null
+ currency text not null
+ pdf_file_id uuid not null
+ created_by references public.users(id) on delete restrict not null
+ created_at timestamptz not null default now
+ Unique on project_id and invoice_no
+ Index on project_id and created_at
+
+
+Table client_portal.payment_events
+ Purpose
+ Audit history of key actions.
+ Columns
+ id bigserial primary key
+ project_id references public.projects(id) on delete restrict not null
+ actor_id references public.users(id) on delete restrict not null
+ entity_type text not null
+ entity_id uuid not null
+ action text not null
+ diff jsonb
+ created_at timestamptz not null default now
+ Index on project_id and created_at
+
+
+API surface
+ Use the existing style for the backend whether REST or GraphQL. Example REST paths are shown.
+GET /api/client_portal/projects/:projectId/payments
+ Returns schedule, installments, receipts, documents, invoices, and the totals roll up. Supports updated_since for incremental refresh and q for search on installment name or description.
+
+
+POST /api/client_portal/projects/:projectId/payment-schedules
+ Create a schedule. Roles Contractor or Project Manager.
+
+
+POST /api/client_portal/payment-installments
+ Create an installment. Roles Contractor or Project Manager.
+
+
+PATCH /api/client_portal/payment-installments/:installmentId
+ Update fields and status. Roles Contractor or Project Manager.
+
+
+POST /api/client_portal/payment-documents
+ Upload a payment document file linked to the project or schedule. Roles Contractor or Project Manager.
+
+
+POST /api/client_portal/payment-receipts
+ Upload a receipt linked to an installment. Roles Contractor, Client, or Project Manager.
+
+
+POST /api/client_portal/payment-installments/:installmentId/mark-paid
+ Validate at least one receipt. Create invoice record. Generate invoice number and PDF. Set status to paid and clear next_milestone if it was set. Roles Contractor or Project Manager.
+
+
+GET /api/client_portal/projects/:projectId/payment-totals
+ Returns total amount, total paid, total pending, percent complete.
+
+
+Invoice generation
+Implement a server side invoice generator that renders a simple PDF using the app standard PDF utility.
+
+
+Invoice number format example INV hyphen projectShortId hyphen year hyphen sequence where hyphen represents a literal hyphen character in the number string only.
+
+
+Use schedule and installment data, show subtotal and tax and total.
+
+
+Store the PDF as a file asset and save the pdf_file_id in client_portal.invoices.
+
+
+Notifications
+Fire events when
+ a. Installment created
+ b. Status changed to payable
+ c. Status changed to paid
+ d. Next milestone changed
+ e. Installment overdue
+
+
+Send in app notifications to all client users on the project for items b, d, and e.
+
+
+If email is available, send an email with installment details and a link to the project payments view.
+
+
+Provide daily overdue digest to Project Manager if any installment is overdue.
+
+
+UI implementation
+Add a Payments page under the Client Module navigation.
+
+
+Header shows project name and a summary bar with total contract amount, paid, pending, and percent complete.
+
+
+Next milestone card shows the next_milestone installment name, amount, due date, and description.
+
+
+Installments list with columns Name, Due, Amount, Status, Actions.
+
+
+Row actions include View, Upload receipt, Edit for authorized users, and Mark paid for Contractor and Project Manager.
+
+
+A Documents section lists all project payment documents that contractor uploaded, with upload button for Contractor and Project Manager.
+
+
+An Invoices section lists invoices with invoice number, date, amount, and a link to the PDF.
+
+
+Use optimistic UI for uploads and status changes with rollback on failure.
+
+
+Real time updates with socket or polling every fifteen seconds.
+
+
+Calculations and integrity
+Total contract amount is the sum of installment amounts in the active schedule for the project.
+
+
+Total paid is the sum of amounts for installments with status paid.
+
+
+Pending is total minus paid and must never be negative.
+
+
+When an installment is marked paid, set next_milestone false on it. Then auto set next_milestone true on the earliest installment that is not paid and has the smallest display_order or the nearest due date if orders are equal.
+
+
+Guard against more than one next_milestone by using the partial unique index described above.
+
+
+Security and tenancy
+Every query and mutation must filter by project_id from route params or session to enforce multi tenant safety.
+
+
+Use prepared statements or ORM parameter binding.
+
+
+Return only data belonging to the caller project scope.
+
+
+Performance
+Add indexes listed above.
+
+
+Use pagination on installment and invoice lists.
+
+
+Support updated_since for incremental refresh to keep polling light.
+
+
+Testing checklist
+Migration applies cleanly and is reversible by dropping client_portal in staging only.
+
+
+Permission tests confirm that Client can upload receipts but cannot change schedule or mark paid.
+
+
+Validation prevents marking paid without a receipt.
+
+
+Next milestone remains correct across create, update, and mark paid flows.
+
+
+Totals match the sum of installments across status changes.
+
+
+Notifications are sent on payable, overdue, paid, and next milestone changes.
+
+
+Invoice PDF is generated and stored and number is unique per project and year.
+
+
+Deliverables
+Alembic migration for all tables in client_portal.
+
+
+Backend models and endpoints with tests.
+
+
+Invoice PDF generator and number sequencer with tests.
+
+
+Frontend Payments page with summary, next milestone, installments list, documents, receipts upload, and invoices.
+
+
+README in the module folder that documents schema, endpoints, permissions, invoice format, and how to run tests.
