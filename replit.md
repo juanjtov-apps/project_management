@@ -60,12 +60,13 @@ Preferred communication style: Simple, everyday language.
     - **Payment Schedules**: Create and manage payment schedules per project with title and notes
     - **Installments**: Track individual payments with name, description, amount, currency, due dates, status (planned/payable/paid), and display ordering
     - **Next Milestone Tracking**: Exactly one installment per project can be flagged as the next milestone for clear payment progression
-    - **Payment Documents**: Contractor-uploaded documents (proposals, statements, lien waivers) always visible to all stakeholders
-    - **Proof of Payment**: Either contractor or client can upload receipts (check photos, wire confirmations, ACH) with receipt type, reference numbers, and payment dates
+    - **Payment Documents**: Contractor-uploaded documents (proposals, statements, lien waivers) with integrated file upload UI
+    - **Proof of Payment**: Either contractor or client can upload receipts (check photos, wire confirmations, ACH) with receipt type, reference numbers, payment dates, and integrated file upload
+    - **File Upload Integration**: Direct object storage uploads with signed URLs, automatic file path extraction, and proper dialog state management to prevent stale file submissions
     - **Invoice Generation**: Automatic invoice creation when installments are marked as paid, with unique invoice numbers (format: INV-{projectShort}-{year}-{sequence})
     - **Real-time Totals**: Server-side calculation of total contract amount, total paid, total pending, and percent complete
     - **Audit Trail**: Complete event logging for status changes and key actions
-    - **Database Schema**: New tables in `client_portal` schema: `payment_schedules`, `payment_installments`, `payment_documents`, `payment_receipts`, `invoices`, `payment_events`
+    - **Database Schema**: New tables in `client_portal` schema: `payment_schedules`, `payment_installments`, `payment_documents`, `payment_receipts`, `invoices`, `payment_events` (file_id columns use TEXT type for flexibility)
     - All features enforce strict company scoping and role-based permissions (contractor/PM can create/edit, clients can upload receipts)
   - **Notifications System**: Customizable notification preferences with type-based settings (Issues/Forum/Materials/Payments), enabling users to control their communication flow.
   - All features maintain strict company scoping and project access verification for multi-tenant security.
