@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { IssuesTab } from "@/components/client-portal/issues-tab.tsx";
 import { ForumTab } from "@/components/client-portal/forum-tab.tsx";
 import { MaterialsTab } from "@/components/client-portal/materials-tab.tsx";
-import { InstallmentsTab } from "@/components/client-portal/installments-tab.tsx";
+import PaymentsTab from "@/components/client-portal/payments-tab.tsx";
 import { NotificationsTab } from "@/components/client-portal/notifications-tab.tsx";
 
 export default function ClientPortal() {
@@ -152,7 +152,7 @@ export default function ClientPortal() {
           </TabsContent>
 
           <TabsContent value="installments">
-            <InstallmentsTab projectId={selectedProject} />
+            <PaymentsTab projectId={selectedProject} />
           </TabsContent>
 
           <TabsContent value="notifications">

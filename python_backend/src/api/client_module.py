@@ -96,6 +96,54 @@ class MaterialItemUpdate(BaseModel):
     unit_cost: Optional[float] = None
     status: Optional[str] = None
 
+class PaymentScheduleCreate(BaseModel):
+    project_id: str
+    title: str
+    notes: Optional[str] = None
+
+class PaymentScheduleUpdate(BaseModel):
+    title: Optional[str] = None
+    notes: Optional[str] = None
+
+class PaymentInstallmentCreate(BaseModel):
+    project_id: str
+    schedule_id: str
+    name: str
+    description: Optional[str] = None
+    amount: float
+    currency: str = "USD"
+    due_date: Optional[date] = None
+    status: str = "planned"
+    next_milestone: bool = False
+    display_order: int = 0
+
+class PaymentInstallmentUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    amount: Optional[float] = None
+    currency: Optional[str] = None
+    due_date: Optional[date] = None
+    status: Optional[str] = None
+    next_milestone: Optional[bool] = None
+    display_order: Optional[int] = None
+
+class PaymentDocumentCreate(BaseModel):
+    project_id: str
+    schedule_id: Optional[str] = None
+    title: str
+    file_id: str
+
+class PaymentReceiptCreate(BaseModel):
+    project_id: str
+    installment_id: str
+    receipt_type: str
+    reference_no: Optional[str] = None
+    payment_date: Optional[date] = None
+    file_id: str
+
+class MarkPaidRequest(BaseModel):
+    tax: Optional[float] = 0.0
+
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
@@ -962,3 +1010,611 @@ async def get_client_portal_stats(
                 accessible_projects
             )
         return dict(stats)
+
+# ============================================================================
+# PAYMENT SCHEDULES
+# ============================================================================
+
+@router.post("/payment-schedules")
+async def create_payment_schedule(
+    data: PaymentScheduleCreate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Create a payment schedule for a project."""
+    await verify_project_access(data.project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """INSERT INTO client_portal.payment_schedules 
+               (project_id, title, notes, created_by, updated_by) 
+               VALUES ($1, $2, $3, $4, $5) 
+               RETURNING *""",
+            data.project_id, data.title, data.notes, 
+            current_user['id'], current_user['id']
+        )
+        return dict(row)
+
+@router.get("/payment-schedules")
+async def get_payment_schedules(
+    project_id: str = Query(...),
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Get payment schedules for a project."""
+    await verify_project_access(project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT * FROM client_portal.payment_schedules WHERE project_id = $1 ORDER BY created_at DESC",
+            project_id
+        )
+        return [dict(row) for row in rows]
+
+@router.patch("/payment-schedules/{schedule_id}")
+async def update_payment_schedule(
+    schedule_id: str,
+    update: PaymentScheduleUpdate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Update a payment schedule."""
+    async with pool.acquire() as conn:
+        # First get the schedule to verify access
+        schedule = await conn.fetchrow(
+            "SELECT project_id FROM client_portal.payment_schedules WHERE id = $1",
+            schedule_id
+        )
+        if not schedule:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Schedule not found")
+        
+        await verify_project_access(schedule['project_id'], current_user, pool)
+        
+        updates = []
+        values = []
+        param_count = 1
+        
+        if update.title is not None:
+            updates.append(f"title = ${param_count}")
+            values.append(update.title)
+            param_count += 1
+        if update.notes is not None:
+            updates.append(f"notes = ${param_count}")
+            values.append(update.notes)
+            param_count += 1
+        
+        if not updates:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+        
+        values.extend([current_user['id'], schedule_id])
+        query = f"""UPDATE client_portal.payment_schedules 
+                   SET {', '.join(updates)}, updated_by = ${param_count}, updated_at = NOW() 
+                   WHERE id = ${param_count + 1} 
+                   RETURNING *"""
+        
+        row = await conn.fetchrow(query, *values)
+        return dict(row)
+
+# ============================================================================
+# PAYMENT INSTALLMENTS
+# ============================================================================
+
+@router.post("/payment-installments")
+async def create_payment_installment(
+    data: PaymentInstallmentCreate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Create a payment installment."""
+    await verify_project_access(data.project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        # If next_milestone is true, clear any existing next_milestone for this project
+        if data.next_milestone:
+            await conn.execute(
+                """UPDATE client_portal.payment_installments 
+                   SET next_milestone = FALSE 
+                   WHERE project_id = $1 AND status != 'paid'""",
+                data.project_id
+            )
+        
+        row = await conn.fetchrow(
+            """INSERT INTO client_portal.payment_installments 
+               (project_id, schedule_id, name, description, amount, currency, 
+                due_date, status, next_milestone, display_order, created_by, updated_by) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
+               RETURNING *""",
+            data.project_id, data.schedule_id, data.name, data.description, 
+            data.amount, data.currency, data.due_date, data.status,
+            data.next_milestone, data.display_order, 
+            current_user['id'], current_user['id']
+        )
+        
+        # Log the event
+        await conn.execute(
+            """INSERT INTO client_portal.payment_events 
+               (project_id, actor_id, entity_type, entity_id, action) 
+               VALUES ($1, $2, 'installment', $3, 'created')""",
+            data.project_id, current_user['id'], row['id']
+        )
+        
+        return dict(row)
+
+@router.get("/payment-installments")
+async def get_payment_installments(
+    project_id: str = Query(...),
+    schedule_id: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Get payment installments for a project."""
+    await verify_project_access(project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        query = "SELECT * FROM client_portal.payment_installments WHERE project_id = $1"
+        params = [project_id]
+        
+        if schedule_id:
+            params.append(schedule_id)
+            query += f" AND schedule_id = ${len(params)}"
+        
+        if status:
+            params.append(status)
+            query += f" AND status = ${len(params)}"
+        
+        query += " ORDER BY display_order, due_date NULLS LAST, created_at"
+        
+        rows = await conn.fetch(query, *params)
+        return [dict(row) for row in rows]
+
+@router.patch("/payment-installments/{installment_id}")
+async def update_payment_installment(
+    installment_id: str,
+    update: PaymentInstallmentUpdate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Update a payment installment."""
+    async with pool.acquire() as conn:
+        # Get the installment to verify access and track changes
+        installment = await conn.fetchrow(
+            "SELECT * FROM client_portal.payment_installments WHERE id = $1",
+            installment_id
+        )
+        if not installment:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Installment not found")
+        
+        await verify_project_access(installment['project_id'], current_user, pool)
+        
+        # If next_milestone is being set to true, clear others
+        if update.next_milestone:
+            await conn.execute(
+                """UPDATE client_portal.payment_installments 
+                   SET next_milestone = FALSE 
+                   WHERE project_id = $1 AND id != $2 AND status != 'paid'""",
+                installment['project_id'], installment_id
+            )
+        
+        updates = []
+        values = []
+        param_count = 1
+        diff = {}
+        
+        if update.name is not None:
+            updates.append(f"name = ${param_count}")
+            values.append(update.name)
+            diff['name'] = {'old': installment['name'], 'new': update.name}
+            param_count += 1
+        if update.description is not None:
+            updates.append(f"description = ${param_count}")
+            values.append(update.description)
+            param_count += 1
+        if update.amount is not None:
+            updates.append(f"amount = ${param_count}")
+            values.append(update.amount)
+            diff['amount'] = {'old': str(installment['amount']), 'new': str(update.amount)}
+            param_count += 1
+        if update.currency is not None:
+            updates.append(f"currency = ${param_count}")
+            values.append(update.currency)
+            param_count += 1
+        if update.due_date is not None:
+            updates.append(f"due_date = ${param_count}")
+            values.append(update.due_date)
+            param_count += 1
+        if update.status is not None:
+            updates.append(f"status = ${param_count}")
+            values.append(update.status)
+            diff['status'] = {'old': installment['status'], 'new': update.status}
+            param_count += 1
+        if update.next_milestone is not None:
+            updates.append(f"next_milestone = ${param_count}")
+            values.append(update.next_milestone)
+            param_count += 1
+        if update.display_order is not None:
+            updates.append(f"display_order = ${param_count}")
+            values.append(update.display_order)
+            param_count += 1
+        
+        if not updates:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+        
+        values.extend([current_user['id'], installment_id])
+        query = f"""UPDATE client_portal.payment_installments 
+                   SET {', '.join(updates)}, updated_by = ${param_count}, updated_at = NOW() 
+                   WHERE id = ${param_count + 1} 
+                   RETURNING *"""
+        
+        row = await conn.fetchrow(query, *values)
+        
+        # Log status changes
+        if 'status' in diff:
+            await conn.execute(
+                """INSERT INTO client_portal.payment_events 
+                   (project_id, actor_id, entity_type, entity_id, action, diff) 
+                   VALUES ($1, $2, 'installment', $3, 'status_changed', $4)""",
+                installment['project_id'], current_user['id'], installment_id, diff
+            )
+        
+        return dict(row)
+
+# ============================================================================
+# PAYMENT DOCUMENTS
+# ============================================================================
+
+@router.post("/payment-documents")
+async def create_payment_document(
+    data: PaymentDocumentCreate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Upload a payment document."""
+    await verify_project_access(data.project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """INSERT INTO client_portal.payment_documents 
+               (project_id, schedule_id, title, file_id, uploaded_by) 
+               VALUES ($1, $2, $3, $4, $5) 
+               RETURNING *""",
+            data.project_id, data.schedule_id, data.title, 
+            data.file_id, current_user['id']
+        )
+        return dict(row)
+
+@router.get("/payment-documents")
+async def get_payment_documents(
+    project_id: str = Query(...),
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Get payment documents for a project."""
+    await verify_project_access(project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT * FROM client_portal.payment_documents WHERE project_id = $1 ORDER BY created_at DESC",
+            project_id
+        )
+        return [dict(row) for row in rows]
+
+@router.delete("/payment-documents/{document_id}")
+async def delete_payment_document(
+    document_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Delete a payment document."""
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "DELETE FROM client_portal.payment_documents WHERE id = $1",
+            document_id
+        )
+        return {"success": True}
+
+# ============================================================================
+# PAYMENT RECEIPTS
+# ============================================================================
+
+@router.post("/payment-receipts")
+async def create_payment_receipt(
+    data: PaymentReceiptCreate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Upload a payment receipt."""
+    await verify_project_access(data.project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """INSERT INTO client_portal.payment_receipts 
+               (project_id, installment_id, receipt_type, reference_no, 
+                payment_date, file_id, uploaded_by) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7) 
+               RETURNING *""",
+            data.project_id, data.installment_id, data.receipt_type, 
+            data.reference_no, data.payment_date, data.file_id, current_user['id']
+        )
+        return dict(row)
+
+@router.get("/payment-receipts")
+async def get_payment_receipts(
+    installment_id: Optional[str] = Query(None),
+    project_id: Optional[str] = Query(None),
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Get payment receipts."""
+    if project_id:
+        await verify_project_access(project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        if installment_id:
+            rows = await conn.fetch(
+                "SELECT * FROM client_portal.payment_receipts WHERE installment_id = $1 ORDER BY created_at DESC",
+                installment_id
+            )
+        elif project_id:
+            rows = await conn.fetch(
+                "SELECT * FROM client_portal.payment_receipts WHERE project_id = $1 ORDER BY created_at DESC",
+                project_id
+            )
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="installment_id or project_id required")
+        
+        return [dict(row) for row in rows]
+
+# ============================================================================
+# INVOICES
+# ============================================================================
+
+@router.get("/invoices")
+async def get_invoices(
+    project_id: str = Query(...),
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Get invoices for a project."""
+    await verify_project_access(project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT i.*, pi.name as installment_name 
+               FROM client_portal.invoices i
+               JOIN client_portal.payment_installments pi ON i.installment_id = pi.id
+               WHERE i.project_id = $1 
+               ORDER BY i.created_at DESC""",
+            project_id
+        )
+        return [dict(row) for row in rows]
+
+@router.post("/payment-installments/{installment_id}/mark-paid")
+async def mark_installment_paid(
+    installment_id: str,
+    request: MarkPaidRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Mark an installment as paid and generate invoice."""
+    async with pool.acquire() as conn:
+        # Get installment
+        installment = await conn.fetchrow(
+            "SELECT * FROM client_portal.payment_installments WHERE id = $1",
+            installment_id
+        )
+        if not installment:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Installment not found")
+        
+        await verify_project_access(installment['project_id'], current_user, pool)
+        
+        # Check if at least one receipt exists
+        receipt_count = await conn.fetchval(
+            "SELECT COUNT(*) FROM client_portal.payment_receipts WHERE installment_id = $1",
+            installment_id
+        )
+        if receipt_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="At least one receipt must be uploaded before marking as paid"
+            )
+        
+        # Check if already has an invoice
+        existing_invoice = await conn.fetchrow(
+            "SELECT id FROM client_portal.invoices WHERE installment_id = $1",
+            installment_id
+        )
+        if existing_invoice:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Installment already has an invoice"
+            )
+        
+        # Generate invoice number
+        year = datetime.now().year
+        project_short = installment['project_id'][:8]
+        
+        # Get next sequence number for this project and year
+        max_invoice = await conn.fetchrow(
+            """SELECT invoice_no FROM client_portal.invoices 
+               WHERE project_id = $1 AND invoice_no LIKE $2 
+               ORDER BY created_at DESC LIMIT 1""",
+            installment['project_id'], f"INV-{project_short}-{year}-%"
+        )
+        
+        if max_invoice:
+            last_seq = int(max_invoice['invoice_no'].split('-')[-1])
+            seq = last_seq + 1
+        else:
+            seq = 1
+        
+        invoice_no = f"INV-{project_short}-{year}-{seq:04d}"
+        
+        # Calculate totals
+        subtotal = float(installment['amount'])
+        tax = request.tax or 0.0
+        total = subtotal + tax
+        
+        # For now, use a placeholder for PDF file_id (will be generated separately)
+        import uuid
+        pdf_file_id = str(uuid.uuid4())
+        
+        # Create invoice record
+        invoice = await conn.fetchrow(
+            """INSERT INTO client_portal.invoices 
+               (project_id, installment_id, invoice_no, subtotal, tax, total, 
+                currency, pdf_file_id, created_by) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+               RETURNING *""",
+            installment['project_id'], installment_id, invoice_no, 
+            subtotal, tax, total, installment['currency'], 
+            pdf_file_id, current_user['id']
+        )
+        
+        # Update installment status to paid and clear next_milestone
+        await conn.execute(
+            """UPDATE client_portal.payment_installments 
+               SET status = 'paid', next_milestone = FALSE, updated_by = $1, updated_at = NOW() 
+               WHERE id = $2""",
+            current_user['id'], installment_id
+        )
+        
+        # Log the event
+        await conn.execute(
+            """INSERT INTO client_portal.payment_events 
+               (project_id, actor_id, entity_type, entity_id, action, diff) 
+               VALUES ($1, $2, 'installment', $3, 'marked_paid', $4)""",
+            installment['project_id'], current_user['id'], installment_id,
+            {'invoice_no': invoice_no}
+        )
+        
+        return {
+            "success": True,
+            "invoice": dict(invoice),
+            "installment_id": installment_id
+        }
+
+# ============================================================================
+# PAYMENT TOTALS
+# ============================================================================
+
+@router.get("/payment-totals")
+async def get_payment_totals(
+    project_id: str = Query(...),
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Get payment totals and summary for a project."""
+    await verify_project_access(project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        # Get totals
+        totals = await conn.fetchrow(
+            """SELECT 
+                COALESCE(SUM(amount), 0) as total_amount,
+                COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as total_paid,
+                COALESCE(SUM(CASE WHEN status IN ('planned', 'payable') THEN amount ELSE 0 END), 0) as total_pending
+               FROM client_portal.payment_installments 
+               WHERE project_id = $1""",
+            project_id
+        )
+        
+        total_amount = float(totals['total_amount'])
+        total_paid = float(totals['total_paid'])
+        total_pending = float(totals['total_pending'])
+        
+        percent_complete = (total_paid / total_amount * 100) if total_amount > 0 else 0
+        
+        # Get next milestone
+        next_milestone = await conn.fetchrow(
+            """SELECT * FROM client_portal.payment_installments 
+               WHERE project_id = $1 AND next_milestone = TRUE AND status != 'paid'
+               LIMIT 1""",
+            project_id
+        )
+        
+        return {
+            "total_amount": total_amount,
+            "total_paid": total_paid,
+            "total_pending": total_pending,
+            "percent_complete": round(percent_complete, 2),
+            "next_milestone": dict(next_milestone) if next_milestone else None
+        }
+
+# ============================================================================
+# COMPREHENSIVE PAYMENTS VIEW
+# ============================================================================
+
+@router.get("/projects/{project_id}/payments")
+async def get_project_payments(
+    project_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Get comprehensive payment data for a project."""
+    await verify_project_access(project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        # Get schedules
+        schedules = await conn.fetch(
+            "SELECT * FROM client_portal.payment_schedules WHERE project_id = $1",
+            project_id
+        )
+        
+        # Get installments
+        installments = await conn.fetch(
+            "SELECT * FROM client_portal.payment_installments WHERE project_id = $1 ORDER BY display_order, due_date",
+            project_id
+        )
+        
+        # Get documents
+        documents = await conn.fetch(
+            "SELECT * FROM client_portal.payment_documents WHERE project_id = $1 ORDER BY created_at DESC",
+            project_id
+        )
+        
+        # Get receipts
+        receipts = await conn.fetch(
+            "SELECT * FROM client_portal.payment_receipts WHERE project_id = $1",
+            project_id
+        )
+        
+        # Get invoices
+        invoices = await conn.fetch(
+            """SELECT i.*, pi.name as installment_name 
+               FROM client_portal.invoices i
+               JOIN client_portal.payment_installments pi ON i.installment_id = pi.id
+               WHERE i.project_id = $1 
+               ORDER BY i.created_at DESC""",
+            project_id
+        )
+        
+        # Get totals
+        totals = await conn.fetchrow(
+            """SELECT 
+                COALESCE(SUM(amount), 0) as total_amount,
+                COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as total_paid,
+                COALESCE(SUM(CASE WHEN status IN ('planned', 'payable') THEN amount ELSE 0 END), 0) as total_pending
+               FROM client_portal.payment_installments 
+               WHERE project_id = $1""",
+            project_id
+        )
+        
+        total_amount = float(totals['total_amount'])
+        total_paid = float(totals['total_paid'])
+        total_pending = float(totals['total_pending'])
+        percent_complete = (total_paid / total_amount * 100) if total_amount > 0 else 0
+        
+        return {
+            "schedules": [dict(row) for row in schedules],
+            "installments": [dict(row) for row in installments],
+            "documents": [dict(row) for row in documents],
+            "receipts": [dict(row) for row in receipts],
+            "invoices": [dict(row) for row in invoices],
+            "totals": {
+                "total_amount": total_amount,
+                "total_paid": total_paid,
+                "total_pending": total_pending,
+                "percent_complete": round(percent_complete, 2)
+            }
+        }
