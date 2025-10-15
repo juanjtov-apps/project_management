@@ -47,7 +47,15 @@ Preferred communication style: Simple, everyday language.
 - **Client Portal**: Comprehensive collaboration module enabling project managers and clients to interact seamlessly with 5 core features:
   - **Issues Reporting**: Create and track project issues with up to 3 photo uploads, priority levels (Low/Medium/High/Critical), status tracking (Open/In Progress/Resolved/Closed), and threaded comments for discussion.
   - **Forum Messaging**: Simplified project-level messaging system with real-time updates, allowing stakeholders to communicate directly within project context.
-  - **Material Lists**: Collaborative material management with 10 predefined categories (Concrete, Steel, Lumber, Drywall, Electrical, Plumbing, HVAC, Roofing, Flooring, Paint/Finishes), quantity tracking, and cost estimation.
+  - **Material Lists** (Comprehensive Redesign): Area-based material organization system with:
+    - **Material Areas**: Custom areas for organizing materials by house section (e.g., Foundation, Framing, Electrical)
+    - **Collapsible Sections**: Each area displays as a collapsible section showing item count and total cost in the header
+    - **Inline Item Management**: Add, edit, and delete material items directly within each area section
+    - **Product Links**: URL validation with external link preview buttons for vendor product pages
+    - **Real-time Search**: Filter materials across all areas by name, specification, or vendor
+    - **Cost Calculations**: Automatic calculation of area totals and project-wide estimated costs
+    - **Database Schema**: New `material_areas` and `material_items` tables in `client_portal` schema (additive migration, legacy materials table preserved)
+    - All features maintain strict company scoping and project access verification
   - **Payment Installments**: Track payment schedules with installment amounts, due dates, status monitoring (Pending/Paid/Overdue), and file upload support for invoices/receipts.
   - **Notifications System**: Customizable notification preferences with type-based settings (Issues/Forum/Materials/Payments), enabling users to control their communication flow.
   - All features maintain strict company scoping and project access verification for multi-tenant security.
