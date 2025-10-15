@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -72,6 +72,7 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
   const [isInstallmentDialogOpen, setIsInstallmentDialogOpen] = useState(false);
   const [isDocumentDialogOpen, setIsDocumentDialogOpen] = useState(false);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+  const hasInitializedSchedule = useRef(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -198,7 +199,9 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
 
   // Auto-create schedule if none exists (1:1 per project)
   useEffect(() => {
-    if (!isLoading && schedules.length === 0 && projectId && !createScheduleMutation.isPending) {
+    if (!isLoading && schedules.length === 0 && projectId && !hasInitializedSchedule.current && !createScheduleMutation.isPending) {
+      // Mark as initialized to prevent duplicate creation
+      hasInitializedSchedule.current = true;
       // Automatically create a schedule for this project
       createScheduleMutation.mutate({
         title: "Payment Schedule",
@@ -209,6 +212,12 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
       setSelectedScheduleId(schedules[0].id);
     }
   }, [schedules, isLoading, projectId, selectedScheduleId, createScheduleMutation]);
+
+  // Reset initialization flag when project changes
+  useEffect(() => {
+    hasInitializedSchedule.current = false;
+    setSelectedScheduleId(null);
+  }, [projectId]);
 
   if (isLoading) {
     return (
@@ -497,7 +506,7 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
         <CardContent>
           {installments.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              No installments yet. Create a schedule and add installments to track payments.
+              No installments yet. Add installments to track payments.
             </p>
           ) : (
             <div className="space-y-3">
