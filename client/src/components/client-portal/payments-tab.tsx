@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -196,6 +196,20 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
     createDocumentMutation.mutate(data);
   };
 
+  // Auto-create schedule if none exists (1:1 per project)
+  useEffect(() => {
+    if (!isLoading && schedules.length === 0 && projectId && !createScheduleMutation.isPending) {
+      // Automatically create a schedule for this project
+      createScheduleMutation.mutate({
+        title: "Payment Schedule",
+        notes: "Project payment tracking",
+      });
+    } else if (schedules.length > 0 && !selectedScheduleId) {
+      // Set the schedule ID if one exists
+      setSelectedScheduleId(schedules[0].id);
+    }
+  }, [schedules, isLoading, projectId, selectedScheduleId, createScheduleMutation]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -271,58 +285,6 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
 
       {/* Action Buttons */}
       <div className="flex gap-2 flex-wrap">
-        <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-create-schedule">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Schedule
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Payment Schedule</DialogTitle>
-            </DialogHeader>
-            <Form {...scheduleForm}>
-              <form onSubmit={scheduleForm.handleSubmit(onSubmitSchedule)} className="space-y-4">
-                <FormField
-                  control={scheduleForm.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Schedule Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Project Payment Plan 2025" {...field} data-testid="input-schedule-title" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={scheduleForm.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Additional notes..." {...field} data-testid="textarea-schedule-notes" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setIsScheduleDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={createScheduleMutation.isPending} data-testid="button-submit-schedule">
-                    {createScheduleMutation.isPending ? "Creating..." : "Create Schedule"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-
         {schedules.length > 0 && (
           <Dialog open={isInstallmentDialogOpen} onOpenChange={setIsInstallmentDialogOpen}>
             <DialogTrigger asChild>
