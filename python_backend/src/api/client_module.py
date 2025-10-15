@@ -65,6 +65,37 @@ class NotificationSettingCreate(BaseModel):
     channel: str = "email"
     cadence: str = "immediate"
 
+class MaterialAreaCreate(BaseModel):
+    project_id: str
+    name: str
+    description: Optional[str] = None
+    sort_order: Optional[int] = 0
+
+class MaterialAreaUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    sort_order: Optional[int] = None
+
+class MaterialItemCreate(BaseModel):
+    area_id: str
+    project_id: str
+    name: str
+    spec: Optional[str] = None
+    product_link: Optional[str] = None
+    vendor: Optional[str] = None
+    quantity: Optional[str] = None
+    unit_cost: Optional[float] = None
+    status: Optional[str] = "pending"
+
+class MaterialItemUpdate(BaseModel):
+    name: Optional[str] = None
+    spec: Optional[str] = None
+    product_link: Optional[str] = None
+    vendor: Optional[str] = None
+    quantity: Optional[str] = None
+    unit_cost: Optional[float] = None
+    status: Optional[str] = None
+
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
@@ -637,6 +668,252 @@ async def delete_notification_setting(
         await conn.execute(
             "DELETE FROM client_portal.notification_settings WHERE id = $1",
             setting_id
+        )
+        return {"success": True}
+
+# ============================================================================
+# MATERIAL AREAS ENDPOINTS (Comprehensive Redesign)
+# ============================================================================
+
+@router.get("/material-areas")
+async def get_material_areas(
+    project_id: str = Query(...),
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Get all material areas for a project with item counts and totals."""
+    await verify_project_access(project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT 
+                ma.*,
+                COUNT(mi.id) as item_count,
+                COALESCE(SUM(mi.unit_cost * CAST(NULLIF(mi.quantity, '') AS NUMERIC)), 0) as total_cost
+               FROM client_portal.material_areas ma
+               LEFT JOIN client_portal.material_items mi ON ma.id = mi.area_id
+               WHERE ma.project_id = $1
+               GROUP BY ma.id
+               ORDER BY ma.sort_order, ma.created_at""",
+            project_id
+        )
+        return [dict(row) for row in rows]
+
+@router.post("/material-areas")
+async def create_material_area(
+    area: MaterialAreaCreate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Create a new material area."""
+    await verify_project_access(area.project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """INSERT INTO client_portal.material_areas 
+               (project_id, name, description, sort_order, created_by)
+               VALUES ($1, $2, $3, $4, $5)
+               RETURNING *""",
+            area.project_id,
+            area.name,
+            area.description,
+            area.sort_order,
+            current_user['id']
+        )
+        return dict(row)
+
+@router.patch("/material-areas/{area_id}")
+async def update_material_area(
+    area_id: str,
+    update: MaterialAreaUpdate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Update a material area."""
+    async with pool.acquire() as conn:
+        updates = []
+        values = []
+        param_count = 1
+        
+        if update.name is not None:
+            updates.append(f"name = ${param_count}")
+            values.append(update.name)
+            param_count += 1
+        if update.description is not None:
+            updates.append(f"description = ${param_count}")
+            values.append(update.description)
+            param_count += 1
+        if update.sort_order is not None:
+            updates.append(f"sort_order = ${param_count}")
+            values.append(update.sort_order)
+            param_count += 1
+        
+        if not updates:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+        
+        values.append(area_id)
+        query = f"UPDATE client_portal.material_areas SET {', '.join(updates)}, updated_at = now() WHERE id = ${param_count} RETURNING *"
+        
+        row = await conn.fetchrow(query, *values)
+        if not row:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Area not found")
+        return dict(row)
+
+@router.delete("/material-areas/{area_id}")
+async def delete_material_area(
+    area_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Delete a material area (cascade deletes items)."""
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "DELETE FROM client_portal.material_areas WHERE id = $1",
+            area_id
+        )
+        return {"success": True}
+
+# ============================================================================
+# MATERIAL ITEMS ENDPOINTS (Comprehensive Redesign)
+# ============================================================================
+
+@router.get("/material-items")
+async def get_material_items(
+    project_id: Optional[str] = Query(None),
+    area_id: Optional[str] = Query(None),
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Get material items, optionally filtered by project or area."""
+    if project_id:
+        await verify_project_access(project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        if area_id:
+            rows = await conn.fetch(
+                """SELECT mi.*, u.name as added_by_name, ma.name as area_name
+                   FROM client_portal.material_items mi
+                   LEFT JOIN public.users u ON mi.added_by = u.id
+                   LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
+                   WHERE mi.area_id = $1
+                   ORDER BY mi.created_at DESC""",
+                area_id
+            )
+        elif project_id:
+            rows = await conn.fetch(
+                """SELECT mi.*, u.name as added_by_name, ma.name as area_name
+                   FROM client_portal.material_items mi
+                   LEFT JOIN public.users u ON mi.added_by = u.id
+                   LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
+                   WHERE mi.project_id = $1
+                   ORDER BY ma.sort_order, mi.created_at DESC""",
+                project_id
+            )
+        else:
+            accessible_projects = await get_user_accessible_projects(current_user, pool)
+            rows = await conn.fetch(
+                """SELECT mi.*, u.name as added_by_name, ma.name as area_name
+                   FROM client_portal.material_items mi
+                   LEFT JOIN public.users u ON mi.added_by = u.id
+                   LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
+                   WHERE mi.project_id = ANY($1::varchar[])
+                   ORDER BY mi.created_at DESC""",
+                accessible_projects
+            )
+        return [dict(row) for row in rows]
+
+@router.post("/material-items")
+async def create_material_item(
+    item: MaterialItemCreate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Create a new material item."""
+    await verify_project_access(item.project_id, current_user, pool)
+    
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """INSERT INTO client_portal.material_items 
+               (area_id, project_id, name, spec, product_link, vendor, quantity, unit_cost, status, added_by)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+               RETURNING *""",
+            item.area_id,
+            item.project_id,
+            item.name,
+            item.spec,
+            item.product_link,
+            item.vendor,
+            item.quantity,
+            item.unit_cost,
+            item.status,
+            current_user['id']
+        )
+        return dict(row)
+
+@router.patch("/material-items/{item_id}")
+async def update_material_item(
+    item_id: str,
+    update: MaterialItemUpdate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Update a material item."""
+    async with pool.acquire() as conn:
+        updates = []
+        values = []
+        param_count = 1
+        
+        if update.name is not None:
+            updates.append(f"name = ${param_count}")
+            values.append(update.name)
+            param_count += 1
+        if update.spec is not None:
+            updates.append(f"spec = ${param_count}")
+            values.append(update.spec)
+            param_count += 1
+        if update.product_link is not None:
+            updates.append(f"product_link = ${param_count}")
+            values.append(update.product_link)
+            param_count += 1
+        if update.vendor is not None:
+            updates.append(f"vendor = ${param_count}")
+            values.append(update.vendor)
+            param_count += 1
+        if update.quantity is not None:
+            updates.append(f"quantity = ${param_count}")
+            values.append(update.quantity)
+            param_count += 1
+        if update.unit_cost is not None:
+            updates.append(f"unit_cost = ${param_count}")
+            values.append(update.unit_cost)
+            param_count += 1
+        if update.status is not None:
+            updates.append(f"status = ${param_count}")
+            values.append(update.status)
+            param_count += 1
+        
+        if not updates:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+        
+        values.append(item_id)
+        query = f"UPDATE client_portal.material_items SET {', '.join(updates)}, updated_at = now() WHERE id = ${param_count} RETURNING *"
+        
+        row = await conn.fetchrow(query, *values)
+        if not row:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+        return dict(row)
+
+@router.delete("/material-items/{item_id}")
+async def delete_material_item(
+    item_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Delete a material item."""
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "DELETE FROM client_portal.material_items WHERE id = $1",
+            item_id
         )
         return {"success": True}
 
