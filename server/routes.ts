@@ -1257,6 +1257,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Object storage endpoints for image uploads
   app.post('/api/objects/upload', async (req, res) => {
     try {
+      // Verify user is authenticated
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
       console.log('PRODUCTION: Getting upload URL for object storage');
       
       const { ObjectStorageService } = await import('./objectStorage');
@@ -1279,6 +1285,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Object storage endpoint for file downloads
   app.post('/api/objects/download', async (req, res) => {
     try {
+      // Verify user is authenticated
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
       const { filePath } = req.body;
       console.log('PRODUCTION: Getting download URL for file:', filePath);
       
