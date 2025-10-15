@@ -58,10 +58,16 @@ const receiptSchema = z.object({
   file_id: z.string().optional(),
 });
 
+const invoiceSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  file_id: z.string().optional(),
+});
+
 type ScheduleFormData = z.infer<typeof scheduleSchema>;
 type InstallmentFormData = z.infer<typeof installmentSchema>;
 type DocumentFormData = z.infer<typeof documentSchema>;
 type ReceiptFormData = z.infer<typeof receiptSchema>;
+type InvoiceFormData = z.infer<typeof invoiceSchema>;
 
 interface PaymentsTabProps {
   projectId: string;
@@ -70,10 +76,15 @@ interface PaymentsTabProps {
 export default function PaymentsTab({ projectId }: PaymentsTabProps) {
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [isInstallmentDialogOpen, setIsInstallmentDialogOpen] = useState(false);
+  const [isEditInstallmentDialogOpen, setIsEditInstallmentDialogOpen] = useState(false);
   const [isDocumentDialogOpen, setIsDocumentDialogOpen] = useState(false);
+  const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+  const [selectedInstallmentId, setSelectedInstallmentId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedInvoiceFile, setSelectedInvoiceFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingInvoice, setIsUploadingInvoice] = useState(false);
   const hasInitializedSchedule = useRef(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -113,6 +124,25 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
 
   const documentForm = useForm<DocumentFormData>({
     resolver: zodResolver(documentSchema),
+    defaultValues: { title: "", file_id: "" },
+  });
+
+  const editInstallmentForm = useForm<InstallmentFormData>({
+    resolver: zodResolver(installmentSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      amount: 0,
+      currency: "USD",
+      due_date: "",
+      status: "planned",
+      next_milestone: false,
+      display_order: 0,
+    },
+  });
+
+  const invoiceForm = useForm<InvoiceFormData>({
+    resolver: zodResolver(invoiceSchema),
     defaultValues: { title: "", file_id: "" },
   });
 
@@ -187,12 +217,61 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
     },
   });
 
+  // Create invoice document mutation
+  const createInvoiceMutation = useMutation({
+    mutationFn: async (data: InvoiceFormData) => {
+      const response = await apiRequest("/api/payment-documents", {
+        method: "POST",
+        body: {
+          ...data,
+          document_type: "invoice",
+          project_id: projectId,
+          schedule_id: selectedScheduleId,
+        },
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/payments`] });
+      toast({ title: "Invoice Uploaded", description: "Invoice document has been uploaded successfully." });
+      invoiceForm.reset();
+      setIsInvoiceDialogOpen(false);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to upload invoice.", variant: "destructive" });
+    },
+  });
+
   const onSubmitSchedule = (data: ScheduleFormData) => {
     createScheduleMutation.mutate(data);
   };
 
   const onSubmitInstallment = (data: InstallmentFormData) => {
     createInstallmentMutation.mutate(data);
+  };
+
+  const handleDownload = async (filePath: string, fileName: string) => {
+    try {
+      const response = await fetch('/api/objects/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath }),
+      });
+      
+      const { downloadURL } = await response.json();
+      
+      // Create a temporary anchor element to trigger download
+      const link = document.createElement('a');
+      link.href = downloadURL;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({ title: "Download Started", description: `Downloading ${fileName}` });
+    } catch (error) {
+      toast({ title: "Download Error", description: "Failed to download file.", variant: "destructive" });
+    }
   };
 
   const onSubmitDocument = async (data: DocumentFormData) => {
@@ -234,6 +313,48 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
       toast({ title: "Upload Error", description: "Failed to upload file.", variant: "destructive" });
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const onSubmitInvoice = async (data: InvoiceFormData) => {
+    if (!selectedInvoiceFile) {
+      toast({ title: "Error", description: "Please select a file to upload.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      setIsUploadingInvoice(true);
+      
+      // Get upload URL from backend
+      const uploadResponse = await fetch('/api/objects/upload', { method: 'POST' });
+      const { uploadURL } = await uploadResponse.json();
+      
+      // Upload file to object storage
+      const uploadResult = await fetch(uploadURL, {
+        method: 'PUT',
+        headers: { 'Content-Type': selectedInvoiceFile.type },
+        body: selectedInvoiceFile,
+      });
+
+      if (!uploadResult.ok) {
+        throw new Error('File upload failed');
+      }
+
+      // Extract file path from upload URL
+      const url = new URL(uploadURL);
+      const filePath = url.pathname.split('/').slice(2).join('/');
+      
+      // Submit invoice with file path
+      createInvoiceMutation.mutate({
+        ...data,
+        file_id: filePath,
+      });
+      
+      setSelectedInvoiceFile(null);
+    } catch (error) {
+      toast({ title: "Upload Error", description: "Failed to upload file.", variant: "destructive" });
+    } finally {
+      setIsUploadingInvoice(false);
     }
   };
 
@@ -553,6 +674,75 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
             </Form>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={isInvoiceDialogOpen} onOpenChange={(open) => {
+          setIsInvoiceDialogOpen(open);
+          if (!open) {
+            setSelectedInvoiceFile(null);
+            invoiceForm.reset();
+          }
+        }}>
+          <DialogTrigger asChild>
+            <Button variant="outline" data-testid="button-upload-invoice">
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Invoice
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Upload Invoice Document</DialogTitle>
+            </DialogHeader>
+            <Form {...invoiceForm}>
+              <form onSubmit={invoiceForm.handleSubmit(onSubmitInvoice)} className="space-y-4">
+                <FormField
+                  control={invoiceForm.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Invoice Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Final Invoice" {...field} data-testid="input-invoice-title" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div>
+                  <FormLabel>Select Invoice File</FormLabel>
+                  <div className="mt-2">
+                    <Input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setSelectedInvoiceFile(file);
+                        }
+                      }}
+                      data-testid="input-invoice-file"
+                    />
+                    {selectedInvoiceFile && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Selected: {selectedInvoiceFile.name} ({(selectedInvoiceFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => {
+                    setIsInvoiceDialogOpen(false);
+                    setSelectedInvoiceFile(null);
+                  }}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isUploadingInvoice || createInvoiceMutation.isPending} data-testid="button-submit-invoice">
+                    {isUploadingInvoice ? "Uploading..." : "Upload Invoice"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Installments Section */}
@@ -603,7 +793,12 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
                       </p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" data-testid={`button-download-${doc.id}`}>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleDownload(doc.file_id, doc.title)}
+                    data-testid={`button-download-${doc.id}`}
+                  >
                     <Download className="h-4 w-4" />
                   </Button>
                 </div>
@@ -660,6 +855,7 @@ interface InstallmentRowProps {
 function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
   const [isReceiptDialogOpen, setIsReceiptDialogOpen] = useState(false);
   const [isMarkPaidDialogOpen, setIsMarkPaidDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedReceiptFile, setSelectedReceiptFile] = useState<File | null>(null);
   const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
   const { toast } = useToast();
@@ -672,6 +868,20 @@ function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
       reference_no: "",
       payment_date: "",
       file_id: "",
+    },
+  });
+
+  const editForm = useForm<InstallmentFormData>({
+    resolver: zodResolver(installmentSchema),
+    defaultValues: {
+      name: installment.name || "",
+      description: installment.description || "",
+      amount: installment.amount || 0,
+      currency: installment.currency || "USD",
+      due_date: installment.due_date ? format(new Date(installment.due_date), "yyyy-MM-dd") : "",
+      status: installment.status || "planned",
+      next_milestone: installment.next_milestone || false,
+      display_order: installment.display_order || 0,
     },
   });
 
@@ -697,6 +907,26 @@ function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to upload receipt.", variant: "destructive" });
+    },
+  });
+
+  // Edit installment mutation
+  const editInstallmentMutation = useMutation({
+    mutationFn: async (data: InstallmentFormData) => {
+      const response = await apiRequest(`/api/payment-installments/${installment.id}`, {
+        method: "PATCH",
+        body: data,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/payments`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/payment-totals?project_id=${projectId}`] });
+      toast({ title: "Installment Updated", description: "Payment installment has been updated successfully." });
+      setIsEditDialogOpen(false);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update installment.", variant: "destructive" });
     },
   });
 
@@ -726,6 +956,30 @@ function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
       });
     },
   });
+
+  const handleDownload = async (filePath: string, fileName: string) => {
+    try {
+      const response = await fetch('/api/objects/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath }),
+      });
+      
+      const { downloadURL } = await response.json();
+      
+      // Create a temporary anchor element to trigger download
+      const link = document.createElement('a');
+      link.href = downloadURL;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({ title: "Download Started", description: `Downloading ${fileName}` });
+    } catch (error) {
+      toast({ title: "Download Error", description: "Failed to download file.", variant: "destructive" });
+    }
+  };
 
   const onSubmitReceipt = async (data: ReceiptFormData) => {
     if (!selectedReceiptFile) {
@@ -808,6 +1062,133 @@ function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
       <div className="flex gap-2">
         {installment.status !== "paid" && (
           <>
+            <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+              setIsEditDialogOpen(open);
+              if (!open) {
+                editForm.reset();
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" data-testid={`button-edit-installment-${installment.id}`}>
+                  <FileText className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Edit Payment Installment</DialogTitle>
+                </DialogHeader>
+                <Form {...editForm}>
+                  <form onSubmit={editForm.handleSubmit((data) => editInstallmentMutation.mutate(data))} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={editForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} data-testid="input-edit-installment-name" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="amount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Amount</FormLabel>
+                            <FormControl>
+                              <Input type="number" {...field} data-testid="input-edit-installment-amount" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={editForm.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-edit-installment-description" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={editForm.control}
+                        name="due_date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Due Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} data-testid="input-edit-installment-due-date" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Status</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-edit-installment-status">
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="planned">Planned</SelectItem>
+                                <SelectItem value="payable">Payable</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={editForm.control}
+                      name="next_milestone"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-2">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              checked={field.value}
+                              onChange={field.onChange}
+                              data-testid="checkbox-edit-installment-next-milestone"
+                              className="h-4 w-4"
+                            />
+                          </FormControl>
+                          <FormLabel className="!mt-0">Mark as Next Milestone</FormLabel>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={editInstallmentMutation.isPending} data-testid="button-submit-edit-installment">
+                        {editInstallmentMutation.isPending ? "Updating..." : "Update Installment"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+
             <Dialog open={isReceiptDialogOpen} onOpenChange={(open) => {
               setIsReceiptDialogOpen(open);
               if (!open) {
