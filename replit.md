@@ -56,7 +56,17 @@ Preferred communication style: Simple, everyday language.
     - **Cost Calculations**: Automatic calculation of area totals and project-wide estimated costs
     - **Database Schema**: New `material_areas` and `material_items` tables in `client_portal` schema (additive migration, legacy materials table preserved)
     - All features maintain strict company scoping and project access verification
-  - **Payment Installments**: Track payment schedules with installment amounts, due dates, status monitoring (Pending/Paid/Overdue), and file upload support for invoices/receipts.
+  - **Payment System** (Comprehensive): Professional payment management system with:
+    - **Payment Schedules**: Create and manage payment schedules per project with title and notes
+    - **Installments**: Track individual payments with name, description, amount, currency, due dates, status (planned/payable/paid), and display ordering
+    - **Next Milestone Tracking**: Exactly one installment per project can be flagged as the next milestone for clear payment progression
+    - **Payment Documents**: Contractor-uploaded documents (proposals, statements, lien waivers) always visible to all stakeholders
+    - **Proof of Payment**: Either contractor or client can upload receipts (check photos, wire confirmations, ACH) with receipt type, reference numbers, and payment dates
+    - **Invoice Generation**: Automatic invoice creation when installments are marked as paid, with unique invoice numbers (format: INV-{projectShort}-{year}-{sequence})
+    - **Real-time Totals**: Server-side calculation of total contract amount, total paid, total pending, and percent complete
+    - **Audit Trail**: Complete event logging for status changes and key actions
+    - **Database Schema**: New tables in `client_portal` schema: `payment_schedules`, `payment_installments`, `payment_documents`, `payment_receipts`, `invoices`, `payment_events`
+    - All features enforce strict company scoping and role-based permissions (contractor/PM can create/edit, clients can upload receipts)
   - **Notifications System**: Customizable notification preferences with type-based settings (Issues/Forum/Materials/Payments), enabling users to control their communication flow.
   - All features maintain strict company scoping and project access verification for multi-tenant security.
 
