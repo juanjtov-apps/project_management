@@ -54,10 +54,13 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
   });
 
   // Get issues for the project
-  const { data: issues = [], isLoading } = useQuery<Issue[]>({
+  const { data: issuesData, isLoading } = useQuery<Issue[]>({
     queryKey: [`/api/client-issues?project_id=${projectId}`],
     enabled: !!projectId,
   });
+
+  // Ensure issues is always an array, even if the query returns null
+  const issues = issuesData || [];
 
   // Create issue mutation
   const createIssueMutation = useMutation({
