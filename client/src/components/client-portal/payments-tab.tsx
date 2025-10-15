@@ -593,7 +593,7 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
                   />
 
                   <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsInstallmentDialogOpen(false)}>
+                    <Button type="button" variant="outline" onClick={() => setIsInstallmentDialogOpen(false)} data-testid="button-cancel-add-installment">
                       Cancel
                     </Button>
                     <Button type="submit" disabled={createInstallmentMutation.isPending} data-testid="button-submit-installment">
@@ -663,7 +663,7 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
                   <Button type="button" variant="outline" onClick={() => {
                     setIsDocumentDialogOpen(false);
                     setSelectedFile(null);
-                  }}>
+                  }} data-testid="button-cancel-upload-document">
                     Cancel
                   </Button>
                   <Button type="submit" disabled={isUploading || createDocumentMutation.isPending} data-testid="button-submit-document">
@@ -732,7 +732,7 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
                   <Button type="button" variant="outline" onClick={() => {
                     setIsInvoiceDialogOpen(false);
                     setSelectedInvoiceFile(null);
-                  }}>
+                  }} data-testid="button-cancel-upload-invoice">
                     Cancel
                   </Button>
                   <Button type="submit" disabled={isUploadingInvoice || createInvoiceMutation.isPending} data-testid="button-submit-invoice">
@@ -1177,7 +1177,7 @@ function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
                       )}
                     />
                     <div className="flex justify-end gap-2">
-                      <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                      <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)} data-testid="button-cancel-edit-installment">
                         Cancel
                       </Button>
                       <Button type="submit" disabled={editInstallmentMutation.isPending} data-testid="button-submit-edit-installment">
@@ -1283,7 +1283,7 @@ function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
                       <Button type="button" variant="outline" onClick={() => {
                         setIsReceiptDialogOpen(false);
                         setSelectedReceiptFile(null);
-                      }}>
+                      }} data-testid="button-cancel-upload-receipt">
                         Cancel
                       </Button>
                       <Button type="submit" disabled={isUploadingReceipt || uploadReceiptMutation.isPending} data-testid="button-submit-receipt">
@@ -1313,7 +1313,7 @@ function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel data-testid="button-cancel-mark-paid">Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => markPaidMutation.mutate()}
                     className="bg-green-600 hover:bg-green-700"
