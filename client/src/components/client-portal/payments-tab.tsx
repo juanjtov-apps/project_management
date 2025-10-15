@@ -48,14 +48,14 @@ const installmentSchema = z.object({
 
 const documentSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  file_id: z.string().min(1, "File is required"),
+  file_id: z.string().optional(),
 });
 
 const receiptSchema = z.object({
   receipt_type: z.string().min(1, "Receipt type is required"),
   reference_no: z.string().optional(),
   payment_date: z.string().optional(),
-  file_id: z.string().min(1, "File is required"),
+  file_id: z.string().optional(),
 });
 
 type ScheduleFormData = z.infer<typeof scheduleSchema>;
@@ -72,6 +72,8 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
   const [isInstallmentDialogOpen, setIsInstallmentDialogOpen] = useState(false);
   const [isDocumentDialogOpen, setIsDocumentDialogOpen] = useState(false);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const hasInitializedSchedule = useRef(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -193,8 +195,46 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
     createInstallmentMutation.mutate(data);
   };
 
-  const onSubmitDocument = (data: DocumentFormData) => {
-    createDocumentMutation.mutate(data);
+  const onSubmitDocument = async (data: DocumentFormData) => {
+    if (!selectedFile) {
+      toast({ title: "Error", description: "Please select a file to upload.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      
+      // Get upload URL from backend
+      const uploadResponse = await fetch('/api/objects/upload', { method: 'POST' });
+      const { uploadURL } = await uploadResponse.json();
+      
+      // Upload file to object storage
+      const uploadResult = await fetch(uploadURL, {
+        method: 'PUT',
+        headers: { 'Content-Type': selectedFile.type },
+        body: selectedFile,
+      });
+
+      if (!uploadResult.ok) {
+        throw new Error('File upload failed');
+      }
+
+      // Extract file path from upload URL
+      const url = new URL(uploadURL);
+      const filePath = url.pathname.split('/').slice(2).join('/');
+      
+      // Submit document with file path
+      createDocumentMutation.mutate({
+        ...data,
+        file_id: filePath,
+      });
+      
+      setSelectedFile(null);
+    } catch (error) {
+      toast({ title: "Upload Error", description: "Failed to upload file.", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   // Auto-create schedule if none exists (1:1 per project)
@@ -445,7 +485,13 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
           </Dialog>
         )}
 
-        <Dialog open={isDocumentDialogOpen} onOpenChange={setIsDocumentDialogOpen}>
+        <Dialog open={isDocumentDialogOpen} onOpenChange={(open) => {
+          setIsDocumentDialogOpen(open);
+          if (!open) {
+            setSelectedFile(null);
+            documentForm.reset();
+          }
+        }}>
           <DialogTrigger asChild>
             <Button variant="outline" data-testid="button-upload-document">
               <Upload className="h-4 w-4 mr-2" />
@@ -471,25 +517,36 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={documentForm.control}
-                  name="file_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>File ID</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Upload file and paste ID..." {...field} data-testid="input-document-file-id" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div>
+                  <FormLabel>Select File</FormLabel>
+                  <div className="mt-2">
+                    <Input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setSelectedFile(file);
+                        }
+                      }}
+                      data-testid="input-document-file"
+                    />
+                    {selectedFile && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </p>
+                    )}
+                  </div>
+                </div>
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setIsDocumentDialogOpen(false)}>
+                  <Button type="button" variant="outline" onClick={() => {
+                    setIsDocumentDialogOpen(false);
+                    setSelectedFile(null);
+                  }}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={createDocumentMutation.isPending} data-testid="button-submit-document">
-                    {createDocumentMutation.isPending ? "Uploading..." : "Upload Document"}
+                  <Button type="submit" disabled={isUploading || createDocumentMutation.isPending} data-testid="button-submit-document">
+                    {isUploading ? "Uploading..." : "Upload Document"}
                   </Button>
                 </div>
               </form>
@@ -603,6 +660,8 @@ interface InstallmentRowProps {
 function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
   const [isReceiptDialogOpen, setIsReceiptDialogOpen] = useState(false);
   const [isMarkPaidDialogOpen, setIsMarkPaidDialogOpen] = useState(false);
+  const [selectedReceiptFile, setSelectedReceiptFile] = useState<File | null>(null);
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -668,8 +727,46 @@ function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
     },
   });
 
-  const onSubmitReceipt = (data: ReceiptFormData) => {
-    uploadReceiptMutation.mutate(data);
+  const onSubmitReceipt = async (data: ReceiptFormData) => {
+    if (!selectedReceiptFile) {
+      toast({ title: "Error", description: "Please select a file to upload.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      setIsUploadingReceipt(true);
+      
+      // Get upload URL from backend
+      const uploadResponse = await fetch('/api/objects/upload', { method: 'POST' });
+      const { uploadURL } = await uploadResponse.json();
+      
+      // Upload file to object storage
+      const uploadResult = await fetch(uploadURL, {
+        method: 'PUT',
+        headers: { 'Content-Type': selectedReceiptFile.type },
+        body: selectedReceiptFile,
+      });
+
+      if (!uploadResult.ok) {
+        throw new Error('File upload failed');
+      }
+
+      // Extract file path from upload URL
+      const url = new URL(uploadURL);
+      const filePath = url.pathname.split('/').slice(2).join('/');
+      
+      // Submit receipt with file path
+      uploadReceiptMutation.mutate({
+        ...data,
+        file_id: filePath,
+      });
+      
+      setSelectedReceiptFile(null);
+    } catch (error) {
+      toast({ title: "Upload Error", description: "Failed to upload file.", variant: "destructive" });
+    } finally {
+      setIsUploadingReceipt(false);
+    }
   };
 
   const statusColors = {
@@ -711,7 +808,13 @@ function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
       <div className="flex gap-2">
         {installment.status !== "paid" && (
           <>
-            <Dialog open={isReceiptDialogOpen} onOpenChange={setIsReceiptDialogOpen}>
+            <Dialog open={isReceiptDialogOpen} onOpenChange={(open) => {
+              setIsReceiptDialogOpen(open);
+              if (!open) {
+                setSelectedReceiptFile(null);
+                receiptForm.reset();
+              }
+            }}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" data-testid={`button-upload-receipt-${installment.id}`}>
                   <Upload className="h-4 w-4 mr-1" />
@@ -774,25 +877,36 @@ function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={receiptForm.control}
-                      name="file_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>File ID</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Upload file and paste ID..." {...field} data-testid="input-receipt-file-id" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div>
+                      <FormLabel>Select Receipt File</FormLabel>
+                      <div className="mt-2">
+                        <Input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setSelectedReceiptFile(file);
+                            }
+                          }}
+                          data-testid="input-receipt-file"
+                        />
+                        {selectedReceiptFile && (
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Selected: {selectedReceiptFile.name} ({(selectedReceiptFile.size / 1024 / 1024).toFixed(2)} MB)
+                          </p>
+                        )}
+                      </div>
+                    </div>
                     <div className="flex justify-end gap-2">
-                      <Button type="button" variant="outline" onClick={() => setIsReceiptDialogOpen(false)}>
+                      <Button type="button" variant="outline" onClick={() => {
+                        setIsReceiptDialogOpen(false);
+                        setSelectedReceiptFile(null);
+                      }}>
                         Cancel
                       </Button>
-                      <Button type="submit" disabled={uploadReceiptMutation.isPending} data-testid="button-submit-receipt">
-                        {uploadReceiptMutation.isPending ? "Uploading..." : "Upload Receipt"}
+                      <Button type="submit" disabled={isUploadingReceipt || uploadReceiptMutation.isPending} data-testid="button-submit-receipt">
+                        {isUploadingReceipt ? "Uploading..." : "Upload Receipt"}
                       </Button>
                     </div>
                   </form>
