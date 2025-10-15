@@ -3,364 +3,187 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Package, ExternalLink, Trash2, FileText, Building2, DollarSign } from "lucide-react";
+import { 
+  Plus, Package, ExternalLink, Trash2, ChevronDown, ChevronRight, 
+  Pencil, Check, X, DollarSign, Search, Building2 
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
-const materialSchema = z.object({
-  name: z.string().min(1, "Material name is required"),
-  category: z.string().min(1, "Category is required"),
-  link: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  specification: z.string().optional(),
-  notes: z.string().optional(),
-  quantity: z.string().optional(),
-  unitCost: z.number().optional(),
-  totalCost: z.number().optional(),
-  supplier: z.string().optional(),
-  status: z.string().optional(),
+// Schema for creating an area
+const areaSchema = z.object({
+  name: z.string().min(1, "Area name is required"),
+  description: z.string().optional(),
 });
 
-type MaterialFormData = z.infer<typeof materialSchema>;
+// Schema for creating a material item
+const materialItemSchema = z.object({
+  name: z.string().min(1, "Material name is required"),
+  spec: z.string().optional(),
+  product_link: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  vendor: z.string().optional(),
+  quantity: z.string().optional(),
+  unit_cost: z.number().optional(),
+});
 
-interface Material {
+type AreaFormData = z.infer<typeof areaSchema>;
+type MaterialItemFormData = z.infer<typeof materialItemSchema>;
+
+interface MaterialArea {
   id: string;
-  projectId: string;
+  project_id: string;
   name: string;
-  category: string;
-  link?: string;
-  specification?: string;
-  notes?: string;
-  quantity?: string;
-  unitCost?: number;
-  totalCost?: number;
-  supplier?: string;
-  status?: string;
-  addedBy: string;
-  createdAt: string;
+  description?: string;
+  sort_order: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  item_count: number;
+  total_cost: number;
 }
 
-const MATERIAL_CATEGORIES = [
-  { value: "bathrooms", label: "🚿 Bathrooms" },
-  { value: "kitchen", label: "🍳 Kitchen" },
-  { value: "bedrooms", label: "🛏️ Bedrooms" },
-  { value: "living_rooms", label: "🛋️ Living Rooms" },
-  { value: "exterior", label: "🏠 Exterior" },
-  { value: "flooring", label: "🧱 Flooring" },
-  { value: "electrical", label: "⚡ Electrical" },
-  { value: "plumbing", label: "🔧 Plumbing" },
-  { value: "hvac", label: "🌡️ HVAC" },
-  { value: "general", label: "📦 General" },
-];
-
-const STATUS_OPTIONS = [
-  { value: "pending", label: "📋 Pending" },
-  { value: "ordered", label: "📞 Ordered" },
-  { value: "delivered", label: "🚚 Delivered" },
-  { value: "installed", label: "✅ Installed" },
-  { value: "on_hold", label: "⏸️ On Hold" },
-];
+interface MaterialItem {
+  id: string;
+  area_id: string;
+  project_id: string;
+  name: string;
+  spec?: string;
+  product_link?: string;
+  vendor?: string;
+  quantity?: string;
+  unit_cost?: number;
+  status: string;
+  added_by: string;
+  added_by_name?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 interface MaterialsTabProps {
   projectId: string;
 }
 
 export function MaterialsTab({ projectId }: MaterialsTabProps) {
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCreateAreaOpen, setIsCreateAreaOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const form = useForm<MaterialFormData>({
-    resolver: zodResolver(materialSchema),
+  const areaForm = useForm<AreaFormData>({
+    resolver: zodResolver(areaSchema),
     defaultValues: {
       name: "",
-      category: "general",
-      link: "",
-      specification: "",
-      notes: "",
-      quantity: "",
-      unitCost: undefined,
-      totalCost: undefined,
-      supplier: "",
-      status: "pending",
+      description: "",
     },
   });
 
-  // Get materials for the project
-  const { data: materials = [], isLoading } = useQuery<Material[]>({
-    queryKey: [`/api/client-materials?project_id=${projectId}`],
+  // Get material areas for the project
+  const { data: areas = [], isLoading: areasLoading } = useQuery<MaterialArea[]>({
+    queryKey: [`/api/material-areas?project_id=${projectId}`],
     enabled: !!projectId,
   });
 
-  // Create material mutation
-  const createMaterialMutation = useMutation({
-    mutationFn: async (data: MaterialFormData) => {
-      const response = await apiRequest(`/api/client-materials`, {
+  // Get all material items for the project
+  const { data: allItems = [], isLoading: itemsLoading } = useQuery<MaterialItem[]>({
+    queryKey: [`/api/material-items?project_id=${projectId}`],
+    enabled: !!projectId,
+  });
+
+  // Create area mutation
+  const createAreaMutation = useMutation({
+    mutationFn: async (data: AreaFormData) => {
+      const response = await apiRequest(`/api/material-areas`, {
         method: "POST",
         body: {
           project_id: projectId,
           name: data.name,
-          category: data.category,
-          link: data.link || null,
-          specification: data.specification || null,
-          notes: data.notes || null,
-          quantity: data.quantity || null,
-          unit_cost: data.unitCost || null,
-          total_cost: data.totalCost || null,
-          supplier: data.supplier || null,
-          status: data.status || "pending",
+          description: data.description || null,
+          sort_order: areas.length,
         },
       });
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/client-materials?project_id=${projectId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-areas?project_id=${projectId}`] });
       toast({
-        title: "Material Added",
-        description: "Material has been added to the project list.",
+        title: "Area Created",
+        description: "New material area has been created successfully.",
       });
-      form.reset();
-      setIsCreateOpen(false);
+      areaForm.reset();
+      setIsCreateAreaOpen(false);
     },
-    onError: (error: any) => {
+    onError: () => {
       toast({
         title: "Error",
-        description: "Failed to add material. Please try again.",
+        description: "Failed to create area. Please try again.",
         variant: "destructive",
       });
     },
   });
 
-  // Remove material mutation
-  const removeMaterialMutation = useMutation({
-    mutationFn: async (materialId: string) => {
-      const response = await apiRequest(`/api/client-materials/${materialId}`, {
-        method: "DELETE",
-      });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/client-materials?project_id=${projectId}`] });
-      toast({
-        title: "Material Removed",
-        description: "Material has been removed from the project list.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: "Failed to remove material. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const onSubmit = (data: MaterialFormData) => {
-    createMaterialMutation.mutate(data);
+  const onSubmitArea = (data: AreaFormData) => {
+    createAreaMutation.mutate(data);
   };
 
-  const handleRemoveMaterial = (materialId: string) => {
-    if (confirm("Are you sure you want to remove this material?")) {
-      removeMaterialMutation.mutate(materialId);
-    }
-  };
+  // Filter items based on search
+  const filteredItems = allItems.filter(item => 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.spec?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.vendor?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Calculate totals
+  const totalItems = allItems.length;
+  const totalCost = allItems.reduce((sum, item) => {
+    const qty = parseFloat(item.quantity || "0") || 1;
+    const cost = item.unit_cost || 0;
+    return sum + (qty * cost);
+  }, 0);
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Material List</h2>
+          <h2 className="text-2xl font-bold">Materials by Area</h2>
           <p className="text-muted-foreground">
-            Collaborate on materials needed for the project
+            Organize materials by house area with collapsible sections
           </p>
         </div>
         
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <Dialog open={isCreateAreaOpen} onOpenChange={setIsCreateAreaOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-add-material">
+            <Button data-testid="button-add-area">
               <Plus className="h-4 w-4 mr-2" />
-              Add Material
+              Add Area
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Material</DialogTitle>
+              <DialogTitle>Create Material Area</DialogTitle>
             </DialogHeader>
             
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Material Name *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="e.g., Hardwood Flooring, Paint, etc." 
-                            {...field} 
-                            data-testid="input-material-name"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-material-category">
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {MATERIAL_CATEGORIES.map((category) => (
-                              <SelectItem key={category.value} value={category.value}>
-                                {category.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="quantity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Quantity</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="e.g., 500 sq ft, 10 units"
-                            {...field}
-                            data-testid="input-material-quantity"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-material-status">
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {STATUS_OPTIONS.map((status) => (
-                              <SelectItem key={status.value} value={status.value}>
-                                {status.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="unitCost"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Unit Cost</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            {...field}
-                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                            data-testid="input-material-unit-cost"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="totalCost"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total Cost</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            {...field}
-                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                            data-testid="input-material-total-cost"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="supplier"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Supplier</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="Home Depot, Lowes, etc."
-                            {...field}
-                            data-testid="input-material-supplier"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
+            <Form {...areaForm}>
+              <form onSubmit={areaForm.handleSubmit(onSubmitArea)} className="space-y-4">
                 <FormField
-                  control={form.control}
-                  name="link"
+                  control={areaForm.control}
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Product Link</FormLabel>
+                      <FormLabel>Area Name *</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="https://example.com/product"
-                          {...field}
-                          data-testid="input-material-link"
+                          placeholder="e.g., Foundation, Framing, Electrical" 
+                          {...field} 
+                          data-testid="input-area-name"
                         />
                       </FormControl>
                       <FormMessage />
@@ -369,36 +192,17 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
                 />
 
                 <FormField
-                  control={form.control}
-                  name="specification"
+                  control={areaForm.control}
+                  name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Specifications</FormLabel>
+                      <FormLabel>Description</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="Material specifications, dimensions, brand preferences..."
+                          placeholder="Optional description for this area..."
                           className="min-h-[80px]"
                           {...field}
-                          data-testid="textarea-material-spec"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Additional notes, special requirements, installation notes..."
-                          className="min-h-[80px]"
-                          {...field}
-                          data-testid="textarea-material-notes"
+                          data-testid="textarea-area-description"
                         />
                       </FormControl>
                       <FormMessage />
@@ -410,17 +214,17 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setIsCreateOpen(false)}
-                    data-testid="button-cancel-material"
+                    onClick={() => setIsCreateAreaOpen(false)}
+                    data-testid="button-cancel-area"
                   >
                     Cancel
                   </Button>
                   <Button 
                     type="submit" 
-                    disabled={createMaterialMutation.isPending}
-                    data-testid="button-submit-material"
+                    disabled={createAreaMutation.isPending}
+                    data-testid="button-submit-area"
                   >
-                    {createMaterialMutation.isPending ? "Adding..." : "Add Material"}
+                    {createAreaMutation.isPending ? "Creating..." : "Create Area"}
                   </Button>
                 </div>
               </form>
@@ -429,88 +233,15 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
         </Dialog>
       </div>
 
-      {/* Materials List */}
-      {isLoading ? (
-        <div className="text-center py-8">Loading materials...</div>
-      ) : materials.length === 0 ? (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-8">
-              <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No Materials Added</h3>
-              <p className="text-muted-foreground mb-4">
-                Start building your material list for this project.
-              </p>
-              <Button onClick={() => setIsCreateOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Material
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <MaterialsDatabase materials={materials} onRemove={handleRemoveMaterial} isRemoving={removeMaterialMutation.isPending} />
-      )}
-    </div>
-  );
-}
-
-// Helper function to group materials by category
-function groupMaterialsByCategory(materials: Material[]) {
-  return materials.reduce((acc, material) => {
-    const category = material.category || "general";
-    if (!acc[category]) {
-      acc[category] = [];
-    }
-    acc[category].push(material);
-    return acc;
-  }, {} as Record<string, Material[]>);
-}
-
-// Helper function to get category display info
-function getCategoryInfo(categoryValue: string) {
-  return MATERIAL_CATEGORIES.find(cat => cat.value === categoryValue) || 
-         { value: categoryValue, label: `📦 ${categoryValue}` };
-}
-
-// Helper function to get status display info
-function getStatusInfo(statusValue: string) {
-  return STATUS_OPTIONS.find(status => status.value === statusValue) || 
-         { value: statusValue, label: `📋 ${statusValue}` };
-}
-
-interface MaterialsDatabaseProps {
-  materials: Material[];
-  onRemove: (id: string) => void;
-  isRemoving: boolean;
-}
-
-function MaterialsDatabase({ materials, onRemove, isRemoving }: MaterialsDatabaseProps) {
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const groupedMaterials = groupMaterialsByCategory(materials);
-  
-  // Calculate totals
-  const totalCost = materials.reduce((sum, material) => sum + (material.totalCost || 0), 0);
-  const categoryCounts = Object.entries(groupedMaterials).map(([category, items]) => ({
-    category,
-    count: items.length,
-    info: getCategoryInfo(category)
-  }));
-
-  // Filter materials based on selected category
-  const filteredMaterials = selectedCategory === "all" ? materials : groupedMaterials[selectedCategory] || [];
-
-  return (
-    <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <Package className="h-8 w-8 text-blue-500" />
+              <Building2 className="h-8 w-8 text-blue-500" />
               <div>
-                <p className="text-2xl font-bold">{materials.length}</p>
-                <p className="text-sm text-muted-foreground">Total Materials</p>
+                <p className="text-2xl font-bold">{areas.length}</p>
+                <p className="text-sm text-muted-foreground">Material Areas</p>
               </div>
             </div>
           </CardContent>
@@ -519,10 +250,10 @@ function MaterialsDatabase({ materials, onRemove, isRemoving }: MaterialsDatabas
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <Building2 className="h-8 w-8 text-teal-500" />
+              <Package className="h-8 w-8 text-teal-500" />
               <div>
-                <p className="text-2xl font-bold">{Object.keys(groupedMaterials).length}</p>
-                <p className="text-sm text-muted-foreground">Categories</p>
+                <p className="text-2xl font-bold">{totalItems}</p>
+                <p className="text-sm text-muted-foreground">Total Items</p>
               </div>
             </div>
           </CardContent>
@@ -534,159 +265,406 @@ function MaterialsDatabase({ materials, onRemove, isRemoving }: MaterialsDatabas
               <DollarSign className="h-8 w-8 text-green-500" />
               <div>
                 <p className="text-2xl font-bold">${totalCost.toFixed(2)}</p>
-                <p className="text-sm text-muted-foreground">Total Cost</p>
+                <p className="text-sm text-muted-foreground">Estimated Total</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Category Filter Tabs */}
-      <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 lg:grid-cols-11">
-          <TabsTrigger value="all" className="text-xs">
-            All ({materials.length})
-          </TabsTrigger>
-          {MATERIAL_CATEGORIES.map((category) => {
-            const count = groupedMaterials[category.value]?.length || 0;
-            return (
-              <TabsTrigger key={category.value} value={category.value} className="text-xs">
-                {category.label.split(' ')[0]} ({count})
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search materials by name, spec, or vendor..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+          data-testid="input-search-materials"
+        />
+      </div>
 
-        <TabsContent value={selectedCategory} className="mt-6">
-          {filteredMaterials.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center py-8">
-                  <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">
-                    No Materials in {selectedCategory === "all" ? "Any Category" : getCategoryInfo(selectedCategory).label}
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Add materials to this category to see them here.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {/* Table Header */}
-              <div className="hidden md:grid md:grid-cols-8 gap-4 p-4 bg-muted/50 rounded-lg font-medium text-sm">
-                <div className="col-span-2">Material & Category</div>
-                <div>Quantity</div>
-                <div>Unit Cost</div>
-                <div>Total Cost</div>
-                <div>Status</div>
-                <div>Supplier</div>
-                <div>Actions</div>
+      {/* Areas List */}
+      {areasLoading ? (
+        <div className="text-center py-8">Loading areas...</div>
+      ) : areas.length === 0 ? (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-8">
+              <Building2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-xl font-semibold mb-2">No Areas Created</h3>
+              <p className="text-muted-foreground mb-4">
+                Create your first material area to organize materials by house section.
+              </p>
+              <Button onClick={() => setIsCreateAreaOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Area
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {areas.map((area) => (
+            <MaterialAreaSection
+              key={area.id}
+              area={area}
+              items={filteredItems.filter(item => item.area_id === area.id)}
+              projectId={projectId}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface MaterialAreaSectionProps {
+  area: MaterialArea;
+  items: MaterialItem[];
+  projectId: string;
+}
+
+function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProps) {
+  const [isOpen, setIsOpen] = useState(true);
+  const [isAddingItem, setIsAddingItem] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const itemForm = useForm<MaterialItemFormData>({
+    resolver: zodResolver(materialItemSchema),
+    defaultValues: {
+      name: "",
+      spec: "",
+      product_link: "",
+      vendor: "",
+      quantity: "",
+      unit_cost: undefined,
+    },
+  });
+
+  // Calculate area totals
+  const areaCost = items.reduce((sum, item) => {
+    const qty = parseFloat(item.quantity || "0") || 1;
+    const cost = item.unit_cost || 0;
+    return sum + (qty * cost);
+  }, 0);
+
+  // Create item mutation
+  const createItemMutation = useMutation({
+    mutationFn: async (data: MaterialItemFormData) => {
+      const response = await apiRequest(`/api/material-items`, {
+        method: "POST",
+        body: {
+          area_id: area.id,
+          project_id: projectId,
+          name: data.name,
+          spec: data.spec || null,
+          product_link: data.product_link || null,
+          vendor: data.vendor || null,
+          quantity: data.quantity || null,
+          unit_cost: data.unit_cost || null,
+          status: "pending",
+        },
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/material-items?project_id=${projectId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-areas?project_id=${projectId}`] });
+      toast({
+        title: "Item Added",
+        description: "Material item has been added successfully.",
+      });
+      itemForm.reset();
+      setIsAddingItem(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add item. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete item mutation
+  const deleteItemMutation = useMutation({
+    mutationFn: async (itemId: string) => {
+      const response = await apiRequest(`/api/material-items/${itemId}`, {
+        method: "DELETE",
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/material-items?project_id=${projectId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-areas?project_id=${projectId}`] });
+      toast({
+        title: "Item Deleted",
+        description: "Material item has been removed.",
+      });
+    },
+  });
+
+  const onSubmitItem = (data: MaterialItemFormData) => {
+    createItemMutation.mutate(data);
+  };
+
+  const handleDeleteItem = (itemId: string) => {
+    if (confirm("Are you sure you want to delete this item?")) {
+      deleteItemMutation.mutate(itemId);
+    }
+  };
+
+  return (
+    <Card>
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-accent/50 transition-colors">
+            <div className="flex items-center gap-3 flex-1">
+              {isOpen ? (
+                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              )}
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg">{area.name}</h3>
+                {area.description && (
+                  <p className="text-sm text-muted-foreground">{area.description}</p>
+                )}
               </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <Badge variant="outline" className="text-xs">
+                {items.length} {items.length === 1 ? 'item' : 'items'}
+              </Badge>
+              <div className="text-sm font-medium text-green-600 dark:text-green-400">
+                ${areaCost.toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </CollapsibleTrigger>
 
-              {/* Material Rows */}
-              {filteredMaterials.map((material) => (
-                <Card key={material.id} data-testid={`card-material-${material.id}`}>
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-8 gap-4 items-start">
-                      {/* Material & Category */}
-                      <div className="col-span-1 md:col-span-2">
-                        <div className="flex flex-col gap-2">
-                          <div>
-                            <h3 className="font-semibold text-lg">{material.name}</h3>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="secondary" className="text-xs">
-                                {getCategoryInfo(material.category).label}
-                              </Badge>
-                            </div>
-                          </div>
-                          {(material.specification || material.notes) && (
-                            <div className="text-sm text-muted-foreground space-y-1">
-                              {material.specification && (
-                                <p><span className="font-medium">Spec:</span> {material.specification}</p>
-                              )}
-                              {material.notes && (
-                                <p><span className="font-medium">Notes:</span> {material.notes}</p>
-                              )}
-                            </div>
+        <CollapsibleContent>
+          <div className="px-4 pb-4 space-y-3">
+            {/* Items List */}
+            {items.length > 0 && (
+              <div className="space-y-2">
+                {items.map((item) => (
+                  <MaterialItemRow
+                    key={item.id}
+                    item={item}
+                    onDelete={handleDeleteItem}
+                    projectId={projectId}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Add Item Form */}
+            {isAddingItem ? (
+              <Card className="border-2 border-dashed">
+                <CardContent className="p-4">
+                  <Form {...itemForm}>
+                    <form onSubmit={itemForm.handleSubmit(onSubmitItem)} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={itemForm.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Material Name *</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g., 2x4 Lumber" {...field} data-testid="input-item-name" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
                           )}
-                        </div>
+                        />
+
+                        <FormField
+                          control={itemForm.control}
+                          name="vendor"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Vendor</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Home Depot, Lowes..." {...field} data-testid="input-item-vendor" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       </div>
 
-                      {/* Quantity */}
-                      <div className="flex flex-col">
-                        <span className="md:hidden text-xs font-medium text-muted-foreground">Quantity</span>
-                        <span className="text-sm">{material.quantity || "—"}</span>
-                      </div>
-
-                      {/* Unit Cost */}
-                      <div className="flex flex-col">
-                        <span className="md:hidden text-xs font-medium text-muted-foreground">Unit Cost</span>
-                        <span className="text-sm">
-                          {material.unitCost ? `$${material.unitCost.toFixed(2)}` : "—"}
-                        </span>
-                      </div>
-
-                      {/* Total Cost */}
-                      <div className="flex flex-col">
-                        <span className="md:hidden text-xs font-medium text-muted-foreground">Total Cost</span>
-                        <span className="text-sm font-medium">
-                          {material.totalCost ? `$${material.totalCost.toFixed(2)}` : "—"}
-                        </span>
-                      </div>
-
-                      {/* Status */}
-                      <div className="flex flex-col">
-                        <span className="md:hidden text-xs font-medium text-muted-foreground">Status</span>
-                        <Badge variant="outline" className="w-fit text-xs">
-                          {getStatusInfo(material.status || "pending").label}
-                        </Badge>
-                      </div>
-
-                      {/* Supplier */}
-                      <div className="flex flex-col">
-                        <span className="md:hidden text-xs font-medium text-muted-foreground">Supplier</span>
-                        <span className="text-sm">{material.supplier || "—"}</span>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-2">
-                        {material.link && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.open(material.link, '_blank')}
-                            data-testid={`button-view-link-${material.id}`}
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            <span className="md:hidden ml-1">View</span>
-                          </Button>
+                      <FormField
+                        control={itemForm.control}
+                        name="spec"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Specifications</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Dimensions, brand, model..." {...field} data-testid="input-item-spec" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
                         )}
+                      />
+
+                      <FormField
+                        control={itemForm.control}
+                        name="product_link"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Product Link</FormLabel>
+                            <FormControl>
+                              <Input placeholder="https://..." {...field} data-testid="input-item-link" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={itemForm.control}
+                          name="quantity"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Quantity</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g., 50, 100 sq ft" {...field} data-testid="input-item-quantity" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={itemForm.control}
+                          name="unit_cost"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Unit Cost</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  {...field}
+                                  onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                  data-testid="input-item-cost"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-2">
                         <Button
+                          type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => onRemove(material.id)}
-                          disabled={isRemoving}
-                          data-testid={`button-remove-${material.id}`}
+                          onClick={() => {
+                            itemForm.reset();
+                            setIsAddingItem(false);
+                          }}
+                          data-testid="button-cancel-item"
                         >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="md:hidden ml-1">Remove</span>
+                          <X className="h-4 w-4 mr-1" />
+                          Cancel
+                        </Button>
+                        <Button 
+                          type="submit" 
+                          size="sm"
+                          disabled={createItemMutation.isPending}
+                          data-testid="button-submit-item"
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          {createItemMutation.isPending ? "Adding..." : "Add Item"}
                         </Button>
                       </div>
-                    </div>
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full border-dashed"
+                onClick={() => setIsAddingItem(true)}
+                data-testid={`button-add-item-${area.id}`}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Item to {area.name}
+              </Button>
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
+  );
+}
 
-                    {/* Mobile metadata */}
-                    <div className="md:hidden mt-3 pt-3 border-t text-xs text-muted-foreground">
-                      Added {new Date(material.createdAt).toLocaleDateString()} by User {material.addedBy.slice(0, 8)}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+interface MaterialItemRowProps {
+  item: MaterialItem;
+  onDelete: (id: string) => void;
+  projectId: string;
+}
+
+function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
+  const totalCost = (parseFloat(item.quantity || "0") || 1) * (item.unit_cost || 0);
+
+  return (
+    <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg" data-testid={`item-row-${item.id}`}>
+      <div className="flex-1 space-y-1">
+        <div className="flex items-start justify-between">
+          <div>
+            <h4 className="font-medium">{item.name}</h4>
+            {item.spec && (
+              <p className="text-sm text-muted-foreground">{item.spec}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {item.product_link && (
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                data-testid={`button-link-${item.id}`}
+              >
+                <a href={item.product_link} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDelete(item.id)}
+              data-testid={`button-delete-${item.id}`}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          {item.vendor && <span>📦 {item.vendor}</span>}
+          {item.quantity && <span>Qty: {item.quantity}</span>}
+          {item.unit_cost !== null && item.unit_cost !== undefined && (
+            <span>${item.unit_cost.toFixed(2)}/unit</span>
           )}
-        </TabsContent>
-      </Tabs>
+          {totalCost > 0 && (
+            <span className="font-medium text-green-600 dark:text-green-400">
+              Total: ${totalCost.toFixed(2)}
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
