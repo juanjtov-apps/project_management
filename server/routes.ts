@@ -849,8 +849,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(401).json({ message: "User not found" });
+      if (!user || !user.companyId) {
+        return res.status(401).json({ message: "User not found or company not set" });
       }
 
       // Get activities for user's company
@@ -982,9 +982,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('✅ NODE.JS SUCCESS: Photo metadata created for object storage:', photo);
       res.status(201).json(photo);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Photo metadata creation error:', error);
-      res.status(500).json({ message: 'Internal server error', error: error.message });
+      res.status(500).json({ message: 'Internal server error', error: error?.message || 'Unknown error' });
     }
   });
 
@@ -1372,9 +1372,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         skipped: totalSkipped,
         logsProcessed: logsWithImages.length 
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ SYNC ERROR:', error);
-      res.status(500).json({ message: 'Sync failed', error: error.message });
+      res.status(500).json({ message: 'Sync failed', error: error?.message || 'Unknown error' });
     }
   });
 
