@@ -36,24 +36,19 @@ class ForumMessageCreate(BaseModel):
 class MaterialCreate(BaseModel):
     project_id: str
     name: str
-    category: str = "General"
     spec: Optional[str] = None
     link: Optional[str] = None
     vendor: Optional[str] = None
     quantity: Optional[str] = None
     unit_cost: Optional[float] = None
-    notes: Optional[str] = None
 
 class MaterialUpdate(BaseModel):
     name: Optional[str] = None
-    category: Optional[str] = None
     spec: Optional[str] = None
     link: Optional[str] = None
     vendor: Optional[str] = None
     quantity: Optional[str] = None
     unit_cost: Optional[float] = None
-    notes: Optional[str] = None
-    approved: Optional[bool] = None
 
 class InstallmentCreate(BaseModel):
     project_id: str
@@ -392,19 +387,17 @@ async def create_material(
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """INSERT INTO client_portal.materials 
-               (project_id, added_by, name, category, spec, link, vendor, quantity, unit_cost, notes)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+               (project_id, added_by, name, spec, link, vendor, qty, unit_price)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                RETURNING *""",
             material.project_id,
             current_user['id'],
             material.name,
-            material.category,
             material.spec,
             material.link,
             material.vendor,
             material.quantity,
-            material.unit_cost,
-            material.notes
+            material.unit_cost
         )
         return dict(row)
 
@@ -426,10 +419,6 @@ async def update_material(
             updates.append(f"name = ${param_count}")
             values.append(update.name)
             param_count += 1
-        if update.category is not None:
-            updates.append(f"category = ${param_count}")
-            values.append(update.category)
-            param_count += 1
         if update.spec is not None:
             updates.append(f"spec = ${param_count}")
             values.append(update.spec)
@@ -443,20 +432,12 @@ async def update_material(
             values.append(update.vendor)
             param_count += 1
         if update.quantity is not None:
-            updates.append(f"quantity = ${param_count}")
+            updates.append(f"qty = ${param_count}")
             values.append(update.quantity)
             param_count += 1
         if update.unit_cost is not None:
-            updates.append(f"unit_cost = ${param_count}")
+            updates.append(f"unit_price = ${param_count}")
             values.append(update.unit_cost)
-            param_count += 1
-        if update.notes is not None:
-            updates.append(f"notes = ${param_count}")
-            values.append(update.notes)
-            param_count += 1
-        if update.approved is not None:
-            updates.append(f"approved = ${param_count}")
-            values.append(update.approved)
             param_count += 1
         
         if not updates:

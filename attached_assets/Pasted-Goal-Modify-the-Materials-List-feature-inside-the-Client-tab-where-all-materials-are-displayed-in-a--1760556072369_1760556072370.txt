@@ -1,0 +1,287 @@
+Goal
+Modify the Materials List feature inside the Client tab where all materials are displayed in a grouped list with collapsible sections per house area. Example sections: Guest Bathroom 1, Kitchen, Master Bathroom. Project managers and clients can view and add items. Each item includes name, description, comments, and a product link so contractors can verify dimensions and specifications at any time.
+Context
+There is an existing database used by other modules. This feature must be additive and safe. Use the existing databases and existing code as the base, and create what is needed in addition to that.
+Hard constraints
+Never modify or drop existing schemas, tables, columns, enums, or constraints.
+
+
+Create all new database objects in schema client_portal.
+
+
+Wrap every migration in a transaction and use IF NOT EXISTS for all creates.
+
+
+Use additive migrations only.
+
+
+Use env var DATABASE_URL. Do not overwrite or recreate the database.
+
+
+For tests or code generation use SHADOW_DATABASE_URL only.
+
+
+Foreign keys must reference public.projects(id) and public.users(id) with ON DELETE RESTRICT and the same id type as those tables.
+
+
+Store Alembic metadata for this module in client_portal.alembic_version.
+
+
+Seed data only if DEMO_SEED is true and DEMO_PROJECT_ID is provided. Never auto create or overwrite users or projects.
+
+
+Everything must live in client_portal so dropping that schema removes the module safely in staging.
+
+
+
+Functional requirements
+List view with collapsible sections by area of the house. Each area shows a header row with item count and total estimated cost if present.
+
+
+Anyone assigned to the project with role Project Manager or Client can add items. Contractors can view but not edit unless they also hold Project Manager.
+
+
+Item fields: area_name, item_name, quantity, unit, description, comments, product_link, vendor_name optional, est_unit_cost optional numeric, dimensions optional text, specs_file_id optional for file attachments already supported by the app if available.
+
+
+Inline add and edit. Users can add a new item directly inside an area section without navigating away.
+
+
+Link validation on product_link. Accept only http or https and show a small preview card with title and favicon if the preview utility already exists.
+
+
+Comments field supports plain text and emojis.
+
+
+Sorting and filtering per area by item name or recently updated.
+
+
+Search across all areas within a project by keyword.
+
+
+Audit trail: created_by, updated_by, created_at, updated_at.
+
+
+All operations scoped to a selected project via project_id. Tenancy must be enforced at the API and query level.
+
+
+Real time updates for viewers in the same project using the app’s existing websocket or polling mechanism. If no socket exists, implement graceful polling every fifteen seconds on the list view.
+
+
+Empty states and helpful prompts.
+
+
+Accessibility with keyboard navigation and ARIA attributes on the collapsible sections.
+
+
+Non functional requirements
+Optimistic UI updates for create and update with rollback on failure.
+
+
+Server side validation for required fields: area_name and item_name.
+
+
+Product link is optional but when present must be a valid URL.
+
+
+Performance: queries must use indexes on project_id and area_name.
+
+
+Comprehensive tests: unit tests for services and integration tests for API routes.
+
+
+Logging of errors with project_id and user_id context.
+
+
+Database design in client_portal
+ Run a single additive migration that creates these objects if not existing.
+Table client_portal.material_areas
+ Columns
+ id primary key uuid default gen_random_uuid
+ project_id references public.projects(id) on delete restrict not null
+ name text not null
+ position integer default 0
+ created_by references public.users(id) on delete restrict not null
+ created_at timestamptz not null default now
+ updated_at timestamptz not null default now
+ Unique constraint on project_id and lower(name)
+
+
+Table client_portal.material_items
+ Columns
+ id primary key uuid default gen_random_uuid
+ project_id references public.projects(id) on delete restrict not null
+ area_id references client_portal.material_areas(id) on delete restrict not null
+ item_name text not null
+ quantity numeric default 1
+ unit text default each
+ description text
+ comments text
+ product_link text
+ vendor_name text
+ sku text
+ est_unit_cost numeric
+ dimensions text
+ specs_file_id uuid
+ created_by references public.users(id) on delete restrict not null
+ updated_by references public.users(id) on delete restrict not null
+ created_at timestamptz not null default now
+ updated_at timestamptz not null default now
+ Indexes on project_id, area_id, lower(item_name) and created_at
+ Check constraint for product_link scheme http or https when not null
+
+
+Table client_portal.material_item_events for audit if the app uses event sourcing
+ Columns
+ id bigserial primary key
+ item_id references client_portal.material_items(id) on delete restrict
+ project_id references public.projects(id) on delete restrict
+ actor_id references public.users(id) on delete restrict
+ action text not null example created, updated, deleted
+ diff jsonb nullable
+ created_at timestamptz not null default now
+ Index on project_id and item_id
+
+
+API surface
+ Create REST or GraphQL endpoints in the existing backend style. Names are examples for REST.
+GET /api/client_portal/projects/:projectId/materials
+ Returns areas with nested items. Supports q for search and updated_since for incremental refresh.
+
+
+POST /api/client_portal/projects/:projectId/material-areas
+ Body name and optional position. Role required Project Manager or Client.
+
+
+PATCH /api/client_portal/material-areas/:areaId
+ Update name or position. Role required Project Manager or Client.
+
+
+POST /api/client_portal/material-items
+ Body project_id, area_id, item_name, quantity, unit, description, comments, product_link, vendor_name, sku, est_unit_cost, dimensions, specs_file_id. Role required Project Manager or Client.
+
+
+PATCH /api/client_portal/material-items/:itemId
+ Update any editable fields. Role required Project Manager or Client.
+
+
+DELETE /api/client_portal/material-items/:itemId
+ Soft delete by setting a deleted_at column if you add it. Role required Project Manager or Client.
+
+
+Authorization rules
+View permissions: Project Manager, Client, Contractor assigned to the project can view.
+
+
+Create and update: Project Manager and Client only.
+
+
+Enforce permission checks server side using existing session and project membership model.
+
+
+UI implementation
+Build a page Client Portal Materials under the Client Module navigation.
+
+
+Header shows project name and a search input.
+
+
+A list of collapsible sections for each area. Use the app’s component library. Provide keyboard accessible toggle and ARIA attributes.
+
+
+Section header shows area name, item count, and optional total estimated cost that is quantity times est_unit_cost where both are present.
+
+
+Inside each section render a table like list with columns Item, Quantity, Unit, Description, Comments, Link, Vendor.
+
+
+Add Row button inline at the top of each section. Clicking it opens an inline row editor with Save and Cancel.
+
+
+Each row supports Edit for users with permission.
+
+
+Product links render as clickable anchor with target blank and rel noopener. If a link preview utility exists, show a small preview chip with title and host.
+
+
+Show validation feedback inline under fields.
+
+
+Preserve user context. Keep sections open or closed across navigation using query string or local storage.
+
+
+If real time is available, subscribe to project channel and patch list in place. Otherwise poll with updated_since.
+
+
+Data access and safety
+All queries must filter by project_id from route params or session to guarantee tenant safety.
+
+
+Use prepared statements or ORM parameter binding only.
+
+
+Add indexes as specified to keep list rendering fast for one thousand items per project.
+
+
+Telemetry and analytics
+Track events material_area_created, material_item_created, material_item_updated with project_id and role.
+
+
+Do not log comments or description bodies in analytics.
+
+
+Testing checklist
+Migration applies cleanly and is reversible by dropping client_portal in staging only.
+
+
+API returns only rows for the caller’s project.
+
+
+Validation rejects empty item_name or area_name and invalid URLs.
+
+
+Permissions prevent a Contractor from editing.
+
+
+UI keyboard navigation works on collapsible sections.
+
+
+Optimistic update rolls back correctly on simulated server error.
+
+
+Search finds items by item_name and description.
+
+
+Cost totals match quantity times est_unit_cost.
+
+
+Deliverables
+Alembic migration file in client_portal schema following constraints above.
+
+
+Backend models and endpoints with tests.
+
+
+Frontend page with collapsible list UI, inline create and edit, and validation.
+
+
+Role checks and project scoping in middleware or resolvers.
+
+
+Brief README in the module folder describing schema, endpoints, and how to run tests.
+
+
+Acceptance criteria
+A project manager can create an area, add two items, edit one, and see the change reflected for a client user in another browser within fifteen seconds or instantly if sockets exist.
+
+
+A contractor can view but cannot edit.
+
+
+Product links open in a new tab. Invalid links are rejected.
+
+
+Search for tile finds items with tile in item_name or description across all areas.
+
+
+No destructive changes to existing database objects. All new objects are inside client_portal.
