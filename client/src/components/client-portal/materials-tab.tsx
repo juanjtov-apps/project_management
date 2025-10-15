@@ -411,18 +411,47 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
     createItemMutation.mutate(data);
   };
 
+  // Delete area mutation
+  const deleteAreaMutation = useMutation({
+    mutationFn: async (areaId: string) => {
+      const response = await apiRequest(`/api/material-areas/${areaId}`, {
+        method: "DELETE",
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/material-items?project_id=${projectId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-areas?project_id=${projectId}`] });
+      toast({
+        title: "Area Deleted",
+        description: "Material area and all its items have been removed.",
+      });
+    },
+  });
+
   const handleDeleteItem = (itemId: string) => {
     if (confirm("Are you sure you want to delete this item?")) {
       deleteItemMutation.mutate(itemId);
     }
   };
 
+  const handleDeleteArea = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent collapsible toggle
+    const message = items.length > 0 
+      ? `Are you sure you want to delete "${area.name}"? This will also delete all ${items.length} items in this area.`
+      : `Are you sure you want to delete "${area.name}"?`;
+    
+    if (confirm(message)) {
+      deleteAreaMutation.mutate(area.id);
+    }
+  };
+
   return (
     <Card>
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleTrigger asChild>
-          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-accent/50 transition-colors">
-            <div className="flex items-center gap-3 flex-1">
+        <div className="flex items-center justify-between p-4">
+          <CollapsibleTrigger asChild>
+            <div className="flex items-center gap-3 flex-1 cursor-pointer hover:bg-accent/50 transition-colors rounded-lg p-2 -m-2">
               {isOpen ? (
                 <ChevronDown className="h-5 w-5 text-muted-foreground" />
               ) : (
@@ -435,16 +464,24 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <Badge variant="outline" className="text-xs">
-                {items.length} {items.length === 1 ? 'item' : 'items'}
-              </Badge>
-              <div className="text-sm font-medium text-green-600 dark:text-green-400">
-                ${areaCost.toFixed(2)}
-              </div>
+          </CollapsibleTrigger>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="text-xs">
+              {items.length} {items.length === 1 ? 'item' : 'items'}
+            </Badge>
+            <div className="text-sm font-medium text-green-600 dark:text-green-400">
+              ${areaCost.toFixed(2)}
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDeleteArea}
+              data-testid={`button-delete-area-${area.id}`}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
           </div>
-        </CollapsibleTrigger>
+        </div>
 
         <CollapsibleContent>
           <div className="px-4 pb-4 space-y-3">
