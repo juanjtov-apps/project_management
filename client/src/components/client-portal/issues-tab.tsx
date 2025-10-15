@@ -346,7 +346,7 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
                   </p>
                   
                   {/* Photo Gallery */}
-                  {issue.photos.length > 0 && (
+                  {issue.photos && issue.photos.length > 0 && (
                     <div className="grid grid-cols-3 gap-2">
                       {issue.photos.map((photo, index) => (
                         <img
