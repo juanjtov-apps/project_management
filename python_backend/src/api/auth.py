@@ -315,7 +315,8 @@ async def logout(request: Request, response: Response):
 async def get_current_user_dependency(request: Request) -> Dict[str, Any]:
     """Dependency to get current authenticated user for protected routes."""
     # Get session ID from cookie or header
-    session_id = request.cookies.get("session_id")
+    # Node.js backend uses 'connect.sid' as the cookie name
+    session_id = request.cookies.get("connect.sid") or request.cookies.get("session_id")
     if not session_id:
         # Try header as fallback
         auth_header = request.headers.get("authorization")
@@ -327,6 +328,11 @@ async def get_current_user_dependency(request: Request) -> Dict[str, Any]:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required"
         )
+    
+    # Express-session signs cookies in the format "s:sessionId.signature"
+    # We need to extract just the session ID part
+    if session_id.startswith("s:"):
+        session_id = session_id[2:].split(".")[0]
     
     # Get session data
     session_data = await get_session(session_id)
