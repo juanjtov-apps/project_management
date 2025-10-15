@@ -90,7 +90,8 @@ async def verify_project_access(project_id: str, current_user: Dict[str, Any], p
                 detail="Project not found"
             )
         
-        user_company_id = str(current_user.get('companyId', ''))
+        # Try both camelCase and snake_case for compatibility
+        user_company_id = str(current_user.get('company_id') or current_user.get('companyId') or '')
         project_company_id = str(project.get('company_id', ''))
         
         if project_company_id != user_company_id:
@@ -106,7 +107,8 @@ async def get_user_accessible_projects(current_user: Dict[str, Any], pool: async
             rows = await conn.fetch("SELECT id FROM public.projects")
             return [row['id'] for row in rows]
     
-    user_company_id = str(current_user.get('companyId', ''))
+    # Try both camelCase and snake_case for compatibility
+    user_company_id = str(current_user.get('company_id') or current_user.get('companyId') or '')
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT id FROM public.projects WHERE company_id = $1",
