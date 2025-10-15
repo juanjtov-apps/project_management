@@ -5,11 +5,21 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { 
   Plus, Package, ExternalLink, Trash2, ChevronDown, ChevronRight, 
-  Pencil, Check, X, DollarSign, Search, Building2 
+  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -329,6 +339,8 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
   const [isOpen, setIsOpen] = useState(true);
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [isDeleteAreaDialogOpen, setIsDeleteAreaDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -430,20 +442,24 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
   });
 
   const handleDeleteItem = (itemId: string) => {
-    if (confirm("Are you sure you want to delete this item?")) {
-      deleteItemMutation.mutate(itemId);
+    setItemToDelete(itemId);
+  };
+
+  const confirmDeleteItem = () => {
+    if (itemToDelete) {
+      deleteItemMutation.mutate(itemToDelete);
+      setItemToDelete(null);
     }
   };
 
   const handleDeleteArea = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent collapsible toggle
-    const message = items.length > 0 
-      ? `Are you sure you want to delete "${area.name}"? This will also delete all ${items.length} items in this area.`
-      : `Are you sure you want to delete "${area.name}"?`;
-    
-    if (confirm(message)) {
-      deleteAreaMutation.mutate(area.id);
-    }
+    setIsDeleteAreaDialogOpen(true);
+  };
+
+  const confirmDeleteArea = () => {
+    deleteAreaMutation.mutate(area.id);
+    setIsDeleteAreaDialogOpen(false);
   };
 
   return (
@@ -643,6 +659,66 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
           </div>
         </CollapsibleContent>
       </Collapsible>
+
+      {/* Delete Area Confirmation Dialog */}
+      <AlertDialog open={isDeleteAreaDialogOpen} onOpenChange={setIsDeleteAreaDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Delete Material Area
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Are you sure you want to delete <strong>"{area.name}"</strong>?
+              </p>
+              {items.length > 0 && (
+                <p className="text-destructive font-medium">
+                  This will also permanently delete all {items.length} {items.length === 1 ? 'item' : 'items'} in this area.
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                This action cannot be undone.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteArea}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="confirm-delete-area"
+            >
+              Delete Area
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Item Confirmation Dialog */}
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Delete Material Item
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this material item? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteItem}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="confirm-delete-item"
+            >
+              Delete Item
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
