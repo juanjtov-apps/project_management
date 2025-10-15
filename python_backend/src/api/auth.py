@@ -314,46 +314,40 @@ async def logout(request: Request, response: Response):
 # Dependency for protected routes
 async def get_current_user_dependency(request: Request) -> Dict[str, Any]:
     """Dependency to get current authenticated user for protected routes."""
+    from urllib.parse import unquote
+    
     # Get session ID from cookie or header
     # Node.js backend uses 'connect.sid' as the cookie name
-    
-    # Debug: Log all cookies
-    print(f"🔍 DEBUG: All cookies received: {request.cookies}")
-    
     session_id = request.cookies.get("connect.sid") or request.cookies.get("session_id")
-    print(f"🔍 DEBUG: Session ID from cookie: {session_id}")
     
     if not session_id:
         # Try header as fallback
         auth_header = request.headers.get("authorization")
         if auth_header and auth_header.startswith("Bearer "):
             session_id = auth_header[7:]
-            print(f"🔍 DEBUG: Session ID from auth header: {session_id}")
     
     if not session_id:
-        print("❌ DEBUG: No session ID found in cookies or headers")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required"
         )
     
+    # URL-decode the cookie value (fixes %3A -> :)
+    session_id = unquote(session_id)
+    
     # Express-session signs cookies in the format "s:sessionId.signature"
     # We need to extract just the session ID part
-    original_session_id = session_id
     if session_id.startswith("s:"):
         session_id = session_id[2:].split(".")[0]
-        print(f"🔍 DEBUG: Extracted session ID from signed cookie: {original_session_id} -> {session_id}")
     
     # Get session data
     session_data = await get_session(session_id)
     if not session_data:
-        print(f"❌ DEBUG: No session data found for session ID: {session_id}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expired or invalid"
         )
     
-    print(f"✅ DEBUG: Session data found for user: {session_data.get('user_data', {}).get('email', 'unknown')}")
     user_data = session_data["user_data"].copy()
     user_data.pop("password", None)
     
