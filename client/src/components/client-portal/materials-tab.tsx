@@ -617,7 +617,193 @@ interface MaterialItemRowProps {
 }
 
 function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const editForm = useForm<MaterialItemFormData>({
+    resolver: zodResolver(materialItemSchema),
+    defaultValues: {
+      name: item.name,
+      spec: item.spec || "",
+      product_link: item.product_link || "",
+      vendor: item.vendor || "",
+      quantity: item.quantity || "",
+      unit_cost: item.unit_cost || undefined,
+    },
+  });
+
+  // Update item mutation
+  const updateItemMutation = useMutation({
+    mutationFn: async (data: MaterialItemFormData) => {
+      const response = await apiRequest(`/api/material-items/${item.id}`, {
+        method: "PATCH",
+        body: {
+          name: data.name,
+          spec: data.spec || null,
+          product_link: data.product_link || null,
+          vendor: data.vendor || null,
+          quantity: data.quantity || null,
+          unit_cost: data.unit_cost || null,
+        },
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/material-items?project_id=${projectId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-areas?project_id=${projectId}`] });
+      toast({
+        title: "Item Updated",
+        description: "Material item has been updated successfully.",
+      });
+      setIsEditing(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update item. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmitEdit = (data: MaterialItemFormData) => {
+    updateItemMutation.mutate(data);
+  };
+
   const totalCost = (parseFloat(item.quantity || "0") || 1) * (item.unit_cost || 0);
+
+  if (isEditing) {
+    return (
+      <Card className="border-2 border-primary/50">
+        <CardContent className="p-4">
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onSubmitEdit)} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Material Name *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., 2x4 Lumber" {...field} data-testid="input-edit-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="vendor"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vendor</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Home Depot, Lowes..." {...field} data-testid="input-edit-vendor" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={editForm.control}
+                name="spec"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Specifications</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Dimensions, brand, model..." {...field} data-testid="input-edit-spec" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="product_link"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Product Link</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://..." {...field} data-testid="input-edit-link" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="quantity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Quantity</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., 50, 100 sq ft" {...field} data-testid="input-edit-quantity" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="unit_cost"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Unit Cost</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                          data-testid="input-edit-cost"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    editForm.reset();
+                    setIsEditing(false);
+                  }}
+                  data-testid="button-cancel-edit"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  size="sm"
+                  disabled={updateItemMutation.isPending}
+                  data-testid="button-submit-edit"
+                >
+                  <Check className="h-4 w-4 mr-1" />
+                  {updateItemMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg" data-testid={`item-row-${item.id}`}>
@@ -642,6 +828,14 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
                 </a>
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+              data-testid={`button-edit-${item.id}`}
+            >
+              <Pencil className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
