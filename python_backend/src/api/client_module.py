@@ -688,7 +688,7 @@ async def get_client_portal_stats(
                 """SELECT
                    (SELECT COUNT(*) FROM client_portal.issues WHERE project_id = $1 AND status = 'open') as open_issues,
                    (SELECT COUNT(*) FROM client_portal.forum_threads WHERE project_id = $1) as forum_threads,
-                   (SELECT COUNT(*) FROM client_portal.materials WHERE project_id = $1 AND approved = false) as pending_materials,
+                   (SELECT COUNT(*) FROM client_portal.materials WHERE project_id = $1 AND status = 'pending') as pending_materials,
                    (SELECT COUNT(*) FROM client_portal.installments WHERE project_id = $1 AND status = 'scheduled' AND due_date >= CURRENT_DATE) as upcoming_installments
                 """,
                 project_id
@@ -698,7 +698,7 @@ async def get_client_portal_stats(
                 """SELECT
                    (SELECT COUNT(*) FROM client_portal.issues WHERE project_id = ANY($1::varchar[]) AND status = 'open') as open_issues,
                    (SELECT COUNT(*) FROM client_portal.forum_threads WHERE project_id = ANY($1::varchar[])) as forum_threads,
-                   (SELECT COUNT(*) FROM client_portal.materials WHERE project_id = ANY($1::varchar[]) AND approved = false) as pending_materials,
+                   (SELECT COUNT(*) FROM client_portal.materials WHERE project_id = ANY($1::varchar[]) AND status = 'pending') as pending_materials,
                    (SELECT COUNT(*) FROM client_portal.installments WHERE project_id = ANY($1::varchar[]) AND status = 'scheduled' AND due_date >= CURRENT_DATE) as upcoming_installments
                 """,
                 accessible_projects
