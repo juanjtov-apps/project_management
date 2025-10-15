@@ -97,8 +97,9 @@ export function ForumTab({ projectId }: ForumTabProps) {
     return date.toLocaleDateString();
   };
 
-  const getUserInitials = (userId: string) => {
+  const getUserInitials = (userId: string | null | undefined) => {
     // This would normally come from user data
+    if (!userId) return "??";
     return userId.slice(0, 2).toUpperCase();
   };
 
@@ -183,7 +184,7 @@ export function ForumTab({ projectId }: ForumTabProps) {
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm">
-                        User {message.authorId.slice(0, 8)}
+                        User {message.authorId ? message.authorId.slice(0, 8) : "Unknown"}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {formatTimestamp(message.createdAt)}
