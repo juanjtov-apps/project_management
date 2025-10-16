@@ -1250,11 +1250,12 @@ async def update_payment_installment(
         
         # Log status changes
         if 'status' in diff:
+            import json
             await conn.execute(
                 """INSERT INTO client_portal.payment_events 
                    (project_id, actor_id, entity_type, entity_id, action, diff) 
                    VALUES ($1, $2, 'installment', $3, 'status_changed', $4)""",
-                installment['project_id'], current_user['id'], installment_id, diff
+                installment['project_id'], current_user['id'], installment_id, json.dumps(diff)
             )
         
         return dict(row)
