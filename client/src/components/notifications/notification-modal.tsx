@@ -79,11 +79,11 @@ export default function NotificationModal({ isOpen, onClose }: NotificationModal
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-50" onClick={onClose}>
-      <div className="max-w-md mx-auto mt-20 bg-white rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-50" onClick={onClose} data-testid="notification-modal-overlay">
+      <div className="max-w-md mx-auto mt-20 bg-white rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()} data-testid="notification-modal-content">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-lg font-semibold construction-secondary">Notifications</h3>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <h3 className="text-lg font-semibold construction-secondary" data-testid="notification-modal-title">Notifications</h3>
+          <Button variant="ghost" size="sm" onClick={onClose} data-testid="notification-modal-close">
             <X size={20} />
           </Button>
         </div>
@@ -133,6 +133,7 @@ export default function NotificationModal({ isOpen, onClose }: NotificationModal
               className="w-full construction-primary text-white hover:opacity-90"
               onClick={() => markAllReadMutation.mutate()}
               disabled={markAllReadMutation.isPending}
+              data-testid="notification-mark-all-read"
             >
               {markAllReadMutation.isPending ? "Marking as read..." : "Mark All as Read"}
             </Button>
