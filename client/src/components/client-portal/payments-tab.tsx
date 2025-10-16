@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { 
   DollarSign, Calendar, FileText, Upload, Check, AlertTriangle,
-  Plus, Receipt, Download, CreditCard, TrendingUp
+  Plus, Receipt, Download, CreditCard, TrendingUp, Trash2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -252,6 +252,23 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to upload invoice.", variant: "destructive" });
+    },
+  });
+
+  // Delete document mutation
+  const deleteDocumentMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      const response = await apiRequest(`/api/payment-documents/${documentId}`, {
+        method: "DELETE",
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/payments`] });
+      toast({ title: "Document Deleted", description: "Payment document has been deleted." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete document.", variant: "destructive" });
     },
   });
 
@@ -802,14 +819,30 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
                       </p>
                     </div>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => handleDownload(doc.file_id, doc.title)}
-                    data-testid={`button-download-${doc.id}`}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleDownload(doc.file_id, doc.title)}
+                      data-testid={`button-download-${doc.id}`}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => {
+                        if (confirm("Are you sure you want to delete this document?")) {
+                          deleteDocumentMutation.mutate(doc.id);
+                        }
+                      }}
+                      disabled={deleteDocumentMutation.isPending}
+                      className="text-destructive hover:text-destructive"
+                      data-testid={`button-delete-${doc.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -841,7 +874,19 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold">${parseFloat(invoice.total).toLocaleString()}</p>
-                    <Button variant="outline" size="sm" className="mt-2" data-testid={`button-download-invoice-${invoice.id}`}>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-2" 
+                      onClick={() => {
+                        toast({ 
+                          title: "PDF Not Available", 
+                          description: "PDF generation for invoices will be available soon.",
+                          variant: "default"
+                        });
+                      }}
+                      data-testid={`button-download-invoice-${invoice.id}`}
+                    >
                       <Download className="h-4 w-4 mr-1" />
                       Download PDF
                     </Button>
