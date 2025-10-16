@@ -102,6 +102,7 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
   const schedules = (paymentData as any)?.schedules || [];
   const installments = (paymentData as any)?.installments || [];
   const documents = (paymentData as any)?.documents || [];
+  const receipts = (paymentData as any)?.receipts || [];
   const invoices = (paymentData as any)?.invoices || [];
 
   const scheduleForm = useForm<ScheduleFormData>({
@@ -757,6 +758,7 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
                   key={installment.id} 
                   installment={installment} 
                   projectId={projectId}
+                  receipts={receipts.filter((r: any) => r.installment_id === installment.id)}
                 />
               ))}
             </div>
@@ -845,12 +847,14 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
 interface InstallmentRowProps {
   installment: any;
   projectId: string;
+  receipts: any[];
 }
 
-function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
+function InstallmentRow({ installment, projectId, receipts }: InstallmentRowProps) {
   const [isReceiptDialogOpen, setIsReceiptDialogOpen] = useState(false);
   const [isMarkPaidDialogOpen, setIsMarkPaidDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isReceiptWarningOpen, setIsReceiptWarningOpen] = useState(false);
   const [selectedReceiptFile, setSelectedReceiptFile] = useState<File | null>(null);
   const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
   const { toast } = useToast();
@@ -1285,13 +1289,22 @@ function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
               </DialogContent>
             </Dialog>
 
+            <Button 
+              size="sm" 
+              data-testid={`button-mark-paid-${installment.id}`}
+              onClick={() => {
+                if (receipts.length === 0) {
+                  setIsReceiptWarningOpen(true);
+                } else {
+                  setIsMarkPaidDialogOpen(true);
+                }
+              }}
+            >
+              <CreditCard className="h-4 w-4 mr-1" />
+              Mark Paid
+            </Button>
+
             <AlertDialog open={isMarkPaidDialogOpen} onOpenChange={setIsMarkPaidDialogOpen}>
-              <AlertDialogTrigger asChild>
-                <Button size="sm" data-testid={`button-mark-paid-${installment.id}`}>
-                  <CreditCard className="h-4 w-4 mr-1" />
-                  Mark Paid
-                </Button>
-              </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle className="flex items-center gap-2">
@@ -1299,7 +1312,7 @@ function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
                     Mark Installment as Paid
                   </AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will mark "{installment.name}" as paid and generate an invoice. Make sure at least one receipt has been uploaded.
+                    This will mark "{installment.name}" as paid and generate an invoice.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -1314,6 +1327,42 @@ function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+
+            <Dialog open={isReceiptWarningOpen} onOpenChange={setIsReceiptWarningOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-amber-600">
+                    <AlertTriangle className="h-5 w-5" />
+                    Receipt Required
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    At least one receipt must be uploaded before marking this installment as paid. 
+                    This helps maintain accurate payment records.
+                  </p>
+                  <div className="flex justify-end gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsReceiptWarningOpen(false)}
+                      data-testid="button-close-receipt-warning"
+                    >
+                      Close
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        setIsReceiptWarningOpen(false);
+                        setIsReceiptDialogOpen(true);
+                      }}
+                      data-testid="button-upload-receipt-from-warning"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Receipt
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </>
         )}
       </div>
