@@ -69,6 +69,18 @@ type DocumentFormData = z.infer<typeof documentSchema>;
 type ReceiptFormData = z.infer<typeof receiptSchema>;
 type InvoiceFormData = z.infer<typeof invoiceSchema>;
 
+interface Receipt {
+  id: string;
+  project_id: string;
+  installment_id: string;
+  receipt_type: string;
+  reference_no?: string;
+  payment_date?: string;
+  file_id?: string;
+  uploaded_by: string;
+  created_at: string;
+}
+
 interface PaymentsTabProps {
   projectId: string;
 }
@@ -847,7 +859,7 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
 interface InstallmentRowProps {
   installment: any;
   projectId: string;
-  receipts: any[];
+  receipts: Receipt[];
 }
 
 function InstallmentRow({ installment, projectId, receipts }: InstallmentRowProps) {
@@ -1051,6 +1063,43 @@ function InstallmentRow({ installment, projectId, receipts }: InstallmentRowProp
             </span>
           )}
         </div>
+        
+        {receipts.length > 0 && (
+          <div className="mt-3 pt-3 border-t">
+            <p className="text-xs font-medium text-muted-foreground mb-2" data-testid="text-receipts-count">
+              Payment Receipts ({receipts.length})
+            </p>
+            <div className="space-y-1">
+              {receipts.map((receipt) => (
+                <div key={receipt.id} className="flex items-center justify-between text-sm bg-muted/30 rounded px-2 py-1">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-xs" data-testid={`text-receipt-type-${receipt.id}`}>
+                      {receipt.receipt_type} 
+                      {receipt.reference_no && ` - ${receipt.reference_no}`}
+                    </span>
+                    {receipt.payment_date && (
+                      <span className="text-xs text-muted-foreground" data-testid={`text-receipt-date-${receipt.id}`}>
+                        ({format(new Date(receipt.payment_date), "MMM dd, yyyy")})
+                      </span>
+                    )}
+                  </div>
+                  {receipt.file_id && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDownload(receipt.file_id!, `receipt-${receipt.reference_no || receipt.id}`)}
+                      className="h-6 px-2"
+                      data-testid={`button-download-receipt-${receipt.id}`}
+                    >
+                      <Download className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-2">
