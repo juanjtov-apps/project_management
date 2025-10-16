@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -19,7 +20,24 @@ import { MaterialsTab } from "@/components/client-portal/materials-tab.tsx";
 import PaymentsTab from "@/components/client-portal/payments-tab.tsx";
 
 export default function ClientPortal() {
+  const [location] = useLocation();
   const [selectedProject, setSelectedProject] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("issues");
+  
+  // Parse URL parameters
+  useEffect(() => {
+    const params = new URLSearchParams(location.split('?')[1] || '');
+    const projectParam = params.get('project');
+    const tabParam = params.get('tab');
+    
+    if (projectParam) {
+      setSelectedProject(projectParam);
+    }
+    
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [location]);
   
   // Get user projects
   const { data: projects = [] } = useQuery<any[]>({
@@ -112,7 +130,7 @@ export default function ClientPortal() {
           </CardContent>
         </Card>
       ) : (
-        <Tabs defaultValue="issues" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             {tabItems.map((tab) => {
               const Icon = tab.icon;
