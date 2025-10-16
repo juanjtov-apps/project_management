@@ -152,8 +152,21 @@ export class ObjectStorageService {
       );
     }
 
-    const fullPath = `${privateObjectDir}/${filePath}`;
-    const { bucketName, objectName } = parseObjectPath(fullPath);
+    // Extract bucket name from PRIVATE_OBJECT_DIR (format: /bucketname/.private)
+    const { bucketName } = parseObjectPath(privateObjectDir);
+    
+    // Normalize filePath: remove leading slashes and bucket prefix if present
+    let normalizedPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+    
+    // If path starts with bucket name, remove it to get just the object path
+    if (normalizedPath.startsWith(`${bucketName}/`)) {
+      normalizedPath = normalizedPath.substring(bucketName.length + 1);
+    }
+    
+    // Now combine: bucket + normalized path (which is ".private/uploads/...")
+    const fullPath = `/${bucketName}/${normalizedPath}`;
+    
+    const { objectName } = parseObjectPath(fullPath);
 
     // Sign URL for GET method with TTL
     return signObjectURL({
