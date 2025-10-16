@@ -11,7 +11,7 @@ from ..database.connection import get_db_pool
 from ..services.notification_service import NotificationService
 from .auth import get_current_user
 
-router = APIRouter(prefix="/api/testnotify", tags=["test-notifications"])
+router = APIRouter(prefix="/testnotify", tags=["test-notifications"])
 
 # Check if test endpoints are enabled
 TEST_ENDPOINTS_ENABLED = os.getenv("NOTIFY_TEST_ENDPOINTS", "false").lower() == "true"

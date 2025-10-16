@@ -37,7 +37,15 @@ Preferred communication style: Simple, everyday language.
 - **Project Logs**: Documentation for activities and issues with enhanced tag management system.
 - **Photos**: Image documentation with unified photo gallery, comprehensive filtering by tags/projects/logs, and advanced search capabilities.
 - **Schedule Changes**: System for schedule modifications with Timeline and Calendar views.
-- **Notifications**: Real-time notification system.
+- **PM Notifications System**: Comprehensive notification system for project managers with:
+  - **Bell Icon**: Always-visible bell icon in top navigation showing unread count with 15-second polling
+  - **Notification Types**: Issue created and message posted notifications from client actions
+  - **Deep Linking**: Automatic routing to correct project sections (Issues or Forum) when clicking notifications
+  - **Mark as Read**: Individual and bulk mark-as-read functionality with optimistic UI updates
+  - **Database Schema**: `client_portal.pm_notifications` and `client_portal.pm_notification_prefs` tables for notification storage and user preferences
+  - **Test Endpoints**: Feature-flagged test endpoints (`/api/testnotify/issue`, `/api/testnotify/message`) for simulating client events
+  - **API Endpoints**: `/api/pm-notifications` (list), `/api/pm-notifications/unread-count`, `/api/pm-notifications/{id}/read`, `/api/pm-notifications/read-all`
+  - **Note**: Old client portal notifications tab (for notification preferences) has been removed and replaced with standalone PM notification system
 - **Subcontractor Task Management**: Mandatory project selection and organized views.
 - **Visual Project Health Assessment Tool**: Project health monitoring with health score rings, risk matrices, project health cards, and a comprehensive dashboard, including real-time health score calculation and risk assessment.
 - **Advanced Tag Management**: Smart tag input system with dropdown suggestions, tag creation capabilities, visual badge management, and keyboard navigation support across Photos and Project Logs.
@@ -68,8 +76,8 @@ Preferred communication style: Simple, everyday language.
     - **Audit Trail**: Complete event logging for status changes and key actions
     - **Database Schema**: New tables in `client_portal` schema: `payment_schedules`, `payment_installments`, `payment_documents`, `payment_receipts`, `invoices`, `payment_events` (file_id columns use TEXT type for flexibility)
     - All features enforce strict company scoping and role-based permissions (contractor/PM can create/edit, clients can upload receipts)
-  - **Notifications System**: Customizable notification preferences with type-based settings (Issues/Forum/Materials/Payments), enabling users to control their communication flow.
   - All features maintain strict company scoping and project access verification for multi-tenant security.
+  - **Note**: The old notifications preferences tab has been removed from the client portal in favor of the standalone PM notifications system.
 
 ### Data Flow
 - **Client-Server Communication**: Frontend requests via TanStack Query are handled by the Python FastAPI backend for all operations including authentication, data management, and file operations.
