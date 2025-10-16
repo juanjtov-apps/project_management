@@ -72,8 +72,19 @@ export default function NotificationModal({ isOpen, onClose }: NotificationModal
     // Close modal
     onClose();
     
-    // Navigate to the route
-    setLocation(notification.route_path);
+    // Check if we're already on the client portal
+    const currentPath = window.location.pathname;
+    const targetPath = notification.route_path.split('?')[0];
+    
+    if (currentPath === targetPath) {
+      // We're already on the client portal, manually update URL and trigger state update
+      window.history.pushState({}, '', notification.route_path);
+      // Dispatch a custom event to notify the client portal page
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    } else {
+      // Navigate to different page
+      setLocation(notification.route_path);
+    }
   };
 
   if (!isOpen) return null;
