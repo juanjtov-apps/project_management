@@ -1480,12 +1480,13 @@ async def mark_installment_paid(
         )
         
         # Log the event
+        import json
         await conn.execute(
             """INSERT INTO client_portal.payment_events 
                (project_id, actor_id, entity_type, entity_id, action, diff) 
                VALUES ($1, $2, 'installment', $3, 'marked_paid', $4)""",
             installment['project_id'], current_user['id'], installment_id,
-            {'invoice_no': invoice_no}
+            json.dumps({'invoice_no': invoice_no})
         )
         
         return {
