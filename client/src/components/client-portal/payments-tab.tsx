@@ -91,8 +91,10 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
   const [isEditInstallmentDialogOpen, setIsEditInstallmentDialogOpen] = useState(false);
   const [isDocumentDialogOpen, setIsDocumentDialogOpen] = useState(false);
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   const [selectedInstallmentId, setSelectedInstallmentId] = useState<string | null>(null);
+  const [documentToDelete, setDocumentToDelete] = useState<{id: string, title: string} | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedInvoiceFile, setSelectedInvoiceFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -832,9 +834,8 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
                       variant="ghost" 
                       size="sm" 
                       onClick={() => {
-                        if (confirm("Are you sure you want to delete this document?")) {
-                          deleteDocumentMutation.mutate(doc.id);
-                        }
+                        setDocumentToDelete({ id: doc.id, title: doc.title });
+                        setIsDeleteDialogOpen(true);
                       }}
                       disabled={deleteDocumentMutation.isPending}
                       className="text-destructive hover:text-destructive"
@@ -897,6 +898,34 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Document</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{documentToDelete?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (documentToDelete) {
+                  deleteDocumentMutation.mutate(documentToDelete.id);
+                  setIsDeleteDialogOpen(false);
+                  setDocumentToDelete(null);
+                }
+              }}
+              className="bg-destructive hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
