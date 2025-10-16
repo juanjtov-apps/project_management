@@ -260,13 +260,8 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
       
       const { downloadURL } = await response.json();
       
-      // Create a temporary anchor element to trigger download
-      const link = document.createElement('a');
-      link.href = downloadURL;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Open the signed URL in a new tab to trigger download
+      window.open(downloadURL, '_blank');
       
       toast({ title: "Download Started", description: `Downloading ${fileName}` });
     } catch (error) {
@@ -967,13 +962,8 @@ function InstallmentRow({ installment, projectId }: InstallmentRowProps) {
       
       const { downloadURL } = await response.json();
       
-      // Create a temporary anchor element to trigger download
-      const link = document.createElement('a');
-      link.href = downloadURL;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Open the signed URL in a new tab to trigger download
+      window.open(downloadURL, '_blank');
       
       toast({ title: "Download Started", description: `Downloading ${fileName}` });
     } catch (error) {
