@@ -1,48 +1,80 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { X, AlertTriangle, CheckCircle, Camera, Info } from "lucide-react";
+import { X, AlertTriangle, MessageSquare, Bell } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import type { Notification } from "@shared/schema";
+import { useLocation } from "wouter";
+import { formatDistanceToNow } from "date-fns";
 
 interface NotificationModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+interface PMNotification {
+  id: string;
+  project_id: string;
+  recipient_user_id: string;
+  type: string;
+  source_kind: string;
+  source_id: string;
+  title: string;
+  body: string | null;
+  is_read: boolean;
+  created_at: string;
+  route_path: string;
+}
+
 const getNotificationIcon = (type: string) => {
   switch (type) {
-    case "warning":
-      return <AlertTriangle className="text-brand-coral" size={16} />;
-    case "success":
-      return <CheckCircle className="text-green-500" size={16} />;
-    case "error":
-      return <AlertTriangle className="text-red-500" size={16} />;
+    case "issue_created":
+      return <AlertTriangle className="text-amber-600" size={16} />;
+    case "message_posted":
+      return <MessageSquare className="text-blue-600" size={16} />;
     default:
-      return <Info className="text-blue-500" size={16} />;
+      return <Bell className="text-gray-500" size={16} />;
   }
 };
 
 export default function NotificationModal({ isOpen, onClose }: NotificationModalProps) {
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
-  const { data: notifications = [], isLoading } = useQuery<Notification[]>({
-    queryKey: ["/api/notifications"],
-    queryFn: () => fetch("/api/notifications?userId=sample-user-id").then(res => res.json()),
+  // Fetch PM notifications
+  const { data: notificationsData, isLoading } = useQuery<{ items: PMNotification[], next_cursor: string | null }>({
+    queryKey: ["/api/pm-notifications"],
+    enabled: isOpen,
   });
 
+  const notifications = notificationsData?.items || [];
+
   const markAllReadMutation = useMutation({
-    mutationFn: () => apiRequest("PATCH", "/api/notifications/mark-all-read", { userId: "sample-user-id" }),
+    mutationFn: () => apiRequest("/api/pm-notifications/read-all", { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pm-notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pm-notifications/unread-count"] });
     },
   });
 
   const markAsReadMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("PATCH", `/api/notifications/${id}/read`),
+    mutationFn: (id: string) => apiRequest(`/api/pm-notifications/${id}/read`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pm-notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pm-notifications/unread-count"] });
     },
   });
+
+  const handleNotificationClick = async (notification: PMNotification) => {
+    // Mark as read
+    if (!notification.is_read) {
+      await markAsReadMutation.mutateAsync(notification.id);
+    }
+    
+    // Close modal
+    onClose();
+    
+    // Navigate to the route
+    setLocation(notification.route_path);
+  };
 
   if (!isOpen) return null;
 
@@ -70,22 +102,23 @@ export default function NotificationModal({ isOpen, onClose }: NotificationModal
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`flex items-start space-x-3 pb-4 border-b border-gray-100 last:border-b-0 cursor-pointer hover:bg-gray-50 p-2 rounded ${
-                    !notification.isRead ? "bg-blue-50" : ""
+                  className={`flex items-start space-x-3 pb-4 border-b border-gray-100 last:border-b-0 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors ${
+                    !notification.is_read ? "bg-blue-50" : ""
                   }`}
-                  onClick={() => !notification.isRead && markAsReadMutation.mutate(notification.id)}
+                  onClick={() => handleNotificationClick(notification)}
+                  data-testid={`notification-item-${notification.id}`}
                 >
                   <div className="w-8 h-8 bg-opacity-10 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
                     {getNotificationIcon(notification.type)}
                   </div>
                   <div className="flex-1">
                     <p className="text-sm construction-secondary font-medium">{notification.title}</p>
-                    <p className="text-sm text-gray-600">{notification.message}</p>
+                    {notification.body && <p className="text-sm text-gray-600">{notification.body}</p>}
                     <p className="text-xs text-gray-500 mt-1">
-                      {new Date(notification.createdAt).toLocaleString()}
+                      {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                     </p>
                   </div>
-                  {!notification.isRead && (
+                  {!notification.is_read && (
                     <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
                   )}
                 </div>

@@ -20,8 +20,11 @@ interface HeaderProps {
 
 export default function Header({ onToggleMobileMenu, onToggleNotifications }: HeaderProps) {
   const { user } = useAuth() as { user: User | undefined };
-  const { data: notifications = [] } = useQuery<Notification[]>({
-    queryKey: ["/api/notifications", "sample-user-id"],
+  
+  // Use new PM notifications endpoint for unread count
+  const { data: unreadData } = useQuery<{ count: number }>({
+    queryKey: ["/api/pm-notifications/unread-count"],
+    refetchInterval: 15000, // Poll every 15 seconds
   });
 
   // Get companies to display company name - only for platform admins
@@ -34,7 +37,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
   // Use company name from user data or default to Proesphere
   const companyName = 'Proesphere';
 
-  const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0;
+  const unreadCount = unreadData?.count || 0;
   
   const getUserInitials = (user: User | undefined) => {
     if (!user) return "U";

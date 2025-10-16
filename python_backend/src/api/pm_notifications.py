@@ -10,7 +10,7 @@ from ..database.connection import get_db_pool
 from ..services.notification_service import NotificationService
 from .auth import get_current_user
 
-router = APIRouter(prefix="/api/pm-notifications", tags=["pm-notifications"])
+router = APIRouter(prefix="/pm-notifications", tags=["pm-notifications"])
 
 
 # Pydantic models
