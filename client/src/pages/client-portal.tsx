@@ -20,15 +20,16 @@ import { MaterialsTab } from "@/components/client-portal/materials-tab.tsx";
 import PaymentsTab from "@/components/client-portal/payments-tab.tsx";
 
 export default function ClientPortal() {
-  const [location] = useLocation();
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("issues");
   
-  // Parse URL parameters
+  // Parse URL parameters on mount and when URL changes
   useEffect(() => {
-    const params = new URLSearchParams(location.split('?')[1] || '');
+    const params = new URLSearchParams(window.location.search);
     const projectParam = params.get('project');
     const tabParam = params.get('tab');
+    
+    console.log('Client Portal URL params:', { projectParam, tabParam, fullSearch: window.location.search });
     
     if (projectParam) {
       setSelectedProject(projectParam);
@@ -37,7 +38,27 @@ export default function ClientPortal() {
     if (tabParam) {
       setActiveTab(tabParam);
     }
-  }, [location]);
+  }, []); // Run once on mount
+  
+  // Also listen to URL changes via popstate (back/forward buttons)
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const projectParam = params.get('project');
+      const tabParam = params.get('tab');
+      
+      if (projectParam) {
+        setSelectedProject(projectParam);
+      }
+      
+      if (tabParam) {
+        setActiveTab(tabParam);
+      }
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   
   // Get user projects
   const { data: projects = [] } = useQuery<any[]>({
