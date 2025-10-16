@@ -1,0 +1,165 @@
+Build Notifications Module for PM app with safe DB migrations and test stubs
+Context
+So far we have worked in the client’s module from the project managers side. However, there will be a separate client portal where clients can create issues and post messages, but that client side hasn't been built yet. We need a notifications system so that when a client creates an issue or posts a message for a project, all project managers assigned to that project see a bell icon with an unread count. Clicking a notification should deep link to the correct section inside the PM app. The module must be safe for an existing database and must not break other modules.
+Primary goals
+Always visible bell icon in the PM top navigation that shows total unread count
+Dropdown panel listing recent notifications with pagination and read state
+Clicking a notification routes immediately to either Issues or Messages for the right project and anchors to the linked record
+Mark as read on click with optimistic UI
+Mark all as read control
+Real time updates if possible with WebSocket or Server Sent Events and a simple polling fallback
+
+Non negotiable database rules
+Never modify, drop, or alter existing schemas, tables, columns, enums, or constraints
+Create all new tables inside a schema named client_portal
+All migrations must be additive, use IF NOT EXISTS, and be wrapped in a transaction
+Use existing env var DATABASE_URL. Do not overwrite or recreate the DB
+Foreign keys must reference public.projects(id) and public.users(id) with ON DELETE RESTRICT
+Store Alembic or migration metadata in client_portal.alembic_version
+Seed data only runs if DEMO_SEED=true and DEMO_PROJECT_ID is provided. Never auto create or overwrite users or projects
+Everything must be removable in staging by dropping only the client_portal schema
+Follow these rules strictly
+
+Data model to add in client_portal schema
+Table client_portal.notifications
+id uuid primary key default gen_random_uuid
+project_id references public.projects(id) on delete restrict not null
+recipient_user_id references public.users(id) on delete restrict not null
+type text not null check type in the app code for values issue_created and message_posted
+source_kind text not null values issue or message
+source_id uuid not null stores the issue id or message id for deep linking
+title text not null short human readable summary
+body text nullable optional longer snippet for preview
+is_read boolean not null default false
+created_at timestamptz not null default now()
+index on recipient_user_id, is_read, created_at
+index on project_id, created_at
+Optional table client_portal.notification_settings for per user preferences
+recipient_user_id references public.users(id) on delete restrict primary key
+email_enabled boolean default false
+push_enabled boolean default false
+realtime_enabled boolean default true
+
+Backend implementation requirements
+Create a NotificationService with functions create_notification, list_notifications, mark_read, mark_all_read, unread_count
+Events that should trigger create_notification
+client created an issue for project P
+client posted a message for project P
+For now we do not have the client module. Add two test only HTTP endpoints behind admin or staff auth that simulate those events by inserting a record into notifications
+POST /api/testnotify/issue with project_id and issue_id and a message to build a notification payload
+POST /api/testnotify/message with project_id and message_id and a snippet
+These test endpoints only exist in non production or behind a feature flag NOTIFY_TEST_ENDPOINTS=true
+Add REST endpoints for the PM frontend
+GET /api/notifications returns recent notifications for the current user with cursor pagination
+GET /api/notifications/unread_count returns integer
+POST /api/notifications/{id}/read marks a single notification as read
+POST /api/notifications/read_all marks all notifications for the current user as read
+Ensure access control so users only see notifications where recipient_user_id equals current user id
+Implement deep link generation rules in the backend and return navigation targets in each notification item
+For source_kind issue return route path like /projects/{projectId}/issues/{issueId}
+For source_kind message return route path like /projects/{projectId}/messages?focus={messageId}
+Add real time push using WebSockets or SSE on /api/notifications/stream for the current authenticated user. Include a simple polling fallback in the frontend that hits unread_count every 15 seconds when the socket is not connected
+Frontend implementation requirements
+Add a bell icon component in the top navigation that is visible on every page
+Show a badge with the unread count from unread_count endpoint
+Clicking the bell opens a dropdown panel listing notifications with
+avatar or icon by type
+title
+time ago
+snippet
+unread dot
+Clicking an item immediately navigates to the route path provided by the API and calls mark_read for that id
+Add Mark all as read button in the panel header
+Use optimistic updates for read state and count
+Subscribe to /api/notifications/stream and update the store in real time. If the socket disconnects, enable the polling fallback
+Persist the last opened tab so the bell is always visible and consistent across routes
+
+Routing and deep link behavior
+If a notification is type issue_created or source_kind issue, route to the Issues section and auto expand or highlight the issue item if the UI supports it. At minimum scroll to the issue detail route
+If a notification is type message_posted or source_kind message, route to the Messages section and pass a focus query param so the thread can highlight the message
+
+
+Testing strategy when client side does not exist yet
+Add the test only endpoints described above to simulate client events
+Provide a minimal CLI or script under scripts/seed_notifications.py that can insert demo notifications when DEMO_SEED=true and DEMO_PROJECT_ID is set
+Create a Postman collection or simple curl commands that
+calls /api/testnotify/issue to simulate a client issue
+calls /api/testnotify/message to simulate a client message
+verifies unread_count increments
+fetches GET /api/notifications and checks that new items appear at the top
+marks a single notification as read and verifies count decrements
+marks all as read and verifies count equals zero
+Add unit tests for NotificationService and integration tests for the REST endpoints
+Add one Playwright test that
+logs in as a PM test user
+opens any page and confirms the bell is visible
+creates a notification via the test endpoint
+waits for the bell count to increment
+opens the dropdown and clicks the first item
+asserts navigation reached the expected route
+
+Database migration details
+Use Alembic migrations in client_portal schema only
+Wrap DDL in a transaction and include IF NOT EXISTS
+Store migration state in client_portal.alembic_version
+Do not alter public tables or existing constraints
+Provide a down migration that only drops objects in client_portal to allow clean rollback in staging
+
+API response contracts
+GET /api/notifications returns
+items list of notification objects
+each object
+id
+title
+body
+type
+project_id
+source_kind
+source_id
+created_at ISO string
+is_read
+route_path string already computed on the server
+next_cursor for pagination
+GET /api/notifications/unread_count returns
+count integer
+POST endpoints return 204 on success
+
+Security and feature flags
+Protect test only endpoints with admin or staff role and a feature flag NOTIFY_TEST_ENDPOINTS=true
+Protect the stream endpoint with user auth and scope notifications.stream
+Do not leak data across users
+
+Acceptance criteria
+Bell icon is visible on every PM route and shows the correct unread count for the current user
+Notifications appear in reverse chronological order with unread styling
+Clicking a notification marks it read and navigates to the correct route
+Mark all as read updates both UI and server state
+Real time updates work over WebSocket or SSE. Polling fallback works if socket is unavailable
+End to end tests pass using only the PM app plus the test endpoints. No client portal needed
+
+Deliverables
+All backend routes, service code, and Alembic migration files under a notifications or client_portal module
+Frontend bell component, dropdown panel, store, and integration
+Postman collection or curl scripts to simulate events and verify behavior
+Playwright test covering the end to end flow
+Readme section that documents test steps using the test endpoints and the DEMO_SEED script
+
+
+Useful Scripts
+Quick curl script to help you test locally without a client module
+Replace TOKEN and IDs before running
+curl -s -X POST https://localhost:3000/api/testnotify/issue 
+-H “Authorization: Bearer TOKEN” 
+-H “Content-Type: application/json” 
+-d ‘{“project_id”:“PROJECT_UUID”,“issue_id”:“ISSUE_UUID”,“message”:“New window leak reported”}’
+curl -s -X GET https://localhost:3000/api/notifications/unread_count 
+-H “Authorization: Bearer TOKEN”
+curl -s -X GET “https://localhost:3000/api/notifications?cursor=” 
+-H “Authorization: Bearer TOKEN”
+curl -s -X POST https://localhost:3000/api/notifications/NOTIF_UUID/read 
+-H “Authorization: Bearer TOKEN”
+Notes
+If WebSocket infrastructure is out of scope, implement SSE first since it is simpler. Keep the same service interface so we can swap transport later
+Respect the database safety rules at all times. Only create objects inside client_portal and never touch public schema objects except through foreign keys with ON DELETE RESTRICT
+Explanation of how you can test now without the client side
+Use the two test only endpoints to simulate client created issues and messages. This gives you the same database writes the client module would generate. Trigger a test notification, watch the bell update in real time or on the next poll, open the dropdown, and click through to verify deep links and read state. The Postman or curl steps above cover the full flow end to end inside the PM app.

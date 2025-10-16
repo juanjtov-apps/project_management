@@ -6,8 +6,7 @@ import {
   AlertTriangle, 
   MessageSquare, 
   Package, 
-  CreditCard, 
-  Bell,
+  CreditCard,
   Building 
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +17,6 @@ import { IssuesTab } from "@/components/client-portal/issues-tab.tsx";
 import { ForumTab } from "@/components/client-portal/forum-tab.tsx";
 import { MaterialsTab } from "@/components/client-portal/materials-tab.tsx";
 import PaymentsTab from "@/components/client-portal/payments-tab.tsx";
-import { NotificationsTab } from "@/components/client-portal/notifications-tab.tsx";
 
 export default function ClientPortal() {
   const [selectedProject, setSelectedProject] = useState<string>("");
@@ -62,13 +60,6 @@ export default function ClientPortal() {
       icon: CreditCard,
       description: "Payment schedule tracking",
       color: "text-purple-600"
-    },
-    {
-      value: "notifications",
-      label: "Notifications",
-      icon: Bell,
-      description: "Notification preferences",
-      color: "text-orange-600"
     }
   ];
 
@@ -122,7 +113,7 @@ export default function ClientPortal() {
         </Card>
       ) : (
         <Tabs defaultValue="issues" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             {tabItems.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -153,10 +144,6 @@ export default function ClientPortal() {
 
           <TabsContent value="installments">
             <PaymentsTab projectId={selectedProject} />
-          </TabsContent>
-
-          <TabsContent value="notifications">
-            <NotificationsTab projectId={selectedProject} />
           </TabsContent>
         </Tabs>
       )}
