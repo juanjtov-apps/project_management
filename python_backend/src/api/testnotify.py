@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from typing import Optional
 from ..database.connection import get_db_pool
 from ..services.notification_service import NotificationService
-from .auth import get_current_user
+from .auth import get_current_user_dependency as get_current_user
 
 router = APIRouter(prefix="/testnotify", tags=["test-notifications"])
 
