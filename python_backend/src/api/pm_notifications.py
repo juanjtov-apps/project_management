@@ -63,14 +63,22 @@ async def list_notifications(
         is_read=is_read
     )
     
-    # Add route_path to each notification
+    # Add route_path to each notification and convert UUIDs to strings
     items_with_routes = []
     for item in result['items']:
         route_path = service.generate_route_path(item)
         items_with_routes.append({
-            **item,
-            "route_path": route_path,
-            "created_at": item['created_at'].isoformat() if item['created_at'] else None
+            "id": str(item['id']),
+            "project_id": str(item['project_id']),
+            "recipient_user_id": str(item['recipient_user_id']),
+            "type": item['type'],
+            "source_kind": item['source_kind'],
+            "source_id": str(item['source_id']),
+            "title": item['title'],
+            "body": item['body'],
+            "is_read": item['is_read'],
+            "created_at": item['created_at'].isoformat() if item['created_at'] else None,
+            "route_path": route_path
         })
     
     return {
