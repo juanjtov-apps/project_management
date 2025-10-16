@@ -40,6 +40,13 @@ except Exception as e:
     notifications_router = None
 
 try:
+    from .pm_notifications import router as pm_notifications_router
+    print("✅ PM Notifications router imported")
+except Exception as e:
+    print(f"❌ Error importing PM notifications router: {e}")
+    pm_notifications_router = None
+
+try:
     from .schedule import router as schedule_router
     print("✅ Schedule router imported")
 except Exception as e:
@@ -156,6 +163,12 @@ def create_api_router() -> APIRouter:
         print("✅ Notifications router included")
     else:
         print("⚠️  Notifications router skipped (import failed)")
+        
+    if pm_notifications_router:
+        api_router.include_router(pm_notifications_router, tags=["pm-notifications"])
+        print("✅ PM Notifications router included")
+    else:
+        print("⚠️  PM Notifications router skipped (import failed)")
         
     if schedule_router:
         api_router.include_router(schedule_router, tags=["schedule"])
