@@ -62,14 +62,18 @@ interface UserProfile {
   first_name?: string;
   last_name?: string;
   company_id: string;
-  role_id: string;
+  companyId?: string; // Alias for compatibility
+  role_id?: string;
+  role?: string; // Backend returns role as string (admin, manager, etc.)
   is_active: boolean;
+  isActive?: boolean; // Alias for compatibility
   created_at: string;
   last_login: string;
+  last_login_at?: string; // Alias for compatibility
   role_name?: string;
   company_name?: string;
   username?: string;
-  isActive?: boolean;
+  password?: string; // For edit form only
 }
 
 export default function RBACAdmin() {
