@@ -670,37 +670,40 @@ export default function RBACAdmin() {
               </CardContent>
             </Card>
           ) : users && Array.isArray(users) && Object.keys(usersByCompany).length > 0 ? (
-            Object.entries(usersByCompany).map(([companyName, companyUsers]) => (
-              <Card key={companyName} className="overflow-hidden">
-                <Collapsible
-                  open={expandedCompanies.has(companyName)}
-                  onOpenChange={() => toggleCompanyExpansion(companyName)}
-                >
-                  <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="flex items-center">
-                            {expandedCompanies.has(companyName) ? (
-                              <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                            ) : (
-                              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                            )}
+            // For company admins, show a flat list. For root admins, show collapsible by company
+            isRootAdmin ? (
+              // Root admin view: collapsible companies
+              Object.entries(usersByCompany).map(([companyName, companyUsers]) => (
+                <Card key={companyName} className="overflow-hidden">
+                  <Collapsible
+                    open={expandedCompanies.has(companyName)}
+                    onOpenChange={() => toggleCompanyExpansion(companyName)}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="flex items-center">
+                              {expandedCompanies.has(companyName) ? (
+                                <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                              )}
+                            </div>
+                            <Building className="w-5 h-5 text-primary" />
+                            <div>
+                              <CardTitle className="text-lg">{companyName}</CardTitle>
+                              <CardDescription>
+                                {companyUsers.length} user{companyUsers.length !== 1 ? 's' : ''}
+                              </CardDescription>
+                            </div>
                           </div>
-                          <Building className="w-5 h-5 text-primary" />
-                          <div>
-                            <CardTitle className="text-lg">{companyName}</CardTitle>
-                            <CardDescription>
-                              {companyUsers.length} user{companyUsers.length !== 1 ? 's' : ''}
-                            </CardDescription>
-                          </div>
+                          <Badge variant="outline">{companyUsers.length}</Badge>
                         </div>
-                        <Badge variant="outline">{companyUsers.length}</Badge>
-                      </div>
-                    </CardHeader>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <CardContent className="p-0">
+                      </CardHeader>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <CardContent className="p-0">
                       <div className="divide-y">
                         {companyUsers.map((user: UserProfile) => (
                           <div key={user.id} className="p-4 flex items-center justify-between hover:bg-muted/30">
@@ -807,6 +810,133 @@ export default function RBACAdmin() {
                 </Collapsible>
               </Card>
             ))
+            ) : (
+              // Company admin view: flat list without collapsible
+              Object.entries(usersByCompany).map(([companyName, companyUsers]) => (
+                <Card key={companyName} className="overflow-hidden">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <Building className="w-5 h-5 text-primary" />
+                        <div>
+                          <CardTitle className="text-lg">{companyName}</CardTitle>
+                          <CardDescription>
+                            {companyUsers.length} user{companyUsers.length !== 1 ? 's' : ''}
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <Badge variant="outline">{companyUsers.length}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y">
+                      {companyUsers.map((user: UserProfile) => (
+                        <div key={user.id} className="p-4 flex items-center justify-between hover:bg-muted/30">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <Users className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                              <div className="font-medium">
+                                {user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username}
+                              </div>
+                              <div className="text-sm text-muted-foreground">{user.email}</div>
+                              <div className="flex items-center space-x-2 mt-1">
+                                {user.role_name && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {user.role_name}
+                                  </Badge>
+                                )}
+                                <Badge variant={user.is_active || user.isActive ? 'default' : 'destructive'} className="text-xs">
+                                  {user.is_active || user.isActive ? 'Active' : 'Inactive'}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const currentStatus = user.is_active || user.isActive;
+                                toggleUserStatus.mutate({
+                                  userId: user.id,
+                                  isActive: !currentStatus
+                                });
+                              }}
+                              disabled={toggleUserStatus.isPending}
+                              className="flex items-center space-x-1"
+                              data-testid={`button-toggle-status-${user.id}`}
+                            >
+                              {user.is_active || user.isActive ? (
+                                <ToggleRight className="w-4 h-4 text-green-600" />
+                              ) : (
+                                <ToggleLeft className="w-4 h-4 text-muted-foreground" />
+                              )}
+                              <span className="text-xs">
+                                {toggleUserStatus.isPending ? 'Updating...' : (user.is_active || user.isActive ? 'Deactivate' : 'Activate')}
+                              </span>
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                // Properly map user data for editing, parsing name into first/last
+                                const nameParts = (user.name || '').split(' ');
+                                const mappedUser = {
+                                  ...user,
+                                  first_name: user.first_name || nameParts[0] || '',
+                                  last_name: user.last_name || nameParts.slice(1).join(' ') || '',
+                                  company_id: user.company_id?.toString() || '1',
+                                  role_id: user.role_id?.toString() || (user.role === 'admin' ? '1' : user.role === 'manager' ? '2' : '3'),
+                                  is_active: user.is_active !== undefined ? user.is_active : user.isActive
+                                };
+                                console.log('Mapped user for editing:', mappedUser);
+                                setEditingUser(mappedUser);
+                                setIsEditDialogOpen(true);
+                              }}
+                              data-testid={`button-edit-${user.id}`}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="text-red-600 hover:text-red-700"
+                                  data-testid={`button-delete-${user.id}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent aria-describedby={undefined}>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete user "{user.name || user.email}"? This action cannot be undone and will remove all associated data.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => deleteUserMutation.mutate(user.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                    disabled={deleteUserMutation.isPending}
+                                  >
+                                    {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )
           ) : (
             <Card>
               <CardContent className="p-6">
