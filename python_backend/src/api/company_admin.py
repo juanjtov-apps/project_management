@@ -240,7 +240,8 @@ async def assign_user_role(
             "role": user["role"],
             "company_id": user["company_id"],
             "is_active": user["is_active"],
-            "created_at": user["created_at"].isoformat() if user["created_at"] else None
+            "created_at": user["created_at"].isoformat() if user["created_at"] else None,
+            "last_login_at": None  # This field doesn't exist in the database
         }
 
 @router.put("/users/{user_id}/suspend")
