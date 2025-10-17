@@ -105,74 +105,64 @@ export const enforceCompanyScope = () => {
 
 // Role-based navigation permissions
 export const getNavigationPermissions = (userRole: string, isRootAdmin: boolean) => {
+  // Base permissions for all users
   const permissions = {
-    dashboard: true, // All authenticated users
-    projects: false,
-    tasks: false,
-    projectHealth: false,
-    schedule: false,
-    photos: false,
-    logs: false,
-    clientPortal: false,
+    dashboard: true,
+    projects: true,
+    tasks: true,
+    photos: true,
+    schedule: true,
+    logs: true,
+    projectHealth: true,
     crew: false,
     subs: false,
     rbacAdmin: false,
-    financial: false // Future module
+    clientPortal: false,
+    clientPortalPayments: false // New permission for payments tab
   };
 
-  // Root admin has access to everything
-  if (isRootAdmin) {
-    return Object.keys(permissions).reduce((acc, key) => {
-      acc[key] = true;
-      return acc;
-    }, {} as any);
+  // Client Portal access for managers, project_managers, office_managers and admins
+  // They get all tabs EXCEPT payments (which is admin-only)
+  if (userRole === 'admin' || userRole === 'manager' || userRole === 'project_manager' || userRole === 'office_manager') {
+    permissions.crew = true;
+    permissions.subs = true;
+    permissions.clientPortal = true;
   }
 
-  // Role-based permissions
-  switch (userRole) {
-    case 'admin':
-      // Company admins have access to all company modules + RBAC
-      permissions.projects = true;
-      permissions.tasks = true;
-      permissions.projectHealth = true;
-      permissions.schedule = true;
-      permissions.photos = true;
-      permissions.logs = true;
-      permissions.clientPortal = true;
-      permissions.crew = true;
-      permissions.subs = true;
-      permissions.rbacAdmin = true;
-      permissions.financial = true;
-      break;
-      
-    case 'project_manager':
-    case 'office_manager':
-      // Project/Office managers have company access but NO RBAC or financial
-      permissions.projects = true;
-      permissions.tasks = true;
-      permissions.projectHealth = true;
-      permissions.schedule = true;
-      permissions.photos = true;
-      permissions.logs = true;
-      permissions.crew = true;
-      permissions.subs = true;
-      // NO rbacAdmin or financial access
-      break;
-      
-    case 'subcontractor':
-      // Subcontractors only have subcontractor module
-      permissions.subs = true;
-      break;
-      
-    case 'client':
-      // Clients only have client module access
-      // For now, they can see projects (their own projects)
-      permissions.projects = true; // Limited to their projects
-      break;
-      
-    default:
-      // Unknown roles get minimal access
-      break;
+  // RBAC Admin and Payments access only for admins and root
+  if (isRootAdmin || userRole === 'admin') {
+    permissions.rbacAdmin = true;
+    permissions.crew = true;
+    permissions.subs = true;
+    permissions.clientPortal = true;
+    permissions.clientPortalPayments = true; // Only admins can access payments
+  }
+
+  // Contractor/Client limited access
+  if (userRole === 'contractor') {
+    permissions.tasks = true;
+    permissions.photos = true;
+    permissions.projects = false; // Only assigned projects
+    permissions.schedule = false;
+    permissions.logs = false;
+    permissions.projectHealth = false;
+    permissions.crew = false;
+    permissions.subs = false;
+    permissions.clientPortal = false;
+    permissions.clientPortalPayments = false;
+  }
+
+  if (userRole === 'client') {
+    permissions.clientPortal = true;
+    permissions.tasks = false;
+    permissions.photos = true;
+    permissions.projects = true;
+    permissions.schedule = false;
+    permissions.logs = false;
+    permissions.projectHealth = false;
+    permissions.crew = false;
+    permissions.subs = false;
+    permissions.clientPortalPayments = false; // Clients can't access payments
   }
 
   return permissions;
