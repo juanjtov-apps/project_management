@@ -64,8 +64,13 @@ Preferred communication style: Simple, everyday language.
   - `/api/admin/projects` - Platform-wide project access
   - `/api/admin/stats` - Platform statistics
   - `/api/company-admin/invite` - Invite users to company
-  - `/api/company-admin/users/{id}/role` - Assign user roles
-  - `/api/company-admin/users/{id}/suspend` - Suspend/activate users
+  - `/api/company-admin/users/{id}/role` - Update user role (PUT with {"role": string})
+  - `/api/company-admin/users/{id}/activate` - Activate user (sets is_active=true)
+  - `/api/company-admin/users/{id}/suspend` - Suspend user (sets is_active=false)
+- **User Management Features**:
+  - Database: Users table includes `is_active` boolean column for activation status
+  - Frontend: RBAC Admin page shows flat user list for company admins, collapsible by company for root admins
+  - TypeScript: UserProfile interface supports both snake_case (backend) and camelCase (frontend compatibility) field names
 
 #### Frontend Security (React):
 - **Role-Based Navigation**: Sidebar automatically filters menu items based on user permissions
