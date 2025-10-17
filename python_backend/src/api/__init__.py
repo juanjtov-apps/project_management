@@ -125,6 +125,20 @@ except Exception as e:
     print(f"❌ Error importing objects router: {e}")
     objects_router = None
 
+try:
+    from .admin import router as admin_router
+    print("✅ Admin router imported")
+except Exception as e:
+    print(f"❌ Error importing admin router: {e}")
+    admin_router = None
+
+try:
+    from .company_admin import router as company_admin_router
+    print("✅ Company admin router imported")
+except Exception as e:
+    print(f"❌ Error importing company admin router: {e}")
+    company_admin_router = None
+
 # Import other routers as they are created
 # from .logs import router as logs_router
 
@@ -242,6 +256,18 @@ def create_api_router() -> APIRouter:
         print("✅ Objects router included")
     else:
         print("⚠️  Objects router skipped (import failed)")
+    
+    if admin_router:
+        api_router.include_router(admin_router, tags=["admin"])
+        print("✅ Admin router included")
+    else:
+        print("⚠️  Admin router skipped (import failed)")
+    
+    if company_admin_router:
+        api_router.include_router(company_admin_router, tags=["company-admin"])
+        print("✅ Company admin router included")
+    else:
+        print("⚠️  Company admin router skipped (import failed)")
     
     # Include additional routers as they are implemented
     # api_router.include_router(logs_router)
