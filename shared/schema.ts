@@ -60,6 +60,7 @@ export const users = pgTable("users", {
   name: text("name"),
   role: text("role").notNull().default("crew"), // crew, manager, admin, subcontractor
   companyId: varchar("company_id").references(() => companies.id), // Links user to a company for multi-tenancy
+  isActive: boolean("is_active").notNull().default(true), // Track active/suspended user status
 });
 
 export const projects = pgTable("projects", {
