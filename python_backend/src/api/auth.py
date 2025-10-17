@@ -325,9 +325,6 @@ async def get_current_user(request: Request):
         user_data["permissions"] = permissions
         user_data["isRootAdmin"] = is_root_admin
         
-        # Debug logging
-        print(f"🔍 AUTH: User {user_data.get('email')} (role={user_data.get('role')}) → clientPortal={permissions.get('clientPortal')}, clientPortalPayments={permissions.get('clientPortalPayments')}")
-        
         return user_data
         
     except HTTPException:
