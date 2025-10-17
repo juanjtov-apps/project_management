@@ -165,9 +165,9 @@ export default function RBACAdmin() {
       // Map role - the backend expects role string, not role_id
       const role = data.role || 
         (data.role_id === '1' ? 'admin' : 
-         data.role_id === '2' ? 'manager' : 
-         data.role_id === '3' ? 'crew' : 
-         data.role_id === '4' ? 'contractor' : 
+         data.role_id === '2' ? 'project_manager' : 
+         data.role_id === '3' ? 'office_manager' : 
+         data.role_id === '4' ? 'subcontractor' : 
          data.role_id === '5' ? 'client' : 'crew');
       
       return apiRequest(`/api/company-admin/users/${id}/role`, { 
