@@ -4,12 +4,31 @@ Task API endpoints with authentication and company filtering.
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, status, Query, Depends, Request
 from src.models import Task, TaskCreate, TaskUpdate
-from src.database.repositories import TaskRepository
+from src.database.repositories import TaskRepository, ProjectRepository
 from src.database.auth_repositories import auth_repo
 from src.api.auth import get_current_user_dependency, is_root_admin
 
 router = APIRouter()
 task_repo = TaskRepository()
+project_repo = ProjectRepository()
+
+async def verify_task_company_access(task_id: str, user_company_id: str) -> Dict[str, Any]:
+    """Verify user has access to task based on company_id."""
+    task = await task_repo.get_by_id(task_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found"
+        )
+    
+    task_company_id = str(task.get('company_id'))
+    if task_company_id != str(user_company_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Task belongs to different company"
+        )
+    
+    return task
 
 
 @router.get("", response_model=List[Task])
@@ -22,7 +41,7 @@ async def get_tasks(
 ):
     """Get tasks with optional filters and company scope."""
     try:
-        # Get all tasks first
+        # Get all tasks with filters
         tasks = await task_repo.get_all(
             project_id=project_id,
             status=status_filter,
@@ -32,12 +51,12 @@ async def get_tasks(
         
         # Apply company filtering unless root admin
         if not is_root_admin(current_user):
-            user_company_id = current_user.get('companyId')
-            if user_company_id:
-                # Filter tasks to only show those belonging to user's company
-                # For this we need to enhance the task repository to include company filtering
-                # For now, return all tasks (to be enhanced)
-                pass
+            user_company_id = str(current_user.get('companyId'))
+            # Filter tasks to only show those belonging to user's company
+            tasks = [
+                task for task in tasks 
+                if str(task.get('company_id')) == user_company_id
+            ]
         
         return tasks
     except Exception as e:
@@ -49,8 +68,11 @@ async def get_tasks(
 
 
 @router.get("/{task_id}", response_model=Task)
-async def get_task(task_id: str):
-    """Get task by ID."""
+async def get_task(
+    task_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Get task by ID with company scoping."""
     try:
         task = await task_repo.get_by_id(task_id)
         if not task:
@@ -58,6 +80,11 @@ async def get_task(task_id: str):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Task not found"
             )
+        
+        # Verify company access (unless root admin)
+        if not is_root_admin(current_user):
+            await verify_task_company_access(task_id, str(current_user.get('companyId')))
+        
         return task
     except HTTPException:
         raise
@@ -74,7 +101,7 @@ async def create_task(
     task: TaskCreate,
     current_user: Dict[str, Any] = Depends(get_current_user_dependency)
 ):
-    """Create a new task with authentication."""
+    """Create a new task with authentication and company scoping."""
     try:
         # Validate that project tasks must have a project assigned
         if task.category == "project" and not task.project_id:
@@ -83,12 +110,33 @@ async def create_task(
                 detail="Project selection is required when category is 'Project Related'"
             )
         
+        # Validate project ownership if project_id is provided
+        user_company_id = str(current_user.get('companyId'))
+        if task.project_id:
+            project = await project_repo.get_by_id(task.project_id)
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Project not found"
+                )
+            if not is_root_admin(current_user) and str(project.get('company_id')) != user_company_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Cannot create task for project from different company"
+                )
+        
+        # Set company_id from authenticated user
+        task_data = task.dict()
+        task_data['company_id'] = user_company_id
+        
         # Handle empty assignee_id by setting it to None
-        if task.assignee_id == "":
-            task.assignee_id = None
+        if task_data.get('assignee_id') == "":
+            task_data['assignee_id'] = None
         
         print(f"Creating task for user {current_user.get('email')}: {task}")
-        return await task_repo.create(task)
+        return await task_repo.create(TaskCreate(**task_data))
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error creating task: {e}")
         import traceback
@@ -100,9 +148,17 @@ async def create_task(
 
 
 @router.patch("/{task_id}", response_model=Task)
-async def update_task(task_id: str, task_update: TaskUpdate):
-    """Update an existing task."""
+async def update_task(
+    task_id: str, 
+    task_update: TaskUpdate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Update an existing task with company scoping."""
     try:
+        # Verify company access (unless root admin)
+        if not is_root_admin(current_user):
+            await verify_task_company_access(task_id, str(current_user.get('companyId')))
+        
         task = await task_repo.update(task_id, task_update)
         if not task:
             raise HTTPException(
@@ -132,8 +188,12 @@ async def assign_task(
     request: TaskAssignmentRequest,
     current_user: Dict[str, Any] = Depends(get_current_user_dependency)
 ):
-    """Assign a task to a user with authentication."""
+    """Assign a task to a user with authentication and company scoping."""
     try:
+        # Verify company access (unless root admin)
+        if not is_root_admin(current_user):
+            await verify_task_company_access(task_id, str(current_user.get('companyId')))
+        
         print(f"Assigning task {task_id} to {request.assignee_id} by user {current_user.get('email')}")
         
         # Use auth repository for task assignment to maintain consistency
@@ -155,9 +215,16 @@ async def assign_task(
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_task(task_id: str):
-    """Delete a task."""
+async def delete_task(
+    task_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Delete a task with company scoping."""
     try:
+        # Verify company access (unless root admin)
+        if not is_root_admin(current_user):
+            await verify_task_company_access(task_id, str(current_user.get('companyId')))
+        
         success = await task_repo.delete(task_id)
         if not success:
             raise HTTPException(

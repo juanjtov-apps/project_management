@@ -22,6 +22,7 @@ import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import NotificationModal from "@/components/notifications/notification-modal";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useState } from "react";
 
 function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLoading: boolean }) {
@@ -54,11 +55,31 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
           <Route path="/schedule" component={Schedule} />
           <Route path="/photos" component={Photos} />
           <Route path="/logs" component={Logs} />
-          <Route path="/client-portal" component={ClientPortal} />
-          <Route path="/crew" component={Crew} />
-          <Route path="/subs" component={Subs} />
-          <Route path="/rbac" component={RBACAdmin} />
-          <Route path="/rbac-admin" component={RBACAdmin} />
+          <Route path="/client-portal">
+            <ProtectedRoute requiredPermission="clientPortal">
+              <ClientPortal />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/crew">
+            <ProtectedRoute requiredPermission="crew">
+              <Crew />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/subs">
+            <ProtectedRoute requiredPermission="subs">
+              <Subs />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/rbac">
+            <ProtectedRoute requiredPermission="rbacAdmin">
+              <RBACAdmin />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/rbac-admin">
+            <ProtectedRoute requiredPermission="rbacAdmin">
+              <RBACAdmin />
+            </ProtectedRoute>
+          </Route>
         </>
       )}
       <Route component={NotFound} />
