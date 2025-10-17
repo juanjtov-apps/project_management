@@ -1,0 +1,308 @@
+Title
+Improve and enforce RBAC with single root user and strict tenant isolation
+System goals
+Implement role based access control across the app with one root user and strong tenant scoping. Guarantee that every request is authorized by role and by company. Deliver admin views for the root user. Prevent privilege creep and accidental cross tenant access. Keep existing data safe and avoid destructive changes.
+What to build
+Single root user
+
+
+There is exactly one root user that already exists. It is the only account with platform wide powers.
+
+
+Root can create companies. Root can create users inside any company.
+
+
+Root sees an extra admin area with three lists
+
+ a. Active companies with id, name, status, created at, number of users, number of projects
+
+ b. Active users per company with id, email, role, status, last login
+
+ c. Active projects per company with id, name, status, manager, count of tasks and photos
+
+
+Tenants and isolation
+
+
+Every company can access only its own portal and data
+
+ a. users
+
+ b. projects
+
+ c. tasks
+
+ d. photos
+
+ e. clients
+
+
+Add a tenant guard in the backend that injects company_id from the authenticated session into all queries. Never trust company_id coming from the client.
+
+
+Enforce company_id filtering in every repository and service. Add exhaustive tests that fail if company scoping is missing.
+
+
+If the database is Postgres, add row level security policies that restrict reads and writes by company_id. Use a safe default deny policy.
+
+
+Roles inside each company
+
+
+Admin created by root or by an existing admin inside that company
+
+ a. Full access to all features of its own company
+
+ b. Can create roles and users inside the company
+
+ c. Cannot see other companies
+
+
+Project manager
+
+ a. Full project features inside own company
+
+ b. No access to RBAC screens
+
+ c. No access to the payments tab inside the client module
+
+
+Office manager
+
+ a. Same access as project manager
+
+ b. Same restrictions as project manager
+
+
+Subcontractor
+
+ a. Access only to the subcontractor module for assigned projects inside own company
+
+
+Client
+
+ a. Access only to the client module
+
+ b. Client uses a client landing page that is different from the contractor views
+
+
+Navigation and route protection
+
+
+Show or hide menu items based on role
+
+
+Block deep links by role in both frontend and backend
+
+
+Payments tab inside the client module is hidden and blocked for project manager and office manager
+
+
+RBAC screens are visible to root and company admins only
+
+
+Permissions model
+
+
+Define permissions as constants and attach them to roles in a policy map in code
+
+
+Examples
+
+ a. company.manage for admins of that company
+
+ b. user.manage for root and company admins
+
+ c. project.read and project.write for managers and office managers
+
+ d. payment.view for admins only, not for project managers or office managers
+
+ e. subcontractor.portal for subcontractors
+
+ f. client.portal for clients
+
+
+Authorization middleware checks both role and company scope on every request
+
+
+Add a permission cache tied to user session to reduce repeated lookups
+
+
+Data model and migrations
+
+
+Do additive migrations only and keep the existing schemas intact
+
+
+If you need new tables or columns, follow these rules
+
+ a. Use IF NOT EXISTS
+
+ b. Wrap in a transaction
+
+ c. Reference existing public.projects id and public.users id if foreign keys are needed
+
+ d. Never drop or alter existing columns
+
+ e. Store any new migration metadata in the same place used by current migrations
+
+
+Add company_id to records that require isolation if missing. Backfill safely with scripts that set company_id from existing relations.
+
+
+Add a users_roles or user_role column that ties a user to exactly one role inside a company. Root is outside tenant roles.
+
+
+Authentication and session
+
+
+Attach company_id, user_id, and role to the session after login
+
+
+Root session has a special flag is_root that bypasses tenant limits but still records actions for audit
+
+
+Support account suspension and soft delete
+
+
+Optional later feature add SSO for company admins
+
+
+Admin and management screens
+
+
+Root admin area with paginated searchable lists for companies, users, and projects across all tenants
+
+
+Company admin area with user management, invitations by email, role assignment, reset password, suspend and reactivate
+
+
+Audit log view per company and a global view for root
+
+
+Client and subcontractor experiences
+
+
+Client landing contains only client module features and quick links to payments, messages, issues, files, and schedule that belong to the client project inside the company
+
+
+Subcontractor portal shows assigned tasks, messages, file uploads, and progress submit only
+
+
+Testing and verification
+
+
+Unit tests for authorization middleware and repository scoping
+
+
+Integration tests for each role to confirm access is granted or denied correctly
+
+
+End to end tests for root, company admin, project manager, office manager, subcontractor, and client
+
+
+A test that tries to fetch another company data and must fail
+
+
+A test that tries to open the payments tab as a project manager and must fail
+
+
+A test that ensures RBAC screens are blocked for non admin roles
+
+
+Observability and safety
+
+
+Add structured logs for login, role assignment, permission denied, and cross tenant attempts
+
+
+Add rate limits on login and on invitation sends
+
+
+Add feature flags for any sensitive rollout
+
+
+Provide an admin export of audit logs as CSV
+
+
+Add a background job that marks inactive users after a period and informs the company admin
+
+
+Seed and demo
+
+
+Provide a demo seeding script that runs only when DEMO_SEED is true
+
+
+Create a demo company with one admin, one project manager, one office manager, one subcontractor, one client, and a few sample projects and tasks
+
+
+Never auto create users or projects in production
+
+
+Coding tasks
+Backend
+
+
+Implement authorization middleware with role and company checks
+
+
+Update repositories and services to require company_id for every query
+
+
+Add endpoints for root admin listings with pagination and filters
+
+
+Add endpoints for company admin user management and invitations
+
+
+Add audit logging hooks for sensitive actions
+
+
+Frontend
+
+
+Add a role aware navigation guard
+
+
+Hide or show menu items by role
+
+
+Implement root admin screens for companies, users, and projects
+
+
+Implement company admin screens for user and role management
+
+
+Ensure the client landing page is distinct from contractor views
+
+
+Tests
+
+
+Add unit, integration, and end to end tests that cover the rules above
+
+
+Acceptance criteria
+Root can list companies, users per company, and projects per company in a single admin area
+
+
+Company admin can create and manage users and roles inside the company
+
+
+Project manager and office manager cannot access RBAC or the payments tab inside the client module
+
+
+Subcontractor can only use the subcontractor module
+
+
+Client can only use the client module landing that is different from contractor views
+
+
+All data access is company scoped and attempts to cross tenants are denied and logged
+
+
+All tests pass and there is a seed option for demos only
+
+
+Please proceed with implementation following these constraints and provide a short summary of code changes, migration files created, and how to run the tests locally.

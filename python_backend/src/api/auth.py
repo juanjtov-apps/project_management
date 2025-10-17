@@ -52,25 +52,64 @@ class LogoutResponse(BaseModel):
 session_store: Dict[str, Dict[str, Any]] = {}
 
 def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool]:
-    """Get navigation permissions for the user."""
+    """Get navigation permissions for the user matching frontend sidebar expectations."""
+    # Base permissions for all users
     permissions = {
-        "canAccessDashboard": True,
-        "canAccessProjects": True,
-        "canAccessTasks": True,
-        "canAccessPhotos": True,
-        "canAccessSchedule": True,
-        "canAccessUsers": False,
-        "canAccessRBAC": False,
-        "canAccessReports": False,
-        "canAccessSettings": False
+        "dashboard": True,
+        "projects": True,
+        "tasks": True,
+        "photos": True,
+        "schedule": True,
+        "logs": True,
+        "projectHealth": True,
+        "crew": False,
+        "subs": False,
+        "rbacAdmin": False,
+        "clientPortal": False
     }
     
-    if is_root_admin or role in ['admin', 'manager']:
+    # Client Portal access for managers and admins
+    if role in ['admin', 'manager']:
         permissions.update({
-            "canAccessUsers": True,
-            "canAccessRBAC": True,
-            "canAccessReports": True,
-            "canAccessSettings": True
+            "crew": True,
+            "subs": True,
+            "clientPortal": True
+        })
+    
+    # RBAC Admin access only for admins and root
+    if is_root_admin or role == 'admin':
+        permissions.update({
+            "rbacAdmin": True,
+            "crew": True,
+            "subs": True,
+            "clientPortal": True
+        })
+    
+    # Contractor/Client limited access
+    if role == 'contractor':
+        permissions.update({
+            "tasks": True,
+            "photos": True,
+            "projects": False,  # Only assigned projects
+            "schedule": False,
+            "logs": False,
+            "projectHealth": False,
+            "crew": False,
+            "subs": False,
+            "clientPortal": False
+        })
+    
+    if role == 'client':
+        permissions.update({
+            "clientPortal": True,
+            "tasks": False,
+            "photos": True,
+            "projects": True,
+            "schedule": False,
+            "logs": False,
+            "projectHealth": False,
+            "crew": False,
+            "subs": False
         })
     
     return permissions
