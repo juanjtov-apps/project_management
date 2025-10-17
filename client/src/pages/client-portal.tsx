@@ -23,6 +23,12 @@ export default function ClientPortal() {
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("issues");
   
+  // Get current user for permissions
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ["/api/auth/user"],
+    retry: false
+  });
+  
   // Parse URL parameters on mount and when URL changes
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -71,36 +77,52 @@ export default function ClientPortal() {
     enabled: !!selectedProject,
   });
 
-  const tabItems = [
+  // Define all possible tabs
+  const allTabItems = [
     {
       value: "issues",
       label: "Issues",
       icon: AlertTriangle,
       description: "Report and track project issues",
-      color: "text-amber-600"
+      color: "text-amber-600",
+      requiresPermission: null // Always visible
     },
     {
       value: "forum",
       label: "Forum",
       icon: MessageSquare,
       description: "Q&A with project managers",
-      color: "text-blue-600"
+      color: "text-blue-600",
+      requiresPermission: null // Always visible
     },
     {
       value: "materials",
       label: "Materials",
       icon: Package,
       description: "Collaborative material list",
-      color: "text-green-600"
+      color: "text-green-600",
+      requiresPermission: null // Always visible
     },
     {
       value: "installments",
       label: "Payments",
       icon: CreditCard,
       description: "Payment schedule tracking",
-      color: "text-purple-600"
+      color: "text-purple-600",
+      requiresPermission: "clientPortalPayments" // Only visible with payment permission
     }
   ];
+
+  // Filter tabs based on user permissions
+  const userPermissions = currentUser?.permissions || {};
+  const tabItems = allTabItems.filter(tab => 
+    !tab.requiresPermission || userPermissions[tab.requiresPermission]
+  );
+
+  // Calculate grid columns based on number of visible tabs
+  const gridCols = tabItems.length === 4 ? 'grid-cols-4' : 
+                   tabItems.length === 3 ? 'grid-cols-3' : 
+                   tabItems.length === 2 ? 'grid-cols-2' : 'grid-cols-1';
 
   return (
     <div className="space-y-6 p-6">
@@ -152,7 +174,7 @@ export default function ClientPortal() {
         </Card>
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className={`grid w-full ${gridCols}`}>
             {tabItems.map((tab) => {
               const Icon = tab.icon;
               return (
