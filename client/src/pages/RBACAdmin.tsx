@@ -178,6 +178,9 @@ export default function RBACAdmin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
       toast({ title: 'Success', description: 'User role updated successfully' });
+      // Close dialog and reset editing state after successful update
+      setIsEditDialogOpen(false);
+      setEditingUser(null);
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -662,8 +665,7 @@ export default function RBACAdmin() {
                         id: editingUser.id, 
                         data: updatePayload
                       });
-                      setIsEditDialogOpen(false);
-                      setEditingUser(null);
+                      // Dialog will close automatically in onSuccess callback
                     }
                   }}
                   disabled={updateUserMutation.isPending || !editingUser?.email?.trim()}
