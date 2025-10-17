@@ -168,9 +168,8 @@ async def invite_user(
             user_id
         )
         
-        # TODO: Send invitation email with temporary password
-        # For now, log the temporary password (in production, send via email)
-        print(f"🔐 Temporary password for {request.email}: {temp_password}")
+        # TODO: Implement secure invite email delivery with one-time token
+        # SECURITY: Never log passwords - implement email/SMS delivery or one-time link system
         
         return {
             "id": user["id"],
