@@ -3,26 +3,44 @@ Photo API endpoints.
 """
 import os
 import uuid
-from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form, Query, Request
+from typing import List, Optional, Dict, Any
+from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form, Query, Request, Depends
 from fastapi.responses import FileResponse
 from src.models import Photo, PhotoCreate
 from pydantic import ValidationError
-from src.database.repositories import PhotoRepository
+from src.database.repositories import PhotoRepository, ProjectRepository
 from src.core.config import settings
+from src.api.auth import get_current_user_dependency, is_root_admin
 
 router = APIRouter(prefix="/photos", tags=["photos"])
 photo_repo = PhotoRepository()
+project_repo = ProjectRepository()
 
 
 @router.get("", response_model=List[Photo])
 async def get_photos(
     project_id: Optional[str] = Query(None, alias="projectId"),
-    user_id: Optional[str] = Query(None, alias="userId")
+    user_id: Optional[str] = Query(None, alias="userId"),
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
 ):
-    """Get photos with optional filters."""
+    """Get photos with optional filters and company scoping."""
     try:
-        return await photo_repo.get_all(project_id=project_id, user_id=user_id)
+        photos = await photo_repo.get_all(project_id=project_id, user_id=user_id)
+        
+        # Apply company filtering unless root admin
+        if not is_root_admin(current_user):
+            user_company_id = str(current_user.get('companyId'))
+            # Filter photos by validating associated project company
+            filtered_photos = []
+            for photo in photos:
+                photo_project_id = photo.get('project_id')
+                if photo_project_id:
+                    project = await project_repo.get_by_id(photo_project_id)
+                    if project and str(project.get('company_id')) == user_company_id:
+                        filtered_photos.append(photo)
+            photos = filtered_photos
+        
+        return photos
     except Exception as e:
         print(f"Error fetching photos: {e}")
         raise HTTPException(
@@ -31,28 +49,12 @@ async def get_photos(
         )
 
 
-@router.post("/debug", status_code=200)
-async def debug_upload(request: Request):
-    """Debug endpoint to see raw request data."""
-    print("=== DEBUG UPLOAD REQUEST ===")
-    print(f"Method: {request.method}")
-    print(f"URL: {request.url}")
-    print(f"Headers: {dict(request.headers)}")
-    
-    try:
-        form = await request.form()
-        print(f"Form data: {dict(form)}")
-        for key, value in form.items():
-            print(f"  {key}: {value} (type: {type(value)})")
-    except Exception as e:
-        print(f"Error reading form: {e}")
-    
-    return {"status": "debug", "received": "ok"}
-
-
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def upload_photo(request: Request):
-    """Upload a photo."""
+async def upload_photo(
+    request: Request,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Upload a photo with authentication and company validation."""
     print("=" * 50)
     print("PHOTO UPLOAD REQUEST RECEIVED")
     print(f"Method: {request.method}")
@@ -107,6 +109,21 @@ async def upload_photo(request: Request):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User ID is required"
         )
+    
+    # Validate project ownership (unless root admin)
+    if not is_root_admin(current_user):
+        user_company_id = str(current_user.get('companyId'))
+        project = await project_repo.get_by_id(projectId)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+        if str(project.get('company_id')) != user_company_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot upload photo to project from different company"
+            )
     
     try:
         
@@ -165,8 +182,11 @@ async def upload_photo(request: Request):
 
 
 @router.get("/{photo_id}")
-async def get_photo(photo_id: str):
-    """Get photo metadata by photo ID."""
+async def get_photo(
+    photo_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Get photo metadata by photo ID with company scoping."""
     try:
         photo = await photo_repo.get_by_id(photo_id)
         if not photo:
@@ -174,6 +194,19 @@ async def get_photo(photo_id: str):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Photo not found"
             )
+        
+        # Verify company access (unless root admin)
+        if not is_root_admin(current_user):
+            user_company_id = str(current_user.get('companyId'))
+            photo_project_id = photo.get('project_id')
+            if photo_project_id:
+                project = await project_repo.get_by_id(photo_project_id)
+                if not project or str(project.get('company_id')) != user_company_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Access denied: Photo belongs to different company"
+                    )
+        
         return photo
     except HTTPException:
         raise
@@ -187,8 +220,11 @@ async def get_photo(photo_id: str):
 
 @router.get("/{photo_id}/file")
 @router.head("/{photo_id}/file")
-async def get_photo_file(photo_id: str):
-    """Get photo file by photo ID."""
+async def get_photo_file(
+    photo_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Get photo file by photo ID with company scoping."""
     try:
         photo = await photo_repo.get_by_id(photo_id)
         if not photo:
@@ -196,6 +232,18 @@ async def get_photo_file(photo_id: str):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Photo not found"
             )
+        
+        # Verify company access (unless root admin)
+        if not is_root_admin(current_user):
+            user_company_id = str(current_user.get('companyId'))
+            photo_project_id = photo.get('project_id')
+            if photo_project_id:
+                project = await project_repo.get_by_id(photo_project_id)
+                if not project or str(project.get('company_id')) != user_company_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Access denied: Photo belongs to different company"
+                    )
         
         # Check if original_name contains a pre-signed Google Cloud Storage URL (priority)
         if photo.original_name and ('googleapis.com' in photo.original_name or photo.original_name.startswith('http')):
@@ -247,8 +295,11 @@ async def get_photo_file(photo_id: str):
 
 
 @router.delete("/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_photo(photo_id: str):
-    """Delete a photo and its file."""
+async def delete_photo(
+    photo_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Delete a photo and its file with company scoping."""
     try:
         photo = await photo_repo.get_by_id(photo_id)
         if not photo:
@@ -256,6 +307,18 @@ async def delete_photo(photo_id: str):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Photo not found"
             )
+        
+        # Verify company access (unless root admin)
+        if not is_root_admin(current_user):
+            user_company_id = str(current_user.get('companyId'))
+            photo_project_id = photo.get('project_id')
+            if photo_project_id:
+                project = await project_repo.get_by_id(photo_project_id)
+                if not project or str(project.get('company_id')) != user_company_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Access denied: Cannot delete photo from different company"
+                    )
         
         # Delete file if it exists
         file_path = os.path.join(settings.upload_dir, photo.filename)

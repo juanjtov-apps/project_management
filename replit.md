@@ -30,6 +30,65 @@ Preferred communication style: Simple, everyday language.
 - **Schema Management**: Drizzle Kit for migrations and schema management.
 - **Connection**: Connection pooling with `@neondatabase/serverless`.
 
+### RBAC System (Role-Based Access Control)
+**Production-ready three-tier access control system with complete tenant isolation.**
+
+#### Access Tiers:
+1. **Root Admin**: Platform-wide access for system administrators
+   - User ID '0' or specific whitelisted emails (chacjjlegacy@proesphera.com, admin@proesphere.com)
+   - Can access all companies, users, and projects across the platform
+   - Access to `/api/admin/*` endpoints for platform management
+
+2. **Company Admin**: Company-scoped user management
+   - Can manage users within their own company only
+   - Can invite users, assign roles, suspend/activate accounts
+   - Access to `/api/company-admin/*` endpoints
+   - Cannot modify root admin users or users from other companies
+
+3. **Regular Users**: Role-based permissions (admin, manager, crew, contractor, client)
+   - Permissions determine available navigation and features
+   - All data access filtered by company_id for tenant isolation
+
+#### Backend Security (Python FastAPI):
+- **Authentication**: Session-based authentication with `/api/auth/user` endpoint
+- **Permission System**: Navigation permissions returned from auth endpoint
+  - Permissions: dashboard, projects, tasks, photos, schedule, logs, projectHealth, crew, subs, rbacAdmin, clientPortal
+- **Tenant Isolation**: All endpoints enforce company_id scoping
+  - Projects API: GET/POST/PATCH/DELETE with company validation
+  - Tasks API: All CRUD operations with company filtering
+  - Photos API: Upload, retrieval, and deletion with company checks
+  - Root admin can bypass company restrictions
+- **Admin Endpoints**:
+  - `/api/admin/companies` - Platform-wide company management
+  - `/api/admin/users` - Platform-wide user listing
+  - `/api/admin/projects` - Platform-wide project access
+  - `/api/admin/stats` - Platform statistics
+  - `/api/company-admin/invite` - Invite users to company
+  - `/api/company-admin/users/{id}/role` - Assign user roles
+  - `/api/company-admin/users/{id}/suspend` - Suspend/activate users
+
+#### Frontend Security (React):
+- **Role-Based Navigation**: Sidebar automatically filters menu items based on user permissions
+- **Route Protection**: ProtectedRoute component guards sensitive routes
+  - Protected routes: /rbac, /rbac-admin, /client-portal, /crew, /subs
+  - Automatic redirect to /dashboard for unauthorized access
+- **Permission-Aware UI**: Components check permissions before rendering features
+
+#### Security Features:
+- **Cross-Company Protection**: Users cannot access data from other companies
+- **Root Admin Bypass**: Root admins can access all data for platform management
+- **Validation Layers**: 
+  - Frontend: Route guards and UI permission checks
+  - Backend: Endpoint authentication and company_id validation
+- **Secure Invite Flow**: Temporary passwords not logged (secure email delivery to be implemented)
+
+#### Role Capabilities:
+- **Admin**: Full access to company features, RBAC management, client portal
+- **Manager**: Access to projects, tasks, client portal, crew management
+- **Crew**: Access to assigned tasks, photos, basic project info
+- **Contractor**: Limited to assigned tasks and relevant photos
+- **Client**: Access to client portal for their projects only
+
 ### Core System Features
 - **Users**: Role-based access (crew, manager, admin) and comprehensive user management.
 - **Projects**: Status tracking, progress monitoring, and CRUD operations.
