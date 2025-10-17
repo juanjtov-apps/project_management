@@ -134,8 +134,18 @@ async def invite_user(
     if not company_id:
         raise HTTPException(status_code=400, detail="Company ID not found for admin user")
     
-    # Validate role
-    valid_roles = ["admin", "manager", "crew", "contractor", "client"]
+    # Validate role - unified role set across Node.js and Python backends
+    # Includes both current Node.js roles and legacy database roles
+    valid_roles = [
+        "admin",           # Admin role
+        "project_manager", # Project Manager role (Node.js)
+        "office_manager",  # Office Manager role (Node.js)
+        "manager",         # Legacy Manager role (may be migrated to project_manager)
+        "crew",            # Legacy Crew role (may be migrated to subcontractor)
+        "subcontractor",   # Subcontractor role (Node.js)
+        "contractor",      # Legacy Contractor role
+        "client"           # Client role
+    ]
     if request.role not in valid_roles:
         raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")
     
@@ -198,8 +208,18 @@ async def assign_user_role(
     company_id = current_user.get("company_id")
     is_root = current_user.get("id") == "0" or current_user.get("email") in ["chacjjlegacy@proesphera.com", "admin@proesphere.com"]
     
-    # Validate role
-    valid_roles = ["admin", "manager", "crew", "contractor", "client"]
+    # Validate role - unified role set across Node.js and Python backends
+    # Includes both current Node.js roles and legacy database roles
+    valid_roles = [
+        "admin",           # Admin role
+        "project_manager", # Project Manager role (Node.js)
+        "office_manager",  # Office Manager role (Node.js)
+        "manager",         # Legacy Manager role (may be migrated to project_manager)
+        "crew",            # Legacy Crew role (may be migrated to subcontractor)
+        "subcontractor",   # Subcontractor role (Node.js)
+        "contractor",      # Legacy Contractor role
+        "client"           # Client role
+    ]
     if request.role not in valid_roles:
         raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")
     
