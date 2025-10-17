@@ -41,10 +41,16 @@ export default function ClientPortal() {
       setSelectedProject(projectParam);
     }
     
+    // Security: Only set tab if user has permission to access it
     if (tabParam) {
-      setActiveTab(tabParam);
+      // If trying to access payments tab without permission, redirect to issues
+      if (tabParam === 'installments' && !currentUser?.permissions?.clientPortalPayments) {
+        setActiveTab('issues');
+      } else {
+        setActiveTab(tabParam);
+      }
     }
-  }, []); // Run once on mount
+  }, [currentUser?.permissions]); // Re-run when permissions change
   
   // Also listen to URL changes via popstate (back/forward buttons)
   useEffect(() => {
@@ -57,14 +63,20 @@ export default function ClientPortal() {
         setSelectedProject(projectParam);
       }
       
+      // Security: Only set tab if user has permission to access it
       if (tabParam) {
-        setActiveTab(tabParam);
+        // If trying to access payments tab without permission, redirect to issues
+        if (tabParam === 'installments' && !currentUser?.permissions?.clientPortalPayments) {
+          setActiveTab('issues');
+        } else {
+          setActiveTab(tabParam);
+        }
       }
     };
     
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [currentUser?.permissions]);
   
   // Get user projects
   const { data: projects = [] } = useQuery<any[]>({
@@ -203,9 +215,12 @@ export default function ClientPortal() {
             <MaterialsTab projectId={selectedProject} />
           </TabsContent>
 
-          <TabsContent value="installments">
-            <PaymentsTab projectId={selectedProject} />
-          </TabsContent>
+          {/* Only render payments tab content if user has permission */}
+          {userPermissions.clientPortalPayments && (
+            <TabsContent value="installments">
+              <PaymentsTab projectId={selectedProject} />
+            </TabsContent>
+          )}
         </Tabs>
       )}
     </div>
