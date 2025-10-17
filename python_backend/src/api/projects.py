@@ -39,8 +39,11 @@ async def get_projects(current_user: Dict[str, Any] = Depends(get_current_user_d
 
 
 @router.get("/{project_id}", response_model=Project)
-async def get_project(project_id: str):
-    """Get project by ID."""
+async def get_project(
+    project_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Get project by ID with company scoping."""
     try:
         project = await project_repo.get_by_id(project_id)
         if not project:
@@ -48,6 +51,17 @@ async def get_project(project_id: str):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Project not found"
             )
+        
+        # Verify company access (unless root admin)
+        if not is_root_admin(current_user):
+            user_company_id = str(current_user.get('companyId'))
+            project_company_id = str(project.get('company_id'))
+            if project_company_id != user_company_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: Project belongs to different company"
+                )
+        
         return project
     except HTTPException:
         raise
@@ -90,15 +104,32 @@ async def create_project(
 
 
 @router.patch("/{project_id}", response_model=Project)
-async def update_project(project_id: str, project_update: ProjectUpdate):
-    """Update an existing project."""
+async def update_project(
+    project_id: str, 
+    project_update: ProjectUpdate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Update an existing project with company scoping."""
     try:
-        project = await project_repo.update(project_id, project_update)
-        if not project:
+        # Verify project exists and user has access
+        existing_project = await project_repo.get_by_id(project_id)
+        if not existing_project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Project not found"
             )
+        
+        # Verify company access (unless root admin)
+        if not is_root_admin(current_user):
+            user_company_id = str(current_user.get('companyId'))
+            project_company_id = str(existing_project.get('company_id'))
+            if project_company_id != user_company_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: Project belongs to different company"
+                )
+        
+        project = await project_repo.update(project_id, project_update)
         return project
     except HTTPException:
         raise
@@ -111,9 +142,30 @@ async def update_project(project_id: str, project_update: ProjectUpdate):
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_project(project_id: str):
-    """Delete a project."""
+async def delete_project(
+    project_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Delete a project with company scoping."""
     try:
+        # Verify project exists and user has access
+        existing_project = await project_repo.get_by_id(project_id)
+        if not existing_project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+        
+        # Verify company access (unless root admin)
+        if not is_root_admin(current_user):
+            user_company_id = str(current_user.get('companyId'))
+            project_company_id = str(existing_project.get('company_id'))
+            if project_company_id != user_company_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: Project belongs to different company"
+                )
+        
         success = await project_repo.delete(project_id)
         if not success:
             raise HTTPException(
