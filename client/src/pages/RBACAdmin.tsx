@@ -157,11 +157,23 @@ export default function RBACAdmin() {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => 
-      apiRequest(`/api/rbac/users/${id}`, { method: 'PATCH', body: data }),
+    mutationFn: ({ id, data }: { id: string; data: any }) => {
+      // Map role - the backend expects role string, not role_id
+      const role = data.role || 
+        (data.role_id === '1' ? 'admin' : 
+         data.role_id === '2' ? 'manager' : 
+         data.role_id === '3' ? 'crew' : 
+         data.role_id === '4' ? 'contractor' : 
+         data.role_id === '5' ? 'client' : 'crew');
+      
+      return apiRequest(`/api/company-admin/users/${id}/role`, { 
+        method: 'PUT', 
+        body: { user_id: id, role } 
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
-      toast({ title: 'Success', description: 'User updated successfully' });
+      toast({ title: 'Success', description: 'User role updated successfully' });
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -249,9 +261,11 @@ export default function RBACAdmin() {
     // Toggle user active status
     const toggleUserStatus = useMutation({
       mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
-        return apiRequest(`/api/rbac/users/${userId}`, {
-          method: 'PATCH',
-          body: { is_active: isActive }
+        const endpoint = isActive 
+          ? `/api/company-admin/users/${userId}/activate`
+          : `/api/company-admin/users/${userId}/suspend`;
+        return apiRequest(endpoint, {
+          method: 'PUT'
         });
       },
       onSuccess: () => {
