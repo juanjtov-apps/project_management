@@ -252,6 +252,7 @@ export default function RBACAdmin() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+    // Initialize with all companies expanded - will be populated when usersByCompany is computed
     const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
     const [newUser, setNewUser] = useState({
       email: '',
@@ -310,6 +311,14 @@ export default function RBACAdmin() {
       
       return grouped;
     }, [filteredUsers, filteredCompanies, companies]);
+
+    // Auto-expand all companies on first load and preserve state on refetch
+    React.useEffect(() => {
+      if (Object.keys(usersByCompany).length > 0 && expandedCompanies.size === 0) {
+        // Initialize all companies as expanded only if expandedCompanies is empty
+        setExpandedCompanies(new Set(Object.keys(usersByCompany)));
+      }
+    }, [usersByCompany]);
 
     const toggleCompanyExpansion = (companyName: string) => {
       const newExpanded = new Set(expandedCompanies);
