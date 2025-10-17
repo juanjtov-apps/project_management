@@ -45,7 +45,10 @@ Preferred communication style: Simple, everyday language.
    - Access to `/api/company-admin/*` endpoints
    - Cannot modify root admin users or users from other companies
 
-3. **Regular Users**: Role-based permissions (admin, manager, crew, contractor, client)
+3. **Regular Users**: Role-based permissions
+   - **Unified Role System**: Both Node.js and Python backends accept the same role set:
+     - Primary roles: `admin`, `project_manager`, `office_manager`, `subcontractor`, `client`
+     - Legacy roles (still valid): `manager`, `crew`, `contractor`
    - Permissions determine available navigation and features
    - All data access filtered by company_id for tenant isolation
 
