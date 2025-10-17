@@ -65,24 +65,27 @@ def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool
         "crew": False,
         "subs": False,
         "rbacAdmin": False,
-        "clientPortal": False
+        "clientPortal": False,
+        "clientPortalPayments": False  # New permission for payments tab
     }
     
-    # Client Portal access for managers and admins
-    if role in ['admin', 'manager']:
+    # Client Portal access for managers, project_managers, office_managers and admins
+    # They get all tabs EXCEPT payments (which is admin-only)
+    if role in ['admin', 'manager', 'project_manager', 'office_manager']:
         permissions.update({
             "crew": True,
             "subs": True,
             "clientPortal": True
         })
     
-    # RBAC Admin access only for admins and root
+    # RBAC Admin and Payments access only for admins and root
     if is_root_admin or role == 'admin':
         permissions.update({
             "rbacAdmin": True,
             "crew": True,
             "subs": True,
-            "clientPortal": True
+            "clientPortal": True,
+            "clientPortalPayments": True  # Only admins can access payments
         })
     
     # Contractor/Client limited access
@@ -96,7 +99,8 @@ def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool
             "projectHealth": False,
             "crew": False,
             "subs": False,
-            "clientPortal": False
+            "clientPortal": False,
+            "clientPortalPayments": False
         })
     
     if role == 'client':
@@ -109,7 +113,8 @@ def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool
             "logs": False,
             "projectHealth": False,
             "crew": False,
-            "subs": False
+            "subs": False,
+            "clientPortalPayments": False  # Clients can't access payments
         })
     
     return permissions
