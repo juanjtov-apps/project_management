@@ -229,7 +229,7 @@ async def assign_user_role(
         
         # Fetch updated user
         user = await conn.fetchrow(
-            "SELECT id, email, name, role, company_id, is_active, created_at, last_login_at FROM users WHERE id = $1",
+            "SELECT id, email, name, role, company_id, is_active, created_at, last_login FROM users WHERE id = $1",
             user_id
         )
         
@@ -241,7 +241,7 @@ async def assign_user_role(
             "company_id": user["company_id"],
             "is_active": user["is_active"],
             "created_at": user["created_at"].isoformat() if user["created_at"] else None,
-            "last_login_at": user["last_login_at"].isoformat() if user["last_login_at"] else None
+            "last_login": user["last_login"].isoformat() if user["last_login"] else None
         }
 
 @router.put("/users/{user_id}/suspend")
