@@ -88,13 +88,13 @@ Preferred communication style: Simple, everyday language.
 - **Secure Invite Flow**: Temporary passwords not logged (secure email delivery to be implemented)
 
 #### Role Capabilities:
-- **Admin**: Full access to company features, RBAC management, client portal (including payments tab)
-- **Manager**: Access to projects, tasks, client portal (excluding payments), crew management
-- **Project Manager**: Same access as Manager - projects, tasks, client portal (excluding payments), crew management
-- **Office Manager**: Same access as Manager - projects, tasks, client portal (excluding payments), crew management
+- **Admin**: Full access to company features, RBAC management, client portal with all 4 tabs (Issues, Forum, Materials, **Payments**)
+- **Manager**: Access to projects, tasks, client portal with 3 tabs (Issues, Forum, Materials - NO Payments), crew management
+- **Project Manager**: Access to projects, tasks, client portal with 3 tabs (Issues, Forum, Materials - NO Payments), crew management
+- **Office Manager**: Access to projects, tasks, client portal with 3 tabs (Issues, Forum, Materials - NO Payments), crew management
 - **Crew**: Access to assigned tasks, photos, basic project info
 - **Contractor**: Limited to assigned tasks and relevant photos
-- **Client**: Access to client portal for their projects only (excluding payments)
+- **Client**: Access to client portal for their projects only (excluding payments tab)
 
 ### Core System Features
 - **Users**: Role-based access (crew, manager, admin) and comprehensive user management.

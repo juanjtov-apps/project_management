@@ -93,8 +93,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           user.email === 'admin@proesphere.com';
       
       const permissions = getNavigationPermissions(user.role || 'user', isRootAdmin);
-      
-      console.log(`🔍 PERMISSIONS: ${user.email} (role=${user.role}) → clientPortal=${permissions.clientPortal}, clientPortalPayments=${permissions.clientPortalPayments}`);
 
       res.json({ 
         ...user, 
