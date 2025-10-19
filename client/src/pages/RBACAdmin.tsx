@@ -160,32 +160,7 @@ export default function RBACAdmin() {
     }
   });
 
-  const updateUserMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => {
-      // Map role - the backend expects role string, not role_id
-      const role = data.role || 
-        (data.role_id === '1' ? 'admin' : 
-         data.role_id === '2' ? 'project_manager' : 
-         data.role_id === '3' ? 'office_manager' : 
-         data.role_id === '4' ? 'subcontractor' : 
-         data.role_id === '5' ? 'client' : 'crew');
-      
-      return apiRequest(`/api/company-admin/users/${id}/role`, { 
-        method: 'PUT', 
-        body: { user_id: id, role } 
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
-      toast({ title: 'Success', description: 'User role updated successfully' });
-      // Close dialog and reset editing state after successful update
-      setIsEditDialogOpen(false);
-      setEditingUser(null);
-    },
-    onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    }
-  });
+  // updateUserMutation moved inside UserManagement component where state is available
 
   const deleteUserMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/rbac/users/${id}`, { method: 'DELETE' }),
@@ -279,6 +254,34 @@ export default function RBACAdmin() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
         toast({ title: 'Success', description: 'User status updated successfully' });
+      },
+      onError: (error: any) => {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      }
+    });
+
+    // Update user mutation - now inside component with access to state
+    const updateUserMutation = useMutation({
+      mutationFn: ({ id, data }: { id: string; data: any }) => {
+        // Map role - the backend expects role string, not role_id
+        const role = data.role || 
+          (data.role_id === '1' ? 'admin' : 
+           data.role_id === '2' ? 'project_manager' : 
+           data.role_id === '3' ? 'office_manager' : 
+           data.role_id === '4' ? 'subcontractor' : 
+           data.role_id === '5' ? 'client' : 'crew');
+        
+        return apiRequest(`/api/company-admin/users/${id}/role`, { 
+          method: 'PUT', 
+          body: { user_id: id, role } 
+        });
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+        toast({ title: 'Success', description: 'User role updated successfully' });
+        // Close dialog and reset editing state after successful update
+        setIsEditDialogOpen(false);
+        setEditingUser(null);
       },
       onError: (error: any) => {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
