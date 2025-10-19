@@ -488,66 +488,99 @@ export class DatabaseStorage implements IStorage {
   async deleteUser(id: string): Promise<boolean> {
     const pg = await import('pg');
     const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    
+    // Helper function to safely delete from a table
+    const safeDelete = async (query: string, params: any[], description: string) => {
+      try {
+        await pool.query(query, params);
+        console.log(`✅ ${description}`);
+      } catch (err: any) {
+        // Only log if it's not a "column/table doesn't exist" error
+        if (err.code !== '42703' && err.code !== '42P01') {
+          console.log(`⚠️ ${description} - skipped: ${err.message}`);
+        }
+      }
+    };
+    
     try {
       // First, handle any tasks assigned to this user by setting assignee_id to NULL
-      // This prevents foreign key constraint violations during deletion
       await pool.query('UPDATE tasks SET assignee_id = NULL WHERE assignee_id = $1', [id]);
       console.log(`✅ Unassigned all tasks for user ${id} before deletion`);
       
-      // Delete all user activities for this user to prevent foreign key constraint violations
+      // Delete all user activities
       await pool.query('DELETE FROM user_activities WHERE user_id = $1', [id]);
       console.log(`✅ Deleted all activities for user ${id} before deletion`);
       
-      // Clean up client portal data (in correct order to respect foreign key constraints)
-      // Delete payment events first (references payment_schedules and payment_installments)
-      await pool.query('DELETE FROM client_portal.payment_events WHERE user_id = $1', [id]);
-      console.log(`✅ Deleted payment events for user ${id}`);
+      // Clean up client portal data - use safeDelete to avoid breaking on missing columns
       
-      // Delete payment receipts (references payment_installments)
-      await pool.query('DELETE FROM client_portal.payment_receipts WHERE uploaded_by = $1', [id]);
-      console.log(`✅ Deleted payment receipts for user ${id}`);
+      // Delete payment receipts (uploaded_by column)
+      await safeDelete(
+        'DELETE FROM client_portal.payment_receipts WHERE uploaded_by = $1',
+        [id],
+        `Deleted payment receipts for user ${id}`
+      );
       
-      // Delete payment documents (references payment_schedules)
-      await pool.query('DELETE FROM client_portal.payment_documents WHERE uploaded_by = $1', [id]);
-      console.log(`✅ Deleted payment documents for user ${id}`);
+      // Delete payment documents (uploaded_by column)
+      await safeDelete(
+        'DELETE FROM client_portal.payment_documents WHERE uploaded_by = $1',
+        [id],
+        `Deleted payment documents for user ${id}`
+      );
       
       // Delete payment installments for schedules created by this user
-      await pool.query(`
-        DELETE FROM client_portal.payment_installments 
-        WHERE schedule_id IN (
-          SELECT id FROM client_portal.payment_schedules WHERE created_by = $1
-        )
-      `, [id]);
-      console.log(`✅ Deleted payment installments for user ${id}`);
+      await safeDelete(
+        `DELETE FROM client_portal.payment_installments 
+         WHERE schedule_id IN (
+           SELECT id FROM client_portal.payment_schedules WHERE created_by = $1
+         )`,
+        [id],
+        `Deleted payment installments for user ${id}`
+      );
       
       // Delete payment schedules created by this user
-      await pool.query('DELETE FROM client_portal.payment_schedules WHERE created_by = $1', [id]);
-      console.log(`✅ Deleted payment schedules for user ${id}`);
+      await safeDelete(
+        'DELETE FROM client_portal.payment_schedules WHERE created_by = $1',
+        [id],
+        `Deleted payment schedules for user ${id}`
+      );
       
       // Delete material items for areas created by this user
-      await pool.query(`
-        DELETE FROM client_portal.material_items 
-        WHERE area_id IN (
-          SELECT id FROM client_portal.material_areas WHERE created_by = $1
-        )
-      `, [id]);
-      console.log(`✅ Deleted material items for user ${id}`);
+      await safeDelete(
+        `DELETE FROM client_portal.material_items 
+         WHERE area_id IN (
+           SELECT id FROM client_portal.material_areas WHERE created_by = $1
+         )`,
+        [id],
+        `Deleted material items for user ${id}`
+      );
       
       // Delete material areas created by this user
-      await pool.query('DELETE FROM client_portal.material_areas WHERE created_by = $1', [id]);
-      console.log(`✅ Deleted material areas for user ${id}`);
+      await safeDelete(
+        'DELETE FROM client_portal.material_areas WHERE created_by = $1',
+        [id],
+        `Deleted material areas for user ${id}`
+      );
       
       // Delete issue comments by this user
-      await pool.query('DELETE FROM client_portal.issue_comments WHERE user_id = $1', [id]);
-      console.log(`✅ Deleted issue comments for user ${id}`);
+      await safeDelete(
+        'DELETE FROM client_portal.issue_comments WHERE user_id = $1',
+        [id],
+        `Deleted issue comments for user ${id}`
+      );
       
       // Delete issues created by this user
-      await pool.query('DELETE FROM client_portal.issues WHERE created_by = $1', [id]);
-      console.log(`✅ Deleted issues for user ${id}`);
+      await safeDelete(
+        'DELETE FROM client_portal.issues WHERE created_by = $1',
+        [id],
+        `Deleted issues for user ${id}`
+      );
       
       // Delete forum messages by this user
-      await pool.query('DELETE FROM client_portal.messages WHERE user_id = $1', [id]);
-      console.log(`✅ Deleted forum messages for user ${id}`);
+      await safeDelete(
+        'DELETE FROM client_portal.messages WHERE user_id = $1',
+        [id],
+        `Deleted forum messages for user ${id}`
+      );
       
       // Now delete the user
       const result = await pool.query('DELETE FROM users WHERE id = $1', [id]);
