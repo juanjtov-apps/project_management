@@ -240,6 +240,9 @@ export default function RBACAdmin() {
       role_id: '',
       password: ''
     });
+    
+    // Track if we just updated to prevent dialog from reopening immediately
+    const justUpdatedRef = React.useRef(false);
 
     // Toggle user active status
     const toggleUserStatus = useMutation({
@@ -278,13 +281,17 @@ export default function RBACAdmin() {
       },
       onSuccess: () => {
         toast({ title: 'Success', description: 'User role updated successfully' });
+        // Set flag that we just updated
+        justUpdatedRef.current = true;
         // Close dialog and reset editing state BEFORE invalidating query
         setIsEditDialogOpen(false);
         setEditingUser(null);
-        // Delay query invalidation slightly to allow dialog to close cleanly
+        // Invalidate query to refresh list
+        queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+        // Reset flag after refetch completes
         setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
-        }, 100);
+          justUpdatedRef.current = false;
+        }, 1000);
       },
       onError: (error: any) => {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -545,10 +552,7 @@ export default function RBACAdmin() {
           <Dialog 
             open={isEditDialogOpen} 
             onOpenChange={(open) => {
-              // Prevent dialog from closing if we just opened it
-              if (!open && !editingUser) {
-                return;
-              }
+              console.log('Dialog onOpenChange called', { open, hasEditingUser: !!editingUser, isDialogOpen: isEditDialogOpen });
               setIsEditDialogOpen(open);
               if (!open) {
                 setEditingUser(null);
@@ -788,6 +792,11 @@ export default function RBACAdmin() {
                                 size="sm" 
                                 variant="outline"
                                 onClick={() => {
+                                  // Prevent opening immediately after an update
+                                  if (justUpdatedRef.current) {
+                                    console.log('Blocked edit click - just updated');
+                                    return;
+                                  }
                                   // Properly map user data for editing, parsing name into first/last
                                   const nameParts = (user.name || '').split(' ');
                                   const mappedUser = {
@@ -798,7 +807,7 @@ export default function RBACAdmin() {
                                     role_id: user.role_id?.toString() || (user.role === 'admin' ? '1' : user.role === 'manager' ? '2' : '3'),
                                     is_active: user.is_active !== undefined ? user.is_active : user.isActive
                                   };
-                                  console.log('Mapped user for editing:', mappedUser);
+                                  console.log('Opening edit dialog for user:', mappedUser);
                                   setEditingUser(mappedUser);
                                   setIsEditDialogOpen(true);
                                 }}
@@ -914,6 +923,11 @@ export default function RBACAdmin() {
                               size="sm" 
                               variant="outline"
                               onClick={() => {
+                                // Prevent opening immediately after an update
+                                if (justUpdatedRef.current) {
+                                  console.log('Blocked edit click - just updated');
+                                  return;
+                                }
                                 // Properly map user data for editing, parsing name into first/last
                                 const nameParts = (user.name || '').split(' ');
                                 const mappedUser = {
@@ -924,7 +938,7 @@ export default function RBACAdmin() {
                                   role_id: user.role_id?.toString() || (user.role === 'admin' ? '1' : user.role === 'manager' ? '2' : '3'),
                                   is_active: user.is_active !== undefined ? user.is_active : user.isActive
                                 };
-                                console.log('Mapped user for editing:', mappedUser);
+                                console.log('Opening edit dialog for user:', mappedUser);
                                 setEditingUser(mappedUser);
                                 setIsEditDialogOpen(true);
                               }}
