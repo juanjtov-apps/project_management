@@ -277,11 +277,14 @@ export default function RBACAdmin() {
         });
       },
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
         toast({ title: 'Success', description: 'User role updated successfully' });
-        // Close dialog and reset editing state after successful update
+        // Close dialog and reset editing state BEFORE invalidating query
         setIsEditDialogOpen(false);
         setEditingUser(null);
+        // Delay query invalidation slightly to allow dialog to close cleanly
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+        }, 100);
       },
       onError: (error: any) => {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -539,7 +542,19 @@ export default function RBACAdmin() {
           </Dialog>
 
           {/* Edit User Dialog */}
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <Dialog 
+            open={isEditDialogOpen} 
+            onOpenChange={(open) => {
+              // Prevent dialog from closing if we just opened it
+              if (!open && !editingUser) {
+                return;
+              }
+              setIsEditDialogOpen(open);
+              if (!open) {
+                setEditingUser(null);
+              }
+            }}
+          >
             <DialogContent className="max-w-md" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>Edit User</DialogTitle>
