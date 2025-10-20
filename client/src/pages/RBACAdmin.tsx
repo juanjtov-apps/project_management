@@ -215,6 +215,8 @@ export default function RBACAdmin() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+    // Use ref to track if dialog should stay open (prevents refetch from closing it)
+    const shouldKeepDialogOpen = React.useRef(false);
     // Initialize with all companies expanded - will be populated when usersByCompany is computed
     const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
     const [newUser, setNewUser] = useState({
@@ -264,10 +266,10 @@ export default function RBACAdmin() {
       onSuccess: async () => {
         console.log('✅ Mutation succeeded - refetching users');
         toast({ title: 'Success', description: 'User role updated successfully' });
-        // Refetch to get latest data - dialog already closed by button handler
-        await queryClient.refetchQueries({ queryKey: ['/api/rbac/users'] });
-        console.log('✅ Refetch complete');
-        // Dialog state managed by button click handler, not here
+        // Invalidate cache instead of refetch - this allows the data to refresh
+        // without triggering immediate re-renders that interfere with dialog state
+        queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+        console.log('✅ Cache invalidated - data will refresh on next query');
       },
       onError: (error: any) => {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -313,8 +315,15 @@ export default function RBACAdmin() {
       console.log('🔔 Dialog state changed:', {
         isEditDialogOpen,
         hasEditingUser: !!editingUser,
-        editingUserId: editingUser?.id
+        editingUserId: editingUser?.id,
+        shouldKeepOpen: shouldKeepDialogOpen.current
       });
+      
+      // If dialog is trying to close but we want it to stay open, reopen it
+      if (!isEditDialogOpen && shouldKeepDialogOpen.current && editingUser) {
+        console.log('⚠️ Dialog tried to close but protection is active - reopening!');
+        setIsEditDialogOpen(true);
+      }
     }, [isEditDialogOpen, editingUser]);
 
     const toggleCompanyExpansion = (companyName: string) => {
@@ -636,6 +645,8 @@ export default function RBACAdmin() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => {
+                  console.log('❌ Cancel clicked - clearing protection and closing');
+                  shouldKeepDialogOpen.current = false; // Remove protection when user manually closes
                   setIsEditDialogOpen(false);
                   setEditingUser(null);
                 }}>
@@ -644,7 +655,8 @@ export default function RBACAdmin() {
                 <Button 
                   onClick={() => {
                     if (editingUser) {
-                      console.log('✅ Update User clicked - closing dialog immediately');
+                      console.log('✅ Update User clicked - clearing protection and closing dialog');
+                      shouldKeepDialogOpen.current = false; // Remove protection when submitting
                       // Close dialog IMMEDIATELY before mutation to avoid state conflicts
                       setIsEditDialogOpen(false);
                       
@@ -820,14 +832,10 @@ export default function RBACAdmin() {
                                   // Set both states directly - React batches updates automatically
                                   console.log('🎯 Setting editingUser and opening dialog...');
                                   console.log('   Current isEditDialogOpen:', isEditDialogOpen);
+                                  shouldKeepDialogOpen.current = true; // Protect dialog from refetch interference
                                   setEditingUser(mappedUser);
                                   setIsEditDialogOpen(true);
-                                  console.log('   After setState - should be true now');
-                                  
-                                  // Verify state was set in next tick
-                                  setTimeout(() => {
-                                    console.log('   Verification after 100ms - isEditDialogOpen should be true');
-                                  }, 100);
+                                  console.log('   After setState - should be true now, protected by ref');
                                 }}
                               >
                                 <Edit className="w-4 h-4" />
@@ -988,14 +996,10 @@ export default function RBACAdmin() {
                                 // Set both states directly - React batches updates automatically
                                 console.log('🎯 Setting editingUser and opening dialog...');
                                 console.log('   Current isEditDialogOpen:', isEditDialogOpen);
+                                shouldKeepDialogOpen.current = true; // Protect dialog from refetch interference
                                 setEditingUser(mappedUser);
                                 setIsEditDialogOpen(true);
-                                console.log('   After setState - should be true now');
-                                
-                                // Verify state was set in next tick
-                                setTimeout(() => {
-                                  console.log('   Verification after 100ms - isEditDialogOpen should be true');
-                                }, 100);
+                                console.log('   After setState - should be true now, protected by ref');
                               }}
                               data-testid={`button-edit-${user.id}`}
                             >
