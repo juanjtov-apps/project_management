@@ -262,15 +262,17 @@ export default function RBACAdmin() {
         });
       },
       onSuccess: async () => {
+        console.log('✅ Mutation succeeded - refetching users');
         toast({ title: 'Success', description: 'User role updated successfully' });
-        // Refetch queries FIRST to ensure fresh data is loaded before dialog closes
+        // Refetch to get latest data - dialog already closed by button handler
         await queryClient.refetchQueries({ queryKey: ['/api/rbac/users'] });
-        // THEN close dialog and reset editing state after data is fresh
-        setIsEditDialogOpen(false);
-        setEditingUser(null);
+        console.log('✅ Refetch complete');
+        // Dialog state managed by button click handler, not here
       },
       onError: (error: any) => {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        // On error, reopen dialog with same user so they can try again
+        setIsEditDialogOpen(true);
       }
     });
 
@@ -520,11 +522,18 @@ export default function RBACAdmin() {
 
           {/* Edit User Dialog */}
           <Dialog 
+            key={editingUser?.id || 'no-user'}
             open={isEditDialogOpen} 
             onOpenChange={(open) => {
-              setIsEditDialogOpen(open);
-              if (!open) {
+              console.log('🔄 Dialog onOpenChange called with open:', open, 'isPending:', updateUserMutation.isPending);
+              // Only update state if user is closing the dialog manually
+              // Don't interfere with programmatic state changes
+              if (!open && !updateUserMutation.isPending) {
+                console.log('❌ User closed dialog manually - clearing state');
+                setIsEditDialogOpen(false);
                 setEditingUser(null);
+              } else if (!open && updateUserMutation.isPending) {
+                console.log('⚠️ Ignoring close during mutation');
               }
             }}
           >
@@ -639,6 +648,10 @@ export default function RBACAdmin() {
                 <Button 
                   onClick={() => {
                     if (editingUser) {
+                      console.log('✅ Update User clicked - closing dialog immediately');
+                      // Close dialog IMMEDIATELY before mutation to avoid state conflicts
+                      setIsEditDialogOpen(false);
+                      
                       // Map fields properly for backend
                       const updatePayload = {
                         email: editingUser.email,
@@ -656,7 +669,9 @@ export default function RBACAdmin() {
                         id: editingUser.id, 
                         data: updatePayload
                       });
-                      // Dialog will close automatically in onSuccess callback
+                      
+                      // Clear editing state AFTER mutation is submitted
+                      setEditingUser(null);
                     }
                   }}
                   disabled={updateUserMutation.isPending || !editingUser?.email?.trim()}
