@@ -261,13 +261,13 @@ export default function RBACAdmin() {
           body: { user_id: id, role } 
         });
       },
-      onSuccess: () => {
+      onSuccess: async () => {
         toast({ title: 'Success', description: 'User role updated successfully' });
-        // Close dialog and reset editing state BEFORE invalidating query
+        // Refetch queries FIRST to ensure fresh data is loaded before dialog closes
+        await queryClient.refetchQueries({ queryKey: ['/api/rbac/users'] });
+        // THEN close dialog and reset editing state after data is fresh
         setIsEditDialogOpen(false);
         setEditingUser(null);
-        // Invalidate query to refresh list
-        queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
       },
       onError: (error: any) => {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -761,27 +761,54 @@ export default function RBACAdmin() {
                                 size="sm" 
                                 variant="outline"
                                 type="button"
+                                data-testid={`button-edit-${user.id}`}
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
+                                  
+                                  // Debug logging
+                                  console.log('🔍 Edit button clicked for user:', {
+                                    id: user.id,
+                                    email: user.email,
+                                    role: user.role,
+                                    role_id: user.role_id
+                                  });
+                                  
                                   // Properly map user data for editing, parsing name into first/last
                                   const nameParts = (user.name || '').split(' ');
+                                  // Map role to role_id with complete mapping
+                                  let roleId = user.role_id?.toString();
+                                  if (!roleId && user.role) {
+                                    const roleMap: Record<string, string> = {
+                                      'admin': '1',
+                                      'project_manager': '2',
+                                      'office_manager': '3',
+                                      'subcontractor': '4',
+                                      'client': '5',
+                                      'manager': '2', // Legacy mapping
+                                      'crew': '3' // Legacy mapping
+                                    };
+                                    roleId = roleMap[user.role] || '1';
+                                  }
+                                  
                                   const mappedUser = {
                                     ...user,
                                     first_name: user.first_name || nameParts[0] || '',
                                     last_name: user.last_name || nameParts.slice(1).join(' ') || '',
                                     company_id: user.company_id?.toString() || '1',
-                                    role_id: user.role_id?.toString() || (user.role === 'admin' ? '1' : user.role === 'manager' ? '2' : '3'),
+                                    role_id: roleId || '1',
                                     is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true)
                                   };
-                                  // Use React.startTransition to batch state updates
-                                  React.startTransition(() => {
-                                    setEditingUser(mappedUser);
-                                    // Small delay to ensure editingUser is set before opening dialog
-                                    setTimeout(() => {
-                                      setIsEditDialogOpen(true);
-                                    }, 0);
+                                  
+                                  console.log('✅ Mapped user for editing:', {
+                                    id: mappedUser.id,
+                                    email: mappedUser.email,
+                                    role_id: mappedUser.role_id
                                   });
+                                  
+                                  // Set both states directly - React batches updates automatically
+                                  setEditingUser(mappedUser);
+                                  setIsEditDialogOpen(true);
                                 }}
                               >
                                 <Edit className="w-4 h-4" />
@@ -898,24 +925,50 @@ export default function RBACAdmin() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
+                                
+                                // Debug logging
+                                console.log('🔍 Edit button clicked for user:', {
+                                  id: user.id,
+                                  email: user.email,
+                                  role: user.role,
+                                  role_id: user.role_id
+                                });
+                                
                                 // Properly map user data for editing, parsing name into first/last
                                 const nameParts = (user.name || '').split(' ');
+                                // Map role to role_id with complete mapping
+                                let roleId = user.role_id?.toString();
+                                if (!roleId && user.role) {
+                                  const roleMap: Record<string, string> = {
+                                    'admin': '1',
+                                    'project_manager': '2',
+                                    'office_manager': '3',
+                                    'subcontractor': '4',
+                                    'client': '5',
+                                    'manager': '2', // Legacy mapping
+                                    'crew': '3' // Legacy mapping
+                                  };
+                                  roleId = roleMap[user.role] || '1';
+                                }
+                                
                                 const mappedUser = {
                                   ...user,
                                   first_name: user.first_name || nameParts[0] || '',
                                   last_name: user.last_name || nameParts.slice(1).join(' ') || '',
                                   company_id: user.company_id?.toString() || '1',
-                                  role_id: user.role_id?.toString() || (user.role === 'admin' ? '1' : user.role === 'manager' ? '2' : '3'),
+                                  role_id: roleId || '1',
                                   is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true)
                                 };
-                                // Use React.startTransition to batch state updates
-                                React.startTransition(() => {
-                                  setEditingUser(mappedUser);
-                                  // Small delay to ensure editingUser is set before opening dialog
-                                  setTimeout(() => {
-                                    setIsEditDialogOpen(true);
-                                  }, 0);
+                                
+                                console.log('✅ Mapped user for editing:', {
+                                  id: mappedUser.id,
+                                  email: mappedUser.email,
+                                  role_id: mappedUser.role_id
                                 });
+                                
+                                // Set both states directly - React batches updates automatically
+                                setEditingUser(mappedUser);
+                                setIsEditDialogOpen(true);
                               }}
                               data-testid={`button-edit-${user.id}`}
                             >
