@@ -101,12 +101,6 @@ export default function RBACAdmin() {
     queryKey: ['/api/rbac/roles'],
     enabled: hasRBACAccess,
   });
-  
-  // Debug roles data
-  console.log('RBAC Debug - Roles data:', roles);
-  console.log('RBAC Debug - Roles loading:', rolesLoading);
-  console.log('RBAC Debug - Roles error:', rolesError);
-  console.log('RBAC Debug - Has RBAC access:', hasRBACAccess);
 
   const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
     queryKey: ['/api/companies'],
@@ -138,15 +132,6 @@ export default function RBACAdmin() {
     return userCompanyId === currentUserCompanyId;
   });
   const filteredRoles = isRootAdmin ? roles : roles.filter(r => !r.company_id || r.company_id === currentUserCompanyId);
-  
-  // Debug user filtering
-  console.log('User filtering debug:', {
-    isRootAdmin,
-    currentUserCompanyId,
-    totalUsers: users.length,
-    filteredUsers: filteredUsers.length,
-    usersData: users.slice(0, 3).map(u => ({ id: u.id, email: u.email, company_id: u.company_id, companyId: u.companyId }))
-  });
 
   // Mutations
   const createUserMutation = useMutation({
@@ -266,7 +251,6 @@ export default function RBACAdmin() {
     // Update user mutation - now inside component with access to state
     const updateUserMutation = useMutation({
       mutationFn: ({ id, data }: { id: string; data: any }) => {
-        console.log('🔄 UPDATE MUTATION CALLED', { userId: id, data });
         // Map role - the backend expects role string, not role_id
         const role = data.role || 
           (data.role_id === '1' ? 'admin' : 
@@ -275,18 +259,15 @@ export default function RBACAdmin() {
            data.role_id === '4' ? 'subcontractor' : 
            data.role_id === '5' ? 'client' : 'crew');
         
-        console.log('🔄 Mapped role:', role);
         return apiRequest(`/api/company-admin/users/${id}/role`, { 
           method: 'PUT', 
           body: { user_id: id, role } 
         });
       },
       onSuccess: () => {
-        console.log('✅ UPDATE MUTATION SUCCESS');
         toast({ title: 'Success', description: 'User role updated successfully' });
         // Set flag that we just updated
         justUpdatedRef.current = true;
-        console.log('🚫 Setting justUpdated flag to TRUE for 1 second');
         // Close dialog and reset editing state BEFORE invalidating query
         setIsEditDialogOpen(false);
         setEditingUser(null);
@@ -295,11 +276,9 @@ export default function RBACAdmin() {
         // Reset flag after refetch completes
         setTimeout(() => {
           justUpdatedRef.current = false;
-          console.log('✅ Clearing justUpdated flag - Edit buttons now active');
         }, 1000);
       },
       onError: (error: any) => {
-        console.log('❌ UPDATE MUTATION ERROR', error);
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       }
     });
@@ -323,12 +302,6 @@ export default function RBACAdmin() {
           grouped[companyKey] = [];
         }
         grouped[companyKey].push(user);
-      });
-      
-      console.log('UsersByCompany debug:', {
-        filteredUsersCount: filteredUsers.length,
-        groupedKeys: Object.keys(grouped),
-        groupedCounts: Object.fromEntries(Object.entries(grouped).map(([k, v]) => [k, v.length]))
       });
       
       return grouped;
@@ -471,8 +444,8 @@ export default function RBACAdmin() {
                           }
                           
                           // Show platform roles (company_id 0) and treat all other roles as templates available to any company
-                          const isPlatformRole = role.company_id === '0' || role.company_id === 0;
-                          const isCompanyRole = role.company_id === '1' || role.company_id === 1; // These are role templates
+                          const isPlatformRole = role.company_id === '0';
+                          const isCompanyRole = role.company_id === '1'; // These are role templates
                             // Platform roles and company role templates are available to all companies
                           return isPlatformRole || isCompanyRole || role.is_template;
                         });
@@ -491,7 +464,7 @@ export default function RBACAdmin() {
                           })
                           .map((role: Role) => (
                             <SelectItem key={role.id} value={role.id.toString()}>
-                              {role.name} {(role.company_id === '0' || role.company_id === 0) ? '(Platform)' : '(Standard)'}
+                              {role.name} {role.company_id === '0' ? '(Platform)' : '(Standard)'}
                             </SelectItem>
                           ));
                       })()}
@@ -558,7 +531,6 @@ export default function RBACAdmin() {
           <Dialog 
             open={isEditDialogOpen} 
             onOpenChange={(open) => {
-              console.log('Dialog onOpenChange called', { open, hasEditingUser: !!editingUser, isDialogOpen: isEditDialogOpen });
               setIsEditDialogOpen(open);
               if (!open) {
                 setEditingUser(null);
@@ -642,13 +614,13 @@ export default function RBACAdmin() {
                         roles
                           .filter((role: Role) => {
                             // Show platform roles and all company role templates
-                            const isPlatformRole = role.company_id === '0' || role.company_id === 0;
-                            const isCompanyTemplate = role.company_id === '1' || role.company_id === 1;
+                            const isPlatformRole = role.company_id === '0';
+                            const isCompanyTemplate = role.company_id === '1';
                             return isPlatformRole || isCompanyTemplate || role.is_template;
                           })
                           .map((role: Role) => (
                             <SelectItem key={role.id} value={role.id.toString()}>
-                              {role.name} {(role.company_id === '0' || role.company_id === 0) ? '(Platform)' : '(Standard)'}
+                              {role.name} {role.company_id === '0' ? '(Platform)' : '(Standard)'}
                             </SelectItem>
                           ))
                       ) : (
@@ -801,15 +773,8 @@ export default function RBACAdmin() {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  console.log('=== EDIT BUTTON CLICKED ===', {
-                                    userId: user.id,
-                                    justUpdated: justUpdatedRef.current,
-                                    currentEditingUser: editingUser?.id,
-                                    isDialogOpen: isEditDialogOpen
-                                  });
                                   // Prevent opening immediately after an update
                                   if (justUpdatedRef.current) {
-                                    console.log('❌ Blocked edit click - just updated');
                                     return;
                                   }
                                   // Properly map user data for editing, parsing name into first/last
@@ -820,9 +785,8 @@ export default function RBACAdmin() {
                                     last_name: user.last_name || nameParts.slice(1).join(' ') || '',
                                     company_id: user.company_id?.toString() || '1',
                                     role_id: user.role_id?.toString() || (user.role === 'admin' ? '1' : user.role === 'manager' ? '2' : '3'),
-                                    is_active: user.is_active !== undefined ? user.is_active : user.isActive
+                                    is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true)
                                   };
-                                  console.log('✅ Opening edit dialog for user:', mappedUser);
                                   // Use React.startTransition to batch state updates
                                   React.startTransition(() => {
                                     setEditingUser(mappedUser);
@@ -947,15 +911,8 @@ export default function RBACAdmin() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                console.log('=== EDIT BUTTON CLICKED (flat view) ===', {
-                                  userId: user.id,
-                                  justUpdated: justUpdatedRef.current,
-                                  currentEditingUser: editingUser?.id,
-                                  isDialogOpen: isEditDialogOpen
-                                });
                                 // Prevent opening immediately after an update
                                 if (justUpdatedRef.current) {
-                                  console.log('❌ Blocked edit click - just updated');
                                   return;
                                 }
                                 // Properly map user data for editing, parsing name into first/last
@@ -966,9 +923,8 @@ export default function RBACAdmin() {
                                   last_name: user.last_name || nameParts.slice(1).join(' ') || '',
                                   company_id: user.company_id?.toString() || '1',
                                   role_id: user.role_id?.toString() || (user.role === 'admin' ? '1' : user.role === 'manager' ? '2' : '3'),
-                                  is_active: user.is_active !== undefined ? user.is_active : user.isActive
+                                  is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true)
                                 };
-                                console.log('✅ Opening edit dialog for user:', mappedUser);
                                 // Use React.startTransition to batch state updates
                                 React.startTransition(() => {
                                   setEditingUser(mappedUser);
