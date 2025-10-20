@@ -823,8 +823,14 @@ export default function RBACAdmin() {
                                     is_active: user.is_active !== undefined ? user.is_active : user.isActive
                                   };
                                   console.log('✅ Opening edit dialog for user:', mappedUser);
-                                  setEditingUser(mappedUser);
-                                  setIsEditDialogOpen(true);
+                                  // Use React.startTransition to batch state updates
+                                  React.startTransition(() => {
+                                    setEditingUser(mappedUser);
+                                    // Small delay to ensure editingUser is set before opening dialog
+                                    setTimeout(() => {
+                                      setIsEditDialogOpen(true);
+                                    }, 0);
+                                  });
                                 }}
                               >
                                 <Edit className="w-4 h-4" />
@@ -963,8 +969,14 @@ export default function RBACAdmin() {
                                   is_active: user.is_active !== undefined ? user.is_active : user.isActive
                                 };
                                 console.log('✅ Opening edit dialog for user:', mappedUser);
-                                setEditingUser(mappedUser);
-                                setIsEditDialogOpen(true);
+                                // Use React.startTransition to batch state updates
+                                React.startTransition(() => {
+                                  setEditingUser(mappedUser);
+                                  // Small delay to ensure editingUser is set before opening dialog
+                                  setTimeout(() => {
+                                    setIsEditDialogOpen(true);
+                                  }, 0);
+                                });
                               }}
                               data-testid={`button-edit-${user.id}`}
                             >
