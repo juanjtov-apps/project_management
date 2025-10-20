@@ -308,6 +308,15 @@ export default function RBACAdmin() {
       }
     }, [usersByCompany]);
 
+    // Monitor dialog state changes for debugging
+    React.useEffect(() => {
+      console.log('🔔 Dialog state changed:', {
+        isEditDialogOpen,
+        hasEditingUser: !!editingUser,
+        editingUserId: editingUser?.id
+      });
+    }, [isEditDialogOpen, editingUser]);
+
     const toggleCompanyExpansion = (companyName: string) => {
       const newExpanded = new Set(expandedCompanies);
       if (newExpanded.has(companyName)) {
@@ -522,20 +531,7 @@ export default function RBACAdmin() {
 
           {/* Edit User Dialog */}
           <Dialog 
-            key={editingUser?.id || 'no-user'}
-            open={isEditDialogOpen} 
-            onOpenChange={(open) => {
-              console.log('🔄 Dialog onOpenChange called with open:', open, 'isPending:', updateUserMutation.isPending);
-              // Only update state if user is closing the dialog manually
-              // Don't interfere with programmatic state changes
-              if (!open && !updateUserMutation.isPending) {
-                console.log('❌ User closed dialog manually - clearing state');
-                setIsEditDialogOpen(false);
-                setEditingUser(null);
-              } else if (!open && updateUserMutation.isPending) {
-                console.log('⚠️ Ignoring close during mutation');
-              }
-            }}
+            open={isEditDialogOpen}
           >
             <DialogContent className="max-w-md" aria-describedby={undefined}>
               <DialogHeader>
@@ -822,8 +818,16 @@ export default function RBACAdmin() {
                                   });
                                   
                                   // Set both states directly - React batches updates automatically
+                                  console.log('🎯 Setting editingUser and opening dialog...');
+                                  console.log('   Current isEditDialogOpen:', isEditDialogOpen);
                                   setEditingUser(mappedUser);
                                   setIsEditDialogOpen(true);
+                                  console.log('   After setState - should be true now');
+                                  
+                                  // Verify state was set in next tick
+                                  setTimeout(() => {
+                                    console.log('   Verification after 100ms - isEditDialogOpen should be true');
+                                  }, 100);
                                 }}
                               >
                                 <Edit className="w-4 h-4" />
@@ -982,8 +986,16 @@ export default function RBACAdmin() {
                                 });
                                 
                                 // Set both states directly - React batches updates automatically
+                                console.log('🎯 Setting editingUser and opening dialog...');
+                                console.log('   Current isEditDialogOpen:', isEditDialogOpen);
                                 setEditingUser(mappedUser);
                                 setIsEditDialogOpen(true);
+                                console.log('   After setState - should be true now');
+                                
+                                // Verify state was set in next tick
+                                setTimeout(() => {
+                                  console.log('   Verification after 100ms - isEditDialogOpen should be true');
+                                }, 100);
                               }}
                               data-testid={`button-edit-${user.id}`}
                             >
