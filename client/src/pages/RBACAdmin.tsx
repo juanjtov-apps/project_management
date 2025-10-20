@@ -266,6 +266,7 @@ export default function RBACAdmin() {
     // Update user mutation - now inside component with access to state
     const updateUserMutation = useMutation({
       mutationFn: ({ id, data }: { id: string; data: any }) => {
+        console.log('🔄 UPDATE MUTATION CALLED', { userId: id, data });
         // Map role - the backend expects role string, not role_id
         const role = data.role || 
           (data.role_id === '1' ? 'admin' : 
@@ -274,15 +275,18 @@ export default function RBACAdmin() {
            data.role_id === '4' ? 'subcontractor' : 
            data.role_id === '5' ? 'client' : 'crew');
         
+        console.log('🔄 Mapped role:', role);
         return apiRequest(`/api/company-admin/users/${id}/role`, { 
           method: 'PUT', 
           body: { user_id: id, role } 
         });
       },
       onSuccess: () => {
+        console.log('✅ UPDATE MUTATION SUCCESS');
         toast({ title: 'Success', description: 'User role updated successfully' });
         // Set flag that we just updated
         justUpdatedRef.current = true;
+        console.log('🚫 Setting justUpdated flag to TRUE for 1 second');
         // Close dialog and reset editing state BEFORE invalidating query
         setIsEditDialogOpen(false);
         setEditingUser(null);
@@ -291,9 +295,11 @@ export default function RBACAdmin() {
         // Reset flag after refetch completes
         setTimeout(() => {
           justUpdatedRef.current = false;
+          console.log('✅ Clearing justUpdated flag - Edit buttons now active');
         }, 1000);
       },
       onError: (error: any) => {
+        console.log('❌ UPDATE MUTATION ERROR', error);
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       }
     });
@@ -791,10 +797,19 @@ export default function RBACAdmin() {
                               <Button 
                                 size="sm" 
                                 variant="outline"
-                                onClick={() => {
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log('=== EDIT BUTTON CLICKED ===', {
+                                    userId: user.id,
+                                    justUpdated: justUpdatedRef.current,
+                                    currentEditingUser: editingUser?.id,
+                                    isDialogOpen: isEditDialogOpen
+                                  });
                                   // Prevent opening immediately after an update
                                   if (justUpdatedRef.current) {
-                                    console.log('Blocked edit click - just updated');
+                                    console.log('❌ Blocked edit click - just updated');
                                     return;
                                   }
                                   // Properly map user data for editing, parsing name into first/last
@@ -807,7 +822,7 @@ export default function RBACAdmin() {
                                     role_id: user.role_id?.toString() || (user.role === 'admin' ? '1' : user.role === 'manager' ? '2' : '3'),
                                     is_active: user.is_active !== undefined ? user.is_active : user.isActive
                                   };
-                                  console.log('Opening edit dialog for user:', mappedUser);
+                                  console.log('✅ Opening edit dialog for user:', mappedUser);
                                   setEditingUser(mappedUser);
                                   setIsEditDialogOpen(true);
                                 }}
@@ -922,10 +937,19 @@ export default function RBACAdmin() {
                             <Button 
                               size="sm" 
                               variant="outline"
-                              onClick={() => {
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('=== EDIT BUTTON CLICKED (flat view) ===', {
+                                  userId: user.id,
+                                  justUpdated: justUpdatedRef.current,
+                                  currentEditingUser: editingUser?.id,
+                                  isDialogOpen: isEditDialogOpen
+                                });
                                 // Prevent opening immediately after an update
                                 if (justUpdatedRef.current) {
-                                  console.log('Blocked edit click - just updated');
+                                  console.log('❌ Blocked edit click - just updated');
                                   return;
                                 }
                                 // Properly map user data for editing, parsing name into first/last
@@ -938,7 +962,7 @@ export default function RBACAdmin() {
                                   role_id: user.role_id?.toString() || (user.role === 'admin' ? '1' : user.role === 'manager' ? '2' : '3'),
                                   is_active: user.is_active !== undefined ? user.is_active : user.isActive
                                 };
-                                console.log('Opening edit dialog for user:', mappedUser);
+                                console.log('✅ Opening edit dialog for user:', mappedUser);
                                 setEditingUser(mappedUser);
                                 setIsEditDialogOpen(true);
                               }}
