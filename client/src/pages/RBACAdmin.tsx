@@ -215,8 +215,6 @@ export default function RBACAdmin() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
-    // Use ref to track if dialog should stay open (prevents refetch from closing it)
-    const shouldKeepDialogOpen = React.useRef(false);
     // Initialize with all companies expanded - will be populated when usersByCompany is computed
     const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
     const [newUser, setNewUser] = useState({
@@ -315,15 +313,8 @@ export default function RBACAdmin() {
       console.log('🔔 Dialog state changed:', {
         isEditDialogOpen,
         hasEditingUser: !!editingUser,
-        editingUserId: editingUser?.id,
-        shouldKeepOpen: shouldKeepDialogOpen.current
+        editingUserId: editingUser?.id
       });
-      
-      // If dialog is trying to close but we want it to stay open, reopen it
-      if (!isEditDialogOpen && shouldKeepDialogOpen.current && editingUser) {
-        console.log('⚠️ Dialog tried to close but protection is active - reopening!');
-        setIsEditDialogOpen(true);
-      }
     }, [isEditDialogOpen, editingUser]);
 
     const toggleCompanyExpansion = (companyName: string) => {
@@ -541,6 +532,15 @@ export default function RBACAdmin() {
           {/* Edit User Dialog */}
           <Dialog 
             open={isEditDialogOpen}
+            onOpenChange={(open) => {
+              console.log('📝 Dialog onOpenChange called with:', open);
+              if (!open) {
+                // Only close if explicitly requested by user
+                console.log('🚪 Closing dialog and clearing editingUser');
+                setIsEditDialogOpen(false);
+                setEditingUser(null);
+              }
+            }}
           >
             <DialogContent className="max-w-md" aria-describedby={undefined}>
               <DialogHeader>
@@ -644,21 +644,23 @@ export default function RBACAdmin() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => {
-                  console.log('❌ Cancel clicked - clearing protection and closing');
-                  shouldKeepDialogOpen.current = false; // Remove protection when user manually closes
-                  setIsEditDialogOpen(false);
-                  setEditingUser(null);
-                }}>
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  onClick={() => {
+                    console.log('❌ Cancel clicked');
+                    setIsEditDialogOpen(false);
+                    setEditingUser(null);
+                  }}
+                  data-testid="button-cancel-edit"
+                >
                   Cancel
                 </Button>
                 <Button 
+                  type="button"
                   onClick={() => {
                     if (editingUser) {
-                      console.log('✅ Update User clicked - clearing protection and closing dialog');
-                      shouldKeepDialogOpen.current = false; // Remove protection when submitting
-                      // Close dialog IMMEDIATELY before mutation to avoid state conflicts
-                      setIsEditDialogOpen(false);
+                      console.log('✅ Update User clicked');
                       
                       // Map fields properly for backend
                       const updatePayload = {
@@ -678,11 +680,13 @@ export default function RBACAdmin() {
                         data: updatePayload
                       });
                       
-                      // Clear editing state AFTER mutation is submitted
+                      // Close dialog after submitting mutation
+                      setIsEditDialogOpen(false);
                       setEditingUser(null);
                     }
                   }}
                   disabled={updateUserMutation.isPending || !editingUser?.email?.trim()}
+                  data-testid="button-update-user"
                 >
                   {updateUserMutation.isPending ? 'Updating...' : 'Update User'}
                 </Button>
@@ -831,11 +835,9 @@ export default function RBACAdmin() {
                                   
                                   // Set both states directly - React batches updates automatically
                                   console.log('🎯 Setting editingUser and opening dialog...');
-                                  console.log('   Current isEditDialogOpen:', isEditDialogOpen);
-                                  shouldKeepDialogOpen.current = true; // Protect dialog from refetch interference
                                   setEditingUser(mappedUser);
                                   setIsEditDialogOpen(true);
-                                  console.log('   After setState - should be true now, protected by ref');
+                                  console.log('   Dialog should open now');
                                 }}
                               >
                                 <Edit className="w-4 h-4" />
@@ -995,11 +997,9 @@ export default function RBACAdmin() {
                                 
                                 // Set both states directly - React batches updates automatically
                                 console.log('🎯 Setting editingUser and opening dialog...');
-                                console.log('   Current isEditDialogOpen:', isEditDialogOpen);
-                                shouldKeepDialogOpen.current = true; // Protect dialog from refetch interference
                                 setEditingUser(mappedUser);
                                 setIsEditDialogOpen(true);
-                                console.log('   After setState - should be true now, protected by ref');
+                                console.log('   Dialog should open now');
                               }}
                               data-testid={`button-edit-${user.id}`}
                             >
