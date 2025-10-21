@@ -1,0 +1,70 @@
+RBAC edit dialog closes immediately after updating a user role
+
+Goal
+
+Find and fix why the edit dialog opens and then closes right away when I click Edit immediately after a successful role update in the RBAC module.
+
+Repro steps
+	1.	Go to the RBAC users list.
+	2.	Click Edit on any user to open the form.
+	3.	Change the role and save. Confirm the update succeeds.
+	4.	Without navigating away, click Edit on a user again.
+	5.	Observe that the dialog opens and then closes instantly.
+
+Observed logs from the failing flow
+
+Use these exact log strings to align the code and set breakpoints.
+	1.	Edit button clicked for user: {id ‘fc359944…’, email ‘carlos@tiento.com’, roleId ‘1’}
+	2.	Mapped user for editing: {id ‘fc359944…’, email ‘carlos@tiento.com’}
+	3.	Setting editing user and opening dialog…
+	4.	Current isEditDialogOpen: false
+	5.	After setState should be true now protected by ref
+	6.	Dialog state changed: isEditDialogOpen true, hasEditingUser true, editingUserId ‘fc359944…’, shouldKeepOpen true
+	7.	Update user clicked clearing protection and closing dialog     ← this fires even though I only clicked Edit after a role update
+	8.	Dialog user clicked clearing protection and closing
+
+You will also see logs like Mutation succeeded refetching users and Data mutation complete will refresh on next query right before or between the open and the forced close.
+
+Suspected issue
+
+A close handler tied to the role update mutation or to the users refetch is still firing after the next click on Edit. The guard ref that should prevent closing is either being reset too early or a useEffect that watches mutation or query states is calling closeDialog when it detects a stale editing state. In the logs you can see shouldKeepOpen true followed by a close that prints clearing protection which suggests a cleanup path is running incorrectly on the next tick.
+
+What to inspect
+	1.	RBACAdmin.tsx around these log callsites reported by the console
+• lines near 315   lines near 658   lines near 990 to 1002
+• look for variables like isEditDialogOpen hasEditingUser editingUserId shouldKeepOpen or similar guard refs.
+	2.	The mutation hook that updates a role
+• onSuccess onSettled and onError handlers
+• any call to setIsEditDialogOpen false setEditingUser undefined resetEditState or clearDialogProtection.
+	3.	Any useEffect that watches
+• editingUserId or hasEditingUser
+• mutation status or isFetching from a users query
+• and then calls closeDialog when certain conditions are met.
+	4.	Where shouldKeepOpen or similar ref is set to true on open and then reset to false
+• verify that it is not reset by the role update mutation or by the users query refetch right after the next Edit click.
+	5.	Reconciliation between list re render and the selected editing user
+• after refetch the user objects may be new instances which could break equality checks and trigger a close.
+
+Concrete debugging tasks
+	1.	Grep the codebase for the exact log strings above to find the handlers and effects.
+	2.	Add temporary guard logs that print
+• when closeDialog runs and what triggered it
+• the current values of isEditDialogOpen hasEditingUser editingUserId shouldKeepOpen mutation status isFetching.
+	3.	Set breakpoints on every path that calls closeDialog or clears dialog protection. Re run the repro and capture the call stack for the first unwanted close.
+	4.	Verify that clicking Edit after a completed mutation does not pass through any mutation cleanup. If it does, decouple the cleanup from global state changes by scoping it to an operation id.
+
+Likely fixes to try
+	1.	Only close the dialog on successful save when the current operation id matches the last opened edit session. Store an incrementing editSessionId in a ref and include it in open and save handlers. In the close effect check that the session ids match.
+	2.	Do not close the dialog on users query refetch. Replace any effect that closes on isFetching or data change with a check for the explicit user action that should close the form.
+	3.	Keep the dialog open guard until the next explicit close or unmount. For example keep shouldKeepOpen true while isEditDialogOpen is true and only clear it inside an explicit onCancel or onSave.
+	4.	If equality checks rely on object identity of the selected user, key them by user id instead. Example setEditingUserId instead of setEditingUser object and derive the object by id from the latest list.
+
+Acceptance criteria
+	1.	After updating a role, clicking Edit on any user opens the dialog and it remains open until I cancel or save.
+	2.	No unintended calls to closeDialog occur during a users refetch after a mutation.
+	3.	Unit level check for the reducer or state hook controlling isEditDialogOpen that verifies it does not transition to false due to unrelated mutation or refetch events.
+	4.	Logs confirm the sequence open setState isEditDialogOpen true and no immediate closing call after open.
+
+Notes
+
+Codebase already logs the critical state transitions. Use those callsites to anchor the fix. If needed, introduce a finite state machine for the dialog with explicit states idle opening open saving closing and only allow transitions from user actions or matching operation ids.
