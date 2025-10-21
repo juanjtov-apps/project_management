@@ -214,7 +214,10 @@ export default function RBACAdmin() {
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+    const [editingUserId, setEditingUserId] = useState<string | null>(null); // Store ID, not object
+    const [editFormData, setEditFormData] = useState<Partial<UserProfile>>({});  // Local form state
+    const editSessionIdRef = React.useRef(0); // Session ID to track edit operations
+    const currentSessionRef = React.useRef<number | null>(null); // Current active session
     // Initialize with all companies expanded - will be populated when usersByCompany is computed
     const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
     const [newUser, setNewUser] = useState({
@@ -308,14 +311,50 @@ export default function RBACAdmin() {
       }
     }, [usersByCompany]);
 
+    // Derive editingUser from editingUserId and merge with form data (prevents object identity issues)
+    const editingUser = React.useMemo(() => {
+      if (!editingUserId || !users) return null;
+      const user = users.find((u: UserProfile) => u.id === editingUserId);
+      if (!user) return null;
+      
+      // Map user data properly
+      const nameParts = (user.name || '').split(' ');
+      let roleId = user.role_id?.toString();
+      if (!roleId && user.role) {
+        const roleMap: Record<string, string> = {
+          'admin': '1',
+          'project_manager': '2',
+          'office_manager': '3',
+          'subcontractor': '4',
+          'client': '5',
+          'manager': '2',
+          'crew': '3'
+        };
+        roleId = roleMap[user.role] || '1';
+      }
+      
+      // Merge base user data with form edits
+      return {
+        ...user,
+        first_name: user.first_name || nameParts[0] || '',
+        last_name: user.last_name || nameParts.slice(1).join(' ') || '',
+        company_id: user.company_id?.toString() || '1',
+        role_id: roleId || '1',
+        is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
+        password: '', // Always start with empty password
+        ...editFormData // Merge any form edits on top
+      };
+    }, [editingUserId, users, editFormData]);
+
     // Monitor dialog state changes for debugging
     React.useEffect(() => {
       console.log('🔔 Dialog state changed:', {
         isEditDialogOpen,
+        editingUserId,
         hasEditingUser: !!editingUser,
-        editingUserId: editingUser?.id
+        currentSession: currentSessionRef.current
       });
-    }, [isEditDialogOpen, editingUser]);
+    }, [isEditDialogOpen, editingUserId, editingUser]);
 
     const toggleCompanyExpansion = (companyName: string) => {
       const newExpanded = new Set(expandedCompanies);
@@ -533,12 +572,14 @@ export default function RBACAdmin() {
           <Dialog 
             open={isEditDialogOpen}
             onOpenChange={(open) => {
-              console.log('📝 Dialog onOpenChange called with:', open);
-              if (!open) {
-                // Only close if explicitly requested by user
-                console.log('🚪 Closing dialog and clearing editingUser');
+              console.log('📝 Dialog onOpenChange called with:', open, 'currentSession:', currentSessionRef.current);
+              if (!open && currentSessionRef.current !== null) {
+                // Only close if we have an active session and user explicitly closes
+                console.log('🚪 Closing dialog - clearing session');
                 setIsEditDialogOpen(false);
-                setEditingUser(null);
+                setEditingUserId(null);
+                setEditFormData({});
+                currentSessionRef.current = null;
               }
             }}
           >
@@ -553,7 +594,7 @@ export default function RBACAdmin() {
                     <Input
                       id="edit_first_name"
                       value={editingUser?.first_name || ''}
-                      onChange={(e) => setEditingUser(prev => prev ? {...prev, first_name: e.target.value} : null)}
+                      onChange={(e) => setEditFormData(prev => ({...prev, first_name: e.target.value}))}
                     />
                   </div>
                   <div>
@@ -561,7 +602,7 @@ export default function RBACAdmin() {
                     <Input
                       id="edit_last_name"
                       value={editingUser?.last_name || ''}
-                      onChange={(e) => setEditingUser(prev => prev ? {...prev, last_name: e.target.value} : null)}
+                      onChange={(e) => setEditFormData(prev => ({...prev, last_name: e.target.value}))}
                     />
                   </div>
                 </div>
@@ -571,14 +612,14 @@ export default function RBACAdmin() {
                     id="edit_email"
                     type="email"
                     value={editingUser?.email || ''}
-                    onChange={(e) => setEditingUser(prev => prev ? {...prev, email: e.target.value} : null)}
+                    onChange={(e) => setEditFormData(prev => ({...prev, email: e.target.value}))}
                   />
                 </div>
                 <div>
                   <Label htmlFor="edit_company">Company</Label>
                   <Select 
                     value={editingUser?.company_id?.toString() || ''} 
-                    onValueChange={(value) => setEditingUser(prev => prev ? {...prev, company_id: value} : null)}
+                    onValueChange={(value) => setEditFormData(prev => ({...prev, company_id: value}))}
                     disabled={true}
                   >
                     <SelectTrigger className="opacity-60">
@@ -601,7 +642,7 @@ export default function RBACAdmin() {
                     type="password"
                     placeholder="Leave empty to keep current password"
                     value={editingUser?.password || ''}
-                    onChange={(e) => setEditingUser(prev => prev ? {...prev, password: e.target.value} : null)}
+                    onChange={(e) => setEditFormData(prev => ({...prev, password: e.target.value}))}
                   />
                   <p className="text-xs text-muted-foreground mt-1">Only change if user needs a new password</p>
                 </div>
@@ -609,7 +650,7 @@ export default function RBACAdmin() {
                   <Label htmlFor="edit_role">Role</Label>
                   <Select 
                     value={editingUser?.role_id?.toString() || ''} 
-                    onValueChange={(value) => setEditingUser(prev => prev ? {...prev, role_id: value} : null)}
+                    onValueChange={(value) => setEditFormData(prev => ({...prev, role_id: value}))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select role" />
@@ -638,7 +679,7 @@ export default function RBACAdmin() {
                   <Switch
                     id="edit_is_active"
                     checked={editingUser?.is_active || false}
-                    onCheckedChange={(checked) => setEditingUser(prev => prev ? {...prev, is_active: checked} : null)}
+                    onCheckedChange={(checked) => setEditFormData(prev => ({...prev, is_active: checked}))}
                   />
                   <Label htmlFor="edit_is_active">Active User</Label>
                 </div>
@@ -648,9 +689,12 @@ export default function RBACAdmin() {
                   type="button"
                   variant="outline" 
                   onClick={() => {
-                    console.log('❌ Cancel clicked');
+                    const thisSession = currentSessionRef.current;
+                    console.log('❌ Cancel clicked - session:', thisSession);
                     setIsEditDialogOpen(false);
-                    setEditingUser(null);
+                    setEditingUserId(null);
+                    setEditFormData({});
+                    currentSessionRef.current = null;
                   }}
                   data-testid="button-cancel-edit"
                 >
@@ -660,7 +704,8 @@ export default function RBACAdmin() {
                   type="button"
                   onClick={() => {
                     if (editingUser) {
-                      console.log('✅ Update User clicked');
+                      const thisSession = currentSessionRef.current;
+                      console.log('✅ Update User clicked - session:', thisSession);
                       
                       // Map fields properly for backend
                       const updatePayload = {
@@ -677,12 +722,15 @@ export default function RBACAdmin() {
                       
                       updateUserMutation.mutate({
                         id: editingUser.id, 
-                        data: updatePayload
+                        data: updatePayload,
+                        sessionId: thisSession // Pass session ID with mutation
                       });
                       
-                      // Close dialog after submitting mutation
+                      // Close dialog immediately and clear session
                       setIsEditDialogOpen(false);
-                      setEditingUser(null);
+                      setEditingUserId(null);
+                      setEditFormData({});
+                      currentSessionRef.current = null;
                     }
                   }}
                   disabled={updateUserMutation.isPending || !editingUser?.email?.trim()}
@@ -833,11 +881,15 @@ export default function RBACAdmin() {
                                     role_id: mappedUser.role_id
                                   });
                                   
-                                  // Set both states directly - React batches updates automatically
-                                  console.log('🎯 Setting editingUser and opening dialog...');
-                                  setEditingUser(mappedUser);
+                                  // Create new session for this edit operation
+                                  editSessionIdRef.current += 1;
+                                  currentSessionRef.current = editSessionIdRef.current;
+                                  console.log('🎯 Opening dialog with session ID:', currentSessionRef.current);
+                                  
+                                  setEditingUserId(user.id);
+                                  setEditFormData({});  // Reset form data
                                   setIsEditDialogOpen(true);
-                                  console.log('   Dialog should open now');
+                                  console.log('   Dialog opened with session:', currentSessionRef.current);
                                 }}
                               >
                                 <Edit className="w-4 h-4" />
@@ -995,11 +1047,15 @@ export default function RBACAdmin() {
                                   role_id: mappedUser.role_id
                                 });
                                 
-                                // Set both states directly - React batches updates automatically
-                                console.log('🎯 Setting editingUser and opening dialog...');
-                                setEditingUser(mappedUser);
+                                // Create new session for this edit operation
+                                editSessionIdRef.current += 1;
+                                currentSessionRef.current = editSessionIdRef.current;
+                                console.log('🎯 Opening dialog with session ID:', currentSessionRef.current);
+                                
+                                setEditingUserId(user.id);
+                                setEditFormData({});  // Reset form data
                                 setIsEditDialogOpen(true);
-                                console.log('   Dialog should open now');
+                                console.log('   Dialog opened with session:', currentSessionRef.current);
                               }}
                               data-testid={`button-edit-${user.id}`}
                             >
