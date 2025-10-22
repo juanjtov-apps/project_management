@@ -243,6 +243,10 @@ export default function RBACAdmin() {
     const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
     const [dialogKey, setDialogKey] = useState(0); // Key to prevent dialog from resetting
     const shouldCloseDialogRef = React.useRef(false); // Ref to track intentional dialog close
+    
+    // SESSION GUARD SYSTEM - prevents stale close handlers from previous sessions
+    const sessionRef = React.useRef(0); // Increments on every open
+    const closeTimerRef = React.useRef<NodeJS.Timeout | null>(null); // Tracks pending setTimeout
     // Initialize with all companies expanded - will be populated when usersByCompany is computed
     const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
     const [newUser, setNewUser] = useState({
@@ -658,7 +662,10 @@ export default function RBACAdmin() {
                   type="button"
                   onClick={async () => {
                     if (editingUser) {
-                      console.log('🚀 Update button clicked, starting mutation');
+                      // SESSION GUARD: Capture current session ID at start of update
+                      const mySession = sessionRef.current;
+                      console.log(`🚀 Update button clicked - Session #${mySession}`);
+                      
                       // Map fields properly for backend
                       const updatePayload = {
                         email: editingUser.email,
@@ -672,8 +679,6 @@ export default function RBACAdmin() {
                         password: editingUser.password
                       };
                       
-                      console.log('🎯 Starting mutation with async/await');
-                      
                       try {
                         // Wait for mutation to complete
                         await updateUserMutation.mutateAsync({
@@ -681,16 +686,22 @@ export default function RBACAdmin() {
                           data: updatePayload
                         });
                         
-                        console.log('✅ Mutation completed, closing dialog in 300ms');
+                        console.log(`✅ Mutation completed for Session #${mySession}, closing dialog in 300ms`);
                         
-                        // Close dialog with a short delay for smooth UX
-                        setTimeout(() => {
-                          console.log('🔒 Closing dialog now');
+                        // SESSION GUARD: Store timer ref so it can be cancelled by next open
+                        closeTimerRef.current = setTimeout(() => {
+                          // SESSION GUARD: Only close if this is still the active session
+                          if (sessionRef.current !== mySession) {
+                            console.log(`⚠️ Session mismatch! Skipping close. Current: ${sessionRef.current}, Mine: ${mySession}`);
+                            return;
+                          }
+                          
+                          console.log(`🔒 Closing dialog for Session #${mySession}`);
                           setIsEditDialogOpen(false);
                           setEditingUser(null);
+                          closeTimerRef.current = null;
                           
                           // Refetch from server after dialog is fully closed
-                          // This is safer than manual cache updates and prevents re-render issues
                           setTimeout(() => {
                             console.log('🔄 Refetching users from server');
                             queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
@@ -810,6 +821,18 @@ export default function RBACAdmin() {
                                   e.preventDefault();
                                   e.stopPropagation();
                                   
+                                  // SESSION GUARD: Cancel any pending close timer from previous session
+                                  if (closeTimerRef.current) {
+                                    console.log('🛑 Canceling pending close timer from previous session');
+                                    clearTimeout(closeTimerRef.current);
+                                    closeTimerRef.current = null;
+                                  }
+                                  
+                                  // SESSION GUARD: Increment session ID for this new open
+                                  sessionRef.current += 1;
+                                  const currentSession = sessionRef.current;
+                                  console.log(`🔓 Opening edit dialog - Session #${currentSession}`);
+                                  
                                   // Debug logging
                                   console.log('🔍 Edit button clicked for user:', {
                                     id: user.id,
@@ -844,11 +867,7 @@ export default function RBACAdmin() {
                                     is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true)
                                   };
                                   
-                                  console.log('✅ Mapped user for editing:', {
-                                    id: mappedUser.id,
-                                    email: mappedUser.email,
-                                    role_id: mappedUser.role_id
-                                  });
+                                  console.log('✅ Setting editing user and opening dialog');
                                   
                                   setEditingUser(mappedUser);
                                   setIsEditDialogOpen(true);
@@ -969,6 +988,18 @@ export default function RBACAdmin() {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 
+                                // SESSION GUARD: Cancel any pending close timer from previous session
+                                if (closeTimerRef.current) {
+                                  console.log('🛑 Canceling pending close timer from previous session');
+                                  clearTimeout(closeTimerRef.current);
+                                  closeTimerRef.current = null;
+                                }
+                                
+                                // SESSION GUARD: Increment session ID for this new open
+                                sessionRef.current += 1;
+                                const currentSession = sessionRef.current;
+                                console.log(`🔓 Opening edit dialog - Session #${currentSession}`);
+                                
                                 // Debug logging
                                 console.log('🔍 Edit button clicked for user:', {
                                   id: user.id,
@@ -1003,11 +1034,7 @@ export default function RBACAdmin() {
                                   is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true)
                                 };
                                 
-                                console.log('✅ Mapped user for editing:', {
-                                  id: mappedUser.id,
-                                  email: mappedUser.email,
-                                  role_id: mappedUser.role_id
-                                });
+                                console.log('✅ Setting editing user and opening dialog');
                                 
                                 setEditingUser(mappedUser);
                                 setIsEditDialogOpen(true);
