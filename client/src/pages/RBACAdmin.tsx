@@ -162,16 +162,37 @@ export default function RBACAdmin() {
       });
     },
     onSuccess: async (_, variables) => {
-      console.log('✅ Mutation succeeded - using optimistic update');
+      console.log('✅ Mutation succeeded - using safe role-only update');
       toast({ title: 'Success', description: 'User role updated successfully' });
       
-      // Optimistic update - modify the cache directly without refetching
+      // GUARDRAIL: Only proceed if we have valid role data
+      if (!variables.data.role_id && !variables.data.role) {
+        console.error('❌ SAFETY: Aborting cache update - no valid role data');
+        // Refetch to get correct data from server
+        queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+        return;
+      }
+      
+      // SAFE optimistic update - ONLY update role-related fields
+      // CRITICAL: Never spread variables.data - it may contain undefined/incomplete fields
+      // that could corrupt user records (delete users, change wrong roles, etc.)
+      const role = variables.data.role || 
+        (variables.data.role_id === '1' ? 'admin' : 
+         variables.data.role_id === '2' ? 'project_manager' : 
+         variables.data.role_id === '3' ? 'office_manager' : 
+         variables.data.role_id === '4' ? 'subcontractor' : 
+         variables.data.role_id === '5' ? 'client' : 'crew');
+      
       queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
         if (!old) return old;
         return old.map((user: any) => 
           user.id === variables.id 
-            ? { ...user, ...variables.data, role: variables.data.role || user.role }
-            : user
+            ? { 
+                ...user,                           // Preserve ALL existing user fields
+                role_id: variables.data.role_id,  // Only update role_id
+                role: role                         // Only update role string
+              }
+            : user  // Keep other users completely unchanged
         );
       });
     },
