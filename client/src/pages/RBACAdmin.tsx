@@ -239,6 +239,8 @@ export default function RBACAdmin() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+    const [dialogKey, setDialogKey] = useState(0); // Key to prevent dialog from resetting
+    const shouldCloseDialogRef = React.useRef(false); // Ref to track intentional dialog close
     // Initialize with all companies expanded - will be populated when usersByCompany is computed
     const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
     const [newUser, setNewUser] = useState({
@@ -249,6 +251,16 @@ export default function RBACAdmin() {
       role_id: '',
       password: ''
     });
+
+    // Effect to close dialog when mutation succeeds
+    React.useEffect(() => {
+      if (shouldCloseDialogRef.current && !updateUserMutation.isPending) {
+        console.log('🔒 useEffect: Closing dialog after mutation success');
+        setIsEditDialogOpen(false);
+        setEditingUser(null);
+        shouldCloseDialogRef.current = false;
+      }
+    }, [updateUserMutation.isPending]);
 
     // Toggle user active status
     const toggleUserStatus = useMutation({
@@ -516,20 +528,28 @@ export default function RBACAdmin() {
 
           {/* Edit User Dialog */}
           <Dialog 
+            key={dialogKey}
             open={isEditDialogOpen}
             onOpenChange={(open) => {
               console.log('🔔 Dialog onOpenChange called:', { open, isPending: updateUserMutation.isPending });
-              // Don't close while mutation is pending
+              // Only allow closing manually (via cancel button or X)
               if (!open && !updateUserMutation.isPending) {
                 console.log('✅ Allowing dialog to close');
                 setIsEditDialogOpen(false);
                 setEditingUser(null);
+                setDialogKey(prev => prev + 1); // Reset dialog on close
               } else if (!open && updateUserMutation.isPending) {
                 console.log('❌ Preventing dialog close - mutation pending');
               }
             }}
+            modal={true}
           >
-            <DialogContent className="max-w-md" aria-describedby={undefined}>
+            <DialogContent className="max-w-md" aria-describedby={undefined} onInteractOutside={(e) => {
+              // Prevent closing by clicking outside during mutation
+              if (updateUserMutation.isPending) {
+                e.preventDefault();
+              }
+            }}>
               <DialogHeader>
                 <DialogTitle>Edit User</DialogTitle>
               </DialogHeader>
@@ -660,17 +680,13 @@ export default function RBACAdmin() {
                         password: editingUser.password
                       };
                       
+                      // Set ref to indicate we want to close the dialog after mutation
+                      shouldCloseDialogRef.current = true;
+                      console.log('🎯 Set shouldCloseDialogRef to true');
+                      
                       updateUserMutation.mutate({
                         id: editingUser.id, 
                         data: updatePayload
-                      }, {
-                        onSuccess: () => {
-                          console.log('✅ Mutation onSuccess callback - closing dialog');
-                          // Close dialog after successful update
-                          setIsEditDialogOpen(false);
-                          setEditingUser(null);
-                          console.log('✅ Dialog state cleared');
-                        }
                       });
                     }
                   }}
