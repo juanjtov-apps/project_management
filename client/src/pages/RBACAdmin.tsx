@@ -247,6 +247,7 @@ export default function RBACAdmin() {
     // SESSION GUARD SYSTEM - prevents stale close handlers from previous sessions
     const sessionRef = React.useRef(0); // Increments on every open
     const closeTimerRef = React.useRef<NodeJS.Timeout | null>(null); // Tracks pending setTimeout
+    const blockCloseUntilRef = React.useRef(0); // Timestamp until which close is blocked
     // Initialize with all companies expanded - will be populated when usersByCompany is computed
     const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
     const [newUser, setNewUser] = useState({
@@ -527,7 +528,24 @@ export default function RBACAdmin() {
             key={dialogKey}
             open={isEditDialogOpen}
             onOpenChange={(open) => {
-              console.log('🔔 Dialog onOpenChange called:', { open, isPending: updateUserMutation.isPending });
+              const now = Date.now();
+              const blockedUntil = blockCloseUntilRef.current;
+              
+              console.log('🔔 Dialog onOpenChange called:', { 
+                open, 
+                isPending: updateUserMutation.isPending,
+                now,
+                blockedUntil,
+                isBlocked: now < blockedUntil
+              });
+              
+              // BLOCK CLOSE if we're in the critical period
+              if (!open && now < blockedUntil) {
+                const remainingMs = blockedUntil - now;
+                console.log(`🚫 BLOCKING CLOSE - ${remainingMs}ms remaining in critical period`);
+                return; // Prevent close
+              }
+              
               // Only allow closing manually (via cancel button or X)
               if (!open && !updateUserMutation.isPending) {
                 console.log('✅ Allowing dialog to close');
@@ -688,6 +706,11 @@ export default function RBACAdmin() {
                         
                         console.log(`✅ Mutation completed for Session #${mySession}`);
                         
+                        // BLOCK DIALOG CLOSE for 300ms to allow user to click Edit immediately
+                        const blockDuration = 300;
+                        blockCloseUntilRef.current = Date.now() + blockDuration;
+                        console.log(`🔐 BLOCKING dialog close for ${blockDuration}ms - safe to click Edit!`);
+                        
                         // IMMEDIATE CACHE UPDATE - No re-render, no refetch
                         const roleId = editingUser.role_id;
                         const roleName = roleId === '1' ? 'Admin' : 
@@ -710,8 +733,6 @@ export default function RBACAdmin() {
                           );
                         });
                         
-                        console.log(`🔒 Closing dialog for Session #${mySession} immediately`);
-                        
                         // SESSION GUARD: Store timer ref so it can be cancelled by next open
                         closeTimerRef.current = setTimeout(() => {
                           // SESSION GUARD: Only close if this is still the active session
@@ -720,10 +741,11 @@ export default function RBACAdmin() {
                             return;
                           }
                           
+                          console.log(`🔒 Closing dialog for Session #${mySession}`);
                           setIsEditDialogOpen(false);
                           setEditingUser(null);
                           closeTimerRef.current = null;
-                        }, 300);
+                        }, blockDuration);
                         
                       } catch (error) {
                         console.error('❌ Mutation failed:', error);
