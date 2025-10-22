@@ -252,22 +252,6 @@ export default function RBACAdmin() {
       password: ''
     });
 
-    // Effect to close dialog when mutation succeeds
-    React.useEffect(() => {
-      if (shouldCloseDialogRef.current && !updateUserMutation.isPending) {
-        console.log('🔒 useEffect: Closing dialog after mutation success');
-        setIsEditDialogOpen(false);
-        setEditingUser(null);
-        shouldCloseDialogRef.current = false;
-        
-        // NOW invalidate the cache after dialog is closed
-        setTimeout(() => {
-          console.log('🔄 Invalidating cache after dialog closed');
-          queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
-        }, 100);
-      }
-    }, [updateUserMutation.isPending]);
-
     // Toggle user active status
     const toggleUserStatus = useMutation({
       mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
@@ -670,7 +654,7 @@ export default function RBACAdmin() {
                 </Button>
                 <Button 
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (editingUser) {
                       console.log('🚀 Update button clicked, starting mutation');
                       // Map fields properly for backend
@@ -686,14 +670,33 @@ export default function RBACAdmin() {
                         password: editingUser.password
                       };
                       
-                      // Set ref to indicate we want to close the dialog after mutation
-                      shouldCloseDialogRef.current = true;
-                      console.log('🎯 Set shouldCloseDialogRef to true');
+                      console.log('🎯 Starting mutation with async/await');
                       
-                      updateUserMutation.mutate({
-                        id: editingUser.id, 
-                        data: updatePayload
-                      });
+                      try {
+                        // Wait for mutation to complete
+                        await updateUserMutation.mutateAsync({
+                          id: editingUser.id, 
+                          data: updatePayload
+                        });
+                        
+                        console.log('✅ Mutation completed, closing dialog in 50ms');
+                        
+                        // Close dialog first
+                        setTimeout(() => {
+                          console.log('🔒 Closing dialog now');
+                          setIsEditDialogOpen(false);
+                          setEditingUser(null);
+                          
+                          // Invalidate cache after dialog closes
+                          setTimeout(() => {
+                            console.log('🔄 Invalidating cache');
+                            queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+                          }, 150);
+                        }, 50);
+                        
+                      } catch (error) {
+                        console.error('❌ Mutation failed:', error);
+                      }
                     }
                   }}
                   disabled={updateUserMutation.isPending || !editingUser?.email?.trim()}
