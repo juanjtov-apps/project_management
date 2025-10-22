@@ -518,9 +518,14 @@ export default function RBACAdmin() {
           <Dialog 
             open={isEditDialogOpen}
             onOpenChange={(open) => {
-              if (!open) {
+              console.log('🔔 Dialog onOpenChange called:', { open, isPending: updateUserMutation.isPending });
+              // Don't close while mutation is pending
+              if (!open && !updateUserMutation.isPending) {
+                console.log('✅ Allowing dialog to close');
                 setIsEditDialogOpen(false);
                 setEditingUser(null);
+              } else if (!open && updateUserMutation.isPending) {
+                console.log('❌ Preventing dialog close - mutation pending');
               }
             }}
           >
@@ -641,6 +646,7 @@ export default function RBACAdmin() {
                   type="button"
                   onClick={() => {
                     if (editingUser) {
+                      console.log('🚀 Update button clicked, starting mutation');
                       // Map fields properly for backend
                       const updatePayload = {
                         email: editingUser.email,
@@ -659,9 +665,11 @@ export default function RBACAdmin() {
                         data: updatePayload
                       }, {
                         onSuccess: () => {
+                          console.log('✅ Mutation onSuccess callback - closing dialog');
                           // Close dialog after successful update
                           setIsEditDialogOpen(false);
                           setEditingUser(null);
+                          console.log('✅ Dialog state cleared');
                         }
                       });
                     }
