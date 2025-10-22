@@ -686,7 +686,31 @@ export default function RBACAdmin() {
                           data: updatePayload
                         });
                         
-                        console.log(`✅ Mutation completed for Session #${mySession}, closing dialog in 300ms`);
+                        console.log(`✅ Mutation completed for Session #${mySession}`);
+                        
+                        // IMMEDIATE CACHE UPDATE - No re-render, no refetch
+                        const roleId = editingUser.role_id;
+                        const roleName = roleId === '1' ? 'Admin' : 
+                                       roleId === '2' ? 'Project Manager' : 
+                                       roleId === '3' ? 'Office Manager' : 
+                                       roleId === '4' ? 'Subcontractor' : 
+                                       roleId === '5' ? 'Client' : 'Crew';
+                        const role = roleId === '1' ? 'admin' : 
+                                    roleId === '2' ? 'project_manager' : 
+                                    roleId === '3' ? 'office_manager' : 
+                                    roleId === '4' ? 'subcontractor' : 
+                                    roleId === '5' ? 'client' : 'crew';
+                        
+                        queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
+                          if (!old) return old;
+                          return old.map((user: any) => 
+                            user.id === editingUser.id 
+                              ? { ...user, role_id: roleId, role: role, role_name: roleName }
+                              : user
+                          );
+                        });
+                        
+                        console.log(`🔒 Closing dialog for Session #${mySession} immediately`);
                         
                         // SESSION GUARD: Store timer ref so it can be cancelled by next open
                         closeTimerRef.current = setTimeout(() => {
@@ -696,16 +720,9 @@ export default function RBACAdmin() {
                             return;
                           }
                           
-                          console.log(`🔒 Closing dialog for Session #${mySession}`);
                           setIsEditDialogOpen(false);
                           setEditingUser(null);
                           closeTimerRef.current = null;
-                          
-                          // Refetch from server after dialog is fully closed
-                          setTimeout(() => {
-                            console.log('🔄 Refetching users from server');
-                            queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
-                          }, 100);
                         }, 300);
                         
                       } catch (error) {
