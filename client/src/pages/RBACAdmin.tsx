@@ -161,40 +161,11 @@ export default function RBACAdmin() {
         body: { user_id: id, role } 
       });
     },
-    onSuccess: async (_, variables) => {
-      console.log('✅ Mutation succeeded - using safe role-only update');
+    onSuccess: async () => {
+      console.log('✅ Mutation succeeded - will update cache after dialog closes');
       toast({ title: 'Success', description: 'User role updated successfully' });
-      
-      // GUARDRAIL: Only proceed if we have valid role data
-      if (!variables.data.role_id && !variables.data.role) {
-        console.error('❌ SAFETY: Aborting cache update - no valid role data');
-        // Refetch to get correct data from server
-        queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
-        return;
-      }
-      
-      // SAFE optimistic update - ONLY update role-related fields
-      // CRITICAL: Never spread variables.data - it may contain undefined/incomplete fields
-      // that could corrupt user records (delete users, change wrong roles, etc.)
-      const role = variables.data.role || 
-        (variables.data.role_id === '1' ? 'admin' : 
-         variables.data.role_id === '2' ? 'project_manager' : 
-         variables.data.role_id === '3' ? 'office_manager' : 
-         variables.data.role_id === '4' ? 'subcontractor' : 
-         variables.data.role_id === '5' ? 'client' : 'crew');
-      
-      queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
-        if (!old) return old;
-        return old.map((user: any) => 
-          user.id === variables.id 
-            ? { 
-                ...user,                           // Preserve ALL existing user fields
-                role_id: variables.data.role_id,  // Only update role_id
-                role: role                         // Only update role string
-              }
-            : user  // Keep other users completely unchanged
-        );
-      });
+      // DON'T update cache here - it causes re-renders that close the dialog
+      // The cache update will happen in the button's onClick after the dialog closes
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -718,7 +689,40 @@ export default function RBACAdmin() {
                           console.log('🔒 Closing dialog now');
                           setIsEditDialogOpen(false);
                           setEditingUser(null);
-                          // No cache invalidation needed - optimistic update already applied!
+                          
+                          // NOW update the cache after dialog is closed (prevents re-render during close)
+                          setTimeout(() => {
+                            console.log('🔄 Updating cache with new role data');
+                            
+                            // Map role_id to role name for display
+                            const roleId = updatePayload.role_id;
+                            const roleName = roleId === '1' ? 'Admin' : 
+                                           roleId === '2' ? 'Project Manager' : 
+                                           roleId === '3' ? 'Office Manager' : 
+                                           roleId === '4' ? 'Subcontractor' : 
+                                           roleId === '5' ? 'Client' : 'Crew';
+                            
+                            const role = roleId === '1' ? 'admin' : 
+                                        roleId === '2' ? 'project_manager' : 
+                                        roleId === '3' ? 'office_manager' : 
+                                        roleId === '4' ? 'subcontractor' : 
+                                        roleId === '5' ? 'client' : 'crew';
+                            
+                            // SAFE cache update - ONLY update role-related fields
+                            queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
+                              if (!old) return old;
+                              return old.map((user: any) => 
+                                user.id === editingUser.id 
+                                  ? { 
+                                      ...user,              // Preserve ALL existing fields
+                                      role_id: roleId,      // Update role_id
+                                      role: role,           // Update role string
+                                      role_name: roleName   // Update role_name for UI display
+                                    }
+                                  : user
+                              );
+                            });
+                          }, 100);
                         }, 300);
                         
                       } catch (error) {
