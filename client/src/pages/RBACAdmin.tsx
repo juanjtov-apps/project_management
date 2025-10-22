@@ -161,13 +161,24 @@ export default function RBACAdmin() {
         body: { user_id: id, role } 
       });
     },
-    onSuccess: async () => {
-      console.log('✅ Mutation succeeded - NOT invalidating cache yet');
+    onSuccess: async (_, variables) => {
+      console.log('✅ Mutation succeeded - using optimistic update');
       toast({ title: 'Success', description: 'User role updated successfully' });
-      // DON'T invalidate here - let the component handle it after dialog closes
+      
+      // Optimistic update - modify the cache directly without refetching
+      queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
+        if (!old) return old;
+        return old.map((user: any) => 
+          user.id === variables.id 
+            ? { ...user, ...variables.data, role: variables.data.role || user.role }
+            : user
+        );
+      });
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      // Refetch on error to revert optimistic update
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
     }
   });
 
@@ -679,20 +690,15 @@ export default function RBACAdmin() {
                           data: updatePayload
                         });
                         
-                        console.log('✅ Mutation completed, will close dialog in 2 seconds');
+                        console.log('✅ Mutation completed, closing dialog in 300ms');
                         
-                        // Close dialog after 2 seconds so you can SEE it staying open
+                        // Close dialog with a short delay for smooth UX
                         setTimeout(() => {
                           console.log('🔒 Closing dialog now');
                           setIsEditDialogOpen(false);
                           setEditingUser(null);
-                          
-                          // Invalidate cache after dialog closes
-                          setTimeout(() => {
-                            console.log('🔄 Invalidating cache');
-                            queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
-                          }, 200);
-                        }, 2000);
+                          // No cache invalidation needed - optimistic update already applied!
+                        }, 300);
                         
                       } catch (error) {
                         console.error('❌ Mutation failed:', error);
