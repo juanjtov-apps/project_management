@@ -162,10 +162,9 @@ export default function RBACAdmin() {
       });
     },
     onSuccess: async () => {
-      console.log('✅ Mutation succeeded - will update cache after dialog closes');
+      console.log('✅ Mutation succeeded');
       toast({ title: 'Success', description: 'User role updated successfully' });
-      // DON'T update cache here - it causes re-renders that close the dialog
-      // The cache update will happen in the button's onClick after the dialog closes
+      // No cache manipulation - refetch will happen after dialog closes
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -690,38 +689,11 @@ export default function RBACAdmin() {
                           setIsEditDialogOpen(false);
                           setEditingUser(null);
                           
-                          // NOW update the cache after dialog is closed (prevents re-render during close)
+                          // Refetch from server after dialog is fully closed
+                          // This is safer than manual cache updates and prevents re-render issues
                           setTimeout(() => {
-                            console.log('🔄 Updating cache with new role data');
-                            
-                            // Map role_id to role name for display
-                            const roleId = updatePayload.role_id;
-                            const roleName = roleId === '1' ? 'Admin' : 
-                                           roleId === '2' ? 'Project Manager' : 
-                                           roleId === '3' ? 'Office Manager' : 
-                                           roleId === '4' ? 'Subcontractor' : 
-                                           roleId === '5' ? 'Client' : 'Crew';
-                            
-                            const role = roleId === '1' ? 'admin' : 
-                                        roleId === '2' ? 'project_manager' : 
-                                        roleId === '3' ? 'office_manager' : 
-                                        roleId === '4' ? 'subcontractor' : 
-                                        roleId === '5' ? 'client' : 'crew';
-                            
-                            // SAFE cache update - ONLY update role-related fields
-                            queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
-                              if (!old) return old;
-                              return old.map((user: any) => 
-                                user.id === editingUser.id 
-                                  ? { 
-                                      ...user,              // Preserve ALL existing fields
-                                      role_id: roleId,      // Update role_id
-                                      role: role,           // Update role string
-                                      role_name: roleName   // Update role_name for UI display
-                                    }
-                                  : user
-                              );
-                            });
+                            console.log('🔄 Refetching users from server');
+                            queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
                           }, 100);
                         }, 300);
                         
