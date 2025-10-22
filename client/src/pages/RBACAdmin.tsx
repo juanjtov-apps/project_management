@@ -162,9 +162,9 @@ export default function RBACAdmin() {
       });
     },
     onSuccess: async () => {
-      console.log('✅ Mutation succeeded - invalidating cache');
+      console.log('✅ Mutation succeeded - NOT invalidating cache yet');
       toast({ title: 'Success', description: 'User role updated successfully' });
-      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+      // DON'T invalidate here - let the component handle it after dialog closes
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -259,6 +259,12 @@ export default function RBACAdmin() {
         setIsEditDialogOpen(false);
         setEditingUser(null);
         shouldCloseDialogRef.current = false;
+        
+        // NOW invalidate the cache after dialog is closed
+        setTimeout(() => {
+          console.log('🔄 Invalidating cache after dialog closed');
+          queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+        }, 100);
       }
     }, [updateUserMutation.isPending]);
 
