@@ -657,11 +657,13 @@ export default function RBACAdmin() {
                       updateUserMutation.mutate({
                         id: editingUser.id, 
                         data: updatePayload
+                      }, {
+                        onSuccess: () => {
+                          // Close dialog after successful update
+                          setIsEditDialogOpen(false);
+                          setEditingUser(null);
+                        }
                       });
-                      
-                      // Close dialog after submitting
-                      setIsEditDialogOpen(false);
-                      setEditingUser(null);
                     }
                   }}
                   disabled={updateUserMutation.isPending || !editingUser?.email?.trim()}
