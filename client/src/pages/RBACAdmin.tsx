@@ -679,9 +679,9 @@ export default function RBACAdmin() {
                           data: updatePayload
                         });
                         
-                        console.log('✅ Mutation completed, closing dialog in 50ms');
+                        console.log('✅ Mutation completed, will close dialog in 2 seconds');
                         
-                        // Close dialog first
+                        // Close dialog after 2 seconds so you can SEE it staying open
                         setTimeout(() => {
                           console.log('🔒 Closing dialog now');
                           setIsEditDialogOpen(false);
@@ -691,8 +691,8 @@ export default function RBACAdmin() {
                           setTimeout(() => {
                             console.log('🔄 Invalidating cache');
                             queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
-                          }, 150);
-                        }, 50);
+                          }, 200);
+                        }, 2000);
                         
                       } catch (error) {
                         console.error('❌ Mutation failed:', error);
