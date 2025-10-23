@@ -65,6 +65,12 @@ export default function Schedule() {
 
   const { data: scheduleChanges = [], isLoading: changesLoading } = useQuery<ScheduleChange[]>({
     queryKey: ["/api/schedule-changes"],
+    retry: false,
+    meta: {
+      onError: () => {
+        // Silently handle - schedule changes endpoint may not be implemented yet
+      }
+    }
   });
 
   const createScheduleChangeMutation = useMutation({
