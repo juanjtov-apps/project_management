@@ -203,6 +203,15 @@ export default function TabletProjects() {
     setLocation(`/client-portal?project=${project.id}`);
   };
 
+  const handleEditDialogChange = (open: boolean) => {
+    setIsEditDialogOpen(open);
+    if (!open) {
+      // Clean up when dialog closes
+      setEditingProject(null);
+      editForm.reset();
+    }
+  };
+
   // Active filters
   const activeFilters = [];
   if (statusFilter !== "all") {
@@ -545,7 +554,7 @@ export default function TabletProjects() {
       </Dialog>
 
       {/* Edit Project Dialog - Similar structure to Create */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={handleEditDialogChange}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Project</DialogTitle>
@@ -690,7 +699,7 @@ export default function TabletProjects() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsEditDialogOpen(false)}
+                  onClick={() => handleEditDialogChange(false)}
                   data-testid="button-cancel-edit"
                 >
                   Cancel
