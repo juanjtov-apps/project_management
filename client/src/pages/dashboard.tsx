@@ -24,38 +24,44 @@ export default function Dashboard() {
   const [isMobileFABOpen, setIsMobileFABOpen] = useState(false);
   
   return (
-    <div className="max-w-[1440px] mx-auto space-y-8 mt-6" data-testid="dashboard">
+    <div className="overflow-hidden h-full" data-testid="dashboard">
+      <div className="overflow-auto h-full">
+        <div className="mx-auto max-w-screen-lg px-6 md:px-8 space-y-8 mt-6">
       {/* Quick Stats */}
       <StatsCards />
 
       <Tabs defaultValue="overview" className="w-full">
-        <div className="overflow-x-auto snap-x snap-mandatory whitespace-nowrap md:overflow-x-visible">
-          <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-4 p-1 bg-muted rounded-lg" style={{backgroundColor: 'hsl(210, 15%, 95%)', border: '1px solid hsl(210, 15%, 85%)'}}>
+        <div className="sticky top-16 z-30 bg-white border-b border-slate-200 px-2 py-2 -mx-6 md:-mx-8 mb-8">
+          <TabsList className="w-full grid grid-cols-4 p-1 bg-slate-50 rounded-lg">
             <TabsTrigger 
               value="overview" 
-              className="whitespace-nowrap snap-center data-[state=active]:bg-white data-[state=active]:shadow-sm relative data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary focus-ring min-h-[44px]" 
+              className="min-h-[48px] data-[state=active]:bg-white data-[state=active]:shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-200" 
               style={{color: 'var(--brand-blue)'}}
+              aria-label="Project Overview"
             >
               Project Overview
             </TabsTrigger>
             <TabsTrigger 
               value="tasks" 
-              className="whitespace-nowrap snap-center data-[state=active]:bg-white data-[state=active]:shadow-sm relative data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary focus-ring min-h-[44px]" 
+              className="min-h-[48px] data-[state=active]:bg-white data-[state=active]:shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-200" 
               style={{color: 'var(--brand-blue)'}}
+              aria-label="Task Management"
             >
               Task Management
             </TabsTrigger>
             <TabsTrigger 
               value="communications" 
-              className="whitespace-nowrap snap-center data-[state=active]:bg-white data-[state=active]:shadow-sm relative data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary focus-ring min-h-[44px]" 
+              className="min-h-[48px] data-[state=active]:bg-white data-[state=active]:shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-200" 
               style={{color: 'var(--brand-blue)'}}
+              aria-label="Communications"
             >
               Communications
             </TabsTrigger>
             <TabsTrigger 
               value="financial" 
-              className="whitespace-nowrap snap-center data-[state=active]:bg-white data-[state=active]:shadow-sm relative data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary focus-ring min-h-[44px]" 
+              className="min-h-[48px] data-[state=active]:bg-white data-[state=active]:shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-200" 
               style={{color: 'var(--brand-blue)'}}
+              aria-label="Financial Health"
             >
               Financial Health
             </TabsTrigger>
@@ -123,6 +129,8 @@ export default function Dashboard() {
           </div>
         </SheetContent>
       </Sheet>
+        </div>
+      </div>
     </div>
   );
 }

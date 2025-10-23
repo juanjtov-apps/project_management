@@ -1,0 +1,55 @@
+Context
+React app with Tailwind and shadcn ui. This task is front end only. Do not touch database schemas, API contracts, or backend routes. Target tablet widths from 768 to 1024. The goal is to remove clipping, align components, improve spacing, and ensure fast touch use.
+
+Key problems visible on tablet
+• Long project names in Project Health Status overflow into neighboring cards and clip
+• The active chip overlaps text and pushes layout
+• KPI cards have inconsistent heights and icon sizing
+• The tab row under the KPI strip is not sticky to the correct offset and wastes vertical space
+• Card gutters and progress bar heights are inconsistent
+• Risk of double scroll in content region and sticky elements overlapping content
+
+Deliverables
+Create or update shared components and utilities only in the front end. Update Dashboard composition to use them. Keep existing props and routes.
+
+Work plan
+	1.	Layout and container
+• Wrap dashboard content in a container with max width and consistent side padding
+Example for the page content wrapper
+className: mx auto max w screen lg px 6 md px 8
+• Ensure the main scroll area is the page content div not the whole document to keep sticky elements stable
+parent: overflow hidden
+scroller: overflow auto
+	2.	Sticky tab row
+• Make the tab row below the KPI strip sticky with the correct offset
+className on the tab row container
+sticky top 16 z 30 bg white border b border slate 200 px 2 py 2
+Adjust top to match header height if the header differs
+• Remove any extra vertical padding so it occupies one compact row
+• Ensure no horizontal scroll is introduced at tablet widths
+	3.	KPI cards
+• Build a StatCard component and replace the four KPI tiles
+Props: icon value label sublabel optional tone
+Layout
+container: rounded 2xl bg white ring 1 ring slate 200 p 4 shadow sm min h 88 flex items center gap 4
+icon wrapper: h 12 w 12 rounded xl bg slate 50 text slate 600 flex items center justify center
+value: text 2xl font semibold leading tight
+label: text sm text slate 500
+sublabel when present: text xs text slate 400
+• Place the four KPI cards in a grid with two columns on tablet and four on desktop
+grid grid cols 2 gap 4 md gap 6 lg grid cols 4
+• Ensure each card is fully tappable and has aria labels
+	4.	Multi project overview card
+• Inside the card use a grid with two columns on tablet
+grid grid cols 2 gap 4
+• Use a shared MiniMetric component for Average progress Budget usage Critical projects New this week
+Equal heights and consistent typography
+• Buttons inside the card use size small and do not shift layout
+	5.	Project Health Status grid
+• Use a two column grid on tablet
+grid grid cols 2 gap 4
+• Card height and spacing
+card: rounded 2xl bg white ring 1 ring slate 200 p 4 shadow sm flex flex col gap 3
+• Fix title overflow and cross column clipping
+On the text container add min w 0
+On the title add truncate and title attribute

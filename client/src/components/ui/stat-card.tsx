@@ -1,54 +1,70 @@
 import { LucideIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface StatCardProps {
-  title: string;
+  icon: LucideIcon;
   value: string | number;
-  icon?: LucideIcon;
-  subtitle?: string;
+  label: string;
+  sublabel?: string;
+  tone?: "teal" | "blue" | "coral" | "slate";
+  ariaLabel?: string;
   onClick?: () => void;
-  className?: string;
   "data-testid"?: string;
 }
 
+const toneStyles = {
+  teal: {
+    iconBg: "bg-teal-50",
+    iconColor: "text-teal-600",
+    valueColor: "text-teal-700",
+  },
+  blue: {
+    iconBg: "bg-blue-50",
+    iconColor: "text-blue-600",
+    valueColor: "text-blue-700",
+  },
+  coral: {
+    iconBg: "bg-orange-50",
+    iconColor: "text-orange-600",
+    valueColor: "text-orange-700",
+  },
+  slate: {
+    iconBg: "bg-slate-50",
+    iconColor: "text-slate-600",
+    valueColor: "text-slate-700",
+  },
+};
+
 export function StatCard({
-  title,
-  value,
   icon: Icon,
-  subtitle,
+  value,
+  label,
+  sublabel,
+  tone = "slate",
+  ariaLabel,
   onClick,
-  className,
   "data-testid": testId,
 }: StatCardProps) {
-  const isClickable = !!onClick;
-
+  const styles = toneStyles[tone];
+  const Component = onClick ? "button" : "div";
+  
   return (
-    <button
+    <Component
+      className="rounded-2xl bg-white ring-1 ring-slate-200 p-4 shadow-sm min-h-[88px] flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-slate-200"
       onClick={onClick}
-      disabled={!isClickable}
-      data-testid={testId}
-      className={cn(
-        "tap-target card-surface flex flex-col items-start text-left transition-all",
-        "border border-border hover:border-primary/50",
-        isClickable && "cursor-pointer hover:shadow-lg active:scale-[0.98]",
-        !isClickable && "cursor-default",
-        className
-      )}
-      aria-label={`${title}: ${value}${subtitle ? `, ${subtitle}` : ""}`}
+      aria-label={ariaLabel || `${label}: ${value}${sublabel ? `, ${sublabel}` : ""}`}
+      tabIndex={onClick ? 0 : undefined}
+      data-testid={testId || `stat-card-${label.toLowerCase().replace(/\s+/g, '-')}`}
     >
-      <div className="flex items-center justify-between w-full mb-3">
-        <h3 className="text-sm font-medium text-[var(--text-secondary)]">{title}</h3>
-        {Icon && (
-          <Icon className="w-5 h-5 text-[var(--color-primary-600)]" aria-hidden="true" />
+      <div className={`h-12 w-12 rounded-xl ${styles.iconBg} ${styles.iconColor} flex items-center justify-center flex-shrink-0`}>
+        <Icon size={28} strokeWidth={2} aria-hidden="true" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-slate-500 font-medium leading-tight">{label}</p>
+        <p className={`text-2xl font-semibold leading-tight tabular-nums ${styles.valueColor}`}>{value}</p>
+        {sublabel && (
+          <p className="text-xs text-slate-400 mt-0.5">{sublabel}</p>
         )}
       </div>
-      
-      <div className="flex flex-col gap-1">
-        <p className="text-3xl font-bold text-[var(--text-primary)]">{value}</p>
-        {subtitle && (
-          <p className="text-xs text-[var(--text-secondary)]">{subtitle}</p>
-        )}
-      </div>
-    </button>
+    </Component>
   );
 }

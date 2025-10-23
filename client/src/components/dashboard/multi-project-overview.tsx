@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Card } from "@/components/ui/card";
+import { MiniMetric } from "@/components/ui/mini-metric";
+import { ProjectHealthCard } from "@/components/ui/project-health-card";
 import type { Project } from "@shared/schema";
 import { 
   Building, 
@@ -13,39 +12,8 @@ import {
   CheckCircle, 
   Clock,
   DollarSign,
-  Users,
   Calendar
 } from "lucide-react";
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "completed":
-      return "border" + " " + "text-xs" + " " + "px-2" + " " + "py-1" + " " + "rounded";
-    case "active":
-      return "border" + " " + "text-xs" + " " + "px-2" + " " + "py-1" + " " + "rounded";
-    case "on-hold":
-      return "border" + " " + "text-xs" + " " + "px-2" + " " + "py-1" + " " + "rounded";
-    case "delayed":
-      return "border" + " " + "text-xs" + " " + "px-2" + " " + "py-1" + " " + "rounded";
-    default:
-      return "border" + " " + "text-xs" + " " + "px-2" + " " + "py-1" + " " + "rounded";
-  }
-};
-
-const getStatusStyle = (status: string) => {
-  switch (status) {
-    case "completed":
-      return { backgroundColor: 'hsl(180, 70%, 40%, 0.1)', color: 'var(--brand-teal)', borderColor: 'hsl(180, 70%, 40%, 0.3)' };
-    case "active":
-      return { backgroundColor: 'hsl(210, 100%, 15%, 0.1)', color: 'var(--brand-blue)', borderColor: 'hsl(210, 100%, 15%, 0.3)' };
-    case "on-hold":
-      return { backgroundColor: 'hsl(210, 15%, 85%, 0.1)', color: 'var(--brand-ink)', borderColor: 'hsl(210, 15%, 85%, 0.3)' };
-    case "delayed":
-      return { backgroundColor: 'hsl(15, 85%, 65%, 0.1)', color: 'var(--brand-coral)', borderColor: 'hsl(15, 85%, 65%, 0.3)' };
-    default:
-      return { backgroundColor: 'hsl(210, 15%, 85%, 0.1)', color: 'var(--brand-ink)', borderColor: 'hsl(210, 15%, 85%, 0.3)' };
-  }
-};
 
 const getHealthStatus = (progress: number, status: string) => {
   if (status === "completed") return { icon: CheckCircle, color: { color: 'var(--brand-teal)' }, text: "Complete" };
@@ -76,13 +44,13 @@ export default function MultiProjectOverview() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="space-y-4">
+        <div className="rounded-2xl bg-white ring-1 ring-slate-200 p-4 shadow-sm">
           <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-gray-200 rounded w-1/3"></div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="h-6 bg-slate-200 rounded w-1/3"></div>
+            <div className="grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-20 bg-gray-200 rounded"></div>
+                <div key={i} className="h-20 bg-slate-200 rounded"></div>
               ))}
             </div>
           </div>
@@ -92,69 +60,60 @@ export default function MultiProjectOverview() {
   }
 
   return (
-    <div className="space-y-6" data-testid="multi-project-overview">
+    <div className="space-y-4" data-testid="multi-project-overview">
       {/* Overview Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="rounded-2xl bg-white ring-1 ring-slate-200 p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold" style={{color: 'var(--brand-blue)'}}>Multi-Project Overview</h2>
           <Button
             variant="outline"
             onClick={() => setLocation("/projects")}
-            className="hover:text-white" style={{color: 'var(--brand-teal)', borderColor: 'var(--brand-teal)'}} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--brand-teal)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            className="hover:text-white focus:outline-none focus:ring-4 focus:ring-slate-200" style={{color: 'var(--brand-teal)', borderColor: 'var(--brand-teal)'}} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--brand-teal)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             data-testid="view-all-projects"
+            aria-label="View all projects"
           >
             View All Projects
           </Button>
         </div>
 
         {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-gray-600">Active Projects</p>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{backgroundColor: 'hsl(210, 100%, 15%, 0.1)'}}>
-                <Building style={{color: 'var(--brand-blue)'}} size={20} />
-              </div>
-            </div>
-            <p className="text-3xl font-bold tabular-nums" style={{color: 'var(--brand-blue)'}}>{activeProjects.length}</p>
-          </div>
+        <div className="grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">
+          <MiniMetric
+            icon={Building}
+            value={activeProjects.length}
+            label="Active Projects"
+            tone="blue"
+            data-testid="metric-active-projects"
+          />
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-gray-600">Avg Progress</p>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{backgroundColor: 'hsl(180, 70%, 40%, 0.1)'}}>
-                <TrendingUp style={{color: 'var(--brand-teal)'}} size={20} />
-              </div>
-            </div>
-            <p className="text-3xl font-bold tabular-nums" style={{color: 'var(--brand-teal)'}}>{averageProgress}%</p>
-          </div>
+          <MiniMetric
+            icon={TrendingUp}
+            value={`${averageProgress}%`}
+            label="Avg Progress"
+            tone="teal"
+            data-testid="metric-avg-progress"
+          />
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-gray-600">Budget Usage</p>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{backgroundColor: 'hsl(15, 85%, 65%, 0.1)'}}>
-                <DollarSign style={{color: 'var(--brand-coral)'}} size={20} />
-              </div>
-            </div>
-            <p className="text-3xl font-bold tabular-nums" style={{color: 'var(--brand-coral)'}}>
-              {totalBudget > 0 ? Math.round((totalActualCost / totalBudget) * 100) : 0}%
-            </p>
-          </div>
+          <MiniMetric
+            icon={DollarSign}
+            value={`${totalBudget > 0 ? Math.round((totalActualCost / totalBudget) * 100) : 0}%`}
+            label="Budget Usage"
+            tone="coral"
+            data-testid="metric-budget-usage"
+          />
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-gray-600">Critical Projects</p>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{backgroundColor: 'hsl(15, 85%, 65%, 0.1)'}}>
-                <AlertTriangle style={{color: 'var(--brand-coral)'}} size={20} />
-              </div>
-            </div>
-            <p className="text-3xl font-bold tabular-nums" style={{color: 'var(--brand-coral)'}}>{criticalProjects.length}</p>
-          </div>
+          <MiniMetric
+            icon={AlertTriangle}
+            value={criticalProjects.length}
+            label="Critical Projects"
+            tone="coral"
+            data-testid="metric-critical-projects"
+          />
         </div>
       </div>
 
       {/* Project Health Cards */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="rounded-2xl bg-white ring-1 ring-slate-200 p-4 shadow-sm">
         <h3 className="text-lg font-semibold mb-4" style={{color: 'var(--brand-blue)'}}>Project Health Status</h3>
         
         {projects.length === 0 ? (
@@ -170,76 +129,31 @@ export default function MultiProjectOverview() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4 md:gap-6">
             {projects.slice(0, 6).map((project) => {
               const health = getHealthStatus(project.progress, project.status);
-              const HealthIcon = health.icon;
+              const statusMap: Record<string, "active" | "on-hold" | "completed" | "planning"> = {
+                "active": "active",
+                "on-hold": "on-hold",
+                "completed": "completed",
+                "planning": "planning",
+                "delayed": "on-hold",
+              };
               
               return (
-                <Card 
-                  key={project.id} 
-                  className="p-4 hover:shadow-md transition-shadow cursor-pointer"
+                <ProjectHealthCard
+                  key={project.id}
+                  projectName={project.name}
+                  location={project.location}
+                  progress={project.progress}
+                  status={statusMap[project.status] || "planning"}
+                  healthIcon={health.icon}
+                  healthLabel={health.text}
+                  healthColor={health.color.color}
+                  dueDate={project.dueDate ? new Date(project.dueDate).toLocaleDateString() : undefined}
                   onClick={() => setLocation("/projects")}
                   data-testid={`project-health-card-${project.id}`}
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4 className="font-semibold truncate" title={project.name} style={{color: 'var(--brand-blue)'}}>
-                          {project.name}
-                        </h4>
-                        <p className="text-sm text-gray-600 truncate" title={project.location}>
-                          {project.location}
-                        </p>
-                      </div>
-                      <Badge className={getStatusColor(project.status)} style={getStatusStyle(project.status)}>
-                        {project.status}
-                      </Badge>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Progress</span>
-                        <span className="font-medium">{project.progress}%</span>
-                      </div>
-                      <Progress value={project.progress} className="h-2" />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1">
-                        <HealthIcon size={16} style={health.color} />
-                        <span className="text-sm font-medium">{health.text}</span>
-                      </div>
-                      {project.dueDate && (
-                        <div className="flex items-center space-x-1 text-sm text-gray-500">
-                          <Calendar size={14} />
-                          <span>{new Date(project.dueDate).toLocaleDateString()}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {project.budget && (
-                      <div className="pt-2 border-t border-gray-100">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Budget</span>
-                          <span className="font-medium">
-                            ${(project.budget / 100).toLocaleString()}
-                          </span>
-                        </div>
-                        {(project.actualCost ?? 0) > 0 && (
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600">Spent</span>
-                            <span className={`font-medium ${
-                              (project.actualCost ?? 0) > (project.budget ?? 0) ? 'text-red-600' : 'text-gray-800'
-                            }`}>
-                              ${((project.actualCost ?? 0) / 100).toLocaleString()}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </Card>
+                />
               );
             })}
           </div>
