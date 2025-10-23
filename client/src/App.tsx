@@ -8,8 +8,7 @@ import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
-import Projects from "@/pages/projects-tablet";
-import Tasks from "@/pages/tasks-tablet";
+import WorkPage from "@/pages/work-page";
 import Schedule from "@/pages/schedule";
 import Photos from "@/pages/photos";
 import Logs from "@/pages/logs";
@@ -49,8 +48,9 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
         <>
           <Route path="/" component={Dashboard} />
           <Route path="/dashboard" component={Dashboard} />
-          <Route path="/projects" component={Projects} />
-          <Route path="/tasks" component={Tasks} />
+          <Route path="/work" component={WorkPage} />
+          <Route path="/projects" component={WorkPage} />
+          <Route path="/tasks" component={WorkPage} />
           <Route path="/project-health" component={ProjectHealth} />
           <Route path="/schedule" component={Schedule} />
           <Route path="/photos" component={Photos} />

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Logo } from "@/components/ui/logo";
 import { 
   LayoutDashboard, 
+  Briefcase,
   Building, 
   CheckSquare, 
   Calendar, 
@@ -25,8 +26,7 @@ import {
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Projects", href: "/projects", icon: Building },
-  { name: "Tasks", href: "/tasks", icon: CheckSquare },
+  { name: "Work", href: "/work", icon: Briefcase },
   { name: "Project Health", href: "/project-health", icon: TrendingUp },
   { name: "Schedule", href: "/schedule", icon: Calendar },
   { name: "Photos", href: "/photos", icon: Camera },
@@ -57,8 +57,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   // Map navigation items to their permission keys (match Node.js backend permission structure)
   const navigationPermissions = {
     'Dashboard': 'dashboard',
-    'Projects': 'projects', 
-    'Tasks': 'tasks',
+    'Work': 'projects', // Work combines projects and tasks - check projects permission
     'Project Health': 'projectHealth',
     'Schedule': 'schedule',
     'Photos': 'photos',
