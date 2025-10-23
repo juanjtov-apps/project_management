@@ -109,55 +109,47 @@ export default function MultiProjectOverview() {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-5 h-full" style={{background: 'linear-gradient(to bottom right, hsl(210, 100%, 15%, 0.08), hsl(210, 100%, 15%, 0.15))', borderColor: 'hsl(210, 100%, 15%, 0.2)'}}>
-            <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-600">Active Projects</p>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{backgroundColor: 'hsl(210, 100%, 15%, 0.1)'}}>
-                  <Building style={{color: 'var(--brand-blue)'}} size={20} />
-                </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-gray-600">Active Projects</p>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{backgroundColor: 'hsl(210, 100%, 15%, 0.1)'}}>
+                <Building style={{color: 'var(--brand-blue)'}} size={20} />
               </div>
-              <p className="text-3xl font-bold tabular-nums" style={{color: 'var(--brand-blue)'}}>{activeProjects.length}</p>
             </div>
-          </Card>
+            <p className="text-3xl font-bold tabular-nums" style={{color: 'var(--brand-blue)'}}>{activeProjects.length}</p>
+          </div>
 
-          <Card className="p-5 h-full" style={{background: 'linear-gradient(to bottom right, hsl(180, 70%, 40%, 0.08), hsl(180, 70%, 40%, 0.15))', borderColor: 'hsl(180, 70%, 40%, 0.2)'}}>
-            <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-600">Avg Progress</p>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{backgroundColor: 'hsl(180, 70%, 40%, 0.1)'}}>
-                  <TrendingUp style={{color: 'var(--brand-teal)'}} size={20} />
-                </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-gray-600">Avg Progress</p>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{backgroundColor: 'hsl(180, 70%, 40%, 0.1)'}}>
+                <TrendingUp style={{color: 'var(--brand-teal)'}} size={20} />
               </div>
-              <p className="text-3xl font-bold tabular-nums" style={{color: 'var(--brand-teal)'}}>{averageProgress}%</p>
             </div>
-          </Card>
+            <p className="text-3xl font-bold tabular-nums" style={{color: 'var(--brand-teal)'}}>{averageProgress}%</p>
+          </div>
 
-          <Card className="p-5 h-full" style={{background: 'linear-gradient(to bottom right, hsl(15, 85%, 65%, 0.08), hsl(15, 85%, 65%, 0.15))', borderColor: 'hsl(15, 85%, 65%, 0.2)'}}>
-            <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-600">Budget Usage</p>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{backgroundColor: 'hsl(15, 85%, 65%, 0.1)'}}>
-                  <DollarSign style={{color: 'var(--brand-coral)'}} size={20} />
-                </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-gray-600">Budget Usage</p>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{backgroundColor: 'hsl(15, 85%, 65%, 0.1)'}}>
+                <DollarSign style={{color: 'var(--brand-coral)'}} size={20} />
               </div>
-              <p className="text-3xl font-bold tabular-nums" style={{color: 'var(--brand-coral)'}}>
-                {totalBudget > 0 ? Math.round((totalActualCost / totalBudget) * 100) : 0}%
-              </p>
             </div>
-          </Card>
+            <p className="text-3xl font-bold tabular-nums" style={{color: 'var(--brand-coral)'}}>
+              {totalBudget > 0 ? Math.round((totalActualCost / totalBudget) * 100) : 0}%
+            </p>
+          </div>
 
-          <Card className="p-5 h-full" style={{background: 'linear-gradient(to bottom right, hsl(15, 85%, 65%, 0.08), hsl(15, 85%, 65%, 0.15))', borderColor: 'hsl(15, 85%, 65%, 0.2)'}}>
-            <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-600">Critical Projects</p>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{backgroundColor: 'hsl(15, 85%, 65%, 0.1)'}}>
-                  <AlertTriangle style={{color: 'var(--brand-coral)'}} size={20} />
-                </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-gray-600">Critical Projects</p>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{backgroundColor: 'hsl(15, 85%, 65%, 0.1)'}}>
+                <AlertTriangle style={{color: 'var(--brand-coral)'}} size={20} />
               </div>
-              <p className="text-3xl font-bold tabular-nums" style={{color: 'var(--brand-coral)'}}>{criticalProjects.length}</p>
             </div>
-          </Card>
+            <p className="text-3xl font-bold tabular-nums" style={{color: 'var(--brand-coral)'}}>{criticalProjects.length}</p>
+          </div>
         </div>
       </div>
 
