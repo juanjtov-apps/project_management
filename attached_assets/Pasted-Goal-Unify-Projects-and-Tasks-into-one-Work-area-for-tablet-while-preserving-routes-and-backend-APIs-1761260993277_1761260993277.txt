@@ -1,0 +1,40 @@
+Goal
+Unify Projects and Tasks into one Work area for tablet while preserving routes and backend APIs.
+
+Scope
+Front end only. React with Tailwind and shadcn ui. Do not touch database schemas, API endpoints, or permissions. Target widths from 768 to 1024.
+
+Tasks
+	1.	Create src/pages/WorkPage.tsx
+• Header with breadcrumb Work and a centered segmented control Projects and Tasks
+• Right side actions Search icon, Notifications icon, Avatar
+• Sticky header height sixty. Ensure minimum tap targets forty eight by forty eight
+• Persist selected segment in localStorage work.segment
+	2.	Projects segment
+• Render the existing Projects index inside WorkPage content
+• Ensure grid is two columns on tablet and one on narrow screens
+• Keep search, filters, sort, and New project button
+• Remove any duplicate page title and KPIs to avoid double headers
+	3.	Tasks segment
+• Render the existing Task Management list inside WorkPage content
+• Keep the stat cards at the top because they are specific to tasks
+• Ensure filters and saved views work and persist across segments
+• Group by project with collapsible headers and inline quick edits
+	4.	Routing
+• Add route /work that mounts WorkPage and defaults to the Projects segment
+• Keep /projects and /tasks. When navigated directly, wrap their content in the same header used by WorkPage so the experience stays consistent
+• Update left nav to replace separate Projects and Tasks entries with a single Work entry. Add quick links beneath Work as secondary links Projects and Tasks if space allows
+	5.	Shared components
+• Segmented control, FilterBar, StatCard, ProjectCard, TaskRow live in src/components/ui
+• Do not duplicate these components across segments
+	6.	Accessibility and performance
+• All icon buttons have aria labels
+• Single scroll container below the header to keep sticky elements stable
+• Virtualize task list over one hundred rows with react window
+
+Acceptance
+• Work shows a Projects segment and a Tasks segment with a single sticky header
+• Left nav has a Work entry and the old routes still deep link correctly
+• No duplicate summary cards and no repeated Proesphere branding in the header
+• Lighthouse accessibility score at least ninety on tablet widths
+• Filters and saved views persist when switching segments and when returning to Work
