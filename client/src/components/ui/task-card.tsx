@@ -81,14 +81,15 @@ export function TaskCard({
         )}
         
         {onSelect && (
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={onSelect}
-            data-testid={`task-checkbox-${id}`}
-            className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-            aria-label={`Select ${title}`}
-          />
+          <label className="tap-target cursor-pointer" aria-label={`Select ${title}`}>
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={onSelect}
+              data-testid={`task-checkbox-${id}`}
+              className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+            />
+          </label>
         )}
       </div>
 

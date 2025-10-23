@@ -11,11 +11,12 @@ export function highlightText(text: string, searchTerm: string): React.ReactNode
 
   const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
   const parts = text.split(regex);
+  const searchTermLower = searchTerm.toLowerCase();
 
   return (
     <>
       {parts.map((part, index) =>
-        regex.test(part) ? (
+        part.toLowerCase() === searchTermLower ? (
           <mark
             key={index}
             className="bg-yellow-200 dark:bg-yellow-800 font-medium"

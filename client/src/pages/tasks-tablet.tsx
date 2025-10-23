@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useMemo } from "react";
-import { FixedSizeList } from "react-window";
+import { List } from "react-window";
 import { Plus, Edit, Trash2, Copy, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -470,7 +470,7 @@ export default function TabletTasks() {
                   projectTasks.length > 100 ? (
                     // Virtualized list for performance with large datasets
                     <div className="mt-3">
-                      <FixedSizeList
+                      <List
                         height={600}
                         itemCount={projectTasks.length}
                         itemSize={120}
@@ -509,7 +509,7 @@ export default function TabletTasks() {
                             </div>
                           );
                         }}
-                      </FixedSizeList>
+                      </List>
                     </div>
                   ) : (
                     // Regular list for smaller datasets
