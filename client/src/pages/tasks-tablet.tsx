@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useMemo } from "react";
 import { List } from "react-window";
-import { Plus, Edit, Trash2, Copy, FolderOpen } from "lucide-react";
+import { Plus, Edit, Trash2, Copy, FolderOpen, ListTodo, AlertCircle, Calendar as CalendarIcon, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -361,29 +361,36 @@ export default function TabletTasks() {
       <div className="sticky-top bg-background border-b border-border px-6 py-4 z-10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
-            title="Total Tasks"
+            icon={ListTodo}
+            label="Total Tasks"
             value={taskStats.total}
-            subtitle="All tasks"
+            sublabel="All tasks"
             onClick={() => handleClearAllFilters()}
             data-testid="stat-total-tasks"
           />
           <StatCard
-            title="Overdue"
+            icon={AlertCircle}
+            label="Overdue"
             value={taskStats.overdue}
-            subtitle="Behind schedule"
+            sublabel="Behind schedule"
+            tone="coral"
             onClick={() => setStatusFilter("overdue")}
             data-testid="stat-overdue-tasks"
           />
           <StatCard
-            title="Due This Week"
+            icon={CalendarIcon}
+            label="Due This Week"
             value={taskStats.dueThisWeek}
-            subtitle="Due within 7 days"
+            sublabel="Due within 7 days"
+            tone="blue"
             data-testid="stat-due-this-week"
           />
           <StatCard
-            title="Completed"
+            icon={CheckCircle}
+            label="Completed"
             value={taskStats.completed}
-            subtitle="Finished tasks"
+            sublabel="Finished tasks"
+            tone="teal"
             onClick={() => setStatusFilter("completed")}
             data-testid="stat-completed-tasks"
           />
