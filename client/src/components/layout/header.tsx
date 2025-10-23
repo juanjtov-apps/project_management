@@ -87,8 +87,8 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
             <div className="flex items-center gap-2">
               <Logo size="sm" className="rounded-full shadow-sm" />
               <div className="hidden sm:block">
-                <h1 className="text-fluid-lg font-semibold text-foreground">Proesphere</h1>
-                <p className="text-xs text-muted-foreground hidden lg:block">{companyName}</p>
+                <h1 className="text-fluid-lg font-semibold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent">Proesphere</h1>
+                <p className="text-xs text-muted-foreground">Construction Management</p>
               </div>
             </div>
           </div>
@@ -127,8 +127,8 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
                     <div className="text-sm font-medium text-foreground">
                       {user?.firstName || user?.name || user?.email || "User"}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      Proesphere
+                    <div className="text-xs text-muted-foreground capitalize">
+                      {user?.role?.replace(/_/g, ' ') || 'User'}
                     </div>
                   </div>
                 </div>
