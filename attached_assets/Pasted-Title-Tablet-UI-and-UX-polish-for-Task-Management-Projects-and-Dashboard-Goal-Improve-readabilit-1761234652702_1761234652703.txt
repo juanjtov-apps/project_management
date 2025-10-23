@@ -1,0 +1,188 @@
+Title: Tablet UI and UX polish for Task Management, Projects, and Dashboard
+
+Goal
+Improve readability, speed of use, and touch targets for tablet users. Preserve current data and routes. All work is front end only.
+
+General rules
+	1.	Target tablet width from 768 to 1024.
+	2.	Minimum tap area 48 by 48.
+	3.	Use semantic headings and landmarks for screen readers.
+	4.	Replace tooltips with visible micro labels or helper text since tablet users do not hover.
+	5.	Persist view preferences and filters in localStorage.
+	6.	Never remove existing functionality. Add polish and quick actions.
+	7.	Keep color contrast above WCAG AA.
+	8.	Reuse components across modules.
+
+Design tokens in css variables
+Define the following in a global stylesheet or Tailwind theme extension.
+colorPrimary600 rgb 24 119 242
+colorDanger600 rgb 220 38 38
+colorWarning600 rgb 217 119 6
+colorSuccess600 rgb 5 150 105
+surfaceCard rgb 255 255 255
+surfaceMuted rgb 248 250 252
+textPrimary rgb 15 23 42
+textSecondary rgb 71 85 105
+radiusLg 16px
+radiusXl 20px
+shadowSm 0 1px 2px rgba 0 0 0 0.06
+shadowMd 0 4px 12px rgba 0 0 0 0.08
+spaceXs 8px
+spaceSm 12px
+spaceMd 16px
+spaceLg 20px
+spaceXl 24px
+
+Shared components to create under src components ui
+StatCard
+FilterBar
+SegmentedControl
+AvatarGroup
+OverflowMenu
+StickyHeader
+BottomActionBar
+TaskCard
+ProjectCard
+KpiCard
+EmptyState
+LoadingSkeleton
+
+State utilities under src lib
+useLocalStorage
+useDebouncedValue
+
+Performance
+Virtualize long lists with react window in Task Management once there are more than 100 rows.
+Show LoadingSkeleton placeholders while data is fetched.
+
+Accessibility
+Provide aria labels for all icon buttons.
+Ensure focus rings are visible and not removed.
+
+Module work
+
+Task Management module
+A. Header and stats
+Convert the four top stat cards into StatCard components. Make each card tappable and apply an immediate filter
+Total opens no filter
+Overdue filters status to overdue
+Due this week filters by dueWithin seven days
+Completed filters status to done
+Keep the stats row sticky when scrolling.
+Add small micro copy under each number for clarity. Example Behind schedule and Due within seven.
+
+B. Filters and search
+Replace the current long filter row with a compact FilterBar that is sticky below the stats.
+Elements inside FilterBar
+Search with 250 ms debounce and highlighted matches in results
+Status, Priority, People, More filters as chip selectors. When active, show a numeric badge
+Clear all button appears only when a filter is active
+Save view button persists the current filter set and list grouping in localStorage
+Keep Collapse all and Bulk edit but move them to the right in the same bar
+
+C. List and grouping
+Keep grouping by project. Convert each group header into a StickyHeader with
+Project name
+Count of tasks in that group
+Expand or collapse control
+The Collapse all control should persist the last state across navigation.
+TaskCard layout for each row
+Left side status dot and drag handle
+Title bold line one with truncation
+Second line shows project name and location when present
+Meta row shows priority pill, assignee AvatarGroup, due date and a small clock icon when overdue
+Right side shows SegmentedControl for status quick change In progress Pending Done and an OverflowMenu for secondary actions edit duplicate delete move
+Inline quick edits do not navigate away. Use optimistic updates with toast success and rollback on error.
+Enable multi select on long press or by tapping a circular checkbox that appears in selection mode. When one or more rows are selected, show BottomActionBar with Change status Change priority Assign Change due date Move Delete
+
+D. Canvas and List toggle
+Replace the current Canvas or List buttons with a SegmentedControl placed under the page title. Default to List on tablet. Persist preference in localStorage.
+
+E. Empty and edge states
+If a filter returns no items, show an EmptyState with a Create task button that opens the current New Task flow.
+If the network fails, show a retry banner and keep the current list onscreen.
+
+Acceptance for Task Management
+All stat cards filter correctly
+Sticky bars do not overlap content
+Expand or collapse states persist
+Inline status or priority or assignee updates feel instant and show a toast
+Keyboard search and filter clear work
+List remains smooth with 500 tasks due to virtualization
+
+Projects module
+A. Layout
+Use a responsive grid with two columns on tablet and one column on narrow screens. Preserve the List toggle but default to List for tablet.
+
+B. ProjectCard content
+Title and status chip Active or On hold
+Location and small meta line
+Progress bar using percentage with subtle label
+Task count
+Last updated short date
+AvatarGroup for project members
+Replace inline edit and delete icons with an OverflowMenu that contains Open Add task Gallery Edit Delete The Delete action must confirm
+Make the Gallery button a standard secondary button to reduce confusion
+
+C. Search and filters
+Add a search box and filters for status and city in a FilterBar under the header.
+Add sort options Recent activity ascending or descending and Name ascending or descending.
+
+D. Create project entry
+Move New Project to a floating action button on tablet bottom right that opens a slide over. Keep the original top right button as a secondary path.
+
+E. Empty state
+Show an EmptyState with Create your first project when there are none.
+
+Acceptance for Projects
+Cards align cleanly in two columns on tablet and no overlap occurs
+OverflowMenu actions work
+Search and filters combine correctly
+Progress bars are consistent height and color
+
+Dashboard module
+A. KPI strip
+Convert the top four KPIs into KpiCard components with consistent icon size, number, and label. On tablet show a two by two grid. Each card is tappable and deep links into the correct filtered view
+Active projects opens Projects with status active
+Tasks due today opens Task Management filtered to due today
+Completed tasks opens Task Management filtered to done and today
+Photos uploaded opens Photos module if it exists
+
+B. Multi project overview
+Replace the simple badges with small charts
+Average progress shows a sparkline of the last thirty days using Recharts
+Budget usage shows a radial gauge
+Critical projects shows a count with a view list button that opens a filtered Projects view
+Make this block a card with tabs Project overview and Task management already present. Tabs remain sticky when scrolling.
+
+C. Project health grid
+Use ProjectCard compact variation with equal heights and consistent spacing.
+Each card shows project name, progress, status chip Behind or At risk or On track, and a small mini sparkline.
+Fix any text clipping on long names by adding truncation and accessible titles.
+
+D. Alerts
+If there are overdue tasks or critical projects, render a dismissible banner at the top with direct links.
+
+Acceptance for Dashboard
+All KPI cards link to the correct filters
+Charts render without layout shifts
+Project health cards do not clip text on tablet
+Sticky tabs remain visible when scrolling
+
+Global navigation
+Make the left sidebar collapsible on tablet. Remember the collapsed state. Keep icon labels visible when expanded.
+Add a breadcrumb under the top bar that reflects the current module and selection.
+Ensure all destructive actions open a confirmation dialog.
+
+Testing checklist
+Visual test at 768 and 1024
+Keyboard and screen reader sweep using Tab and Shift Tab
+Touch sweep to verify 48 by 48 targets
+Simulate slow network and confirm LoadingSkeleton appears
+Verify that localStorage entries for viewPreference and savedFilters are created and restored
+
+Deliverables
+New shared components and utilities created as listed above
+Refactors in the three modules to use the shared components
+No breaking changes in routes, props, or API calls
+Brief notes in a README section named tablet ui polish that documents new components and how to use them

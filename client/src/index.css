@@ -129,6 +129,52 @@ input[type="file"] {
       animation: none;
     }
   }
+  
+  /* Tablet UI Utility Classes */
+  .tap-target {
+    min-height: var(--tap-target-min);
+    min-width: var(--tap-target-min);
+  }
+  
+  .sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--background);
+  }
+  
+  .card-surface {
+    background: var(--surface-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: var(--space-md);
+  }
+  
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .focus-visible-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary;
+  }
+  
+  /* Tablet-specific breakpoint utilities */
+  @media (min-width: 768px) and (max-width: 1024px) {
+    .tablet\:grid-cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    
+    .tablet\:p-lg {
+      padding: var(--space-lg);
+    }
+    
+    .tablet\:gap-lg {
+      gap: var(--space-lg);
+    }
+  }
 }
 
 @layer base {
@@ -291,6 +337,28 @@ input[type="file"] {
   /* Header Heights */
   --header-height-mobile: 56px;
   --header-height-desktop: 64px;
+  
+  /* Tablet UI Design Tokens */
+  --color-primary-600: rgb(24, 119, 242);
+  --color-danger-600: rgb(220, 38, 38);
+  --color-warning-600: rgb(217, 119, 6);
+  --color-success-600: rgb(5, 150, 105);
+  --surface-card: rgb(255, 255, 255);
+  --surface-muted: rgb(248, 250, 252);
+  --text-primary: rgb(15, 23, 42);
+  --text-secondary: rgb(71, 85, 105);
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 20px;
+  --space-xl: 24px;
+  
+  /* Minimum tap target for tablets */
+  --tap-target-min: 48px;
 }
 
 @media (prefers-color-scheme: dark) {
