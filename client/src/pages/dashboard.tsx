@@ -31,8 +31,8 @@ export default function Dashboard() {
       <StatsCards />
 
       <Tabs defaultValue="overview" className="w-full">
-        <div className="sticky top-16 z-30 bg-white border-b border-slate-200 px-2 py-2 -mx-6 md:-mx-8 mb-8">
-          <TabsList className="w-full grid grid-cols-4 p-1 bg-slate-50 rounded-lg">
+        <div className="sticky top-[56px] z-30 bg-white border-b border-slate-200 px-2 py-2 -mx-6 md:-mx-8 mb-8">
+          <TabsList className="w-full grid grid-cols-2 md:grid-cols-4 p-1 bg-slate-50 rounded-lg">
             <TabsTrigger 
               value="overview" 
               className="min-h-[48px] data-[state=active]:bg-white data-[state=active]:shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-200" 

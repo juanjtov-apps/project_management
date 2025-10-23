@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { MiniMetric } from "@/components/ui/mini-metric";
 import { ProjectHealthCard } from "@/components/ui/project-health-card";
 import type { Project } from "@shared/schema";
 import { 
@@ -12,7 +11,9 @@ import {
   CheckCircle, 
   Clock,
   DollarSign,
-  Calendar
+  Calendar,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 
 const getHealthStatus = (progress: number, status: string) => {
@@ -30,17 +31,20 @@ export default function MultiProjectOverview() {
     queryKey: ["/api/projects"],
   });
 
-  // Calculate overview statistics
-  const activeProjects = projects.filter(p => p.status === "active");
-  const totalBudget = projects.reduce((sum, p) => sum + (p.budget || 0), 0);
-  const totalActualCost = projects.reduce((sum, p) => sum + (p.actualCost || 0), 0);
-  const averageProgress = projects.length > 0 
-    ? Math.round(projects.reduce((sum, p) => sum + p.progress, 0) / projects.length)
-    : 0;
-
-  const criticalProjects = projects.filter(p => 
-    p.status === "delayed" || (p.progress < 50 && p.status === "active")
+  // Calculate insights from existing projects data only (no new backend calls)
+  const delayedProjects = projects.filter(p => p.status === "delayed");
+  const behindSchedule = projects.filter(p => p.status === "active" && p.progress < 50);
+  const overBudget = projects.filter(p => 
+    p.budget && p.actualCost && p.actualCost > p.budget
   );
+  
+  // Projects completing this month
+  const now = new Date();
+  const thisMonth = projects.filter(p => {
+    if (!p.dueDate) return false;
+    const due = new Date(p.dueDate);
+    return due.getMonth() === now.getMonth() && due.getFullYear() === now.getFullYear();
+  });
 
   if (isLoading) {
     return (
@@ -48,9 +52,9 @@ export default function MultiProjectOverview() {
         <div className="rounded-2xl bg-white ring-1 ring-slate-200 p-4 shadow-sm">
           <div className="animate-pulse space-y-4">
             <div className="h-6 bg-slate-200 rounded w-1/3"></div>
-            <div className="grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-20 bg-slate-200 rounded"></div>
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-8 bg-slate-200 rounded px-3"></div>
               ))}
             </div>
           </div>
@@ -76,39 +80,57 @@ export default function MultiProjectOverview() {
           </Button>
         </div>
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">
-          <MiniMetric
-            icon={Building}
-            value={activeProjects.length}
-            label="Active Projects"
-            tone="blue"
-            data-testid="metric-active-projects"
-          />
-
-          <MiniMetric
-            icon={TrendingUp}
-            value={`${averageProgress}%`}
-            label="Avg Progress"
-            tone="teal"
-            data-testid="metric-avg-progress"
-          />
-
-          <MiniMetric
-            icon={DollarSign}
-            value={`${totalBudget > 0 ? Math.round((totalActualCost / totalBudget) * 100) : 0}%`}
-            label="Budget Usage"
-            tone="coral"
-            data-testid="metric-budget-usage"
-          />
-
-          <MiniMetric
-            icon={AlertTriangle}
-            value={criticalProjects.length}
-            label="Critical Projects"
-            tone="coral"
-            data-testid="metric-critical-projects"
-          />
+        {/* Insights - Different from top KPIs, computed from existing project data */}
+        <div className="flex flex-wrap gap-2">
+          {delayedProjects.length > 0 && (
+            <div 
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 border border-red-200 text-sm font-medium text-red-700"
+              data-testid="insight-delayed-projects"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              <span>{delayedProjects.length} delayed project{delayedProjects.length !== 1 ? 's' : ''}</span>
+            </div>
+          )}
+          
+          {behindSchedule.length > 0 && (
+            <div 
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-sm font-medium text-amber-700"
+              data-testid="insight-behind-schedule"
+            >
+              <Clock className="h-4 w-4" />
+              <span>{behindSchedule.length} behind schedule</span>
+            </div>
+          )}
+          
+          {overBudget.length > 0 && (
+            <div 
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-50 border border-orange-200 text-sm font-medium text-orange-700"
+              data-testid="insight-over-budget"
+            >
+              <DollarSign className="h-4 w-4" />
+              <span>{overBudget.length} over budget</span>
+            </div>
+          )}
+          
+          {thisMonth.length > 0 && (
+            <div 
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-sm font-medium text-blue-700"
+              data-testid="insight-completing-this-month"
+            >
+              <Calendar className="h-4 w-4" />
+              <span>{thisMonth.length} due this month</span>
+            </div>
+          )}
+          
+          {delayedProjects.length === 0 && behindSchedule.length === 0 && overBudget.length === 0 && thisMonth.length === 0 && (
+            <div 
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-sm font-medium text-green-700"
+              data-testid="insight-all-on-track"
+            >
+              <CheckCircle className="h-4 w-4" />
+              <span>All projects on track</span>
+            </div>
+          )}
         </div>
       </div>
 

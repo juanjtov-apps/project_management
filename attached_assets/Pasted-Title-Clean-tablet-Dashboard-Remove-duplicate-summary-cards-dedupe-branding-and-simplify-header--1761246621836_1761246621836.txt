@@ -1,0 +1,46 @@
+Title: Clean tablet Dashboard. Remove duplicate summary cards, dedupe branding, and simplify header
+
+Context
+React with Tailwind and shadcn ui. Front end only. Do not change backend or APIs. Target widths from 768 to 1024. Keep colors and icons already used.
+
+Problems to fix on tablet
+• Summary cards appear twice. Top KPI strip and a second set inside Multi Project Overview repeat the same information.
+• The word Proesphere appears twice at the top which feels redundant with the sidebar brand.
+• The header is visually heavy. Too many elements and spacing makes it feel cluttered.
+
+Deliverables
+Update Dashboard page structure and shared components. No breaking changes in props or routes.
+
+Changes
+	1.	Keep a single KPI strip
+• Create src/components/ui/StatCard.tsx if it does not exist. Props icon value label optional sublabel tone onClick.
+• Render StatCard only once at the very top in a grid with two columns on tablet and four on desktop. grid grid-cols-2 gap-4 lg:grid-cols-4.
+• In Multi Project Overview remove the four repeated stat tiles. Replace them with unique information. Use one of the two approaches below based on available data.
+A. Insights chips that are different from the KPIs. Examples Overdue tasks total Projects behind New tasks this week New photos this week.
+B. Trend view for the original KPIs. Show only the seven day delta as a small green or red percentage with an up or down arrow. Do not show the base numbers again.
+• If a metric is not available hide that chip. Never display placeholders that duplicate the top KPIs.
+	2.	Deduplicate branding
+• On tablet show the brand only in the left sidebar. Remove the Proesphere text block from the top bar.
+• In the top bar show breadcrumb and page title instead. Example Dashboard.
+• Keep the user name and role at the far right. Example Carlos small label Project Manager.
+	3.	Simplify and tighten the header
+• Convert the header to a single compact row with three zones.
+Left breadcrumb and page title.
+Center tab switch for Project overview Task management Communications Financial health.
+Right search icon button notifications bell and avatar menu.
+• Target header height 56 to 64. Use px-4 py-2 with gap-3.
+• Make the tab row sticky to the correct offset so it remains visible when scrolling. Example wrapper classes sticky top-[headerHeight] z-30 bg-white border-b.
+• Ensure minimum tap area 48 by 48 for every icon and tab.
+• Remove any duplicate borders where sticky sections meet the content.
+	4.	Multi Project Overview card
+• Card title at left and small View all projects button at right.
+• Inside content use a two column grid. Left side holds the insights chips or trend row. Right side can hold a tiny sparkline or gauge if already available. If no chart is available keep only the insight chips.
+• Do not repeat any numbers from the KPI strip.
+	5.	Project Health Status grid
+• Two columns on tablet. grid grid-cols-2 gap-4.
+• Title truncates with min-w-0 and truncate classes.
+• Status chip sits in the card header aligned to the right never on top of the title.
+• Progress bar height 8 and color consistent across cards.
+	6.	Accessibility and keyboard
+• All icon buttons have aria-label.
+• Keep visible focus rings focus:outline-none focus:ring-4 focus:ring-slate-200.

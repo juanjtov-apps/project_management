@@ -1,6 +1,5 @@
-import { Bell, Menu, LogOut, User as UserIcon, Settings } from "lucide-react";
+import { Bell, Menu, LogOut, User as UserIcon, Settings, Search, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/ui/logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,9 +15,10 @@ import type { Notification, User } from "@shared/schema";
 interface HeaderProps {
   onToggleMobileMenu: () => void;
   onToggleNotifications: () => void;
+  pageTitle?: string;
 }
 
-export default function Header({ onToggleMobileMenu, onToggleNotifications }: HeaderProps) {
+export default function Header({ onToggleMobileMenu, onToggleNotifications, pageTitle = "Dashboard" }: HeaderProps) {
   const { user } = useAuth() as { user: User | undefined };
   
   // Use new PM notifications endpoint for unread count
@@ -65,47 +65,58 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
 
   return (
     <header 
-      className="sticky top-0 z-40 backdrop-blur-md bg-background/80 border-b border-border"
+      className="sticky top-0 z-40 bg-white border-b border-slate-200 px-4 py-2"
       style={{
-        height: 'clamp(56px, 4vh, 64px)',
+        height: '56px',
         paddingLeft: 'max(1rem, env(safe-area-inset-left))',
         paddingRight: 'max(1rem, env(safe-area-inset-right))'
       }}
     >
-      <div className="container flex h-full items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex h-full items-center justify-between gap-3 max-w-screen-2xl mx-auto">
+        {/* Left: Mobile menu + Breadcrumb/Page Title */}
+        <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
-            size="sm"
-            className="lg:hidden h-11 w-11 p-0"
+            size="icon"
+            className="lg:hidden min-w-[48px] min-h-[48px] p-0 flex-shrink-0"
             onClick={onToggleMobileMenu}
             aria-label="Open navigation menu"
+            data-testid="button-mobile-menu"
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Logo size="sm" className="rounded-full shadow-sm" />
-              <div className="hidden sm:block">
-                <h1 className="text-fluid-lg font-semibold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent">Proesphere</h1>
-                <p className="text-xs text-muted-foreground">Construction Management</p>
-              </div>
-            </div>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm text-slate-500 hidden md:block">Dashboard</span>
+            <ChevronRight className="h-4 w-4 text-slate-400 hidden md:block" />
+            <h1 className="text-lg font-semibold text-slate-900 truncate">{pageTitle}</h1>
           </div>
         </div>
           
-        <div className="flex items-center gap-3">
+        {/* Right: Search + Notifications + User */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Search Icon */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="min-w-[48px] min-h-[48px] p-0 focus:outline-none focus:ring-4 focus:ring-slate-200"
+            aria-label="Search"
+            data-testid="button-search"
+          >
+            <Search className="h-5 w-5" />
+          </Button>
+
           {/* Notifications */}
           <Button
             variant="ghost"
-            size="sm"
-            className="relative h-11 w-11 p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            size="icon"
+            className="relative min-w-[48px] min-h-[48px] p-0 focus:outline-none focus:ring-4 focus:ring-slate-200"
             onClick={onToggleNotifications}
             aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+            data-testid="button-notifications"
           >
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-danger text-white text-xs rounded-full min-w-5 h-5 flex items-center justify-center px-1">
+              <span className="absolute top-1 right-1 bg-danger text-white text-xs rounded-full min-w-5 h-5 flex items-center justify-center px-1">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -116,18 +127,19 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications }: He
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="h-11 p-0 data-[state=open]:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-h-[48px] p-0 px-2 data-[state=open]:bg-slate-100 focus:outline-none focus:ring-4 focus:ring-slate-200"
                 aria-label="User menu"
+                data-testid="button-user-menu"
               >
-                <div className="flex items-center gap-2 px-2">
-                  <div className="h-8 w-8 rounded-full bg-brand-600 text-white text-sm font-medium flex items-center justify-center">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-blue-600 text-white text-sm font-medium flex items-center justify-center flex-shrink-0">
                     {getUserInitials(user)}
                   </div>
-                  <div className="hidden sm:block text-left">
-                    <div className="text-sm font-medium text-foreground">
-                      {user?.firstName || user?.name || user?.email || "User"}
+                  <div className="hidden md:block text-left min-w-0">
+                    <div className="text-sm font-medium text-slate-900 truncate">
+                      {user?.firstName || user?.name || "User"}
                     </div>
-                    <div className="text-xs text-muted-foreground capitalize">
+                    <div className="text-xs text-slate-500 capitalize truncate">
                       {user?.role?.replace(/_/g, ' ') || 'User'}
                     </div>
                   </div>
