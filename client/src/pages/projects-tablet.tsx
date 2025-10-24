@@ -67,7 +67,8 @@ export default function TabletProjects() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setIsCreateDialogOpen(false);
-      form.reset();
+      // Defer form reset to prevent UI freeze
+      setTimeout(() => form.reset(), 0);
       toast({ title: "Project created successfully" });
     },
   });
@@ -78,6 +79,9 @@ export default function TabletProjects() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setIsEditDialogOpen(false);
+      setEditingProject(null);
+      // Defer form reset to prevent UI freeze
+      setTimeout(() => editForm.reset(), 0);
       toast({ title: "Project updated successfully" });
     },
   });
@@ -212,7 +216,8 @@ export default function TabletProjects() {
     if (!open) {
       // Clean up when dialog closes
       setEditingProject(null);
-      editForm.reset();
+      // Defer form reset to prevent UI freeze
+      setTimeout(() => editForm.reset(), 0);
     }
   };
 

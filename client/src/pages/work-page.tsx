@@ -160,7 +160,8 @@ export default function WorkPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setIsProjectCreateDialogOpen(false);
-      projectForm.reset();
+      // Defer form reset to prevent UI freeze
+      setTimeout(() => projectForm.reset(), 0);
       toast({ title: "Project created successfully" });
     },
   });
@@ -171,6 +172,9 @@ export default function WorkPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setIsProjectEditDialogOpen(false);
+      setEditingProject(null);
+      // Defer form reset to prevent UI freeze
+      setTimeout(() => projectEditForm.reset(), 0);
       toast({ title: "Project updated successfully" });
     },
   });
@@ -192,7 +196,8 @@ export default function WorkPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       setIsTaskCreateDialogOpen(false);
-      taskForm.reset();
+      // Defer form reset to prevent UI freeze
+      setTimeout(() => taskForm.reset(), 0);
       toast({ title: "Task created successfully" });
     },
   });
@@ -205,7 +210,8 @@ export default function WorkPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       setIsTaskEditDialogOpen(false);
       setEditingTask(null);
-      taskEditForm.reset();
+      // Defer form reset to prevent UI freeze
+      setTimeout(() => taskEditForm.reset(), 0);
       toast({ title: "Task updated successfully" });
     },
     onError: () => {
@@ -414,8 +420,18 @@ export default function WorkPage() {
     if (!open) {
       console.log("🔵 Cleaning up - resetting form and state");
       setEditingProject(null);
-      projectEditForm.reset();
+      // Defer form reset to prevent UI freeze
+      setTimeout(() => projectEditForm.reset(), 0);
       console.log("🔵 Cleanup complete");
+    }
+  };
+
+  const handleTaskEditDialogChange = (open: boolean) => {
+    setIsTaskEditDialogOpen(open);
+    if (!open) {
+      setEditingTask(null);
+      // Defer form reset to prevent UI freeze
+      setTimeout(() => taskEditForm.reset(), 0);
     }
   };
 
@@ -1555,7 +1571,7 @@ export default function WorkPage() {
       </Dialog>
 
       {/* Edit Task Dialog */}
-      <Dialog open={isTaskEditDialogOpen} onOpenChange={setIsTaskEditDialogOpen}>
+      <Dialog open={isTaskEditDialogOpen} onOpenChange={handleTaskEditDialogChange}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
@@ -1731,7 +1747,7 @@ export default function WorkPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsTaskEditDialogOpen(false)}
+                  onClick={() => handleTaskEditDialogChange(false)}
                   data-testid="button-cancel-edit-task"
                 >
                   Cancel
