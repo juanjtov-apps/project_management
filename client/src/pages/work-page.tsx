@@ -392,15 +392,18 @@ export default function WorkPage() {
   useEffect(() => {
     if (editingProject && isProjectEditDialogOpen) {
       console.log("🟡 useEffect: Resetting form for", editingProject.name);
-      projectEditForm.reset({
-        name: editingProject.name,
-        description: editingProject.description || "",
-        status: editingProject.status,
-        location: editingProject.location || "",
-        progress: editingProject.progress || 0,
-        dueDate: editingProject.dueDate ? new Date(editingProject.dueDate) : undefined,
-      });
-      console.log("🟡 useEffect: Form reset complete");
+      // Defer form reset to prevent UI freeze
+      setTimeout(() => {
+        projectEditForm.reset({
+          name: editingProject.name,
+          description: editingProject.description || "",
+          status: editingProject.status,
+          location: editingProject.location || "",
+          progress: editingProject.progress || 0,
+          dueDate: editingProject.dueDate ? new Date(editingProject.dueDate) : undefined,
+        });
+        console.log("🟡 useEffect: Form reset complete");
+      }, 0);
     }
   }, [editingProject, isProjectEditDialogOpen, projectEditForm]);
 
@@ -475,16 +478,19 @@ export default function WorkPage() {
   // Reset task form when editingTask changes and dialog is open
   useEffect(() => {
     if (editingTask && isTaskEditDialogOpen) {
-      taskEditForm.reset({
-        title: editingTask.title,
-        description: editingTask.description || "",
-        projectId: editingTask.projectId,
-        category: editingTask.category || "general",
-        status: editingTask.status,
-        priority: editingTask.priority,
-        dueDate: editingTask.dueDate ? new Date(editingTask.dueDate) : undefined,
-        assigneeId: editingTask.assigneeId,
-      });
+      // Defer form reset to prevent UI freeze
+      setTimeout(() => {
+        taskEditForm.reset({
+          title: editingTask.title,
+          description: editingTask.description || "",
+          projectId: editingTask.projectId,
+          category: editingTask.category || "general",
+          status: editingTask.status,
+          priority: editingTask.priority,
+          dueDate: editingTask.dueDate ? new Date(editingTask.dueDate) : undefined,
+          assigneeId: editingTask.assigneeId,
+        });
+      }, 0);
     }
   }, [editingTask, isTaskEditDialogOpen, taskEditForm]);
 
