@@ -78,8 +78,6 @@ export default function TabletProjects() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setIsEditDialogOpen(false);
-      setEditingProject(null);
-      editForm.reset();
       toast({ title: "Project updated successfully" });
     },
   });

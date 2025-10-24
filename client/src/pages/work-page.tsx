@@ -171,8 +171,6 @@ export default function WorkPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setIsProjectEditDialogOpen(false);
-      setEditingProject(null);
-      projectEditForm.reset();
       toast({ title: "Project updated successfully" });
     },
   });
