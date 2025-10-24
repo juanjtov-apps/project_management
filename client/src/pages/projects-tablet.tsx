@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Plus, Edit, Trash2, FolderOpen, Image, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -164,16 +164,22 @@ export default function TabletProjects() {
 
   const handleEditProject = (project: Project) => {
     setEditingProject(project);
-    editForm.reset({
-      name: project.name,
-      description: project.description || "",
-      status: project.status,
-      location: project.location || "",
-      progress: project.progress || 0,
-      dueDate: project.dueDate ? new Date(project.dueDate) : undefined,
-    });
     setIsEditDialogOpen(true);
   };
+
+  // Reset form when editingProject changes and dialog is open
+  useEffect(() => {
+    if (editingProject && isEditDialogOpen) {
+      editForm.reset({
+        name: editingProject.name,
+        description: editingProject.description || "",
+        status: editingProject.status,
+        location: editingProject.location || "",
+        progress: editingProject.progress || 0,
+        dueDate: editingProject.dueDate ? new Date(editingProject.dueDate) : undefined,
+      });
+    }
+  }, [editingProject, isEditDialogOpen, editForm]);
 
   const handleUpdateProject = (data: InsertProject) => {
     if (!editingProject) return;
