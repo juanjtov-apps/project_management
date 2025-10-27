@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from ..database.repositories import SubcontractorAssignmentRepository
 
@@ -17,15 +17,17 @@ class SubcontractorAssignmentCreate(BaseModel):
     status: str = "active"
 
 class SubcontractorAssignmentResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
+    
     id: str
-    subcontractor_id: str
-    project_id: str
-    assigned_by: str
-    start_date: datetime | None
-    end_date: datetime | None
-    specialization: str | None
+    subcontractor_id: str = Field(alias="subcontractorId")
+    project_id: str = Field(alias="projectId")
+    assigned_by: str = Field(alias="assignedBy")
+    start_date: datetime | None = Field(alias="startDate")
+    end_date: datetime | None = Field(alias="endDate")
+    specialization: str | None = None
     status: str
-    created_at: datetime
+    created_at: datetime = Field(alias="createdAt")
 
 @router.get("/", response_model=List[SubcontractorAssignmentResponse])
 async def get_subcontractor_assignments():
