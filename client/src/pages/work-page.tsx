@@ -158,10 +158,12 @@ export default function WorkPage() {
   const createProjectMutation = useMutation({
     mutationFn: (data: InsertProject) => apiRequest("/api/projects", { method: "POST", body: data }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // Close dialog and reset form first
       setIsProjectCreateDialogOpen(false);
-      // Defer form reset to prevent UI freeze
-      setTimeout(() => projectForm.reset(), 0);
+      projectForm.reset();
+      
+      // Then invalidate and show toast
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       toast({ title: "Project created successfully" });
     },
   });
@@ -170,11 +172,13 @@ export default function WorkPage() {
     mutationFn: ({ id, data }: { id: string; data: Partial<InsertProject> }) =>
       apiRequest(`/api/projects/${id}`, { method: "PATCH", body: data }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // Close dialog and reset state first
       setIsProjectEditDialogOpen(false);
       setEditingProject(null);
-      // Defer form reset to prevent UI freeze
-      setTimeout(() => projectEditForm.reset(), 0);
+      projectEditForm.reset();
+      
+      // Then invalidate and show toast
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       toast({ title: "Project updated successfully" });
     },
   });
@@ -182,12 +186,12 @@ export default function WorkPage() {
   const deleteProjectMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/projects/${id}`, { method: "DELETE" }),
     onSuccess: () => {
+      // Close dialog first to prevent focus trap issues
+      setIsProjectDeleteDialogOpen(false);
+      setProjectToDelete(null);
+      
+      // Then invalidate and show toast
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      // Defer state cleanup to prevent UI freeze
-      setTimeout(() => {
-        setProjectToDelete(null);
-        setIsProjectDeleteDialogOpen(false);
-      }, 0);
       toast({ title: "Project deleted successfully" });
     },
   });
@@ -196,11 +200,13 @@ export default function WorkPage() {
   const createTaskMutation = useMutation({
     mutationFn: (data: InsertTask) => apiRequest("/api/tasks", { method: "POST", body: data }),
     onSuccess: () => {
+      // Close dialog and reset form first
+      setIsTaskCreateDialogOpen(false);
+      taskForm.reset();
+      
+      // Then invalidate and show toast
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      setIsTaskCreateDialogOpen(false);
-      // Defer form reset to prevent UI freeze
-      setTimeout(() => taskForm.reset(), 0);
       toast({ title: "Task created successfully" });
     },
   });
@@ -209,12 +215,14 @@ export default function WorkPage() {
     mutationFn: ({ id, data }: { id: string; data: Partial<InsertTask> }) =>
       apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      // Close dialog and reset state first
       setIsTaskEditDialogOpen(false);
       setEditingTask(null);
-      // Defer form reset to prevent UI freeze
-      setTimeout(() => taskEditForm.reset(), 0);
+      taskEditForm.reset();
+      
+      // Then invalidate and show toast
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({ title: "Task updated successfully" });
     },
     onError: () => {
@@ -225,13 +233,13 @@ export default function WorkPage() {
   const deleteTaskMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/tasks/${id}`, { method: "DELETE" }),
     onSuccess: () => {
+      // Close dialog first to prevent focus trap issues
+      setIsTaskDeleteDialogOpen(false);
+      setTaskToDelete(null);
+      
+      // Then invalidate and show toast
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      // Defer state cleanup to prevent UI freeze
-      setTimeout(() => {
-        setTaskToDelete(null);
-        setIsTaskDeleteDialogOpen(false);
-      }, 0);
       toast({ title: "Task deleted successfully" });
     },
   });
@@ -388,30 +396,18 @@ export default function WorkPage() {
   };
 
   const handleEditProject = (project: Project) => {
-    console.log("🟢 handleEditProject called", project.id, project.name);
     setEditingProject(project);
+    // Populate form immediately
+    projectEditForm.reset({
+      name: project.name,
+      description: project.description || "",
+      status: project.status,
+      location: project.location || "",
+      progress: project.progress || 0,
+      dueDate: project.dueDate ? new Date(project.dueDate) : undefined,
+    });
     setIsProjectEditDialogOpen(true);
-    console.log("🟢 Edit dialog opened");
   };
-
-  // Reset form when editingProject changes and dialog is open
-  useEffect(() => {
-    if (editingProject && isProjectEditDialogOpen) {
-      console.log("🟡 useEffect: Resetting form for", editingProject.name);
-      // Defer form reset to prevent UI freeze
-      setTimeout(() => {
-        projectEditForm.reset({
-          name: editingProject.name,
-          description: editingProject.description || "",
-          status: editingProject.status,
-          location: editingProject.location || "",
-          progress: editingProject.progress || 0,
-          dueDate: editingProject.dueDate ? new Date(editingProject.dueDate) : undefined,
-        });
-        console.log("🟡 useEffect: Form reset complete");
-      }, 0);
-    }
-  }, [editingProject, isProjectEditDialogOpen]);
 
   const handleUpdateProject = (data: InsertProject) => {
     if (!editingProject) return;
@@ -424,24 +420,23 @@ export default function WorkPage() {
   };
 
   const handleProjectEditDialogChange = (open: boolean) => {
-    console.log("🔵 handleProjectEditDialogChange called", { open });
-    setIsProjectEditDialogOpen(open);
     if (!open) {
-      console.log("🔵 Cleaning up - resetting form and state");
+      // Reset form immediately before closing
+      projectEditForm.reset();
+      // Clear editing state
       setEditingProject(null);
-      // Defer form reset to prevent UI freeze
-      setTimeout(() => projectEditForm.reset(), 0);
-      console.log("🔵 Cleanup complete");
     }
+    setIsProjectEditDialogOpen(open);
   };
 
   const handleTaskEditDialogChange = (open: boolean) => {
-    setIsTaskEditDialogOpen(open);
     if (!open) {
+      // Reset form immediately before closing
+      taskEditForm.reset();
+      // Clear editing state  
       setEditingTask(null);
-      // Defer form reset to prevent UI freeze
-      setTimeout(() => taskEditForm.reset(), 0);
     }
+    setIsTaskEditDialogOpen(open);
   };
 
   const handleDeleteProject = (project: Project) => {
@@ -478,27 +473,19 @@ export default function WorkPage() {
 
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
+    // Populate form immediately
+    taskEditForm.reset({
+      title: task.title,
+      description: task.description || "",
+      projectId: task.projectId,
+      category: task.category || "general",
+      status: task.status,
+      priority: task.priority,
+      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+      assigneeId: task.assigneeId,
+    });
     setIsTaskEditDialogOpen(true);
   };
-
-  // Reset task form when editingTask changes and dialog is open
-  useEffect(() => {
-    if (editingTask && isTaskEditDialogOpen) {
-      // Defer form reset to prevent UI freeze
-      setTimeout(() => {
-        taskEditForm.reset({
-          title: editingTask.title,
-          description: editingTask.description || "",
-          projectId: editingTask.projectId,
-          category: editingTask.category || "general",
-          status: editingTask.status,
-          priority: editingTask.priority,
-          dueDate: editingTask.dueDate ? new Date(editingTask.dueDate) : undefined,
-          assigneeId: editingTask.assigneeId,
-        });
-      }, 0);
-    }
-  }, [editingTask, isTaskEditDialogOpen]);
 
   const handleUpdateTask = (data: InsertTask) => {
     if (!editingTask) return;

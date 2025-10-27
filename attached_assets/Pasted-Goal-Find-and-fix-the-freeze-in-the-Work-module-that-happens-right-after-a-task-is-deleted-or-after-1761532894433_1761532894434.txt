@@ -1,0 +1,71 @@
+Goal
+
+Find and fix the freeze in the Work module that happens right after a task is deleted or after the edit dialog is closed. Everything else in the app works.
+
+What is happening
+
+The UI becomes unresponsive immediately after a successful delete or right after closing the edit dialog. This is consistent with an infinite render loop, a refetch loop from the data layer, or an event listener that keeps firing after dialog state changes.
+
+Repro
+
+Open Dashboard then Work.
+
+Delete any task and confirm. The UI freezes after success.
+
+Open a task edit dialog and close it. The UI freezes after the dialog closes.
+
+Inspect these files and patterns first
+
+Container and list
+WorkModule or TasksPage
+TaskList and TaskCard
+
+Dialog
+EditTaskDialog or TaskFormDialog
+
+Data layer
+useTasks and useTask hooks
+useDeleteTask mutation
+tasks api service
+React Query or SWR configuration
+
+Global UI store
+Any Zustand or event bus subscriptions that open or close dialogs or mutate filters
+
+Likely failure patterns to search and fix
+
+Effects that set state and depend on that same state which creates a render loop. For example an effect that calls setOpen inside an effect with open in the dependency list.
+
+Mutation success handlers that both invalidate queries and also toggle state that is part of the query key which triggers endless invalidations.
+
+Multiple useTasks hooks with identical keys mounted at the same time that invalidate each other.
+
+Subscriptions or event listeners created on mount without cleanup when the dialog unmounts.
+
+Route or search param effects that flip dialog open state back and forth on each change.
+
+Debug plan
+
+Add React Profiler around Work list and Task cards to see commit counts after delete and after dialog close.
+
+Add console logging around delete mutation onSuccess and dialog onOpenChange to confirm single calls.
+
+Temporarily disable aggressive refetch settings in useQuery to see if the freeze disappears. If it does, scope invalidations and refetches more narrowly.
+
+Success criteria
+
+Deleting a task updates the list once and the UI remains responsive.
+
+Opening and closing the edit dialog does not increase commit counts unexpectedly and does not issue repeated identical network requests.
+
+No warnings for state updates on unmounted components.
+
+React Profiler shows bounded renders for Work list after delete and after dialog close.
+
+Deliverables
+
+Root cause summary with the exact line numbers and files.
+
+Minimal code changes that break the loop and keep the list in sync.
+
+Before and after screenshots of the Profiler timeline and the Network tab during the two actions.

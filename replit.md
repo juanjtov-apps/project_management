@@ -15,6 +15,7 @@ Preferred communication style: Simple, everyday language.
 - **Styling**: Tailwind CSS with a custom construction-themed color palette.
 - **Branding**: Proesphere with a custom sphere-style logo and unified design system.
 - **Key Features**: Tablet-optimized UI for Task Management, Projects, and Dashboard modules, including virtualization for lists, multi-select capabilities, and persistent filter states.
+- **Critical Fix (Oct 2025)**: Resolved complete UI freeze in Work module by implementing synchronous dialog state management. All mutation handlers now close dialogs and reset forms BEFORE invalidating queries, eliminating focus trap issues and render loops.
 
 ### Backend
 - **Primary Backend**: Python FastAPI (port 8000) for all API logic and database operations.
@@ -27,6 +28,7 @@ Preferred communication style: Simple, everyday language.
 - **ORM**: Drizzle ORM for type-safe database operations and schema management.
 
 ### Core System Features
+- **Unified Work Module**: Combined Projects and Tasks interface with segmented control navigation at /work, /projects, and /tasks routes. All routes render the same WorkPage component with appropriate default segment.
 - **Users**: Role-based access and management.
 - **Projects**: Status tracking and CRUD operations.
 - **Tasks**: Assignment, priority, and inline status updates.
