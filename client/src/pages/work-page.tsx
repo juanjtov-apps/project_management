@@ -183,8 +183,11 @@ export default function WorkPage() {
     mutationFn: (id: string) => apiRequest(`/api/projects/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      setProjectToDelete(null);
-      setIsProjectDeleteDialogOpen(false);
+      // Defer state cleanup to prevent UI freeze
+      setTimeout(() => {
+        setProjectToDelete(null);
+        setIsProjectDeleteDialogOpen(false);
+      }, 0);
       toast({ title: "Project deleted successfully" });
     },
   });
@@ -224,8 +227,11 @@ export default function WorkPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      setTaskToDelete(null);
-      setIsTaskDeleteDialogOpen(false);
+      // Defer state cleanup to prevent UI freeze
+      setTimeout(() => {
+        setTaskToDelete(null);
+        setIsTaskDeleteDialogOpen(false);
+      }, 0);
       toast({ title: "Task deleted successfully" });
     },
   });

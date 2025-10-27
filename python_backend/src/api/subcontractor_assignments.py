@@ -8,11 +8,13 @@ router = APIRouter()
 repo = SubcontractorAssignmentRepository()
 
 class SubcontractorAssignmentCreate(BaseModel):
-    subcontractor_id: str
-    project_id: str
-    assigned_by: str
-    start_date: datetime | None = None
-    end_date: datetime | None = None
+    model_config = ConfigDict(populate_by_name=True)
+    
+    subcontractor_id: str = Field(alias="subcontractorId")
+    project_id: str = Field(alias="projectId")
+    assigned_by: str = Field(alias="assignedBy")
+    start_date: datetime | None = Field(alias="startDate", default=None)
+    end_date: datetime | None = Field(alias="endDate", default=None)
     specialization: str | None = None
     status: str = "active"
 

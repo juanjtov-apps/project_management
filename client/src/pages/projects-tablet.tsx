@@ -90,8 +90,11 @@ export default function TabletProjects() {
     mutationFn: (id: string) => apiRequest(`/api/projects/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      setProjectToDelete(null);
-      setIsDeleteDialogOpen(false);
+      // Defer state cleanup to prevent UI freeze
+      setTimeout(() => {
+        setProjectToDelete(null);
+        setIsDeleteDialogOpen(false);
+      }, 0);
       toast({ title: "Project deleted successfully" });
     },
   });
@@ -183,7 +186,7 @@ export default function TabletProjects() {
         dueDate: editingProject.dueDate ? new Date(editingProject.dueDate) : undefined,
       });
     }
-  }, [editingProject, isEditDialogOpen, editForm]);
+  }, [editingProject, isEditDialogOpen]);
 
   const handleUpdateProject = (data: InsertProject) => {
     if (!editingProject) return;
