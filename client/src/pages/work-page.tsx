@@ -405,7 +405,7 @@ export default function WorkPage() {
         console.log("🟡 useEffect: Form reset complete");
       }, 0);
     }
-  }, [editingProject, isProjectEditDialogOpen, projectEditForm]);
+  }, [editingProject, isProjectEditDialogOpen]);
 
   const handleUpdateProject = (data: InsertProject) => {
     if (!editingProject) return;
@@ -492,7 +492,7 @@ export default function WorkPage() {
         });
       }, 0);
     }
-  }, [editingTask, isTaskEditDialogOpen, taskEditForm]);
+  }, [editingTask, isTaskEditDialogOpen]);
 
   const handleUpdateTask = (data: InsertTask) => {
     if (!editingTask) return;
