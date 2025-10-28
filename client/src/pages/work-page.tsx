@@ -1356,7 +1356,15 @@ export default function WorkPage() {
       </Dialog>
 
       {/* Delete Project Dialog */}
-      <AlertDialog open={isProjectDeleteDialogOpen} onOpenChange={setIsProjectDeleteDialogOpen}>
+      <AlertDialog 
+        open={isProjectDeleteDialogOpen} 
+        onOpenChange={(open) => {
+          if (!deleteProjectMutation.isPending) {
+            setIsProjectDeleteDialogOpen(open);
+            if (!open) setProjectToDelete(null);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Project</AlertDialogTitle>
@@ -1367,11 +1375,15 @@ export default function WorkPage() {
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmProjectDelete}
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmProjectDelete();
+              }}
               data-testid="button-confirm-delete"
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteProjectMutation.isPending}
             >
-              Delete
+              {deleteProjectMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1765,7 +1777,15 @@ export default function WorkPage() {
       </Dialog>
 
       {/* Delete Task Dialog */}
-      <AlertDialog open={isTaskDeleteDialogOpen} onOpenChange={setIsTaskDeleteDialogOpen}>
+      <AlertDialog 
+        open={isTaskDeleteDialogOpen} 
+        onOpenChange={(open) => {
+          if (!deleteTaskMutation.isPending) {
+            setIsTaskDeleteDialogOpen(open);
+            if (!open) setTaskToDelete(null);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Task</AlertDialogTitle>
@@ -1776,11 +1796,15 @@ export default function WorkPage() {
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="button-cancel-delete-task">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmTaskDelete}
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmTaskDelete();
+              }}
               data-testid="button-confirm-delete-task"
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteTaskMutation.isPending}
             >
-              Delete
+              {deleteTaskMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
