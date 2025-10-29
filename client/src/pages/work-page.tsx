@@ -181,7 +181,7 @@ export default function WorkPage() {
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
         toast({ title: "Project updated successfully" });
-      }, 100);
+      }, 300);
     },
   });
 
@@ -196,7 +196,7 @@ export default function WorkPage() {
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
         toast({ title: "Project deleted successfully" });
-      }, 100);
+      }, 300);
     },
   });
 
@@ -229,7 +229,7 @@ export default function WorkPage() {
         queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
         queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
         toast({ title: "Task updated successfully" });
-      }, 100);
+      }, 300);
     },
     onError: () => {
       toast({ title: "Failed to update task", variant: "destructive" });
@@ -248,7 +248,7 @@ export default function WorkPage() {
         queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
         queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
         toast({ title: "Task deleted successfully" });
-      }, 100);
+      }, 300);
     },
   });
 
@@ -406,21 +406,18 @@ export default function WorkPage() {
   const handleEditProject = (project: Project) => {
     setEditingProject(project);
     setIsProjectEditDialogOpen(true);
-  };
-
-  // Populate project edit form when editingProject changes
-  useEffect(() => {
-    if (editingProject && isProjectEditDialogOpen) {
+    // Use queueMicrotask to populate form after state updates
+    queueMicrotask(() => {
       projectEditForm.reset({
-        name: editingProject.name,
-        description: editingProject.description || "",
-        status: editingProject.status,
-        location: editingProject.location || "",
-        progress: editingProject.progress || 0,
-        dueDate: editingProject.dueDate ? new Date(editingProject.dueDate) : undefined,
+        name: project.name,
+        description: project.description || "",
+        status: project.status,
+        location: project.location || "",
+        progress: project.progress || 0,
+        dueDate: project.dueDate ? new Date(project.dueDate) : undefined,
       });
-    }
-  }, [editingProject, isProjectEditDialogOpen]);
+    });
+  };
 
   const handleUpdateProject = (data: InsertProject) => {
     if (!editingProject) return;
@@ -483,23 +480,20 @@ export default function WorkPage() {
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
     setIsTaskEditDialogOpen(true);
-  };
-
-  // Populate task edit form when editingTask changes
-  useEffect(() => {
-    if (editingTask && isTaskEditDialogOpen) {
+    // Use queueMicrotask to populate form after state updates
+    queueMicrotask(() => {
       taskEditForm.reset({
-        title: editingTask.title,
-        description: editingTask.description || "",
-        projectId: editingTask.projectId,
-        category: editingTask.category || "general",
-        status: editingTask.status,
-        priority: editingTask.priority,
-        dueDate: editingTask.dueDate ? new Date(editingTask.dueDate) : undefined,
-        assigneeId: editingTask.assigneeId,
+        title: task.title,
+        description: task.description || "",
+        projectId: task.projectId,
+        category: task.category || "general",
+        status: task.status,
+        priority: task.priority,
+        dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+        assigneeId: task.assigneeId,
       });
-    }
-  }, [editingTask, isTaskEditDialogOpen]);
+    });
+  };
 
   const handleUpdateTask = (data: InsertTask) => {
     if (!editingTask) return;
