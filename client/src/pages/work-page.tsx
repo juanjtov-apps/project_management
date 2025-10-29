@@ -206,15 +206,11 @@ export default function WorkPage() {
     mutationFn: ({ id, data }: { id: string; data: Partial<InsertTask> }) =>
       apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data }),
     onSuccess: () => {
-      console.log("✅ MUTATION SUCCESS: Task updated, about to close dialog");
-      setIsTaskEditDialogOpen(false);
-      console.log("✅ Dialog state set to false");
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      console.log("✅ Tasks query invalidated");
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      console.log("✅ Dashboard stats invalidated");
       toast({ title: "Task updated successfully" });
-      console.log("✅ UPDATE COMPLETE - mutation handler finished");
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      }, 300);
     },
     onError: () => {
       toast({ title: "Failed to update task", variant: "destructive" });
@@ -224,15 +220,11 @@ export default function WorkPage() {
   const deleteTaskMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/tasks/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      console.log("✅ MUTATION SUCCESS: Task deleted, about to close dialog");
-      setIsTaskDeleteDialogOpen(false);
-      console.log("✅ Delete dialog state set to false");
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      console.log("✅ Tasks query invalidated");
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      console.log("✅ Dashboard stats invalidated");
       toast({ title: "Task deleted successfully" });
-      console.log("✅ DELETE COMPLETE - mutation handler finished");
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      }, 300);
     },
   });
 
@@ -422,14 +414,11 @@ export default function WorkPage() {
   };
 
   const handleTaskEditDialogChange = (open: boolean) => {
-    console.log("🔵 DIALOG CHANGE HANDLER: Edit dialog changing to:", open);
     if (!open) {
-      console.log("🔵 Clearing editing task and resetting form");
       setEditingTask(null);
       taskEditForm.reset();
     }
     setIsTaskEditDialogOpen(open);
-    console.log("🔵 DIALOG CHANGE COMPLETE");
   };
 
   const handleDeleteProject = (project: Project) => {
@@ -489,6 +478,7 @@ export default function WorkPage() {
       description: data.description?.trim() || null,
       dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
     };
+    setIsTaskEditDialogOpen(false);
     updateTaskMutation.mutate({ id: editingTask.id, data: taskData });
   };
 
@@ -499,6 +489,7 @@ export default function WorkPage() {
 
   const handleConfirmTaskDelete = () => {
     if (taskToDelete) {
+      setIsTaskDeleteDialogOpen(false);
       deleteTaskMutation.mutate(taskToDelete.id);
     }
   };
