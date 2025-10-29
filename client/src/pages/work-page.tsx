@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { flushSync } from "react-dom";
 import {
   Plus,
   Edit,
@@ -173,14 +172,7 @@ export default function WorkPage() {
     mutationFn: ({ id, data }: { id: string; data: Partial<InsertProject> }) =>
       apiRequest(`/api/projects/${id}`, { method: "PATCH", body: data }),
     onSuccess: () => {
-      // Force synchronous close before invalidating
-      flushSync(() => {
-        setIsProjectEditDialogOpen(false);
-        setEditingProject(null);
-      });
-      projectEditForm.reset();
-      
-      // Now safe to invalidate
+      setIsProjectEditDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       toast({ title: "Project updated successfully" });
     },
@@ -189,13 +181,7 @@ export default function WorkPage() {
   const deleteProjectMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/projects/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      // Force synchronous close before invalidating
-      flushSync(() => {
-        setIsProjectDeleteDialogOpen(false);
-        setProjectToDelete(null);
-      });
-      
-      // Now safe to invalidate
+      setIsProjectDeleteDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       toast({ title: "Project deleted successfully" });
     },
@@ -220,14 +206,7 @@ export default function WorkPage() {
     mutationFn: ({ id, data }: { id: string; data: Partial<InsertTask> }) =>
       apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data }),
     onSuccess: () => {
-      // Force synchronous close before invalidating
-      flushSync(() => {
-        setIsTaskEditDialogOpen(false);
-        setEditingTask(null);
-      });
-      taskEditForm.reset();
-      
-      // Now safe to invalidate
+      setIsTaskEditDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({ title: "Task updated successfully" });
@@ -240,13 +219,7 @@ export default function WorkPage() {
   const deleteTaskMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/tasks/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      // Force synchronous close before invalidating
-      flushSync(() => {
-        setIsTaskDeleteDialogOpen(false);
-        setTaskToDelete(null);
-      });
-      
-      // Now safe to invalidate
+      setIsTaskDeleteDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({ title: "Task deleted successfully" });
