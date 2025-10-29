@@ -177,9 +177,11 @@ export default function WorkPage() {
       setEditingProject(null);
       projectEditForm.reset();
       
-      // Then invalidate and show toast
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      toast({ title: "Project updated successfully" });
+      // Delay invalidation to let dialog close animation complete
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+        toast({ title: "Project updated successfully" });
+      }, 100);
     },
   });
 
@@ -190,9 +192,11 @@ export default function WorkPage() {
       setIsProjectDeleteDialogOpen(false);
       setProjectToDelete(null);
       
-      // Then invalidate and show toast
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      toast({ title: "Project deleted successfully" });
+      // Delay invalidation to let dialog close animation complete
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+        toast({ title: "Project deleted successfully" });
+      }, 100);
     },
   });
 
@@ -220,10 +224,12 @@ export default function WorkPage() {
       setEditingTask(null);
       taskEditForm.reset();
       
-      // Then invalidate and show toast
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      toast({ title: "Task updated successfully" });
+      // Delay invalidation to let dialog close animation complete
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+        toast({ title: "Task updated successfully" });
+      }, 100);
     },
     onError: () => {
       toast({ title: "Failed to update task", variant: "destructive" });
@@ -237,10 +243,12 @@ export default function WorkPage() {
       setIsTaskDeleteDialogOpen(false);
       setTaskToDelete(null);
       
-      // Then invalidate and show toast
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      toast({ title: "Task deleted successfully" });
+      // Delay invalidation to let dialog close animation complete
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+        toast({ title: "Task deleted successfully" });
+      }, 100);
     },
   });
 
@@ -412,7 +420,7 @@ export default function WorkPage() {
         dueDate: editingProject.dueDate ? new Date(editingProject.dueDate) : undefined,
       });
     }
-  }, [editingProject, isProjectEditDialogOpen, projectEditForm]);
+  }, [editingProject, isProjectEditDialogOpen]);
 
   const handleUpdateProject = (data: InsertProject) => {
     if (!editingProject) return;
@@ -491,7 +499,7 @@ export default function WorkPage() {
         assigneeId: editingTask.assigneeId,
       });
     }
-  }, [editingTask, isTaskEditDialogOpen, taskEditForm]);
+  }, [editingTask, isTaskEditDialogOpen]);
 
   const handleUpdateTask = (data: InsertTask) => {
     if (!editingTask) return;
