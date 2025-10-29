@@ -396,27 +396,23 @@ export default function WorkPage() {
   };
 
   const handleEditProject = (project: Project) => {
-    console.log("🔵 EDIT PROJECT CLICKED", { projectId: project.id, projectName: project.name });
-    console.log("🔵 Step 1: Setting editing project");
     setEditingProject(project);
-    console.log("🔵 Step 2: Opening dialog");
     setIsProjectEditDialogOpen(true);
-    console.log("🔵 Step 3: Scheduling form reset in requestAnimationFrame");
-    // Defer form population until after dialog opens to avoid focus conflicts
-    requestAnimationFrame(() => {
-      console.log("🟢 RAF CALLBACK: About to reset project form");
-      projectEditForm.reset({
-        name: project.name,
-        description: project.description || "",
-        status: project.status,
-        location: project.location || "",
-        progress: project.progress || 0,
-        dueDate: project.dueDate ? new Date(project.dueDate) : undefined,
-      });
-      console.log("🟢 RAF CALLBACK: Project form reset complete");
-    });
-    console.log("🔵 Step 4: handleEditProject function complete");
   };
+
+  // Populate project edit form when editingProject changes
+  useEffect(() => {
+    if (editingProject && isProjectEditDialogOpen) {
+      projectEditForm.reset({
+        name: editingProject.name,
+        description: editingProject.description || "",
+        status: editingProject.status,
+        location: editingProject.location || "",
+        progress: editingProject.progress || 0,
+        dueDate: editingProject.dueDate ? new Date(editingProject.dueDate) : undefined,
+      });
+    }
+  }, [editingProject, isProjectEditDialogOpen, projectEditForm]);
 
   const handleUpdateProject = (data: InsertProject) => {
     if (!editingProject) return;
@@ -429,31 +425,19 @@ export default function WorkPage() {
   };
 
   const handleProjectEditDialogChange = (open: boolean) => {
-    console.log("🟡 PROJECT DIALOG onOpenChange", { open, currentlyOpen: isProjectEditDialogOpen });
     if (!open) {
-      console.log("🟡 Closing project dialog - resetting form");
-      // Reset form immediately before closing
-      projectEditForm.reset();
-      // Clear editing state
       setEditingProject(null);
-      console.log("🟡 Project dialog cleanup complete");
+      projectEditForm.reset();
     }
     setIsProjectEditDialogOpen(open);
-    console.log("🟡 Project dialog state updated to:", open);
   };
 
   const handleTaskEditDialogChange = (open: boolean) => {
-    console.log("🟡 TASK DIALOG onOpenChange", { open, currentlyOpen: isTaskEditDialogOpen });
     if (!open) {
-      console.log("🟡 Closing task dialog - resetting form");
-      // Reset form immediately before closing
-      taskEditForm.reset();
-      // Clear editing state  
       setEditingTask(null);
-      console.log("🟡 Task dialog cleanup complete");
+      taskEditForm.reset();
     }
     setIsTaskEditDialogOpen(open);
-    console.log("🟡 Task dialog state updated to:", open);
   };
 
   const handleDeleteProject = (project: Project) => {
@@ -489,29 +473,25 @@ export default function WorkPage() {
   };
 
   const handleEditTask = (task: Task) => {
-    console.log("🔵 EDIT TASK CLICKED", { taskId: task.id, taskTitle: task.title });
-    console.log("🔵 Step 1: Setting editing task");
     setEditingTask(task);
-    console.log("🔵 Step 2: Opening dialog");
     setIsTaskEditDialogOpen(true);
-    console.log("🔵 Step 3: Scheduling form reset in requestAnimationFrame");
-    // Defer form population until after dialog opens to avoid focus conflicts
-    requestAnimationFrame(() => {
-      console.log("🟢 RAF CALLBACK: About to reset task form");
-      taskEditForm.reset({
-        title: task.title,
-        description: task.description || "",
-        projectId: task.projectId,
-        category: task.category || "general",
-        status: task.status,
-        priority: task.priority,
-        dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-        assigneeId: task.assigneeId,
-      });
-      console.log("🟢 RAF CALLBACK: Task form reset complete");
-    });
-    console.log("🔵 Step 4: handleEditTask function complete");
   };
+
+  // Populate task edit form when editingTask changes
+  useEffect(() => {
+    if (editingTask && isTaskEditDialogOpen) {
+      taskEditForm.reset({
+        title: editingTask.title,
+        description: editingTask.description || "",
+        projectId: editingTask.projectId,
+        category: editingTask.category || "general",
+        status: editingTask.status,
+        priority: editingTask.priority,
+        dueDate: editingTask.dueDate ? new Date(editingTask.dueDate) : undefined,
+        assigneeId: editingTask.assigneeId,
+      });
+    }
+  }, [editingTask, isTaskEditDialogOpen, taskEditForm]);
 
   const handleUpdateTask = (data: InsertTask) => {
     if (!editingTask) return;
