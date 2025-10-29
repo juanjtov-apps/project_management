@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
+import { flushSync } from "react-dom";
 import {
   Plus,
   Edit,
@@ -172,31 +173,31 @@ export default function WorkPage() {
     mutationFn: ({ id, data }: { id: string; data: Partial<InsertProject> }) =>
       apiRequest(`/api/projects/${id}`, { method: "PATCH", body: data }),
     onSuccess: () => {
-      // Close dialog and reset state first
-      setIsProjectEditDialogOpen(false);
-      setEditingProject(null);
+      // Force synchronous close before invalidating
+      flushSync(() => {
+        setIsProjectEditDialogOpen(false);
+        setEditingProject(null);
+      });
       projectEditForm.reset();
       
-      // Delay invalidation to let dialog close animation complete
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-        toast({ title: "Project updated successfully" });
-      }, 300);
+      // Now safe to invalidate
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "Project updated successfully" });
     },
   });
 
   const deleteProjectMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/projects/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      // Close dialog first to prevent focus trap issues
-      setIsProjectDeleteDialogOpen(false);
-      setProjectToDelete(null);
+      // Force synchronous close before invalidating
+      flushSync(() => {
+        setIsProjectDeleteDialogOpen(false);
+        setProjectToDelete(null);
+      });
       
-      // Delay invalidation to let dialog close animation complete
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-        toast({ title: "Project deleted successfully" });
-      }, 300);
+      // Now safe to invalidate
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "Project deleted successfully" });
     },
   });
 
@@ -219,17 +220,17 @@ export default function WorkPage() {
     mutationFn: ({ id, data }: { id: string; data: Partial<InsertTask> }) =>
       apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data }),
     onSuccess: () => {
-      // Close dialog and reset state first
-      setIsTaskEditDialogOpen(false);
-      setEditingTask(null);
+      // Force synchronous close before invalidating
+      flushSync(() => {
+        setIsTaskEditDialogOpen(false);
+        setEditingTask(null);
+      });
       taskEditForm.reset();
       
-      // Delay invalidation to let dialog close animation complete
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-        toast({ title: "Task updated successfully" });
-      }, 300);
+      // Now safe to invalidate
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      toast({ title: "Task updated successfully" });
     },
     onError: () => {
       toast({ title: "Failed to update task", variant: "destructive" });
@@ -239,16 +240,16 @@ export default function WorkPage() {
   const deleteTaskMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/tasks/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      // Close dialog first to prevent focus trap issues
-      setIsTaskDeleteDialogOpen(false);
-      setTaskToDelete(null);
+      // Force synchronous close before invalidating
+      flushSync(() => {
+        setIsTaskDeleteDialogOpen(false);
+        setTaskToDelete(null);
+      });
       
-      // Delay invalidation to let dialog close animation complete
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-        toast({ title: "Task deleted successfully" });
-      }, 300);
+      // Now safe to invalidate
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      toast({ title: "Task deleted successfully" });
     },
   });
 
