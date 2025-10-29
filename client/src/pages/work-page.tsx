@@ -206,11 +206,11 @@ export default function WorkPage() {
     mutationFn: ({ id, data }: { id: string; data: Partial<InsertTask> }) =>
       apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      setIsTaskEditDialogOpen(false);
+      setEditingTask(null);
       toast({ title: "Task updated successfully" });
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      }, 300);
     },
     onError: () => {
       toast({ title: "Failed to update task", variant: "destructive" });
@@ -220,11 +220,11 @@ export default function WorkPage() {
   const deleteTaskMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/tasks/${id}`, { method: "DELETE" }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      setIsTaskDeleteDialogOpen(false);
+      setTaskToDelete(null);
       toast({ title: "Task deleted successfully" });
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      }, 300);
     },
   });
 
