@@ -397,16 +397,18 @@ export default function WorkPage() {
 
   const handleEditProject = (project: Project) => {
     setEditingProject(project);
-    // Populate form immediately
-    projectEditForm.reset({
-      name: project.name,
-      description: project.description || "",
-      status: project.status,
-      location: project.location || "",
-      progress: project.progress || 0,
-      dueDate: project.dueDate ? new Date(project.dueDate) : undefined,
-    });
     setIsProjectEditDialogOpen(true);
+    // Defer form population until after dialog opens to avoid focus conflicts
+    requestAnimationFrame(() => {
+      projectEditForm.reset({
+        name: project.name,
+        description: project.description || "",
+        status: project.status,
+        location: project.location || "",
+        progress: project.progress || 0,
+        dueDate: project.dueDate ? new Date(project.dueDate) : undefined,
+      });
+    });
   };
 
   const handleUpdateProject = (data: InsertProject) => {
@@ -473,18 +475,20 @@ export default function WorkPage() {
 
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
-    // Populate form immediately
-    taskEditForm.reset({
-      title: task.title,
-      description: task.description || "",
-      projectId: task.projectId,
-      category: task.category || "general",
-      status: task.status,
-      priority: task.priority,
-      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-      assigneeId: task.assigneeId,
-    });
     setIsTaskEditDialogOpen(true);
+    // Defer form population until after dialog opens to avoid focus conflicts
+    requestAnimationFrame(() => {
+      taskEditForm.reset({
+        title: task.title,
+        description: task.description || "",
+        projectId: task.projectId,
+        category: task.category || "general",
+        status: task.status,
+        priority: task.priority,
+        dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+        assigneeId: task.assigneeId,
+      });
+    });
   };
 
   const handleUpdateTask = (data: InsertTask) => {
