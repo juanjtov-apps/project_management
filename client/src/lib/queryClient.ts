@@ -4,9 +4,12 @@ async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     // Handle authentication errors gracefully - don't throw for expected 401s on auth endpoints
+    // This is normal when checking if user is logged in
     if (res.status === 401 && res.url.includes('/api/auth/')) {
-      // Expected authentication failure - return silently without throwing
-      throw new Error(`Authentication check: ${res.status}`);
+      // Return a special error that will be caught and handled silently
+      const error = new Error(`Authentication check: ${res.status}`);
+      (error as any).isAuthCheck = true; // Mark as expected auth check
+      throw error;
     }
     throw new Error(`${res.status}: ${text}`);
   }
@@ -103,6 +106,11 @@ export const getQueryFn: <T>(options: {
         credentials: "include",  // Re-enable credentials for session auth
       });
 
+      // Handle 401s on auth endpoints silently (expected when not logged in)
+      if (res.status === 401 && url.includes('/api/auth/')) {
+        return null;
+      }
+
       if (unauthorizedBehavior === "returnNull" && res.status === 401) {
         return null;
       }
@@ -116,7 +124,12 @@ export const getQueryFn: <T>(options: {
         return null;
       }
       // Handle authentication errors gracefully - return null for 401s
-      if (error?.message?.includes('401') || error?.message?.includes('Unauthorized') || error?.message?.includes('Authentication required') || error?.message?.includes('Authentication check:')) {
+      // Check both the error message and the special flag
+      if (error?.isAuthCheck || 
+          error?.message?.includes('401') || 
+          error?.message?.includes('Unauthorized') || 
+          error?.message?.includes('Authentication required') || 
+          error?.message?.includes('Authentication check:')) {
         // Silent return for expected auth failures - don't log these
         return null;
       }
@@ -136,6 +149,17 @@ export const queryClient = new QueryClient({
       retry: false,
       // Add global error handling to prevent unhandled rejections
       throwOnError: false,
+      // Suppress console errors for expected 401s on auth endpoints
+      onError: (error: any) => {
+        // Don't log expected authentication check failures
+        if (error?.isAuthCheck || 
+            error?.message?.includes('Authentication check:') ||
+            (error?.message?.includes('401') && error?.message?.includes('/api/auth/'))) {
+          return; // Silent - this is expected behavior
+        }
+        // Log other errors normally
+        console.error('Query error:', error);
+      },
     },
     mutations: {
       retry: false,

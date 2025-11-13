@@ -109,3 +109,25 @@ pool.on('error', (err: Error) => {
 });
 
 export const db = drizzle({ client: pool, schema });
+
+/**
+ * Get SSL configuration for database connections
+ * This can be used by other modules that need to create their own pools
+ */
+export function getDbSslConfig(): any {
+  return sslConfig;
+}
+
+/**
+ * Create a new database pool with the same SSL configuration as the main pool
+ * Useful for modules that need temporary connections
+ */
+export function createDbPool(): Pool {
+  return new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: sslConfig,
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+  });
+}

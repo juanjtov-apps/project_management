@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { spawn } from "child_process";
+import path from "path";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupSecurityMiddleware, validateInput, csrfProtection } from "./security";
 // Removed proxy middleware, using manual fetch forwarding instead
@@ -15,38 +16,74 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
   // Start Python backend as a child process with proper startup verification
   console.log("🐍 Starting Python FastAPI backend...");
   
-  const pythonBackend = spawn('python', ['main.py'], {
-    cwd: '/home/runner/workspace/python_backend',
+  // Determine Python command and working directory
+  // Try python3 first (common on macOS/Linux), fallback to python
+  const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+  const pythonBackendPath = process.env.PYTHON_BACKEND_PATH || 
+    (process.env.NODE_ENV === 'production' ? '/home/runner/workspace/python_backend' : 
+     path.join(process.cwd(), 'python_backend'));
+  
+  console.log(`   Using Python: ${pythonCmd}`);
+  console.log(`   Backend path: ${pythonBackendPath}`);
+  
+  // Try python3 first, fallback to python if python3 fails
+  let pythonBackend = spawn(pythonCmd, ['main.py'], {
+    cwd: pythonBackendPath,
     stdio: 'pipe',
-    detached: false
+    detached: false,
+    env: { ...process.env } // Pass through environment variables
   });
   
   let backendReady = false;
+  let fallbackAttempted = false;
   
-  pythonBackend.stdout?.on('data', (data) => {
-    const output = data.toString().trim();
-    console.log(`[Python Backend] ${output}`);
-    
-    // Mark backend as ready when we see the startup completion message
-    if (output.includes('Application startup complete') || output.includes('Uvicorn running')) {
-      backendReady = true;
-      console.log("✅ Python backend is ready to accept connections");
+  // Handle spawn errors (e.g., python3 not found)
+  pythonBackend.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT' && pythonCmd === 'python3' && !fallbackAttempted) {
+      console.log(`   ⚠️  python3 not found, trying python...`);
+      fallbackAttempted = true;
+      pythonBackend = spawn('python', ['main.py'], {
+        cwd: pythonBackendPath,
+        stdio: 'pipe',
+        detached: false,
+        env: { ...process.env }
+      });
+      
+      // Re-attach event handlers for fallback
+      setupPythonBackendHandlers(pythonBackend);
+    } else {
+      console.error(`❌ Failed to start Python backend: ${error.message}`);
+      console.error(`   Command: ${pythonCmd} main.py`);
+      console.error(`   Path: ${pythonBackendPath}`);
+      console.error(`   Error code: ${error.code}`);
     }
   });
   
-  pythonBackend.stderr?.on('data', (data) => {
-    console.error(`[Python Backend Error] ${data.toString().trim()}`);
-  });
+  // Setup event handlers
+  function setupPythonBackendHandlers(backend: ReturnType<typeof spawn>) {
+    backend.stdout?.on('data', (data) => {
+      const output = data.toString().trim();
+      console.log(`[Python Backend] ${output}`);
+      
+      // Mark backend as ready when we see the startup completion message
+      if (output.includes('Application startup complete') || output.includes('Uvicorn running')) {
+        backendReady = true;
+        console.log("✅ Python backend is ready to accept connections");
+      }
+    });
+    
+    backend.stderr?.on('data', (data) => {
+      console.error(`[Python Backend Error] ${data.toString().trim()}`);
+    });
+    
+    backend.on('close', (code) => {
+      console.log(`[Python Backend] Process exited with code ${code}`);
+      backendReady = false;
+    });
+  }
   
-  pythonBackend.on('close', (code) => {
-    console.log(`[Python Backend] Process exited with code ${code}`);
-    backendReady = false;
-  });
-  
-  pythonBackend.on('error', (error) => {
-    console.error(`[Python Backend] Process error: ${error}`);
-    backendReady = false;
-  });
+  // Setup initial handlers
+  setupPythonBackendHandlers(pythonBackend);
   
   // Add health check endpoint to verify backend status
   app.get('/api/backend-status', (req, res) => {
@@ -154,11 +191,20 @@ app.use((req, res, next) => {
   const server = await setupFrontendOnly(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    // Check if headers have already been sent
+    if (res.headersSent) {
+      return _next(err);
+    }
+    
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
-    throw err;
+    
+    // Only log error if not in production or if it's a server error
+    if (status >= 500) {
+      console.error('Server error:', err);
+    }
   });
 
   // importantly only setup vite in development and after
@@ -194,11 +240,23 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Production guard: Use 0.0.0.0 in production, 127.0.0.1 in development
+  // macOS doesn't support reusePort, so we use standard listen() method
+  const host = process.env.HOST || (isProduction ? '0.0.0.0' : '127.0.0.1');
+  
+  // Production guard: Verify critical environment variables
+  if (isProduction) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is required in production');
+    }
+    if (!process.env.SESSION_SECRET) {
+      throw new Error('SESSION_SECRET environment variable is required in production');
+    }
+  }
+  
+  server.listen(port, host, () => {
+    log(`serving on ${host}:${port} (${isProduction ? 'production' : 'development'})`);
   });
 })();

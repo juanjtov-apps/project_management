@@ -22,67 +22,80 @@ DB_SSL_DIR = os.getenv("DB_SSL_DIR")  # Directory containing certificates
 _pool = None
 
 def _create_ssl_context() -> Optional[ssl.SSLContext]:
-    """Create SSL context for Cloud SQL connection"""
-    # Check if we're connecting to Cloud SQL (GCP)
+    """Create SSL context based on database type: Neon (production) or Cloud SQL (development)"""
+    db_url_lower = DATABASE_URL.lower()
+    
+    # Detect database type
+    is_neon = 'neon.tech' in db_url_lower
     is_cloud_sql = (
-        'cloudsql' in DATABASE_URL.lower() or 
-        'gcp' in DATABASE_URL.lower() or
+        'cloudsql' in db_url_lower or 
+        'gcp' in db_url_lower or
         DB_SSL_ROOT_CERT or 
         DB_SSL_CERT or 
         DB_SSL_KEY or
         DB_SSL_DIR
     )
     
-    if not is_cloud_sql:
-        # For Neon or other providers, use simple SSL
-        if 'neon.tech' in DATABASE_URL:
-            return 'require'
-        return None
+    if is_neon:
+        # Neon (Production): Simple SSL with 'require' mode
+        print("🔵 Connecting to Neon database (production)")
+        return 'require'
     
-    # Cloud SQL requires proper SSL certificates
-    ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_REQUIRED
-    
-    # Determine certificate paths
-    root_cert_path = None
-    client_cert_path = None
-    client_key_path = None
-    
-    if DB_SSL_DIR:
-        # If directory is provided, look for standard filenames
-        ssl_dir = Path(DB_SSL_DIR)
-        root_cert_path = ssl_dir / "server-ca.pem"
-        client_cert_path = ssl_dir / "client-cert.pem"
-        client_key_path = ssl_dir / "client-key.pem"
-    else:
-        # Use individual paths if provided
-        if DB_SSL_ROOT_CERT:
-            root_cert_path = Path(DB_SSL_ROOT_CERT)
-        if DB_SSL_CERT:
-            client_cert_path = Path(DB_SSL_CERT)
-        if DB_SSL_KEY:
-            client_key_path = Path(DB_SSL_KEY)
-    
-    # Load server CA certificate (required)
-    if root_cert_path and root_cert_path.exists():
-        ssl_context.load_verify_locations(str(root_cert_path))
-        print(f"✅ Loaded SSL root certificate: {root_cert_path}")
-    else:
-        print("⚠️  Warning: SSL root certificate not found, connection may fail")
-    
-    # Load client certificate and key (optional but recommended)
-    if client_cert_path and client_key_path:
-        if client_cert_path.exists() and client_key_path.exists():
-            ssl_context.load_cert_chain(
-                str(client_cert_path),
-                str(client_key_path)
-            )
-            print(f"✅ Loaded SSL client certificate: {client_cert_path}")
+    if is_cloud_sql:
+        # Cloud SQL (Development): Full SSL certificate configuration
+        print("🟢 Connecting to Cloud SQL database (development)")
+        ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_REQUIRED
+        
+        # Determine certificate paths
+        root_cert_path = None
+        client_cert_path = None
+        client_key_path = None
+        
+        if DB_SSL_DIR:
+            # If directory is provided, look for standard filenames
+            ssl_dir = Path(DB_SSL_DIR)
+            root_cert_path = ssl_dir / "server-ca.pem"
+            client_cert_path = ssl_dir / "client-cert.pem"
+            client_key_path = ssl_dir / "client-key.pem"
         else:
-            print("⚠️  Warning: Client certificate/key not found, using server CA only")
+            # Use individual paths if provided
+            if DB_SSL_ROOT_CERT:
+                root_cert_path = Path(DB_SSL_ROOT_CERT)
+            if DB_SSL_CERT:
+                client_cert_path = Path(DB_SSL_CERT)
+            if DB_SSL_KEY:
+                client_key_path = Path(DB_SSL_KEY)
+        
+        # Load server CA certificate (required)
+        if root_cert_path and root_cert_path.exists():
+            ssl_context.load_verify_locations(str(root_cert_path))
+            print(f"✅ Loaded SSL root certificate: {root_cert_path}")
+        else:
+            print("⚠️  Warning: SSL root certificate not found, connection may fail")
+        
+        # Load client certificate and key (optional but recommended)
+        if client_cert_path and client_key_path:
+            if client_cert_path.exists() and client_key_path.exists():
+                ssl_context.load_cert_chain(
+                    str(client_cert_path),
+                    str(client_key_path)
+                )
+                print(f"✅ Loaded SSL client certificate: {client_cert_path}")
+            else:
+                print("⚠️  Warning: Client certificate/key not found, using server CA only")
+        
+        return ssl_context
     
-    return ssl_context
+    # Other providers: Check connection string for SSL requirements
+    if 'sslmode=require' in db_url_lower:
+        print("🔵 Using SSL from connection string")
+        return 'require'
+    
+    # No SSL required
+    print("⚪ No SSL configuration (local development)")
+    return None
 
 async def get_db_pool() -> asyncpg.Pool:
     """Get the database connection pool with robust error handling"""

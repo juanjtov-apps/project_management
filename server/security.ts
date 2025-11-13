@@ -168,7 +168,9 @@ export function csrfProtection(req: express.Request, res: express.Response, next
   const origin = req.get("Origin") || req.get("Referer");
   const expectedOrigins = [
     "http://localhost:5000",
-    "http://localhost:3000", 
+    "http://127.0.0.1:5000",  // Allow 127.0.0.1 for local development
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",  // Allow 127.0.0.1 for local development
     "https://*.replit.app",
     "https://*.replit.dev",
     "https://*.picard.replit.dev",

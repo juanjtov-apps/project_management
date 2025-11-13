@@ -4,7 +4,7 @@ import {
   type UpsertUser,
   type InsertUser,
 } from "@shared/schema";
-import { db } from "./db";
+import { db, createDbPool } from "./db";
 import { eq } from "drizzle-orm";
 
 // Interface for storage operations
@@ -90,8 +90,8 @@ export class DatabaseStorage implements IStorage {
   // Additional user operations for manual auth
   async getUserByEmail(email: string): Promise<User | undefined> {
     // Use direct SQL query to ensure we get the password field for authentication
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         SELECT id, email, username, name, first_name, last_name, role, 
@@ -137,8 +137,8 @@ export class DatabaseStorage implements IStorage {
 
   // RBAC operations using direct database queries
   async getCompanies(): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         SELECT id, name, domain, is_active, settings, created_at, updated_at
@@ -160,8 +160,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCompany(companyData: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const { name, domain, settings } = companyData;
       const is_active = companyData.status !== 'inactive';
@@ -187,8 +187,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCompany(id: string, data: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const { name, domain, status, settings } = data;
       const result = await pool.query(`
@@ -216,8 +216,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteCompany(id: string): Promise<boolean> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       // First, delete all user activities for this company
       await pool.query('DELETE FROM user_activities WHERE company_id = $1', [id]);
@@ -253,8 +253,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUsers(): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         SELECT u.id, u.email, u.first_name, u.last_name, u.created_at, u.username, u.name, u.company_id,
@@ -291,8 +291,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCompanyUsers(companyId: string): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       console.log(`✅ Fetching users for company ${companyId}`);
       const result = await pool.query(`
@@ -334,8 +334,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createRBACUser(userData: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const { 
         email, 
@@ -421,8 +421,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: string, data: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const { email, first_name, last_name, role, is_active, username, password } = data;
       const userName = `${first_name || ''} ${last_name || ''}`.trim() || email;
@@ -486,8 +486,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     
     // Helper function to safely delete from a table
     const safeDelete = async (query: string, params: any[], description: string) => {
@@ -702,8 +702,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProjects(): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         SELECT p.id, p.name, p.description, p.location, p.status, p.progress, p.due_date, 
@@ -728,8 +728,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProject(projectData: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const { name, description, location, status = 'active', dueDate, companyId } = projectData;
       
@@ -762,8 +762,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateProject(id: string, data: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const { name, description, location, status, progress, dueDate } = data;
       const result = await pool.query(`
@@ -793,8 +793,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProject(id: string): Promise<boolean> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       // Start transaction for atomic operation
       await pool.query('BEGIN');
@@ -840,8 +840,8 @@ export class DatabaseStorage implements IStorage {
 
   // Task CRUD operations
   async getTasks(): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         SELECT t.id, t.title, t.description, t.project_id, t.assignee_id, t.status, 
@@ -878,8 +878,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTask(taskData: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const { 
         title, 
@@ -931,8 +931,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTask(id: string, data: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       // Build dynamic SQL based on provided fields
       const fields = [];
@@ -1022,8 +1022,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTask(id: string): Promise<boolean> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query('DELETE FROM tasks WHERE id = $1', [id]);
       return (result.rowCount ?? 0) > 0;
@@ -1033,8 +1033,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async assignTask(taskId: string, assigneeId: string | null): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         UPDATE tasks 
@@ -1069,8 +1069,8 @@ export class DatabaseStorage implements IStorage {
 
   // Photo management methods  
   async getPhotos(projectId?: string): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       let query = `
         SELECT p.id, p.project_id, p.user_id, p.filename, p.original_name, p.description, p.tags, p.created_at
@@ -1106,8 +1106,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPhoto(photoData: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const { projectId, userId, filename, originalName, description, tags = [] } = photoData;
       
@@ -1138,8 +1138,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePhoto(id: string): Promise<boolean> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query('DELETE FROM photos WHERE id = $1', [id]);
       return (result.rowCount ?? 0) > 0;
@@ -1150,8 +1150,8 @@ export class DatabaseStorage implements IStorage {
 
   // Project logs operations
   async getProjectLogs(projectId?: string): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       let query = `
         SELECT id, project_id, user_id, title, content, type, status, images, created_at
@@ -1185,8 +1185,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProjectLog(logData: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const { projectId, userId, title, content, type = 'general', status = 'open', images = [] } = logData;
       
@@ -1268,8 +1268,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateProjectLog(id: string, data: any): Promise<boolean> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
 
       // Get existing log to compare images
@@ -1373,8 +1373,8 @@ export class DatabaseStorage implements IStorage {
 
 
   async deleteProjectLog(id: string): Promise<boolean> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       // Start transaction for atomic operation
       await pool.query('BEGIN');
@@ -1433,8 +1433,8 @@ export class DatabaseStorage implements IStorage {
 
   // Communications methods
   async getCommunications(): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         SELECT * FROM communications
@@ -1447,8 +1447,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCommunication(data: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         INSERT INTO communications (project_id, from_email, subject, message, type, priority, created_at, updated_at)
@@ -1463,8 +1463,8 @@ export class DatabaseStorage implements IStorage {
 
   // Change Orders methods
   async getChangeOrders(): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         SELECT * FROM change_orders
@@ -1477,8 +1477,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createChangeOrder(data: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         INSERT INTO change_orders (project_id, requested_by, title, description, cost_impact, time_impact, created_at, updated_at)
@@ -1492,8 +1492,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateChangeOrder(id: string, updates: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const setPairs = [];
       const values = [];
@@ -1532,8 +1532,8 @@ export class DatabaseStorage implements IStorage {
 
   // Time Entries methods
   async getTimeEntries(): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         SELECT * FROM time_entries
@@ -1546,8 +1546,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTimeEntry(data: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         INSERT INTO time_entries (user_id, project_id, task_id, description, start_time, end_time, total_hours, created_at)
@@ -1562,8 +1562,8 @@ export class DatabaseStorage implements IStorage {
 
   // Invoices methods
   async getInvoices(): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         SELECT * FROM invoices
@@ -1576,8 +1576,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createInvoice(data: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         INSERT INTO invoices (project_id, invoice_number, client_name, client_email, amount, tax, total, status, due_date, items, created_at, updated_at)
@@ -1592,8 +1592,8 @@ export class DatabaseStorage implements IStorage {
 
   // Activity tracking methods
   async getActivities(companyId: string, limit: number = 10): Promise<any[]> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         SELECT ua.*, u.first_name, u.email 
@@ -1610,8 +1610,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createActivity(data: any): Promise<any> {
-    const pg = await import('pg');
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    // Use createDbPool() to get a pool with proper SSL configuration
+    const pool = createDbPool();
     try {
       const result = await pool.query(`
         INSERT INTO user_activities (user_id, company_id, action_type, description, entity_type, entity_id, metadata, created_at)

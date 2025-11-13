@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
+        # Ignore extra environment variables (like SESSION_SECRET, NODE_ENV which are Node.js-specific)
+        # This prevents validation errors when these vars are set but not defined in the model
+        extra = "ignore"
 
 
 settings = Settings()

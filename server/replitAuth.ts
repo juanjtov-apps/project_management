@@ -35,21 +35,43 @@ const getOidcConfig = memoize(
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);
+  
+  // Import SSL config and create pool for session store
+  const { createDbPool } = require('./db');
+  const sessionPool = createDbPool();
+  
+  // Create session store with the SSL-configured pool
   const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
+    pool: sessionPool,
     createTableIfMissing: false,
     ttl: sessionTtl,
     tableName: "sessions",
   });
+
+  // Production guard: SESSION_SECRET is required in production
+  const isProduction = process.env.NODE_ENV === 'production';
+  const sessionSecret = process.env.SESSION_SECRET;
+  
+  if (isProduction && !sessionSecret) {
+    throw new Error(
+      'SESSION_SECRET environment variable is required in production. ' +
+      'Set a secure random secret before deploying.'
+    );
+  }
+
+  if (!sessionSecret) {
+    console.warn('⚠️  WARNING: SESSION_SECRET not set. Using default secret. This is UNSAFE for production!');
+  }
+
   return session({
-    secret: process.env.SESSION_SECRET!,
+    secret: sessionSecret || 'default-secret-change-in-production',
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
     rolling: true, // Regenerate session ID on every response to prevent session fixation
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Only secure in production
+      secure: isProduction, // Secure cookies in production (requires HTTPS)
       sameSite: "strict", // CSRF protection
       maxAge: sessionTtl,
     },

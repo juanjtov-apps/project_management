@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   Plus,
   Edit,
@@ -122,6 +122,7 @@ export default function WorkPage() {
   const [isTaskDeleteDialogOpen, setIsTaskDeleteDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const isClosingFromMutation = useRef(false);
 
   // Tasks - Filter states
   const [taskSearchTerm, setTaskSearchTerm] = useState("");
@@ -206,10 +207,22 @@ export default function WorkPage() {
     mutationFn: ({ id, data }: { id: string; data: Partial<InsertTask> }) =>
       apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      // Mark that we're closing from mutation to prevent double handling
+      isClosingFromMutation.current = true;
+      
+      // Close dialog and reset state first
       setIsTaskEditDialogOpen(false);
       setEditingTask(null);
+      taskEditForm.reset();
+      
+      // Reset the flag after state updates
+      queueMicrotask(() => {
+        isClosingFromMutation.current = false;
+      });
+      
+      // Then invalidate queries and show toast
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({ title: "Task updated successfully" });
     },
     onError: () => {
@@ -414,11 +427,13 @@ export default function WorkPage() {
   };
 
   const handleTaskEditDialogChange = (open: boolean) => {
-    if (!open) {
+    setIsTaskEditDialogOpen(open);
+    if (!open && !isClosingFromMutation.current) {
+      // Only reset if we're closing manually (not from mutation success)
+      // This prevents double resets when closing from mutation success
       setEditingTask(null);
       taskEditForm.reset();
     }
-    setIsTaskEditDialogOpen(open);
   };
 
   const handleDeleteProject = (project: Project) => {
@@ -478,7 +493,6 @@ export default function WorkPage() {
       description: data.description?.trim() || null,
       dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
     };
-    setIsTaskEditDialogOpen(false);
     updateTaskMutation.mutate({ id: editingTask.id, data: taskData });
   };
 
@@ -489,7 +503,6 @@ export default function WorkPage() {
 
   const handleConfirmTaskDelete = () => {
     if (taskToDelete) {
-      setIsTaskDeleteDialogOpen(false);
       deleteTaskMutation.mutate(taskToDelete.id);
     }
   };

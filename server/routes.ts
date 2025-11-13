@@ -15,21 +15,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Session configuration
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);
+  
+  // Import and create pool with SSL configuration for session store
+  const { createDbPool } = await import('./db');
+  const sessionPool = createDbPool();
+  
+  // Create session store with the SSL-configured pool
   const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
+    pool: sessionPool,
     createTableIfMissing: false,
     ttl: sessionTtl,
     tableName: "sessions",
   });
 
+  // Production guard: SESSION_SECRET is required in production
+  const isProduction = process.env.NODE_ENV === 'production';
+  const sessionSecret = process.env.SESSION_SECRET;
+  
+  if (isProduction && !sessionSecret) {
+    throw new Error(
+      'SESSION_SECRET environment variable is required in production. ' +
+      'Set a secure random secret before deploying.'
+    );
+  }
+
+  if (!sessionSecret) {
+    console.warn('⚠️  WARNING: SESSION_SECRET not set. Using default secret. This is UNSAFE for production!');
+  }
+
   app.use(session({
-    secret: process.env.SESSION_SECRET!,
+    secret: sessionSecret || 'default-secret-change-in-production',
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false, // Set to true in production with HTTPS
+      secure: isProduction, // Secure cookies in production (requires HTTPS)
       maxAge: sessionTtl,
     },
   }));
