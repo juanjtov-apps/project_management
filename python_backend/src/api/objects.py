@@ -4,9 +4,12 @@ Object storage API endpoints for serving images from Google Cloud Storage.
 import os
 import httpx
 import json
+import uuid
 from datetime import datetime, timedelta
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.responses import RedirectResponse
+from typing import Dict, Any
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/objects", tags=["objects"])
 
@@ -112,3 +115,145 @@ async def create_signed_url(bucket_name: str, object_name: str, sidecar_endpoint
         import traceback
         traceback.print_exc()
         return None
+
+class DownloadRequest(BaseModel):
+    filePath: str
+
+@router.post("/upload")
+async def get_upload_url():
+    """Get a signed upload URL for object storage."""
+    try:
+        config = get_storage_config()
+        bucket_id = config["bucket_id"]
+        private_dir = config["private_dir"]
+        sidecar_endpoint = config["sidecar_endpoint"]
+        
+        if not all([bucket_id, private_dir, sidecar_endpoint]):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Object storage not configured"
+            )
+        
+        # Generate a unique object ID
+        object_id = str(uuid.uuid4())
+        object_path = f"{private_dir}/uploads/{object_id}".lstrip('/')
+        
+        # Create signed URL for PUT (upload)
+        expires_at = (datetime.utcnow() + timedelta(minutes=15)).isoformat() + "Z"
+        request_data = {
+            "bucket_name": bucket_id,
+            "object_name": object_path,
+            "method": "PUT",
+            "expires_at": expires_at
+        }
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{sidecar_endpoint}/object-storage/signed-object-url",
+                headers={"Content-Type": "application/json"},
+                json=request_data
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                upload_url = result.get("signed_url")
+                if upload_url:
+                    return {"uploadURL": upload_url}
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to get upload URL from sidecar"
+                    )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Sidecar error: {response.status_code}"
+                )
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting upload URL: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get upload URL"
+        )
+
+@router.post("/download")
+async def get_download_url(request: DownloadRequest):
+    """Get a signed download URL for object storage."""
+    try:
+        config = get_storage_config()
+        bucket_id = config["bucket_id"]
+        private_dir = config["private_dir"]
+        sidecar_endpoint = config["sidecar_endpoint"]
+        
+        if not all([bucket_id, private_dir, sidecar_endpoint]):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Object storage not configured"
+            )
+        
+        file_path = request.filePath
+        
+        # Normalize file path: remove leading slashes and bucket prefix if present
+        normalized_path = file_path.lstrip('/')
+        if normalized_path.startswith(f"{bucket_id}/"):
+            normalized_path = normalized_path[len(bucket_id) + 1:]
+        
+        # If path doesn't start with private_dir, prepend it
+        if not normalized_path.startswith(private_dir.lstrip('/')):
+            # Extract just the filename/relative path if it's a full path
+            if '/' in normalized_path:
+                # Assume it's already a full path within the bucket
+                object_path = normalized_path
+            else:
+                # Just a filename, prepend private_dir/uploads
+                object_path = f"{private_dir}/uploads/{normalized_path}".lstrip('/')
+        else:
+            object_path = normalized_path
+        
+        # Create signed URL for GET (download)
+        expires_at = (datetime.utcnow() + timedelta(minutes=15)).isoformat() + "Z"
+        request_data = {
+            "bucket_name": bucket_id,
+            "object_name": object_path,
+            "method": "GET",
+            "expires_at": expires_at
+        }
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{sidecar_endpoint}/object-storage/signed-object-url",
+                headers={"Content-Type": "application/json"},
+                json=request_data
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                download_url = result.get("signed_url")
+                if download_url:
+                    return {"downloadURL": download_url}
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to get download URL from sidecar"
+                    )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Sidecar error: {response.status_code}"
+                )
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting download URL: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get download URL"
+        )

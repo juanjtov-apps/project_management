@@ -9,7 +9,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 import asyncpg
 from ..database.connection import get_db_pool
-from .auth import get_current_user_dependency
+from .auth import get_current_user_dependency, is_root_admin
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -46,13 +46,7 @@ class ProjectSummary(BaseModel):
 # Helper to verify root admin access
 async def verify_root_admin(current_user: dict):
     """Verify the current user is root admin."""
-    is_root = (
-        current_user.get("id") == "0" or 
-        current_user.get("email") == "chacjjlegacy@proesphera.com" or
-        current_user.get("email") == "admin@proesphere.com"
-    )
-    
-    if not is_root:
+    if not is_root_admin(current_user):
         raise HTTPException(
             status_code=403,
             detail="Root admin access required. This endpoint is restricted to platform administrators."
@@ -133,19 +127,32 @@ async def list_users(
     await verify_root_admin(current_user)
     
     async with pool.acquire() as conn:
+        # Look up role_id if role filter is provided
+        role_id = None
+        if role:
+            role_id = await conn.fetchval("""
+                SELECT id FROM roles 
+                WHERE LOWER(name) = LOWER($1) OR LOWER(role_name) = LOWER($1)
+                LIMIT 1
+            """, role)
+            if not role_id:
+                # If role not found, return empty list
+                return []
+        
         # Build query with optional filters
         query = """
             SELECT 
                 u.id,
                 u.email,
                 u.name,
-                COALESCE(u.role, 'user') as role,
+                COALESCE(r.name, r.role_name, 'user') as role,
                 u.company_id,
                 c.name as company_name,
                 u.last_login_at,
                 u.created_at
             FROM users u
             LEFT JOIN companies c ON u.company_id = c.id
+            LEFT JOIN roles r ON u.role_id = r.id
             WHERE 1=1
         """
         
@@ -157,9 +164,9 @@ async def list_users(
             params.append(company_id)
             param_index += 1
         
-        if role:
-            query += f" AND u.role = ${param_index}"
-            params.append(role)
+        if role_id:
+            query += f" AND u.role_id = ${param_index}"
+            params.append(role_id)
             param_index += 1
         
         query += f"""

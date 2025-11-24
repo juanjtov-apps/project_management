@@ -164,6 +164,9 @@ export function csrfProtection(req: express.Request, res: express.Response, next
     return next();
   }
 
+  // In development, be more lenient with origin checking
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  
   // Verify Origin header matches expected domain
   const origin = req.get("Origin") || req.get("Referer");
   const expectedOrigins = [
@@ -171,6 +174,8 @@ export function csrfProtection(req: express.Request, res: express.Response, next
     "http://127.0.0.1:5000",  // Allow 127.0.0.1 for local development
     "http://localhost:3000",
     "http://127.0.0.1:3000",  // Allow 127.0.0.1 for local development
+    "http://0.0.0.0:5000",    // Allow 0.0.0.0 for local development
+    "http://0.0.0.0:3000",    // Allow 0.0.0.0 for local development
     "https://*.replit.app",
     "https://*.replit.dev",
     "https://*.picard.replit.dev",
@@ -178,6 +183,12 @@ export function csrfProtection(req: express.Request, res: express.Response, next
     "https://*.proesphere.com",
     ...(process.env.REPLIT_DOMAINS?.split(",") || [])
   ];
+
+  // In development, allow requests without origin (e.g., from server-side forwarding)
+  if (isDevelopment && !origin) {
+    console.log(`[CSRF] Development mode: Allowing request without origin header`);
+    return next();
+  }
 
   if (origin) {
     const isValidOrigin = expectedOrigins.some(expected => {
@@ -189,9 +200,17 @@ export function csrfProtection(req: express.Request, res: express.Response, next
     });
 
     if (!isValidOrigin) {
+      // In development, log but don't block - helps with debugging
+      if (isDevelopment) {
+        console.warn(`[CSRF] Development mode: Invalid origin ${origin}, but allowing request`);
+        return next();
+      }
+      
       console.warn(`Blocked request from invalid origin: ${origin}`);
       return res.status(403).json({ 
         error: "Invalid origin",
+        origin: origin,
+        expectedOrigins: expectedOrigins,
         timestamp: new Date().toISOString()
       });
     }

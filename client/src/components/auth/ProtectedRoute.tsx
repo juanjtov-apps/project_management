@@ -16,7 +16,7 @@ export default function ProtectedRoute({
   const [, setLocation] = useLocation();
   
   const { data: currentUser } = useQuery<any>({
-    queryKey: ['/api/auth/user'],
+    queryKey: ['/api/v1/auth/user'],
     retry: false
   });
 

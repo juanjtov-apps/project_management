@@ -40,7 +40,7 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
 
   // Get current user to show company name
   const { data: currentUser } = useQuery<any>({
-    queryKey: ['/api/auth/user'],
+    queryKey: ['/api/v1/auth/user'],
     retry: false
   });
 

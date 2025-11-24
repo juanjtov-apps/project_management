@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { storage } from "./storage";
+import { isRootAdmin } from "./constants";
 
 declare global {
   namespace Express {
@@ -38,13 +39,11 @@ export const authorize = (allowedRoles: string[] = []) => {
       req.currentUser = currentUser;
       
       // Check if root admin (always has access)
-      const isRootAdmin = currentUser.id === '0' || 
-                          currentUser.email === 'chacjjlegacy@proesphera.com' ||
-                          currentUser.email === 'admin@proesphere.com';
-      req.isRootAdmin = isRootAdmin;
+      const isRootAdminValue = isRootAdmin(currentUser);
+      req.isRootAdmin = isRootAdminValue;
       
       // Root admin bypasses all role checks
-      if (isRootAdmin) {
+      if (isRootAdminValue) {
         console.log(`✅ RBAC: Root admin ${currentUser.email} granted access`);
         return next();
       }

@@ -179,16 +179,26 @@ async def get_user_accessible_projects(current_user: Dict[str, Any], pool: async
     if is_root_admin(current_user):
         async with pool.acquire() as conn:
             rows = await conn.fetch("SELECT id FROM public.projects")
-            return [row['id'] for row in rows]
+            project_ids = [row['id'] for row in rows]
+            print(f"Client Portal: Root admin has access to {len(project_ids)} projects")
+            return project_ids
     
     # Try both camelCase and snake_case for compatibility
-    user_company_id = str(current_user.get('company_id') or current_user.get('companyId') or '')
+    user_company_id = str(current_user.get('companyId') or current_user.get('company_id') or '')
+    print(f"Client Portal: User {current_user.get('email')} - company: {user_company_id}")
+    
+    if not user_company_id:
+        print("Client Portal: Warning - User has no company_id, returning empty project list")
+        return []
+    
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT id FROM public.projects WHERE company_id = $1",
             user_company_id
         )
-        return [row['id'] for row in rows]
+        project_ids = [row['id'] for row in rows]
+        print(f"Client Portal: User {current_user.get('email')} has access to {len(project_ids)} projects")
+        return project_ids
 
 # ============================================================================
 # ISSUES ENDPOINTS

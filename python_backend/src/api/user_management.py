@@ -16,7 +16,7 @@ class UserCreateRequest(BaseModel):
     last_name: str
     email: EmailStr
     password: str
-    role: str = "user"
+    role_id: int  # Changed from role: str - must be a valid role ID
     company_id: str
     is_active: bool = True
 
@@ -26,7 +26,12 @@ class UserUpdateRequest(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = None
     role: Optional[str] = None
+    role_id: Optional[int] = None  # Add this
+    company_id: Optional[str] = None  # Add this
     is_active: Optional[bool] = None
+    
+    class Config:
+        extra = "forbid"  # Explicitly forbid extra fields like "name"
 
 class CompanyCreateRequest(BaseModel):
     name: str
@@ -261,18 +266,27 @@ async def get_users(current_user: Dict[str, Any] = Depends(get_current_user_depe
             return users
         else:
             # Company admin sees only their company users
-            user_company_id = current_user.get('companyId')
+            # Handle both camelCase and snake_case
+            user_company_id = current_user.get('companyId') or current_user.get('company_id')
             if user_company_id:
+                # Ensure it's a string
+                user_company_id = str(user_company_id)
+                print(f"Company admin fetching users for company_id: {user_company_id}")
                 users = await auth_repo.get_company_users(user_company_id)
                 print(f"Company admin retrieved {len(users)} users for company {user_company_id}")
+                if len(users) == 0:
+                    print(f"WARNING: No users found for company_id {user_company_id}")
                 return users
         
+        print(f"WARNING: No company_id found for user {current_user.get('email')}")
         return []
         
     except HTTPException:
         raise
     except Exception as e:
         print(f"Error fetching users: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch users"
@@ -308,9 +322,11 @@ async def create_user(
         raise
     except Exception as e:
         print(f"Error creating user: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create user"
+            detail=f"Failed to create user: {str(e)}"
         )
 
 @router.patch("/rbac/users/{user_id}")
@@ -319,12 +335,38 @@ async def update_user(
     user_data: UserUpdateRequest,
     current_user: Dict[str, Any] = Depends(get_current_user_dependency)
 ):
-    """Update a user."""
+    """Update a user with company restrictions."""
     try:
         if not is_user_admin(current_user):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin privileges required"
+            )
+        
+        # Get the user to be updated to check company restrictions
+        user_to_update = await auth_repo.get_user(user_id)
+        if not user_to_update:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Company admin can only update users in their own company
+        if not is_root_admin(current_user):
+            user_company_id = current_user.get('companyId') or current_user.get('company_id')
+            target_user_company_id = user_to_update.get('companyId') or user_to_update.get('company_id')
+            
+            if target_user_company_id != user_company_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Company admins can only update users within their own company"
+                )
+        
+        # Prevent updating root admin
+        if is_root_admin(user_to_update):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot update root administrator"
             )
         
         user = await auth_repo.update_user(user_id, user_data.dict(exclude_unset=True))
@@ -365,10 +407,17 @@ async def delete_user(
                 detail="User not found"
             )
         
+        # Prevent deleting root admin
+        if is_root_admin(user_to_delete):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot delete root administrator"
+            )
+        
         # Company admin can only delete users in their own company
         if not is_root_admin(current_user):
-            user_company_id = current_user.get('companyId')
-            target_user_company_id = user_to_delete.get('companyId')
+            user_company_id = current_user.get('companyId') or current_user.get('company_id')
+            target_user_company_id = user_to_delete.get('companyId') or user_to_delete.get('company_id')
             
             if target_user_company_id != user_company_id:
                 raise HTTPException(
@@ -426,17 +475,28 @@ async def create_role(
                 detail="Admin privileges required"
             )
         
-        role = await role_repo.create_role(role_data.dict())
+        # Pass current_user to create_role so it can get company_id if needed
+        role = await role_repo.create_role(role_data.dict(), current_user=current_user)
         print(f"Role created: {role}")
         return role
         
     except HTTPException:
         raise
-    except Exception as e:
+    except ValueError as e:
+        # ValueError from create_role contains detailed error message
         print(f"Error creating role: {e}")
         raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Error creating role: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create role"
+            detail=f"Failed to create role: {error_msg}"
         )
 
 @router.patch("/rbac/roles/{role_id}")
@@ -463,11 +523,21 @@ async def update_role(
         
     except HTTPException:
         raise
-    except Exception as e:
+    except ValueError as e:
+        # ValueError from update_role contains detailed error message
         print(f"Error updating role: {e}")
         raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Error updating role: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update role"
+            detail=f"Failed to update role: {error_msg}"
         )
 
 @router.delete("/rbac/roles/{role_id}")

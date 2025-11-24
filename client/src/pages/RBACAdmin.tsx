@@ -32,13 +32,17 @@ interface Permission {
 
 interface Role {
   id: string;
-  name: string;
-  description: string;
-  company_id: string;
-  permissions: string[];
-  is_template: boolean;
-  created_at: string;
-  updated_at: string;
+  name?: string; // For complex roles table
+  roleName?: string; // camelCase version of role_name
+  role_name?: string; // For simple roles table
+  displayName?: string; // camelCase version of display_name
+  display_name?: string;
+  description?: string;
+  company_id?: string;
+  permissions?: string[];
+  is_template?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface Company {
@@ -83,7 +87,7 @@ export default function RBACAdmin() {
 
   // Get current user for RBAC checks
   const { data: currentUser } = useQuery<any>({
-    queryKey: ['/api/auth/user'],
+    queryKey: ['/api/v1/auth/user'],
     retry: false
   });
 
@@ -100,7 +104,45 @@ export default function RBACAdmin() {
   const { data: roles = [], isLoading: rolesLoading, error: rolesError } = useQuery<Role[]>({
     queryKey: ['/api/rbac/roles'],
     enabled: hasRBACAccess,
+    retry: 2,
+    staleTime: 30000, // Cache for 30 seconds
   });
+  
+  // Helper function to get role name safely (handles both name and role_name)
+  const getRoleName = (role: Role): string => {
+    return role.name || role.roleName || role.role_name || '';
+  };
+
+  // Debug logging for roles
+  React.useEffect(() => {
+    console.log('🔍 Roles Query State:', {
+      rolesLoading,
+      rolesError: rolesError ? String(rolesError) : null,
+      rolesCount: roles?.length || 0,
+      hasRBACAccess,
+      roles: roles
+    });
+    
+    if (rolesError) {
+      console.error('❌ Roles query error:', rolesError);
+      console.error('❌ Error details:', JSON.stringify(rolesError, null, 2));
+    }
+    if (roles && roles.length > 0) {
+      console.log(`✅ Loaded ${roles.length} roles:`, roles.map(r => ({ 
+        id: r.id, 
+        name: getRoleName(r), 
+        company_id: r.company_id, 
+        companyId: r.companyId,
+        is_template: r.is_template,
+        isTemplate: r.isTemplate
+      })));
+    } else if (!rolesLoading && roles.length === 0) {
+      console.warn('⚠️ No roles found - check backend endpoint /api/v1/rbac/roles');
+      console.warn('⚠️ hasRBACAccess:', hasRBACAccess);
+      console.warn('⚠️ rolesLoading:', rolesLoading);
+      console.warn('⚠️ rolesError:', rolesError);
+    }
+  }, [roles, rolesLoading, rolesError, hasRBACAccess]);
 
   const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
     queryKey: ['/api/companies'],
@@ -148,23 +190,52 @@ export default function RBACAdmin() {
   // Update user mutation - placed outside component to prevent re-creation on every render
   const updateUserMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => {
-      // Map role - the backend expects role string, not role_id
-      const role = data.role || 
-        (data.role_id === '1' ? 'admin' : 
-         data.role_id === '2' ? 'project_manager' : 
-         data.role_id === '3' ? 'office_manager' : 
-         data.role_id === '4' ? 'subcontractor' : 
-         data.role_id === '5' ? 'client' : 'crew');
+      // Use the full user update endpoint at /api/rbac/users/{id}
+      // Send both role_id and role for backend compatibility
+      const updateData: any = {
+        first_name: data.first_name,
+        last_name: data.last_name,
+        email: data.email,
+        is_active: data.is_active,
+        company_id: data.company_id,
+      };
       
-      return apiRequest(`/api/company-admin/users/${id}/role`, { 
-        method: 'PUT', 
-        body: { user_id: id, role } 
+      // Send role_id if available (preferred)
+      if (data.role_id) {
+        updateData.role_id = data.role_id;
+      }
+      
+      // Also send role string for backward compatibility
+      if (data.role) {
+        updateData.role = data.role;
+      } else if (data.role_id) {
+        // Map role_id to role string as fallback
+        const roleMap: Record<string, string> = {
+          '1': 'admin',
+          '2': 'project_manager',
+          '3': 'office_manager',
+          '4': 'subcontractor',
+          '5': 'client',
+          '6': 'crew'
+        };
+        updateData.role = roleMap[data.role_id] || 'crew';
+      }
+      
+      // Include password only if provided
+      if (data.password && data.password.trim() !== '') {
+        updateData.password = data.password;
+      }
+      
+      return apiRequest(`/api/rbac/users/${id}`, { 
+        method: 'PATCH', 
+        body: updateData
       });
     },
     onSuccess: async () => {
       console.log('✅ Mutation succeeded');
-      toast({ title: 'Success', description: 'User role updated successfully' });
-      // No cache manipulation - refetch will happen after dialog closes
+      toast({ title: 'Success', description: 'User updated successfully' });
+      // Invalidate users query to refetch updated data
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -265,16 +336,22 @@ export default function RBACAdmin() {
         const endpoint = isActive 
           ? `/api/company-admin/users/${userId}/activate`
           : `/api/company-admin/users/${userId}/suspend`;
-        return apiRequest(endpoint, {
+        const response = await apiRequest(endpoint, {
           method: 'PUT'
         });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || 'Failed to update user status');
+        }
+        return response.json();
       },
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
         toast({ title: 'Success', description: 'User status updated successfully' });
       },
       onError: (error: any) => {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        console.error('Toggle user status error:', error);
+        toast({ title: 'Error', description: error.message || 'Failed to update user status', variant: 'destructive' });
       }
     });
 
@@ -380,51 +457,33 @@ export default function RBACAdmin() {
                     placeholder="Enter password"
                   />
                 </div>
-                {isRootAdmin && (
-                  <div>
-                    <Label htmlFor="company">Company</Label>
-                    <Select value={newUser.company_id} onValueChange={(value) => setNewUser({ ...newUser, company_id: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select company" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {companies.map((company: Company) => (
-                          <SelectItem key={company.id} value={company.id}>
-                            {company.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {!isRootAdmin && (
-                  <div>
-                    <Label>Company</Label>
-                    <div className="p-2 bg-gray-50 rounded border text-sm text-gray-600">
-                      {(() => {
-                        // Display current user's company for non-root admins
-                        
-                        if (companiesLoading) return 'Loading company...';
-                        if (!companies.length) return 'No companies available';
-                        
-                        // Try both company_id and companyId for compatibility
-                        const userCompanyId = currentUser?.company_id || currentUser?.companyId;
-                        const matchedCompany = companies.find(c => c.id.toString() === userCompanyId?.toString());
-                        return matchedCompany?.name || `Company ID ${userCompanyId} not found`;
-                      })()}
-                    </div>
-                  </div>
-                )}
+                {/* Company is auto-assigned - no selection needed */}
                 <div>
-                  <Label htmlFor="role">Role</Label>
+                  <Label>Company</Label>
+                  <div className="p-2 bg-gray-50 rounded border text-sm text-gray-600">
+                    {(() => {
+                      // Display current user's company (auto-assigned)
+                      if (companiesLoading) return 'Loading company...';
+                      if (!companies.length) return 'No companies available';
+                      
+                      // Try both company_id and companyId for compatibility
+                      const userCompanyId = currentUser?.company_id || currentUser?.companyId;
+                      const matchedCompany = companies.find(c => c.id.toString() === userCompanyId?.toString());
+                      return matchedCompany?.name || `Company ID ${userCompanyId} not found`;
+                    })()}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {isRootAdmin ? 'Users will be assigned to your company' : 'User will be assigned to your company'}
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="role">Role *</Label>
                   <Select value={newUser.role_id} onValueChange={(value) => setNewUser({ ...newUser, role_id: value })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
                       {(() => {
-                        // Removed debug logging
-                        
                         if (rolesLoading) {
                           return <SelectItem value="loading" disabled>Loading roles...</SelectItem>;
                         }
@@ -433,39 +492,38 @@ export default function RBACAdmin() {
                           return <SelectItem value="none" disabled>No roles available</SelectItem>;
                         }
                         
-                        const filteredRoles = roles.filter((role: Role) => {
-                          // If no company selected, show all roles
-                          if (!newUser.company_id || newUser.company_id === '') {
-                            return true;
-                          }
-                          
-                          // Show platform roles (company_id 0) and treat all other roles as templates available to any company
-                          const isPlatformRole = role.company_id === '0';
-                          const isCompanyRole = role.company_id === '1'; // These are role templates
-                            // Platform roles and company role templates are available to all companies
-                          return isPlatformRole || isCompanyRole || role.is_template;
-                        });
+                        // DEBUG: Log all roles and filter details
+                        console.log('🔍 Create User - All roles:', roles);
+                        console.log('🔍 Create User - Current company ID:', currentUserCompanyId);
+                        console.log('🔍 Create User - Roles count:', roles.length);
                         
-                        if (filteredRoles.length === 0) {
-                          return <SelectItem value="none" disabled>No roles for selected company</SelectItem>;
+                        // Show ALL roles for now - we can filter later if needed
+                        // This ensures roles are visible while we debug
+                        const rolesToShow = roles;
+                        
+                        if (rolesToShow.length === 0) {
+                          return <SelectItem value="none" disabled>No roles available</SelectItem>;
                         }
                         
-                        return filteredRoles
+                        return rolesToShow
                           .filter((role: Role) => {
                             // Only root admin can assign Platform Administrator role
-                            if (role.name === 'Platform Administrator' && !isRootAdmin) {
+                            if (getRoleName(role) === 'Platform Administrator' && !isRootAdmin) {
                               return false;
                             }
                             return true;
                           })
                           .map((role: Role) => (
                             <SelectItem key={role.id} value={role.id.toString()}>
-                              {role.name} {role.company_id === '0' ? '(Platform)' : '(Standard)'}
+                              {getRoleName(role) || role.displayName || role.display_name} {role.company_id === '0' || role.company_id === 0 ? '(Platform)' : '(Standard)'}
                             </SelectItem>
                           ));
                       })()}
                     </SelectContent>
                   </Select>
+                  {!newUser.role_id && (
+                    <p className="text-xs text-red-500 mt-1">Role is required</p>
+                  )}
                 </div>
               </form>
               <DialogFooter>
@@ -475,9 +533,9 @@ export default function RBACAdmin() {
                 <Button 
                   id="create-user-button"
                   onClick={() => {
-                    // Auto-assign company for non-root admins - ensure it's the actual company ID, not '0'
+                    // Auto-assign company - always use current user's company
                     const userCompanyId = currentUser?.company_id || currentUser?.companyId;
-                    const effectiveCompanyId = isRootAdmin ? newUser.company_id : userCompanyId?.toString();
+                    const effectiveCompanyId = userCompanyId?.toString();
                     
                     // Removed debug logging
                     
@@ -636,19 +694,29 @@ export default function RBACAdmin() {
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      {roles && roles.length > 0 ? (
-                        roles
-                          .filter((role: Role) => {
-                            // Show platform roles and all company role templates
-                            const isPlatformRole = role.company_id === '0';
-                            const isCompanyTemplate = role.company_id === '1';
-                            return isPlatformRole || isCompanyTemplate || role.is_template;
-                          })
-                          .map((role: Role) => (
+                      {rolesLoading ? (
+                        <SelectItem value="loading" disabled>Loading roles...</SelectItem>
+                      ) : roles && roles.length > 0 ? (
+                        (() => {
+                          // DEBUG: Log all roles and filter details
+                          console.log('🔍 Edit User - All roles:', roles);
+                          console.log('🔍 Edit User - Current company ID:', currentUserCompanyId);
+                          console.log('🔍 Edit User - Roles count:', roles.length);
+                          
+                          // Show ALL roles for now - we can filter later if needed
+                          // This ensures roles are visible while we debug
+                          const rolesToShow = roles;
+                          
+                          if (rolesToShow.length === 0) {
+                            return <SelectItem value="none" disabled>No roles available</SelectItem>;
+                          }
+                          
+                          return rolesToShow.map((role: Role) => (
                             <SelectItem key={role.id} value={role.id.toString()}>
-                              {role.name} {role.company_id === '0' ? '(Platform)' : '(Standard)'}
+                              {getRoleName(role) || role.displayName || role.display_name} {role.company_id === '0' || role.company_id === 0 ? '(Platform)' : '(Standard)'}
                             </SelectItem>
-                          ))
+                          ));
+                        })()
                       ) : (
                         <SelectItem value="none" disabled>No roles available</SelectItem>
                       )}
@@ -685,17 +753,20 @@ export default function RBACAdmin() {
                       console.log(`🚀 Update button clicked - Session #${mySession}`);
                       
                       // Map fields properly for backend
-                      const updatePayload = {
+                      const updatePayload: any = {
                         email: editingUser.email,
                         username: editingUser.email,
                         name: `${editingUser.first_name || ''} ${editingUser.last_name || ''}`.trim(),
                         first_name: editingUser.first_name,
                         last_name: editingUser.last_name,
                         company_id: editingUser.company_id,
-                        role_id: editingUser.role_id,
+                        role_id: editingUser.role_id, // Backend will convert this to role string
                         is_active: editingUser.is_active,
-                        password: editingUser.password
                       };
+                      // Only include password if it was changed
+                      if (editingUser.password && editingUser.password.trim() !== '') {
+                        updatePayload.password = editingUser.password;
+                      }
                       
                       try {
                         // Wait for mutation to complete
@@ -817,11 +888,9 @@ export default function RBACAdmin() {
                                 </div>
                                 <div className="text-sm text-muted-foreground">{user.email}</div>
                                 <div className="flex items-center space-x-2 mt-1">
-                                  {user.role_name && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {user.role_name}
-                                    </Badge>
-                                  )}
+                                  <Badge variant="outline" className="text-xs">
+                                    {user.role_name || user.role || 'No role'}
+                                  </Badge>
                                   <Badge variant={user.is_active || user.isActive ? 'default' : 'destructive'} className="text-xs">
                                     {user.is_active || user.isActive ? 'Active' : 'Inactive'}
                                   </Badge>
@@ -882,29 +951,53 @@ export default function RBACAdmin() {
                                   
                                   // Properly map user data for editing, parsing name into first/last
                                   const nameParts = (user.name || '').split(' ');
-                                  // Map role to role_id with complete mapping
-                                  let roleId = user.role_id?.toString();
-                                  if (!roleId && user.role) {
+                                // Map role string to role_id by finding matching role in roles list
+                                let roleId = user.role_id?.toString();
+                                if (!roleId && user.role && roles && roles.length > 0) {
+                                  // Try to find role by matching role name to user's role string
+                                  const roleNameMap: Record<string, string> = {
+                                    'admin': 'Admin',
+                                    'project_manager': 'Project Manager',
+                                    'office_manager': 'Office Manager',
+                                    'subcontractor': 'Subcontractor',
+                                    'client': 'Client',
+                                    'crew': 'Crew'
+                                  };
+                                  const targetRoleName = roleNameMap[user.role] || user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                  // Find role by name (case-insensitive) - handle both name and role_name
+                                  const matchingRole = roles.find((r: Role) => {
+                                    const roleName = getRoleName(r).toLowerCase();
+                                    return roleName === targetRoleName.toLowerCase() ||
+                                           roleName === user.role.toLowerCase();
+                                  });
+                                  if (matchingRole) {
+                                    roleId = matchingRole.id.toString();
+                                  } else {
+                                    // Fallback to hardcoded mapping if role not found
                                     const roleMap: Record<string, string> = {
                                       'admin': '1',
                                       'project_manager': '2',
                                       'office_manager': '3',
                                       'subcontractor': '4',
                                       'client': '5',
-                                      'manager': '2', // Legacy mapping
-                                      'crew': '3' // Legacy mapping
+                                      'crew': '6'
                                     };
-                                    roleId = roleMap[user.role] || '1';
+                                    roleId = roleMap[user.role] || '';
                                   }
-                                  
-                                  const mappedUser = {
-                                    ...user,
-                                    first_name: user.first_name || nameParts[0] || '',
-                                    last_name: user.last_name || nameParts.slice(1).join(' ') || '',
-                                    company_id: user.company_id?.toString() || '1',
-                                    role_id: roleId || '1',
-                                    is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true)
-                                  };
+                                }
+                                
+                                const mappedUser = {
+                                  ...user,
+                                  first_name: user.first_name || nameParts[0] || '',
+                                  last_name: user.last_name || nameParts.slice(1).join(' ') || '',
+                                  company_id: (user.company_id || user.companyId)?.toString() || '',
+                                  role_id: roleId || '',
+                                  role: user.role || '', // Ensure role is included
+                                  role_name: user.role_name || '', // Ensure role_name is included
+                                  is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
+                                  email: user.email || '',
+                                  password: '' // Don't pre-fill password
+                                };
                                   
                                   console.log('✅ Setting editing user and opening dialog');
                                   
@@ -984,11 +1077,9 @@ export default function RBACAdmin() {
                               </div>
                               <div className="text-sm text-muted-foreground">{user.email}</div>
                               <div className="flex items-center space-x-2 mt-1">
-                                {user.role_name && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {user.role_name}
-                                  </Badge>
-                                )}
+                                <Badge variant="outline" className="text-xs">
+                                  {user.role_name || user.role || 'No role'}
+                                </Badge>
                                 <Badge variant={user.is_active || user.isActive ? 'default' : 'destructive'} className="text-xs">
                                   {user.is_active || user.isActive ? 'Active' : 'Inactive'}
                                 </Badge>
@@ -1049,28 +1140,52 @@ export default function RBACAdmin() {
                                 
                                 // Properly map user data for editing, parsing name into first/last
                                 const nameParts = (user.name || '').split(' ');
-                                // Map role to role_id with complete mapping
+                                // Map role string to role_id by finding matching role in roles list
                                 let roleId = user.role_id?.toString();
-                                if (!roleId && user.role) {
-                                  const roleMap: Record<string, string> = {
-                                    'admin': '1',
-                                    'project_manager': '2',
-                                    'office_manager': '3',
-                                    'subcontractor': '4',
-                                    'client': '5',
-                                    'manager': '2', // Legacy mapping
-                                    'crew': '3' // Legacy mapping
+                                if (!roleId && user.role && roles && roles.length > 0) {
+                                  // Try to find role by matching role name to user's role string
+                                  const roleNameMap: Record<string, string> = {
+                                    'admin': 'Admin',
+                                    'project_manager': 'Project Manager',
+                                    'office_manager': 'Office Manager',
+                                    'subcontractor': 'Subcontractor',
+                                    'client': 'Client',
+                                    'crew': 'Crew'
                                   };
-                                  roleId = roleMap[user.role] || '1';
+                                  const targetRoleName = roleNameMap[user.role] || user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                  // Find role by name (case-insensitive) - handle both name and role_name
+                                  const matchingRole = roles.find((r: Role) => {
+                                    const roleName = getRoleName(r).toLowerCase();
+                                    return roleName === targetRoleName.toLowerCase() ||
+                                           roleName === user.role.toLowerCase();
+                                  });
+                                  if (matchingRole) {
+                                    roleId = matchingRole.id.toString();
+                                  } else {
+                                    // Fallback to hardcoded mapping if role not found
+                                    const roleMap: Record<string, string> = {
+                                      'admin': '1',
+                                      'project_manager': '2',
+                                      'office_manager': '3',
+                                      'subcontractor': '4',
+                                      'client': '5',
+                                      'crew': '6'
+                                    };
+                                    roleId = roleMap[user.role] || '';
+                                  }
                                 }
                                 
                                 const mappedUser = {
                                   ...user,
                                   first_name: user.first_name || nameParts[0] || '',
                                   last_name: user.last_name || nameParts.slice(1).join(' ') || '',
-                                  company_id: user.company_id?.toString() || '1',
-                                  role_id: roleId || '1',
-                                  is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true)
+                                  company_id: (user.company_id || user.companyId)?.toString() || '',
+                                  role_id: roleId || '',
+                                  role: user.role || '', // Ensure role is included
+                                  role_name: user.role_name || '', // Ensure role_name is included
+                                  is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
+                                  email: user.email || '',
+                                  password: '' // Don't pre-fill password
                                 };
                                 
                                 console.log('✅ Setting editing user and opening dialog');
@@ -1281,7 +1396,7 @@ export default function RBACAdmin() {
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle className="flex items-center gap-2">
-                        {role.name}
+                        {getRoleName(role) || role.displayName || role.display_name}
                         {role.is_template && <Badge variant="secondary">Template</Badge>}
                       </CardTitle>
                       <CardDescription>{role.description}</CardDescription>

@@ -343,7 +343,6 @@ export class DatabaseStorage implements IStorage {
         last_name, 
         name,
         company_id,
-        role_id,
         password,
         username 
       } = userData;
@@ -354,66 +353,194 @@ export class DatabaseStorage implements IStorage {
       if (!company_id) {
         throw new Error('Company is required');
       }
+      
+      // Handle role_id or role - if role is provided, look up role_id
+      let role_id = userData.role_id;
+      if (!role_id && userData.role) {
+        // Try to look up role_id from roles table
+        try {
+          const roleLookup = await pool.query(`
+            SELECT id FROM roles 
+            WHERE LOWER(role_name) = LOWER($1) OR LOWER(name) = LOWER($1)
+            LIMIT 1
+          `, [userData.role]);
+          if (roleLookup.rows.length > 0) {
+            role_id = roleLookup.rows[0].id;
+          } else {
+            // Fallback to role mapping if roles table doesn't have the role
+            const roleMapping: any = {
+              'admin': '1',
+              'project_manager': '2',
+              'office_manager': '3',
+              'subcontractor': '4',
+              'client': '5',
+              'crew': '6'
+            };
+            role_id = roleMapping[userData.role.toLowerCase()] || '6'; // Default to crew
+          }
+        } catch (err) {
+          // If lookup fails, use role mapping
+          const roleMapping: any = {
+            'admin': '1',
+            'project_manager': '2',
+            'office_manager': '3',
+            'subcontractor': '4',
+            'client': '5',
+            'crew': '6'
+          };
+          role_id = roleMapping[userData.role.toLowerCase()] || '6'; // Default to crew
+        }
+      }
+      
       if (!role_id) {
-        throw new Error('Role is required');
+        // Default to crew role if nothing provided
+        role_id = '6';
       }
 
-      const userUsername = username || email;
+      const userUsername = username || email.split('@')[0];
       const userName = name || `${first_name || ''} ${last_name || ''}`.trim() || email;
       const userPassword = password || 'password123';
 
       // Hash the password before storing
-      const bcrypt = await import('bcrypt');
+      const bcryptModule = await import('bcrypt');
       const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(userPassword, saltRounds);
+      const hashedPassword = await bcryptModule.hash(userPassword, saltRounds);
 
-      // Map role_id to role name and simple role codes using predefined roles
-      const roleMapping: any = {
-        '1': { name: 'Admin', code: 'admin' },
-        '2': { name: 'Project Manager', code: 'project_manager' },
-        '3': { name: 'Office Manager', code: 'office_manager' },
-        '4': { name: 'Subcontractor', code: 'subcontractor' },
-        '5': { name: 'Client', code: 'client' }
-      };
+      // Generate user ID
+      const cryptoModule = await import('crypto');
+      const userId = cryptoModule.randomUUID().replace(/-/g, '').substring(0, 8);
       
-      const selectedRole = roleMapping[role_id];
-      if (!selectedRole) {
-        throw new Error('Invalid role selected');
+      // Check if users table has role_id column (new schema) or role column (old schema)
+      let hasRoleId = false;
+      try {
+        const checkSchema = await pool.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = 'users' AND column_name IN ('role_id', 'role')
+          LIMIT 1
+        `);
+        hasRoleId = checkSchema.rows.some((row: any) => row.column_name === 'role_id');
+      } catch (err) {
+        // If schema check fails, assume old schema
+        console.log('Schema check failed, assuming old schema:', err);
       }
       
-      const userRole = selectedRole.code;
+      let insertQuery: string;
+      let insertParams: any[];
       
-      const result = await pool.query(`
-        INSERT INTO users (
-          email, first_name, last_name, username, name, role, 
-          company_id, password, created_at, updated_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-        RETURNING id, email, first_name, last_name, username, name, role, company_id, created_at
-      `, [
-        email, 
-        first_name, 
-        last_name, 
-        userUsername,
-        userName,
-        userRole,
-        company_id,
-        hashedPassword
-      ]);
+      if (hasRoleId) {
+        // New schema: use role_id directly
+        insertQuery = `
+          INSERT INTO users (
+            id, email, first_name, last_name, username, name, role_id, 
+            company_id, password, is_active, created_at, updated_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+          RETURNING id, email, first_name, last_name, username, name, role_id, company_id, is_active, created_at
+        `;
+        insertParams = [
+          userId,
+          email, 
+          first_name, 
+          last_name, 
+          userUsername,
+          userName,
+          role_id,
+          company_id,
+          hashedPassword,
+          true
+        ];
+      } else {
+        // Old schema: map role_id to role string
+        const roleMapping: any = {
+          '1': 'admin',
+          '2': 'project_manager',
+          '3': 'office_manager',
+          '4': 'subcontractor',
+          '5': 'client',
+          '6': 'crew'
+        };
+        const userRole = roleMapping[role_id] || 'crew';
+        
+        insertQuery = `
+          INSERT INTO users (
+            id, email, first_name, last_name, username, name, role, 
+            company_id, password, is_active, created_at, updated_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+          RETURNING id, email, first_name, last_name, username, name, role, company_id, is_active, created_at
+        `;
+        insertParams = [
+          userId,
+          email, 
+          first_name, 
+          last_name, 
+          userUsername,
+          userName,
+          userRole,
+          company_id,
+          hashedPassword,
+          true
+        ];
+      }
       
+      const result = await pool.query(insertQuery, insertParams);
       const row = result.rows[0];
 
-      // Get company name for response
+      // Create company_users entry if table exists
+      try {
+        try {
+          await pool.query(`
+            INSERT INTO company_users (user_id, company_id, role_id, created_at)
+            VALUES ($1, $2, $3, NOW())
+            ON CONFLICT (company_id, user_id, role_id) DO NOTHING
+          `, [userId, company_id, role_id]);
+        } catch (conflictErr: any) {
+          // If unique constraint doesn't exist, try without ON CONFLICT
+          if (conflictErr.code === '42704' || conflictErr.code === '23505') {
+            await pool.query(`
+              INSERT INTO company_users (user_id, company_id, role_id, created_at)
+              VALUES ($1, $2, $3, NOW())
+            `, [userId, company_id, role_id]);
+          } else {
+            throw conflictErr;
+          }
+        }
+      } catch (err: any) {
+        // Table might not exist, that's okay
+        if (err.code !== '42P01' && err.code !== '42703') {
+          console.log('Note: company_users table not found or error inserting:', err.message);
+        }
+      }
+
+      // Get company name and role name for response
       const companyResult = await pool.query('SELECT name FROM companies WHERE id = $1', [company_id]);
       const companyName = companyResult.rows[0]?.name || 'Unknown Company';
+      
+      let roleName = '';
+      try {
+        const roleResult = await pool.query('SELECT role_name, display_name FROM roles WHERE id = $1', [role_id]);
+        if (roleResult.rows[0]) {
+          roleName = roleResult.rows[0].display_name || roleResult.rows[0].role_name || '';
+        }
+      } catch (err) {
+        // Roles table might not exist
+      }
 
       return {
         id: row.id,
         username: row.username,
         name: row.name,
         email: row.email,
-        role: row.role,
-        createdAt: row.created_at
+        first_name: row.first_name,
+        last_name: row.last_name,
+        role_id: hasRoleId ? row.role_id : role_id,
+        role: hasRoleId ? roleName : row.role,
+        role_name: roleName || (hasRoleId ? '' : row.role),
+        company_id: row.company_id,
+        company_name: companyName,
+        is_active: row.is_active !== undefined ? row.is_active : true,
+        created_at: row.created_at
       };
     } finally {
       await pool.end();
@@ -424,11 +551,88 @@ export class DatabaseStorage implements IStorage {
     // Use createDbPool() to get a pool with proper SSL configuration
     const pool = createDbPool();
     try {
-      const { email, first_name, last_name, role, is_active, username, password } = data;
-      const userName = `${first_name || ''} ${last_name || ''}`.trim() || email;
+      const { email, first_name, last_name, role, company_id, is_active, username, password } = data;
+      let role_id = data.role_id;
       
-      let queryText;
-      let queryParams;
+      if (!id) {
+        throw new Error('User ID is required');
+      }
+      
+      // Get current user to preserve values if not being updated
+      const currentUserResult = await pool.query(
+        'SELECT id, email, first_name, last_name, company_id, role_id, role, is_active, username FROM users WHERE id = $1',
+        [id]
+      );
+      
+      if (currentUserResult.rows.length === 0) {
+        throw new Error('User not found');
+      }
+      
+      const currentUser = currentUserResult.rows[0];
+      const currentCompanyId = currentUser.company_id;
+      const currentRoleId = currentUser.role_id;
+      const currentRole = currentUser.role;
+      
+      // Use provided values or fall back to current values
+      const finalEmail = email || currentUser.email;
+      const finalFirstName = first_name !== undefined ? first_name : currentUser.first_name;
+      const finalLastName = last_name !== undefined ? last_name : currentUser.last_name;
+      const finalCompanyId = company_id || currentCompanyId;
+      const finalIsActive = is_active !== undefined ? is_active : (currentUser.is_active !== undefined ? currentUser.is_active : true);
+      const finalUsername = username || finalEmail.split('@')[0];
+      const userName = `${finalFirstName || ''} ${finalLastName || ''}`.trim() || finalEmail;
+      
+      // Determine role_id and role
+      let finalRoleId = role_id;
+      let finalRole = role;
+      
+      // Check if users table has role_id column (new schema) or role column (old schema)
+      let hasRoleId = false;
+      try {
+        const checkSchema = await pool.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = 'users' AND column_name IN ('role_id', 'role')
+        `);
+        hasRoleId = checkSchema.rows.some((row: any) => row.column_name === 'role_id');
+      } catch (err) {
+        // If schema check fails, assume old schema
+        console.log('Schema check failed, assuming old schema:', err);
+      }
+      
+      // If role_id is provided, use it. Otherwise, if role string is provided, map it to role_id
+      if (!finalRoleId && finalRole) {
+        const roleMapping: any = {
+          'admin': '1',
+          'project_manager': '2',
+          'office_manager': '3',
+          'subcontractor': '4',
+          'client': '5',
+          'crew': '6'
+        };
+        finalRoleId = roleMapping[finalRole.toLowerCase()] || currentRoleId;
+      }
+      
+      if (!finalRoleId) {
+        finalRoleId = currentRoleId;
+      }
+      
+      // If we have role_id but need role string for old schema
+      if (!finalRole && finalRoleId && !hasRoleId) {
+        const roleMapping: any = {
+          '1': 'admin',
+          '2': 'project_manager',
+          '3': 'office_manager',
+          '4': 'subcontractor',
+          '5': 'client',
+          '6': 'crew'
+        };
+        finalRole = roleMapping[finalRoleId.toString()] || currentRole || 'crew';
+      }
+      
+      // Build update query based on schema
+      let queryText: string;
+      let queryParams: any[];
       
       if (password && password.trim() !== '') {
         // Hash the new password if provided
@@ -436,29 +640,106 @@ export class DatabaseStorage implements IStorage {
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
         
-        queryText = `
-          UPDATE users 
-          SET email = $1, first_name = $2, last_name = $3, role = $4, is_active = $5, updated_at = NOW(), name = $6, username = $7, password = $8
-          WHERE id = $9
-          RETURNING id, email, first_name, last_name, username, role, is_active, created_at, name
-        `;
-        queryParams = [email, first_name, last_name, role, is_active, userName, username || email.split('@')[0], hashedPassword, id];
+        if (hasRoleId) {
+          // New schema: use role_id
+          queryText = `
+            UPDATE users 
+            SET email = $1, first_name = $2, last_name = $3, role_id = $4, company_id = $5, is_active = $6, 
+                updated_at = NOW(), name = $7, username = $8, password = $9
+            WHERE id = $10
+            RETURNING id, email, first_name, last_name, username, role_id, company_id, is_active, created_at, name
+          `;
+          queryParams = [finalEmail, finalFirstName, finalLastName, finalRoleId, finalCompanyId, finalIsActive, userName, finalUsername, hashedPassword, id];
+        } else {
+          // Old schema: use role string
+          queryText = `
+            UPDATE users 
+            SET email = $1, first_name = $2, last_name = $3, role = $4, company_id = $5, is_active = $6, 
+                updated_at = NOW(), name = $7, username = $8, password = $9
+            WHERE id = $10
+            RETURNING id, email, first_name, last_name, username, role, company_id, is_active, created_at, name
+          `;
+          queryParams = [finalEmail, finalFirstName, finalLastName, finalRole, finalCompanyId, finalIsActive, userName, finalUsername, hashedPassword, id];
+        }
       } else {
         // Don't update password if not provided
-        queryText = `
-          UPDATE users 
-          SET email = $1, first_name = $2, last_name = $3, role = $4, is_active = $5, updated_at = NOW(), name = $6, username = $7
-          WHERE id = $8
-          RETURNING id, email, first_name, last_name, username, role, is_active, created_at, name
-        `;
-        queryParams = [email, first_name, last_name, role, is_active, userName, username || email.split('@')[0], id];
+        if (hasRoleId) {
+          // New schema: use role_id
+          queryText = `
+            UPDATE users 
+            SET email = $1, first_name = $2, last_name = $3, role_id = $4, company_id = $5, is_active = $6, 
+                updated_at = NOW(), name = $7, username = $8
+            WHERE id = $9
+            RETURNING id, email, first_name, last_name, username, role_id, company_id, is_active, created_at, name
+          `;
+          queryParams = [finalEmail, finalFirstName, finalLastName, finalRoleId, finalCompanyId, finalIsActive, userName, finalUsername, id];
+        } else {
+          // Old schema: use role string
+          queryText = `
+            UPDATE users 
+            SET email = $1, first_name = $2, last_name = $3, role = $4, company_id = $5, is_active = $6, 
+                updated_at = NOW(), name = $7, username = $8
+            WHERE id = $9
+            RETURNING id, email, first_name, last_name, username, role, company_id, is_active, created_at, name
+          `;
+          queryParams = [finalEmail, finalFirstName, finalLastName, finalRole, finalCompanyId, finalIsActive, userName, finalUsername, id];
+        }
       }
       
       const result = await pool.query(queryText, queryParams);
       
-      if (result.rows.length === 0) return null;
+      if (result.rows.length === 0) {
+        throw new Error('Failed to update user - no rows affected');
+      }
       
       const row = result.rows[0];
+      
+      // Update company_users table if it exists and company_id or role_id changed
+      if (finalCompanyId && finalRoleId) {
+        try {
+          // Try to update company_users - handle both with and without unique constraint
+          try {
+            await pool.query(`
+              INSERT INTO company_users (user_id, company_id, role_id, created_at)
+              VALUES ($1, $2, $3, NOW())
+              ON CONFLICT (company_id, user_id, role_id) 
+              DO UPDATE SET role_id = EXCLUDED.role_id, created_at = NOW()
+            `, [id, finalCompanyId, finalRoleId]);
+          } catch (conflictErr: any) {
+            // If unique constraint doesn't exist or conflict error, try delete + insert
+            if (conflictErr.code === '42704' || conflictErr.code === '23505' || conflictErr.message.includes('constraint')) {
+              await pool.query(`
+                DELETE FROM company_users WHERE user_id = $1 AND company_id = $2;
+                INSERT INTO company_users (user_id, company_id, role_id, created_at)
+                VALUES ($1, $2, $3, NOW())
+              `, [id, finalCompanyId, finalRoleId]);
+            } else {
+              throw conflictErr;
+            }
+          }
+        } catch (err: any) {
+          // Table might not exist, that's okay - just log it
+          if (err.code !== '42P01' && err.code !== '42703') {
+            console.log('Note: company_users table operation failed:', err.message);
+          }
+        }
+      }
+
+      // Get company name and role name for response
+      const companyResult = await pool.query('SELECT name FROM companies WHERE id = $1', [finalCompanyId || currentCompanyId]);
+      const companyName = companyResult.rows[0]?.name || 'Unknown Company';
+      
+      let roleName = '';
+      if (hasRoleId && finalRoleId) {
+        try {
+          const roleResult = await pool.query('SELECT role_name, display_name FROM roles WHERE id = $1', [finalRoleId]);
+          if (roleResult.rows[0]) {
+            roleName = roleResult.rows[0].display_name || roleResult.rows[0].role_name || '';
+          }
+        } catch (err) {
+          // Roles table might not exist
+        }
+      }
 
       return {
         id: row.id,
@@ -466,19 +747,15 @@ export class DatabaseStorage implements IStorage {
         email: row.email,
         first_name: row.first_name,
         last_name: row.last_name,
-        company_id: '0', // Default since no company relationship exists
-        role_id: '1',
-        is_active: row.is_active,
+        company_id: row.company_id || finalCompanyId,
+        company_name: companyName,
+        role_id: hasRoleId ? (row.role_id || finalRoleId) : finalRoleId,
+        role: hasRoleId ? (roleName || finalRole) : (row.role || finalRole),
+        role_name: roleName || (hasRoleId ? '' : (row.role || finalRole)),
+        is_active: row.is_active !== undefined ? row.is_active : true,
+        isActive: row.is_active !== undefined ? row.is_active : true,
         created_at: row.created_at,
-        role_name: row.role,
-        company_name: 
-          row.role === 'admin' ? 'Platform Administration' :
-          row.role === 'manager' ? 'Management Team' :
-          row.role === 'crew' ? 'Construction Crew' :
-          row.role === 'subcontractor' ? 'Subcontractors' :
-          'General Users',
-        username: row.username,
-        isActive: row.is_active
+        username: row.username
       };
     } finally {
       await pool.end();

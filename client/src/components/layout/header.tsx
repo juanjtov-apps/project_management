@@ -10,7 +10,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { useState, useEffect } from "react";
 import type { Notification, User } from "@shared/schema";
+import OrganizationSelector from "@/components/organization-selector";
 
 interface HeaderProps {
   onToggleMobileMenu: () => void;
@@ -22,20 +24,48 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
   const { user } = useAuth() as { user: User | undefined };
   
   // Use new PM notifications endpoint for unread count
+  // Pause polling when any dialog is open to prevent conflicts
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  // Listen for dialog open/close events
+  useEffect(() => {
+    const handleDialogOpen = () => setIsDialogOpen(true);
+    const handleDialogClose = () => setIsDialogOpen(false);
+    
+    // Listen for dialog state changes via custom events
+    window.addEventListener('dialog:open', handleDialogOpen);
+    window.addEventListener('dialog:close', handleDialogClose);
+    
+    // Also check for open dialogs in the DOM
+    const checkDialogs = () => {
+      const hasOpenDialog = document.querySelector('[role="dialog"][data-state="open"]') !== null;
+      setIsDialogOpen(hasOpenDialog);
+    };
+    
+    // Check periodically and on mutations
+    const observer = new MutationObserver(checkDialogs);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-state'] });
+    
+    checkDialogs(); // Initial check
+    
+    return () => {
+      window.removeEventListener('dialog:open', handleDialogOpen);
+      window.removeEventListener('dialog:close', handleDialogClose);
+      observer.disconnect();
+    };
+  }, []);
+  
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: ["/api/pm-notifications/unread-count"],
-    refetchInterval: 15000, // Poll every 15 seconds
+    refetchInterval: isDialogOpen ? false : 15000, // Pause polling when dialog is open
+    refetchOnWindowFocus: !isDialogOpen, // Also pause refetch on focus when dialog is open
   });
 
-  // Get companies to display company name - only for platform admins
-  const { data: companies = [] } = useQuery<any[]>({
-    queryKey: ['/api/companies'],
+  // Get current user data for organization selector
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ['/api/v1/auth/user'],
     retry: false,
-    enabled: false, // Disable since this requires platform admin access
   });
-
-  // Use company name from user data or default to Proesphere
-  const companyName = 'Proesphere';
 
   const unreadCount = unreadData?.count || 0;
   
@@ -51,7 +81,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", {
+      await fetch("/api/v1/auth/logout", {
         method: "POST",
         credentials: "include",
       });
@@ -92,8 +122,15 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
           </div>
         </div>
           
-        {/* Right: Search + Notifications + User */}
+        {/* Right: Organization Selector (root users) + Search + Notifications + User */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Organization Selector for Root Users */}
+          {currentUser && (currentUser.isRootAdmin || currentUser.isRoot) && (
+            <div className="hidden md:block">
+              <OrganizationSelector currentUser={currentUser} />
+            </div>
+          )}
+          
           {/* Search Icon */}
           <Button
             variant="ghost"

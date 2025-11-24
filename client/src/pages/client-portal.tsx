@@ -25,7 +25,7 @@ export default function ClientPortal() {
   
   // Get current user for permissions
   const { data: currentUser } = useQuery<any>({
-    queryKey: ["/api/auth/user"],
+    queryKey: ["/api/v1/auth/user"],
     retry: false
   });
   

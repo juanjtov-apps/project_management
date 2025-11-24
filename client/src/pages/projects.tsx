@@ -469,7 +469,7 @@ export default function Projects() {
 
   // Get current user for company context
   const { data: currentUser } = useQuery<any>({
-    queryKey: ['/api/auth/user'],
+    queryKey: ['/api/v1/auth/user'],
     retry: false
   });
 
@@ -487,7 +487,22 @@ export default function Projects() {
   });
 
   const getProjectTasks = (projectId: string) => {
-    return tasks.filter(task => task.projectId === projectId);
+    if (!tasks || tasks.length === 0) {
+      return [];
+    }
+    if (!projectId) {
+      return [];
+    }
+    // Filter tasks by projectId - use strict equality like tasks tab does
+    return tasks.filter(task => {
+      const taskProjectId = task.projectId;
+      // Handle null/undefined
+      if (!taskProjectId) {
+        return false;
+      }
+      // Use strict equality comparison (same as tasks tab)
+      return taskProjectId === projectId;
+    });
   };
 
   // Helper function to get assignee name

@@ -307,7 +307,7 @@ export default function Logs() {
     try {
 
       console.log('🔗 Requesting upload URL from server for file:', file?.name || 'unknown');
-      const response = await fetch("/api/objects/upload", { 
+      const response = await fetch("/api/v1/objects/upload", { 
         method: "POST", 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({})

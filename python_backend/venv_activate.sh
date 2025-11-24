@@ -6,7 +6,10 @@ source venv/bin/activate
 
 # Export environment variables from .env
 if [ -f .env ]; then
-  export $(grep -v '^#' .env | xargs)
+  #export $(grep -v '^#' .env | xargs)
+  set -a      # auto export all variables
+  source .env # or: . .env
+  set +a
 fi
 
 # Install dependencies

@@ -5,7 +5,7 @@ async function throwIfResNotOk(res: Response) {
     const text = (await res.text()) || res.statusText;
     // Handle authentication errors gracefully - don't throw for expected 401s on auth endpoints
     // This is normal when checking if user is logged in
-    if (res.status === 401 && res.url.includes('/api/auth/')) {
+    if (res.status === 401 && (res.url.includes('/api/auth/') || res.url.includes('/api/v1/auth/'))) {
       // Return a special error that will be caught and handled silently
       const error = new Error(`Authentication check: ${res.status}`);
       (error as any).isAuthCheck = true; // Mark as expected auth check
@@ -15,8 +15,8 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-// API Base URL - use same-origin to avoid CORS issues
-const API_BASE_URL = "";
+// API Base URL - use v1 versioned API
+const API_BASE_URL = "/api/v1";
 
 // Add retry logic for backend connection - handle startup timing gracefully
 async function retryFetch(url: string, options: RequestInit, retries = 5, delay = 1000): Promise<Response> {
@@ -58,7 +58,12 @@ export async function apiRequest(
   }
 ): Promise<Response> {
   const method = options?.method || "GET";
-  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+  // Auto-upgrade /api/ calls to /api/v1/ (all endpoints are now in v1)
+  let finalUrl = url;
+  if (url.startsWith('/api/') && !url.startsWith('/api/v1/')) {
+    finalUrl = url.replace('/api/', '/api/v1/');
+  }
+  const fullUrl = finalUrl.startsWith('http') ? finalUrl : (finalUrl.startsWith('/') ? finalUrl : `${API_BASE_URL}/${finalUrl}`);
   const res = await retryFetch(fullUrl, {
     method,
     headers: {
@@ -97,8 +102,12 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     try {
-      const url = Array.isArray(queryKey) ? String(queryKey[0]) : String(queryKey);
-      const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+      let url = Array.isArray(queryKey) ? String(queryKey[0]) : String(queryKey);
+      // Auto-upgrade /api/ calls to /api/v1/ (all endpoints are now in v1)
+      if (url.startsWith('/api/') && !url.startsWith('/api/v1/')) {
+        url = url.replace('/api/', '/api/v1/');
+      }
+      const fullUrl = url.startsWith('http') ? url : (url.startsWith('/') ? url : `${API_BASE_URL}/${url}`);
       const res = await retryFetch(fullUrl, {
         headers: {
           "Content-Type": "application/json",
@@ -107,7 +116,7 @@ export const getQueryFn: <T>(options: {
       });
 
       // Handle 401s on auth endpoints silently (expected when not logged in)
-      if (res.status === 401 && url.includes('/api/auth/')) {
+      if (res.status === 401 && (url.includes('/api/auth/') || url.includes('/api/v1/auth/'))) {
         return null;
       }
 
@@ -154,7 +163,7 @@ export const queryClient = new QueryClient({
         // Don't log expected authentication check failures
         if (error?.isAuthCheck || 
             error?.message?.includes('Authentication check:') ||
-            (error?.message?.includes('401') && error?.message?.includes('/api/auth/'))) {
+            (error?.message?.includes('401') && (error?.message?.includes('/api/auth/') || error?.message?.includes('/api/v1/auth/')))) {
           return; // Silent - this is expected behavior
         }
         // Log other errors normally

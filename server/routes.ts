@@ -10,6 +10,7 @@ import path from "path";
 import fs from "fs";
 import express from "express";
 import { authorize, enforceCompanyScope, getNavigationPermissions, type AuthorizedRequest } from "./rbacMiddleware";
+import { isRootAdmin } from "./constants";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session configuration
@@ -109,11 +110,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Add navigation permissions
-      const isRootAdmin = user.id === '0' || 
-                          user.email === 'chacjjlegacy@proesphera.com' ||
-                          user.email === 'admin@proesphere.com';
+      const isRootAdminValue = isRootAdmin(user);
       
-      const permissions = getNavigationPermissions(user.role || 'user', isRootAdmin);
+      const permissions = getNavigationPermissions(user.role || 'user', isRootAdminValue);
 
       res.json({ 
         ...user, 
@@ -176,421 +175,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
 
 
-  // PRODUCTION RBAC: Direct Node.js RBAC endpoints bypassing Python backend completely
-  
-  // Companies endpoints
-  app.get('/api/rbac/companies', authorize(['admin']), enforceCompanyScope(), async (req: AuthorizedRequest, res) => {
-    try {
-      console.log('PRODUCTION RBAC: Fetching companies directly from Node.js backend');
-      
-      // Root admin sees all companies, company admins see only their company
-      if (req.isRootAdmin) {
-        const companies = await storage.getCompanies();
-        console.log(`✅ NODE.JS SUCCESS: Root admin retrieved ${companies.length} companies`);
-        res.json(companies);
-      } else {
-        // Company admin sees only their own company
-        const companies = await storage.getCompanies();
-        const userCompanyId = req.currentUser?.company_id;
-        const filteredCompanies = companies.filter(c => c.id === userCompanyId);
-        console.log(`✅ NODE.JS SUCCESS: Company admin retrieved ${filteredCompanies.length} companies (filtered)`);
-        res.json(filteredCompanies);
-      }
-    } catch (error: any) {
-      console.error('Error fetching companies:', error);
-      res.status(500).json({ message: 'Failed to fetch companies', error: error.message });
-    }
-  });
-
-  app.post('/api/rbac/companies', async (req, res) => {
-    try {
-      console.log('PRODUCTION RBAC: Creating company via Node.js backend:', req.body);
-      const company = await storage.createCompany(req.body);
-      console.log('✅ NODE.JS SUCCESS: Company created:', company);
-      res.status(201).json(company);
-    } catch (error: any) {
-      console.error('Error creating company:', error);
-      res.status(500).json({ message: 'Failed to create company', error: error.message });
-    }
-  });
-
-  app.patch('/api/rbac/companies/:id', async (req, res) => {
-    try {
-      console.log(`PRODUCTION RBAC: Updating company ${req.params.id} via Node.js backend:`, req.body);
-      const company = await storage.updateCompany(req.params.id, req.body);
-      if (!company) {
-        return res.status(404).json({ message: 'Company not found' });
-      }
-      console.log('✅ NODE.JS SUCCESS: Company updated:', company);
-      res.json(company);
-    } catch (error: any) {
-      console.error('Error updating company:', error);
-      res.status(500).json({ message: 'Failed to update company', error: error.message });
-    }
-  });
-
-  app.delete('/api/rbac/companies/:id', async (req, res) => {
-    try {
-      console.log(`PRODUCTION RBAC: Deleting company ${req.params.id} via Node.js backend`);
-      const success = await storage.deleteCompany(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: 'Company not found' });
-      }
-      console.log('✅ NODE.JS SUCCESS: Company deleted');
-      res.json({ message: 'Company deleted successfully' });
-    } catch (error: any) {
-      console.error('Error deleting company:', error);
-      res.status(500).json({ message: 'Failed to delete company', error: error.message });
-    }
-  });
-
-  // Get users for a specific company
-  app.get('/api/rbac/companies/:id/users', async (req, res) => {
-    try {
-      console.log(`PRODUCTION RBAC: Fetching users for company ${req.params.id} via Node.js backend`);
-      const companyUsers = await storage.getCompanyUsers(req.params.id);
-      console.log(`✅ NODE.JS SUCCESS: Retrieved ${companyUsers.length} users for company ${req.params.id}`);
-      res.json(companyUsers);
-    } catch (error: any) {
-      console.error('Error fetching company users:', error);
-      res.status(500).json({ message: 'Failed to fetch company users', error: error.message });
-    }
-  });
-
-  // PRODUCTION: Add users/managers endpoint for task assignment
-  app.get('/api/users/managers', async (req, res) => {
-    try {
-      console.log('PRODUCTION: Fetching managers for task assignment via Node.js backend');
-      
-      // Get current user session to apply company filtering
-      const userId = (req.session as any)?.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      const currentUser = await storage.getUser(userId);
-      if (!currentUser) {
-        return res.status(401).json({ message: "User not found" });
-      }
-
-      const users = await storage.getUsers();
-      
-      // Filter users by current user's company for task assignment
-      // Handle both company_id and companyId field formats for compatibility
-      const currentUserCompanyId = currentUser.companyId;
-      const filteredUsers = users.filter(user => {
-        const userCompanyId = user.companyId;
-        return userCompanyId === currentUserCompanyId;
-      });
-      
-      console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredUsers.length} managers for task assignment for company ${currentUserCompanyId}`);
-      res.json(filteredUsers);
-    } catch (error: any) {
-      console.error('Error fetching managers:', error);
-      res.status(500).json({ message: 'Failed to fetch managers', error: error.message });
-    }
-  });
-
-  // Task assignment endpoint
-  app.patch('/api/tasks/:taskId/assign', async (req, res) => {
-    try {
-      console.log(`PRODUCTION: Assigning task ${req.params.taskId} via Node.js backend:`, req.body);
-      
-      // Get current user session to apply company filtering
-      const userId = (req.session as any)?.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      const currentUser = await storage.getUser(userId);
-      if (!currentUser) {
-        return res.status(401).json({ message: "User not found" });
-      }
-
-      const { assignee_id } = req.body;
-      const task = await storage.assignTask(req.params.taskId, assignee_id);
-      
-      if (!task) {
-        return res.status(404).json({ message: 'Task not found' });
-      }
-      
-      console.log('✅ NODE.JS SUCCESS: Task assigned:', task);
-      res.json(task);
-    } catch (error: any) {
-      console.error('Error assigning task:', error);
-      res.status(500).json({ message: 'Failed to assign task', error: error.message });
-    }
-  });
-
-  // Users endpoints with multi-tenant security
-  app.get('/api/rbac/users', authorize(['admin']), enforceCompanyScope(), async (req: AuthorizedRequest, res) => {
-    try {
-      console.log('PRODUCTION RBAC: Fetching users directly from Node.js backend');
-      
-      // Root admin sees all users, company admins see only their company users
-      if (req.isRootAdmin) {
-        console.log(`RBAC: Root admin ${req.currentUser?.email} requesting all users`);
-        const allUsers = await storage.getUsers();
-        console.log(`✅ NODE.JS SUCCESS: Retrieved ${allUsers.length} users for ${req.currentUser?.email} (root admin)`);
-        res.json(allUsers);
-      } else {
-        // Company admin sees only their company users
-        console.log(`RBAC: Company admin ${req.currentUser?.email} requesting company users`);
-        // Use correct field name - database schema uses companyId (camelCase)
-        const companyId = req.currentUser?.companyId || req.currentUser?.company_id;
-        console.log(`✅ Fetching users for company ${companyId}`);
-        const companyUsers = await storage.getCompanyUsers(companyId);
-        console.log(`✅ NODE.JS SUCCESS: Retrieved ${companyUsers.length} users for company ${companyId}`);
-        res.json(companyUsers);
-      }
-    } catch (error: any) {
-      console.error('Error fetching users:', error);
-      res.status(500).json({ message: 'Failed to fetch users', error: error.message });
-    }
-  });
-
-  app.post('/api/rbac/users', async (req, res) => {
-    try {
-      console.log('PRODUCTION RBAC: Creating user via Node.js backend:', req.body);
-      
-      // Get current user session to enforce company restrictions
-      const userId = (req.session as any)?.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      const currentUser = await storage.getUser(userId);
-      if (!currentUser) {
-        return res.status(401).json({ message: "User not found" });
-      }
-
-      // Check admin access and company restrictions
-      const isRootAdmin = currentUser.email?.includes('chacjjlegacy') || currentUser.email === 'admin@proesphere.com';
-      const isCompanyAdmin = currentUser.role === 'admin' || currentUser.email?.includes('admin');
-      
-      if (!isRootAdmin && !isCompanyAdmin) {
-        return res.status(403).json({ message: "Access denied. Admin privileges required." });
-      }
-
-      // Company admin can only create users in their own company
-      // Handle both company_id and companyId field formats for compatibility
-      const currentUserCompanyId = currentUser.companyId;
-      if (!isRootAdmin && req.body.company_id != currentUserCompanyId) {
-        console.log('Company admin validation failed:', {
-          isRootAdmin,
-          requestCompanyId: req.body.company_id,
-          currentUserCompanyId: currentUserCompanyId,
-          currentUserEmail: currentUser.email,
-          currentUserFull: currentUser
-        });
-        return res.status(403).json({ 
-          message: "Company admins can only create users within their own company." 
-        });
-      }
-
-      const user = await storage.createRBACUser(req.body);
-      console.log('✅ NODE.JS SUCCESS: User created with company restrictions enforced:', user);
-      res.status(201).json(user);
-    } catch (error: any) {
-      console.error('Error creating user:', error);
-      res.status(500).json({ message: 'Failed to create user', error: error.message });
-    }
-  });
-
-  app.patch('/api/rbac/users/:id', async (req, res) => {
-    try {
-      console.log(`PRODUCTION RBAC: Updating user ${req.params.id} via Node.js backend:`, req.body);
-      const user = await storage.updateUser(req.params.id, req.body);
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-      console.log('✅ NODE.JS SUCCESS: User updated:', user);
-      res.json(user);
-    } catch (error: any) {
-      console.error('Error updating user:', error);
-      res.status(500).json({ message: 'Failed to update user', error: error.message });
-    }
-  });
-
-  app.delete('/api/rbac/users/:id', async (req, res) => {
-    try {
-      console.log(`PRODUCTION RBAC: Deleting user ${req.params.id} via Node.js backend`);
-      
-      // Get current user session to enforce authorization
-      const userId = (req.session as any)?.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      const currentUser = await storage.getUser(userId);
-      if (!currentUser) {
-        return res.status(401).json({ message: "User not found" });
-      }
-
-      // Check admin access
-      const isRootAdmin = currentUser.email?.includes('chacjjlegacy') || currentUser.email === 'admin@proesphere.com';
-      const isCompanyAdmin = currentUser.role === 'admin' || currentUser.email?.includes('admin');
-      
-      if (!isRootAdmin && !isCompanyAdmin) {
-        return res.status(403).json({ message: "Access denied. Admin privileges required." });
-      }
-
-      // Get the user to be deleted to check company restrictions
-      const userToDelete = await storage.getUser(req.params.id);
-      if (!userToDelete) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      // Company admin can only delete users in their own company
-      const currentUserCompanyId = currentUser.companyId;
-      const targetUserCompanyId = userToDelete.companyId;
-      
-      if (!isRootAdmin && targetUserCompanyId !== currentUserCompanyId) {
-        console.log('Company admin validation failed for deletion:', {
-          isRootAdmin,
-          currentUserCompanyId: currentUserCompanyId,
-          targetUserCompanyId: targetUserCompanyId,
-          currentUserEmail: currentUser.email
-        });
-        return res.status(403).json({ 
-          message: "Company admins can only delete users within their own company." 
-        });
-      }
-
-      const success = await storage.deleteUser(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-      console.log(`✅ NODE.JS SUCCESS: User deleted by ${currentUser.email} (${isRootAdmin ? 'root admin' : 'company admin'})`);
-      res.json({ message: 'User deleted successfully' });
-    } catch (error: any) {
-      console.error('Error deleting user:', error);
-      res.status(500).json({ message: 'Failed to delete user', error: error.message });
-    }
-  });
-
-  // Roles endpoints
-  app.get('/api/rbac/roles', async (req, res) => {
-    try {
-      console.log('PRODUCTION RBAC: Fetching roles directly from Node.js backend');
-      const roles = await storage.getRoles();
-      console.log(`✅ NODE.JS SUCCESS: Retrieved ${roles.length} roles`);
-      res.json(roles);
-    } catch (error: any) {
-      console.error('Error fetching roles:', error);
-      res.status(500).json({ message: 'Failed to fetch roles', error: error.message });
-    }
-  });
-
-  app.post('/api/rbac/roles', async (req, res) => {
-    try {
-      console.log('PRODUCTION RBAC: Creating role via Node.js backend:', req.body);
-      const role = await storage.createRole(req.body);
-      console.log('✅ NODE.JS SUCCESS: Role created:', role);
-      res.status(201).json(role);
-    } catch (error: any) {
-      console.error('Error creating role:', error);
-      res.status(500).json({ message: 'Failed to create role', error: error.message });
-    }
-  });
-
-  app.patch('/api/rbac/roles/:id', async (req, res) => {
-    try {
-      console.log(`PRODUCTION RBAC: Updating role ${req.params.id} via Node.js backend:`, req.body);
-      const role = await storage.updateRole(req.params.id, req.body);
-      if (!role) {
-        return res.status(404).json({ message: 'Role not found' });
-      }
-      console.log('✅ NODE.JS SUCCESS: Role updated:', role);
-      res.json(role);
-    } catch (error: any) {
-      console.error('Error updating role:', error);
-      res.status(500).json({ message: 'Failed to update role', error: error.message });
-    }
-  });
-
-  app.delete('/api/rbac/roles/:id', async (req, res) => {
-    try {
-      console.log(`PRODUCTION RBAC: Deleting role ${req.params.id} via Node.js backend`);
-      const success = await storage.deleteRole(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: 'Role not found' });
-      }
-      console.log('✅ NODE.JS SUCCESS: Role deleted');
-      res.json({ message: 'Role deleted successfully' });
-    } catch (error: any) {
-      console.error('Error deleting role:', error);
-      res.status(500).json({ message: 'Failed to delete role', error: error.message });
-    }
-  });
-
-  // Permissions endpoints
-  app.get('/api/rbac/permissions', async (req, res) => {
-    try {
-      console.log('PRODUCTION RBAC: Fetching permissions directly from Node.js backend');
-      const permissions = await storage.getPermissions();
-      console.log(`✅ NODE.JS SUCCESS: Retrieved ${permissions.length} permissions`);
-      res.json(permissions);
-    } catch (error: any) {
-      console.error('Error fetching permissions:', error);
-      res.status(500).json({ message: 'Failed to fetch permissions', error: error.message });
-    }
-  });
-
-  // Companies endpoints - Node.js backend
-  app.get('/api/companies', async (req, res) => {
-    try {
-      console.log('PRODUCTION RBAC: Fetching companies directly from Node.js backend');
-      const companies = await storage.getCompanies();
-      console.log(`✅ NODE.JS SUCCESS: Retrieved ${companies.length} companies`);
-      res.json(companies);
-    } catch (error: any) {
-      console.error('Error fetching companies:', error);
-      res.status(500).json({ message: 'Failed to fetch companies', error: error.message });
-    }
-  });
-
-  app.post('/api/companies', async (req, res) => {
-    try {
-      console.log('PRODUCTION RBAC: Creating company via Node.js backend:', req.body);
-      const company = await storage.createCompany(req.body);
-      console.log('✅ NODE.JS SUCCESS: Company created:', company);
-      res.status(201).json(company);
-    } catch (error: any) {
-      console.error('Error creating company:', error);
-      res.status(500).json({ message: 'Failed to create company', error: error.message });
-    }
-  });
-
-  app.patch('/api/companies/:id', async (req, res) => {
-    try {
-      console.log(`PRODUCTION RBAC: Updating company ${req.params.id} via Node.js backend:`, req.body);
-      const company = await storage.updateCompany(req.params.id, req.body);
-      if (!company) {
-        return res.status(404).json({ message: 'Company not found' });
-      }
-      console.log('✅ NODE.JS SUCCESS: Company updated:', company);
-      res.json(company);
-    } catch (error: any) {
-      console.error('Error updating company:', error);
-      res.status(500).json({ message: 'Failed to update company', error: error.message });
-    }
-  });
-
-  app.delete('/api/companies/:id', async (req, res) => {
-    try {
-      console.log(`PRODUCTION RBAC: Deleting company ${req.params.id} via Node.js backend`);
-      const success = await storage.deleteCompany(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: 'Company not found' });
-      }
-      console.log('✅ NODE.JS SUCCESS: Company deleted');
-      res.json({ message: 'Company deleted successfully' });
-    } catch (error: any) {
-      console.error('Error deleting company:', error);
-      res.status(500).json({ message: 'Failed to delete company', error: error.message });
-    }
-  });
+  // All RBAC and company endpoints are now handled by FastAPI backend
+  // Removed legacy Node.js handlers - all requests are forwarded to /api/v1/*
 
   // Projects endpoints - Node.js backend with multi-tenant security
   app.get('/api/projects', async (req, res) => {
@@ -609,16 +195,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only root admins can see all projects, regular users see their company's projects only
-      const isRootAdmin = user.email?.includes('chacjjlegacy') || user.email === 'admin@proesphere.com';
+      const isRootAdminValue = isRootAdmin(user);
       
       const projects = await storage.getProjects();
       
       // Filter projects by company for non-admin users
-      const filteredProjects = isRootAdmin ? projects : projects.filter(project => 
+      const filteredProjects = isRootAdminValue ? projects : projects.filter(project => 
         project.companyId === user.companyId || project.companyId === '0'
       );
       
-      console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredProjects.length} projects for user ${user.email} (${isRootAdmin ? 'admin' : 'company-filtered'})`);
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredProjects.length} projects for user ${user.email} (${isRootAdminValue ? 'admin' : 'company-filtered'})`);
       res.json(filteredProjects);
     } catch (error: any) {
       console.error('Error fetching projects:', error);
@@ -703,16 +289,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only root admins can see all tasks, regular users see their company's tasks only
-      const isRootAdmin = user.email?.includes('chacjjlegacy') || user.email === 'admin@proesphere.com';
+      const isRootAdminValue = isRootAdmin(user);
       
       const tasks = await storage.getTasks();
       
       // Filter tasks by company for non-admin users - STRICT MULTI-TENANCY
-      const filteredTasks = isRootAdmin ? tasks : tasks.filter(task => 
+      const filteredTasks = isRootAdminValue ? tasks : tasks.filter(task => 
         task.companyId === user.companyId
       );
       
-      console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredTasks.length} tasks for user ${user.email} (${isRootAdmin ? 'admin' : 'company-filtered'})`);
+      console.log(`✅ NODE.JS SUCCESS: Retrieved ${filteredTasks.length} tasks for user ${user.email} (${isRootAdminValue ? 'admin' : 'company-filtered'})`);
       res.json(filteredTasks);
     } catch (error: any) {
       console.error('Error fetching tasks:', error);
@@ -835,11 +421,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ]);
 
       // Filter by company for non-root users
-      const isRootAdmin = user.email?.includes('chacjjlegacy') || user.email === 'admin@proesphere.com';
+      const isRootAdminValue = isRootAdmin(user);
       
-      const userProjects = isRootAdmin ? projects : projects.filter(p => p.companyId === user.companyId);
-      const userTasks = isRootAdmin ? tasks : tasks.filter(t => t.companyId === user.companyId);
-      const userUsers = isRootAdmin ? users : users.filter(u => u.companyId === user.companyId);
+      const userProjects = isRootAdminValue ? projects : projects.filter(p => p.companyId === user.companyId);
+      const userTasks = isRootAdminValue ? tasks : tasks.filter(t => t.companyId === user.companyId);
+      const userUsers = isRootAdminValue ? users : users.filter(u => u.companyId === user.companyId);
 
       // Calculate stats
       const stats = {

@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, status, Depends
 from src.models import Project, ProjectCreate, ProjectUpdate
 from src.database.repositories import ProjectRepository
-from src.api.auth import get_current_user_dependency, is_root_admin
+from src.api.auth import get_current_user_dependency, is_root_admin, get_effective_company_id
 
 router = APIRouter()
 project_repo = ProjectRepository()
@@ -15,19 +15,21 @@ project_repo = ProjectRepository()
 async def get_projects(current_user: Dict[str, Any] = Depends(get_current_user_dependency)):
     """Get all projects with company filtering."""
     try:
-        # Apply company filtering unless root admin
-        if is_root_admin(current_user):
+        # Get effective company_id (handles root user organization context)
+        effective_company_id = get_effective_company_id(current_user)
+        
+        if effective_company_id:
+            # Filter by specific company (root user with context or regular user)
+            projects = await project_repo.get_by_company(str(effective_company_id))
+            print(f"User {current_user.get('email')} (company {effective_company_id}) retrieved {len(projects)} projects")
+        elif is_root_admin(current_user):
+            # Root admin without context - show all
             projects = await project_repo.get_all()
-            print(f"Root admin retrieved {len(projects)} projects")
+            print(f"Root admin retrieved {len(projects)} projects (all organizations)")
         else:
-            user_company_id = current_user.get('companyId')
-            if user_company_id:
-                projects = await project_repo.get_by_company(str(user_company_id))
-                print(f"User {current_user.get('email')} (company {user_company_id}) retrieved {len(projects)} projects")
-            else:
-                # User has no company assigned, return empty list
-                projects = []
-                print(f"User {current_user.get('email')} has no company assigned, returning empty project list")
+            # User has no company assigned, return empty list
+            projects = []
+            print(f"User {current_user.get('email')} has no company assigned, returning empty project list")
         
         return projects
     except Exception as e:
@@ -54,7 +56,7 @@ async def get_project(
         
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
-            user_company_id = str(current_user.get('companyId'))
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
             project_company_id = str(project.get('company_id'))
             if project_company_id != user_company_id:
                 raise HTTPException(
@@ -80,7 +82,7 @@ async def create_project(
 ):
     """Create a new project with authentication and company assignment."""
     try:
-        user_company_id = current_user.get('companyId')
+        user_company_id = current_user.get('companyId') or current_user.get('company_id')
         if not user_company_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -121,7 +123,7 @@ async def update_project(
         
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
-            user_company_id = str(current_user.get('companyId'))
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
             project_company_id = str(existing_project.get('company_id'))
             if project_company_id != user_company_id:
                 raise HTTPException(
@@ -158,7 +160,7 @@ async def delete_project(
         
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
-            user_company_id = str(current_user.get('companyId'))
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
             project_company_id = str(existing_project.get('company_id'))
             if project_company_id != user_company_id:
                 raise HTTPException(

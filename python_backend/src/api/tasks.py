@@ -21,7 +21,9 @@ async def verify_task_company_access(task_id: str, user_company_id: str) -> Dict
             detail="Task not found"
         )
     
-    task_company_id = str(task.get('company_id'))
+    # Get company_id from task (Task model)
+    task_dict = task.model_dump() if hasattr(task, 'model_dump') else task.dict() if hasattr(task, 'dict') else {}
+    task_company_id = str(task_dict.get('companyId') or task_dict.get('company_id') or '')
     if task_company_id != str(user_company_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -41,29 +43,34 @@ async def get_tasks(
 ):
     """Get tasks with optional filters and company scope."""
     try:
-        # Get all tasks with filters
+        # Apply company filtering unless root admin
+        user_company_id = None
+        if not is_root_admin(current_user):
+            company_id_value = current_user.get('companyId') or current_user.get('company_id')
+            if company_id_value:
+                user_company_id = str(company_id_value)
+            # If user has no company_id, user_company_id stays None, which will return empty results
+        
+        # Get all tasks with filters including company_id filter at database level
         tasks = await task_repo.get_all(
             project_id=project_id,
             status=status_filter,
             category=category,
-            assigned_to=assigned_to
+            assigned_to=assigned_to,
+            company_id=user_company_id
         )
         
-        # Apply company filtering unless root admin
-        if not is_root_admin(current_user):
-            user_company_id = str(current_user.get('companyId'))
-            # Filter tasks to only show those belonging to user's company
-            tasks = [
-                task for task in tasks 
-                if str(task.get('company_id')) == user_company_id
-            ]
-        
         return tasks
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error fetching tasks: {e}")
+        error_msg = str(e)
+        print(f"Error fetching tasks: {error_msg}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to fetch tasks"
+            detail=f"Failed to fetch tasks: {error_msg}"
         )
 
 
@@ -83,7 +90,8 @@ async def get_task(
         
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
-            await verify_task_company_access(task_id, str(current_user.get('companyId')))
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
+            await verify_task_company_access(task_id, user_company_id)
         
         return task
     except HTTPException:
@@ -111,7 +119,7 @@ async def create_task(
             )
         
         # Validate project ownership if project_id is provided
-        user_company_id = str(current_user.get('companyId'))
+        user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
         if task.project_id:
             project = await project_repo.get_by_id(task.project_id)
             if not project:
@@ -157,7 +165,8 @@ async def update_task(
     try:
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
-            await verify_task_company_access(task_id, str(current_user.get('companyId')))
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
+            await verify_task_company_access(task_id, user_company_id)
         
         task = await task_repo.update(task_id, task_update)
         if not task:
@@ -192,7 +201,8 @@ async def assign_task(
     try:
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
-            await verify_task_company_access(task_id, str(current_user.get('companyId')))
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
+            await verify_task_company_access(task_id, user_company_id)
         
         print(f"Assigning task {task_id} to {request.assignee_id} by user {current_user.get('email')}")
         
@@ -223,7 +233,8 @@ async def delete_task(
     try:
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
-            await verify_task_company_access(task_id, str(current_user.get('companyId')))
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
+            await verify_task_company_access(task_id, user_company_id)
         
         success = await task_repo.delete(task_id)
         if not success:

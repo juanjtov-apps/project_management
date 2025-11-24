@@ -20,7 +20,7 @@ export default function Login() {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
-      const response = await apiRequest("/api/auth/login", {
+      const response = await apiRequest("/api/v1/auth/login", {
         method: "POST",
         body: credentials,
       });
@@ -28,7 +28,7 @@ export default function Login() {
     },
     onSuccess: async () => {
       // Invalidate auth query to update authentication state immediately
-      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/v1/auth/user"] });
       
       // Navigate immediately without toast to prevent delay
       setLocation("/dashboard");

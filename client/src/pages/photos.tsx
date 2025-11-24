@@ -152,7 +152,7 @@ export default function Photos() {
 
   // Handle upload parameters
   const handleGetUploadParameters = async () => {
-    const response = await fetch("/api/objects/upload", {
+    const response = await fetch("/api/v1/objects/upload", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });

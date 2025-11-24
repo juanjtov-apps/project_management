@@ -29,7 +29,7 @@ async def get_photos(
         
         # Apply company filtering unless root admin
         if not is_root_admin(current_user):
-            user_company_id = str(current_user.get('companyId'))
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
             # Filter photos by validating associated project company
             filtered_photos = []
             for photo in photos:

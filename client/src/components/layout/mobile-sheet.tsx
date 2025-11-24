@@ -46,7 +46,7 @@ export default function MobileSheet({ open, onOpenChange }: MobileSheetProps) {
 
   // Get current user with permissions
   const { data: currentUser } = useQuery<any>({
-    queryKey: ['/api/auth/user'],
+    queryKey: ['/api/v1/auth/user'],
     retry: false
   });
 

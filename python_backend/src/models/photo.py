@@ -35,4 +35,4 @@ class PhotoStats(BaseModel):
     total_storage_mb: float = Field(alias="totalStorageMb")
     
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
