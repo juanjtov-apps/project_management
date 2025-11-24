@@ -5,7 +5,7 @@ All v1 API endpoints are organized here with proper versioning.
 from fastapi import APIRouter
 
 # Import all v1 routers
-from . import auth, projects, tasks, photos, logs, rbac, users, dashboard, activities, objects, companies, client_module, pm_notifications
+from . import auth, projects, tasks, photos, logs, rbac, users, dashboard, activities, objects, companies, client_module, pm_notifications, communications, change_orders, time_entries, invoices
 
 # Import company_admin router from main api (not v1)
 try:
@@ -37,6 +37,10 @@ def create_v1_router() -> APIRouter:
     v1_router.include_router(objects.router, tags=["objects"])
     v1_router.include_router(client_module.router, tags=["client-portal"])
     v1_router.include_router(pm_notifications.router, tags=["pm-notifications"])
+    v1_router.include_router(communications.router, tags=["communications"])
+    v1_router.include_router(change_orders.router, tags=["change-orders"])
+    v1_router.include_router(time_entries.router, tags=["time-entries"])
+    v1_router.include_router(invoices.router, tags=["invoices"])
     
     # Include user_management router for complete RBAC CRUD operations
     # This provides POST/PATCH/DELETE endpoints for /api/v1/rbac/*

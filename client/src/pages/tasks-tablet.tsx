@@ -88,7 +88,17 @@ export default function TabletTasks() {
 
   // Mutations
   const createTaskMutation = useMutation({
-    mutationFn: (data: InsertTask) => apiRequest("/api/tasks", { method: "POST", body: data }),
+    mutationFn: async (data: InsertTask) => {
+      const response = await apiRequest("/api/tasks", { method: "POST", body: data });
+      
+      // Parse JSON response - critical for mutation to resolve properly
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      return await response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
@@ -99,8 +109,17 @@ export default function TabletTasks() {
   });
 
   const updateTaskMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<InsertTask> }) =>
-      apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data }),
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertTask> }) => {
+      const response = await apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data });
+      
+      // Parse JSON response - critical for mutation to resolve properly
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      return await response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });

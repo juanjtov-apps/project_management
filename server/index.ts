@@ -81,13 +81,13 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-  // Register Node.js routes (for RBAC user management and other Node.js-specific routes)
+  // Register Node.js routes (session store configuration only - PURE PROXY MODE)
   const { registerRoutes } = await import('./routes');
   await registerRoutes(app);
-  console.log("✅ Node.js routes registered (RBAC user management, auth, etc.)");
+  console.log("✅ Node.js session store configured (PURE PROXY MODE - no business logic)");
   
-  // All other API routes are handled by Python FastAPI backend
-  console.log("✅ Remaining API routes will be forwarded to Python FastAPI backend");
+  // ALL API routes are handled by Python FastAPI backend
+  console.log("✅ All /api/* requests will be forwarded to Python FastAPI backend (/api/v1/*)");
 
   // Add manual API forwarding to Python backend
   console.log("🔄 Setting up API forwarding to Python backend");
@@ -117,8 +117,9 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
   }, 10000); // Check every 10 seconds
   
   app.all('/api/*', async (req, res, next) => {
-    // All API routes are forwarded to Python FastAPI backend
-    // ALL backend logic including RBAC is now handled by FastAPI
+    // PURE PROXY MODE: All API routes are forwarded to Python FastAPI backend
+    // ALL backend logic, database operations, and RBAC checks are handled by FastAPI (Port 8000)
+    // Node.js (Port 5000) only proxies requests - NO business logic here
     
     // Wait for backend to be ready (with timeout)
     if (!backendReady) {

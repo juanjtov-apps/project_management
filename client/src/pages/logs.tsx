@@ -118,7 +118,17 @@ export default function Logs() {
 
 
   const createLogMutation = useMutation({
-    mutationFn: (data: InsertProjectLog & { images?: string[] }) => apiRequest("/api/logs", { method: "POST", body: data }),
+    mutationFn: async (data: InsertProjectLog & { images?: string[] }) => {
+      const response = await apiRequest("/api/logs", { method: "POST", body: data });
+      
+      // Parse JSON response - critical for mutation to resolve properly
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      return await response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
       setIsCreateDialogOpen(false);
@@ -144,9 +154,17 @@ export default function Logs() {
   });
 
   const updateLogMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<InsertProjectLog> }) =>
-      apiRequest(`/api/logs/${id}`, { method: "PATCH", body: updates }),
-
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<InsertProjectLog> }) => {
+      const response = await apiRequest(`/api/logs/${id}`, { method: "PATCH", body: updates });
+      
+      // Parse JSON response - critical for mutation to resolve properly
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      return await response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
       setIsEditDialogOpen(false);

@@ -178,7 +178,17 @@ export default function WorkPage() {
 
   // === PROJECT MUTATIONS ===
   const createProjectMutation = useMutation({
-    mutationFn: (data: InsertProject) => apiRequest("/api/projects", { method: "POST", body: data }),
+    mutationFn: async (data: InsertProject) => {
+      const response = await apiRequest("/api/projects", { method: "POST", body: data });
+      
+      // Parse JSON response - critical for mutation to resolve properly
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      return await response.json();
+    },
     onSuccess: () => {
       // Close dialog and reset form first
       setIsProjectCreateDialogOpen(false);
@@ -191,8 +201,17 @@ export default function WorkPage() {
   });
 
   const updateProjectMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<InsertProject> }) =>
-      apiRequest(`/api/projects/${id}`, { method: "PATCH", body: data }),
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertProject> }) => {
+      const response = await apiRequest(`/api/projects/${id}`, { method: "PATCH", body: data });
+      
+      // Parse JSON response - critical for mutation to resolve properly
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      return await response.json();
+    },
     onSuccess: () => {
       console.log("[Project Edit] Update mutation succeeded");
       // Simple synchronous cleanup - match working pattern from tasks.tsx
@@ -217,7 +236,17 @@ export default function WorkPage() {
 
   // === TASK MUTATIONS ===
   const createTaskMutation = useMutation({
-    mutationFn: (data: InsertTask) => apiRequest("/api/tasks", { method: "POST", body: data }),
+    mutationFn: async (data: InsertTask) => {
+      const response = await apiRequest("/api/tasks", { method: "POST", body: data });
+      
+      // Parse JSON response - critical for mutation to resolve properly
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      return await response.json();
+    },
     onSuccess: () => {
       // Close dialog and reset form first
       setIsTaskCreateDialogOpen(false);
@@ -231,9 +260,20 @@ export default function WorkPage() {
   });
 
   const updateTaskMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<InsertTask> }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertTask> }) => {
       console.log("[Task Edit] Starting update mutation", { id, data });
-      return apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data });
+      const response = await apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data });
+      console.log("[Task Edit] Response status:", response.status);
+      
+      // Parse JSON response - critical for mutation to resolve properly
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log("[Task Edit] Parsed response:", result);
+      return result;
     },
     onSuccess: () => {
       console.log("[Task Edit] Update mutation succeeded");
@@ -1247,6 +1287,8 @@ export default function WorkPage() {
           if (open) {
             window.dispatchEvent(new CustomEvent('dialog:open'));
           } else {
+            // Mark the time when dialog closes to prevent dropdown from opening
+            (window as any).__lastDialogCloseTime = Date.now();
             window.dispatchEvent(new CustomEvent('dialog:close'));
           }
           
@@ -1403,8 +1445,12 @@ export default function WorkPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     console.log("[Project Edit] Cancel button clicked");
+                    // Mark dialog close time to prevent dropdown from opening
+                    (window as any).__lastDialogCloseTime = Date.now();
                     // Just close dialog - let onOpenChange handle cleanup
                     setIsProjectEditDialogOpen(false);
                   }}
@@ -1416,6 +1462,10 @@ export default function WorkPage() {
                   type="submit"
                   data-testid="button-submit-edit"
                   disabled={updateProjectMutation.isPending}
+                  onClick={(e) => {
+                    // Prevent event bubbling that might trigger dropdown
+                    e.stopPropagation();
+                  }}
                 >
                   {updateProjectMutation.isPending ? "Updating..." : "Update Project"}
                 </Button>
@@ -1666,6 +1716,8 @@ export default function WorkPage() {
           if (open) {
             window.dispatchEvent(new CustomEvent('dialog:open'));
           } else {
+            // Mark the time when dialog closes to prevent dropdown from opening
+            (window as any).__lastDialogCloseTime = Date.now();
             window.dispatchEvent(new CustomEvent('dialog:close'));
           }
           
@@ -1859,8 +1911,12 @@ export default function WorkPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     console.log("[Task Edit] Cancel button clicked");
+                    // Mark dialog close time to prevent dropdown from opening
+                    (window as any).__lastDialogCloseTime = Date.now();
                     // Just close dialog - let onOpenChange handle cleanup
                     // Match working pattern from tasks-tablet.tsx
                     setIsTaskEditDialogOpen(false);
@@ -1873,6 +1929,10 @@ export default function WorkPage() {
                   type="submit"
                   data-testid="button-submit-edit-task"
                   disabled={updateTaskMutation.isPending}
+                  onClick={(e) => {
+                    // Prevent event bubbling that might trigger dropdown
+                    e.stopPropagation();
+                  }}
                 >
                   {updateTaskMutation.isPending ? "Updating..." : "Update Task"}
                 </Button>

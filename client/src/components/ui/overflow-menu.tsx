@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,8 +28,45 @@ export function OverflowMenu({
   triggerClassName,
   "data-testid": testId,
 }: OverflowMenuProps) {
+  const [open, setOpen] = useState(false);
+
+  // Prevent dropdown from opening when a dialog is closing
+  useEffect(() => {
+    const handleDialogClose = () => {
+      // Close dropdown if it's open when dialog closes
+      if (open) {
+        setOpen(false);
+      }
+      // Block opening for a short period after dialog closes
+      const blockUntil = Date.now() + 200; // 200ms block period
+      const checkBlock = () => {
+        if (Date.now() < blockUntil) {
+          setOpen(false);
+          requestAnimationFrame(checkBlock);
+        }
+      };
+      requestAnimationFrame(checkBlock);
+    };
+
+    window.addEventListener('dialog:close', handleDialogClose);
+    return () => {
+      window.removeEventListener('dialog:close', handleDialogClose);
+    };
+  }, [open]);
+
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={(newOpen) => {
+      // Prevent opening if a dialog was just closed (within 200ms)
+      const timeSinceLastDialogClose = (window as any).__lastDialogCloseTime || 0;
+      const timeSinceClose = Date.now() - timeSinceLastDialogClose;
+      
+      if (newOpen && timeSinceClose < 200) {
+        // Block opening if dialog was just closed
+        return;
+      }
+      
+      setOpen(newOpen);
+    }}>
       <DropdownMenuTrigger
         data-testid={testId}
         className={cn(
@@ -38,6 +76,17 @@ export function OverflowMenu({
           triggerClassName
         )}
         aria-label="More options"
+        onClick={(e) => {
+          // Prevent opening if clicking right after dialog close
+          const timeSinceLastDialogClose = (window as any).__lastDialogCloseTime || 0;
+          const timeSinceClose = Date.now() - timeSinceLastDialogClose;
+          
+          if (timeSinceClose < 200) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+        }}
       >
         <MoreVertical className="w-5 h-5 text-[var(--text-secondary)]" />
       </DropdownMenuTrigger>
@@ -46,7 +95,11 @@ export function OverflowMenu({
           <div key={index}>
             {item.separator && index > 0 && <DropdownMenuSeparator />}
             <DropdownMenuItem
-              onClick={item.onClick}
+              onClick={(e) => {
+                e.stopPropagation();
+                item.onClick();
+                setOpen(false);
+              }}
               data-testid={`menu-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               className={cn(
                 "tap-target cursor-pointer",
