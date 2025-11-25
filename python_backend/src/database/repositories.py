@@ -544,16 +544,19 @@ class PhotoRepository(BaseRepository):
         data = photo.dict(by_alias=True)
         data = self._convert_from_camel_case(data)
         
+        # Get tags from the photo data, default to empty list
+        tags = data.get('tags', []) or []
+        
         query = f"""
             INSERT INTO {self.table_name} 
-            (id, filename, original_name, project_id, description, user_id, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            (id, filename, original_name, project_id, description, user_id, tags, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *
         """
         
         row = await db_manager.execute_one(
             query, photo_id, filename, original_name, data.get('project_id'),
-            data.get('description'), data.get('user_id'), now
+            data.get('description'), data.get('user_id'), tags, now
         )
         return Photo(**self._convert_to_camel_case(dict(row)))
     

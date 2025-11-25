@@ -33,10 +33,10 @@ async def get_photos(
             # Filter photos by validating associated project company
             filtered_photos = []
             for photo in photos:
-                photo_project_id = photo.get('project_id')
+                photo_project_id = photo.project_id
                 if photo_project_id:
                     project = await project_repo.get_by_id(photo_project_id)
-                    if project and str(project.get('company_id')) == user_company_id:
+                    if project and str(getattr(project, 'company_id', '')) == user_company_id:
                         filtered_photos.append(photo)
             photos = filtered_photos
         
@@ -54,33 +54,108 @@ async def upload_photo(
     request: Request,
     current_user: Dict[str, Any] = Depends(get_current_user_dependency)
 ):
-    """Upload a photo with authentication and company validation."""
-    print("=" * 50)
-    print("PHOTO UPLOAD REQUEST RECEIVED")
-    print(f"Method: {request.method}")
-    print(f"URL: {request.url}")
-    print(f"Headers: {dict(request.headers)}")
-    print(f"Content-Type: {request.headers.get('content-type', 'None')}")
+    """Upload a photo with authentication and company validation.
     
+    Supports two modes:
+    1. JSON body with metadata (when file is already uploaded to object storage)
+    2. Multipart form upload (direct file uploads)
+    """
+    content_type = request.headers.get('content-type', '')
+    print(f"📸 Photo upload request - Content-Type: {content_type}")
+    
+    # Handle JSON body (file already uploaded to object storage)
+    if 'application/json' in content_type:
+        try:
+            body = await request.json()
+            print(f"📸 JSON photo metadata received: {body}")
+            
+            projectId = body.get('projectId', '')
+            userId = body.get('userId', '') or str(current_user.get('id', ''))
+            description = body.get('description', '')
+            filename = body.get('filename', '')
+            originalName = body.get('originalName', '')
+            tags = body.get('tags', [])
+            
+            if not projectId:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Project ID is required"
+                )
+            
+            if not filename:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Filename is required (file should be uploaded to object storage first)"
+                )
+            
+            # Validate project ownership (unless root admin)
+            if not is_root_admin(current_user):
+                user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
+                project = await project_repo.get_by_id(projectId)
+                if not project:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Project not found"
+                    )
+                if str(project.get('company_id')) != user_company_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Cannot upload photo to project from different company"
+                    )
+            
+            # Extract object ID from URL if filename is a full URL
+            if 'storage.googleapis.com' in filename or 'storage.cloud.google.com' in filename:
+                # Extract the object path from the signed URL
+                from urllib.parse import urlparse, unquote
+                parsed = urlparse(filename)
+                path_parts = parsed.path.split('/')
+                # The object ID is typically the last part of the path before query params
+                object_id = path_parts[-1] if path_parts else filename
+                # Remove any file extension for consistent storage
+                if '.' in object_id:
+                    object_id = object_id.rsplit('.', 1)[0]
+                stored_filename = object_id
+            else:
+                # Use filename directly - could be a UUID or path from object storage
+                stored_filename = filename.split('/')[-1] if '/' in filename else filename
+            
+            # Create photo record
+            photo_create = PhotoCreate(
+                projectId=projectId,
+                description=description,
+                userId=userId,
+                tags=tags if tags else []
+            )
+            
+            result = await photo_repo.create(
+                photo_create, 
+                filename=stored_filename,
+                original_name=originalName or stored_filename
+            )
+            print(f"✅ Photo record created: {result}")
+            return result
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"❌ Error creating photo from JSON: {e}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create photo record: {str(e)}"
+            )
+    
+    # Handle multipart form upload (direct file upload)
     try:
         form = await request.form()
-        print(f"Form data received: {dict(form)}")
+        print(f"📸 Form data received: {dict(form)}")
         
         # Extract form fields with proper type handling
-        file = form.get("file") or form.get("photo")  # Support both field names
+        file = form.get("file") or form.get("photo")
         projectId = str(form.get("projectId", ""))
-        userId = str(form.get("userId", ""))  
+        userId = str(form.get("userId", "")) or str(current_user.get('id', ''))
         description = str(form.get("description", ""))
-        
-        print(f"file: {file} (type: {type(file)})")
-        print(f"projectId: '{projectId}' (type: {type(projectId)})")
-        print(f"userId: '{userId}' (type: {type(userId)})")
-        print(f"description: '{description}' (type: {type(description)})")
-        
-        if file and hasattr(file, 'filename'):
-            print(f"file.filename: '{getattr(file, 'filename', 'None')}'")
-            print(f"file.content_type: '{getattr(file, 'content_type', 'None')}'")
-            print(f"file.size: {getattr(file, 'size', 'Unknown')}")
         
     except Exception as e:
         print(f"Error reading form: {e}")
@@ -88,8 +163,6 @@ async def upload_photo(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse form data: {str(e)}"
         )
-    
-    print("=" * 50)
     
     # Validation
     if not file:
@@ -104,29 +177,22 @@ async def upload_photo(
             detail="Project ID is required"
         )
     
-    if not userId:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User ID is required"
-        )
-    
     # Validate project ownership (unless root admin)
     if not is_root_admin(current_user):
-        user_company_id = str(current_user.get('companyId'))
+        user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
         project = await project_repo.get_by_id(projectId)
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Project not found"
             )
-        if str(project.get('company_id')) != user_company_id:
+        if str(getattr(project, 'company_id', '')) != user_company_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Cannot upload photo to project from different company"
             )
     
     try:
-        
         # Validate file type
         file_content_type = getattr(file, 'content_type', None)
         if not file_content_type or not file_content_type.startswith('image/'):
@@ -172,7 +238,6 @@ async def upload_photo(
         raise
     except Exception as e:
         print(f"Error uploading photo: {e}")
-        print(f"Error type: {type(e)}")
         import traceback
         traceback.print_exc()
         raise HTTPException(
@@ -198,10 +263,10 @@ async def get_photo(
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
             user_company_id = str(current_user.get('companyId'))
-            photo_project_id = photo.get('project_id')
+            photo_project_id = photo.project_id
             if photo_project_id:
                 project = await project_repo.get_by_id(photo_project_id)
-                if not project or str(project.get('company_id')) != user_company_id:
+                if not project or str(getattr(project, 'company_id', '')) != user_company_id:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail="Access denied: Photo belongs to different company"
@@ -236,10 +301,10 @@ async def get_photo_file(
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
             user_company_id = str(current_user.get('companyId'))
-            photo_project_id = photo.get('project_id')
+            photo_project_id = photo.project_id
             if photo_project_id:
                 project = await project_repo.get_by_id(photo_project_id)
-                if not project or str(project.get('company_id')) != user_company_id:
+                if not project or str(getattr(project, 'company_id', '')) != user_company_id:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail="Access denied: Photo belongs to different company"
@@ -313,10 +378,10 @@ async def delete_photo(
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
             user_company_id = str(current_user.get('companyId'))
-            photo_project_id = photo.get('project_id')
+            photo_project_id = photo.project_id
             if photo_project_id:
                 project = await project_repo.get_by_id(photo_project_id)
-                if not project or str(project.get('company_id')) != user_company_id:
+                if not project or str(getattr(project, 'company_id', '')) != user_company_id:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail="Access denied: Cannot delete photo from different company"
