@@ -11,7 +11,7 @@ export default function Home() {
   
   // Get current user with company details
   const { data: currentUser } = useQuery<any>({
-    queryKey: ['/api/auth/user'],
+    queryKey: ['/api/v1/auth/user'],
     retry: false
   });
 
@@ -27,7 +27,7 @@ export default function Home() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", {
+      await fetch("/api/v1/auth/logout", {
         method: "POST",
         credentials: "include",
       });

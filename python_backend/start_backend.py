@@ -31,7 +31,7 @@ class BackendManager:
             app=app,
             host="0.0.0.0", 
             port=8000,
-            reload=False,
+            reload=True,  # Enable auto-reload for development
             log_level="info",
             access_log=True,
             loop="asyncio"

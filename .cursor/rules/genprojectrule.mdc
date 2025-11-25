@@ -1,0 +1,69 @@
+---
+alwaysApply: true
+---
+# Project Context: Proesphere (Construction Project Management)
+
+You are an expert Senior Full Stack Developer specializing in the **Proesphere** architecture. 
+
+## 🚨 CRITICAL ARCHITECTURE RULE: The "Pure Proxy" Pattern
+
+**Strict Separation of Concerns:**
+1.  **Node.js (Port 5000):** acts ONLY as a frontend server and API proxy. 
+    * ❌ **FORBIDDEN:** Do not write business logic, database queries, or RBAC checks in Node.js.
+    * ❌ **FORBIDDEN:** Do not import `db` or `drizzle` in endpoint handlers in `server/`.
+    * ✅ **ALLOWED:** Session management, serving React static files, proxying `/api/*` to Port 8000.
+2.  **Python/FastAPI (Port 8000):** Handles **ALL** logic.
+    * ✅ **REQUIRED:** All Database operations, RBAC checks, and Business Logic must exist here.
+
+## 🏗️ Tech Stack & Boundaries
+
+### 1. Frontend (React + TypeScript)
+* **Framework:** React 18 with Vite.
+* **Routing:** Use **Wouter** exclusively (Do NOT use React Router).
+* **State:** Use **TanStack Query** for server state. Avoid `useEffect` for data fetching.
+* **UI Library:** Radix UI primitives + shadcn/ui.
+* **Styling:** Tailwind CSS (Construction-themed palette).
+* **API Calls:** fetch relative paths (`/api/v1/...`). Do not hardcode localhost:8000.
+
+### 2. Backend (Python + FastAPI)
+* **Path:** `/python_backend`
+* **Framework:** FastAPI (Async/Await required).
+* **Database Driver:** `asyncpg` (Async PostgreSQL).
+* **Validation:** Pydantic models for all Schemas.
+* **RBAC:** Fully implemented in FastAPI at `/api/v1/rbac/*`.
+* **Security:** Row-Level Security (RLS) is enforced via company_id filtering in every query.
+
+## 🧭 Coding Standards
+
+### Python (Backend)
+* **Type Hinting:** Mandatory for all functions (e.g., `def get_project(id: int) -> Project:`).
+* **Repository Pattern:** Use the repository pattern in `python_backend/src/database/repositories.py` for DB access.
+* **Async:** All DB I/O must be `await`.
+* **Error Handling:** Raise `HTTPException` explicitly.
+
+### TypeScript (Frontend)
+* **Strict Mode:** No `any` types. Define interfaces in `client/src/lib` or import shared schemas.
+* **Components:** Functional components only.
+* **Naming:** Use PascalCase for interfaces (e.g., `ProjectLog`, `CrewMember`).
+
+## ⚠️ Migration Context (Important)
+
+**RBAC has moved!** If asked to modify Users, Roles, Permissions, or Companies:
+1.  You must modify the **Python** backend (`python_backend/src/api/v1/rbac.py` or `users.py`).
+2.  Do **not** look for these logic handlers in the Node `server/` directory.
+3.  The Node server simply forwards these requests to FastAPI.
+
+## 📂 Directory Map
+
+* `client/` → React App (Wouter, TanStack Query)
+* `python_backend/` → FastAPI App (The "Real" Backend)
+* `server/` → Express Proxy (Pass-through only)
+* `shared/` → Database Types (Reference only)
+
+## 🧠 Construction Domain Vocabulary
+
+Use appropriate naming conventions:
+* "Foreman" (Site Supervisor)
+* "RFI" (Request for Information)
+* "Punch List" (Task list)
+* "Sub" (Subcontractor)

@@ -135,7 +135,7 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
       });
 
       console.log("Sending request to /api/photos");
-      const response = await fetch("/api/photos", {
+      const response = await fetch("/api/v1/photos", {
         method: "POST",
         headers: {
           'Accept': 'application/json',

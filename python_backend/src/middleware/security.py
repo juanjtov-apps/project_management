@@ -28,6 +28,12 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         # Apply security headers
         response = await call_next(request)
         
+        # Skip CSP for docs endpoints to allow Swagger UI to work
+        if request.url.path in ["/docs", "/redoc", "/openapi.json"]:
+            # Minimal security headers for docs
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            return response
+        
         # Security headers
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY" 
@@ -56,6 +62,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         client_ip = self._get_client_ip(request)
         current_time = time.time()
+        
+        # Bypass rate limiting for localhost/127.0.0.1 (development/testing)
+        if client_ip in ["127.0.0.1", "localhost", "::1", "0.0.0.0"]:
+            return await call_next(request)
         
         # Clean old entries
         self._clean_old_entries(current_time)

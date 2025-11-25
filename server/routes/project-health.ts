@@ -8,16 +8,37 @@ import {
   projects,
   tasks
 } from "@shared/schema";
+import { authorize } from "../rbacMiddleware";
+import { isRootAdmin } from "../constants";
 
 const router = express.Router();
 
 // Get all project health metrics
-router.get("/project-health-metrics", async (req, res) => {
+router.get("/project-health-metrics", authorize(), async (req: any, res) => {
   try {
-    const metrics = await db
-      .select()
-      .from(projectHealthMetrics)
-      .orderBy(projectHealthMetrics.calculatedAt);
+    const currentUser = req.currentUser;
+    const isRootAdminValue = isRootAdmin(currentUser);
+    const userCompanyId = currentUser?.companyId || currentUser?.company_id;
+    
+    let metrics;
+    if (isRootAdminValue) {
+      // Root admin sees all metrics
+      metrics = await db
+        .select()
+        .from(projectHealthMetrics)
+        .orderBy(projectHealthMetrics.calculatedAt);
+    } else {
+      // Company users see only their company's project metrics
+      metrics = await db
+        .select()
+        .from(projectHealthMetrics)
+        .innerJoin(projects, eq(projectHealthMetrics.projectId, projects.id))
+        .where(eq(projects.companyId, userCompanyId))
+        .orderBy(projectHealthMetrics.calculatedAt);
+      
+      // Extract just the metrics data
+      metrics = metrics.map((m: any) => m.project_health_metrics);
+    }
     
     res.json(metrics);
   } catch (error) {
@@ -27,9 +48,25 @@ router.get("/project-health-metrics", async (req, res) => {
 });
 
 // Get project health metrics for a specific project
-router.get("/project-health-metrics/:projectId", async (req, res) => {
+router.get("/project-health-metrics/:projectId", authorize(), async (req: any, res) => {
   try {
     const { projectId } = req.params;
+    const currentUser = req.currentUser;
+    const isRootAdminValue = isRootAdmin(currentUser);
+    const userCompanyId = currentUser?.companyId || currentUser?.company_id;
+    
+    // Verify project access unless root admin
+    if (!isRootAdminValue) {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, projectId));
+      
+      if (!project || project.companyId !== userCompanyId) {
+        return res.status(403).json({ error: "Access denied to this project" });
+      }
+    }
+    
     const metrics = await db
       .select()
       .from(projectHealthMetrics)
@@ -45,8 +82,25 @@ router.get("/project-health-metrics/:projectId", async (req, res) => {
 });
 
 // Create/update project health metrics
-router.post("/project-health-metrics", async (req, res) => {
+router.post("/project-health-metrics", authorize(), async (req: any, res) => {
   try {
+    const currentUser = req.currentUser;
+    const isRootAdminValue = isRootAdmin(currentUser);
+    const userCompanyId = currentUser?.companyId || currentUser?.company_id;
+    const projectId = req.body.projectId;
+    
+    // Verify project access unless root admin
+    if (!isRootAdminValue && projectId) {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, projectId));
+      
+      if (!project || project.companyId !== userCompanyId) {
+        return res.status(403).json({ error: "Cannot create metrics for projects outside your company" });
+      }
+    }
+    
     const metrics = await db
       .insert(projectHealthMetrics)
       .values(req.body)
@@ -60,9 +114,12 @@ router.post("/project-health-metrics", async (req, res) => {
 });
 
 // Calculate health metrics for a project
-router.post("/project-health-metrics/:projectId/calculate", async (req, res) => {
+router.post("/project-health-metrics/:projectId/calculate", authorize(), async (req: any, res) => {
   try {
     const { projectId } = req.params;
+    const currentUser = req.currentUser;
+    const isRootAdminValue = isRootAdmin(currentUser);
+    const userCompanyId = currentUser?.companyId || currentUser?.company_id;
     
     // Fetch project and related tasks
     const [project] = await db
@@ -72,6 +129,11 @@ router.post("/project-health-metrics/:projectId/calculate", async (req, res) => 
     
     if (!project) {
       return res.status(404).json({ error: "Project not found" });
+    }
+    
+    // Verify project access unless root admin
+    if (!isRootAdminValue && project.companyId !== userCompanyId) {
+      return res.status(403).json({ error: "Cannot calculate metrics for projects outside your company" });
     }
     
     const projectTasks = await db
@@ -139,12 +201,31 @@ router.post("/project-health-metrics/:projectId/calculate", async (req, res) => 
 });
 
 // Get all risk assessments
-router.get("/risk-assessments", async (req, res) => {
+router.get("/risk-assessments", authorize(), async (req: any, res) => {
   try {
-    const risks = await db
-      .select()
-      .from(riskAssessments)
-      .orderBy(riskAssessments.createdAt);
+    const currentUser = req.currentUser;
+    const isRootAdminValue = isRootAdmin(currentUser);
+    const userCompanyId = currentUser?.companyId || currentUser?.company_id;
+    
+    let risks;
+    if (isRootAdminValue) {
+      // Root admin sees all risks
+      risks = await db
+        .select()
+        .from(riskAssessments)
+        .orderBy(riskAssessments.createdAt);
+    } else {
+      // Company users see only their company's project risks
+      risks = await db
+        .select()
+        .from(riskAssessments)
+        .innerJoin(projects, eq(riskAssessments.projectId, projects.id))
+        .where(eq(projects.companyId, userCompanyId))
+        .orderBy(riskAssessments.createdAt);
+      
+      // Extract just the risk data
+      risks = risks.map((r: any) => r.risk_assessments);
+    }
     
     res.json(risks);
   } catch (error) {
@@ -154,9 +235,25 @@ router.get("/risk-assessments", async (req, res) => {
 });
 
 // Get risk assessments for a specific project
-router.get("/risk-assessments/project/:projectId", async (req, res) => {
+router.get("/risk-assessments/project/:projectId", authorize(), async (req: any, res) => {
   try {
     const { projectId } = req.params;
+    const currentUser = req.currentUser;
+    const isRootAdminValue = isRootAdmin(currentUser);
+    const userCompanyId = currentUser?.companyId || currentUser?.company_id;
+    
+    // Verify project access unless root admin
+    if (!isRootAdminValue) {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, projectId));
+      
+      if (!project || project.companyId !== userCompanyId) {
+        return res.status(403).json({ error: "Access denied to this project" });
+      }
+    }
+    
     const risks = await db
       .select()
       .from(riskAssessments)
@@ -171,11 +268,28 @@ router.get("/risk-assessments/project/:projectId", async (req, res) => {
 });
 
 // Create a new risk assessment
-router.post("/risk-assessments", async (req, res) => {
+router.post("/risk-assessments", authorize(), async (req: any, res) => {
   try {
+    const currentUser = req.currentUser;
+    const isRootAdminValue = isRootAdmin(currentUser);
+    const userCompanyId = currentUser?.companyId || currentUser?.company_id;
+    const projectId = req.body.projectId;
+    
+    // Verify project access unless root admin
+    if (!isRootAdminValue && projectId) {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, projectId));
+      
+      if (!project || project.companyId !== userCompanyId) {
+        return res.status(403).json({ error: "Cannot create risk assessment for projects outside your company" });
+      }
+    }
+    
     const riskData = {
       ...req.body,
-      identifiedBy: "sample-user-id", // In real app, get from auth
+      identifiedBy: currentUser?.id || "sample-user-id",
     };
     
     // Calculate risk score (1-25)
@@ -199,18 +313,40 @@ router.post("/risk-assessments", async (req, res) => {
 });
 
 // Update a risk assessment
-router.patch("/risk-assessments/:id", async (req, res) => {
+router.patch("/risk-assessments/:id", authorize(), async (req: any, res) => {
   try {
     const { id } = req.params;
+    const currentUser = req.currentUser;
+    const isRootAdminValue = isRootAdmin(currentUser);
+    const userCompanyId = currentUser?.companyId || currentUser?.company_id;
+    
+    // Get existing risk to verify access
+    const [existingRisk] = await db
+      .select()
+      .from(riskAssessments)
+      .where(eq(riskAssessments.id, id));
+    
+    if (!existingRisk) {
+      return res.status(404).json({ error: "Risk assessment not found" });
+    }
+    
+    // Verify project access unless root admin
+    if (!isRootAdminValue && existingRisk.projectId) {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, existingRisk.projectId));
+      
+      if (!project || project.companyId !== userCompanyId) {
+        return res.status(403).json({ error: "Cannot update risk assessment for projects outside your company" });
+      }
+    }
+    
     const risk = await db
       .update(riskAssessments)
       .set({ ...req.body, updatedAt: new Date() })
       .where(eq(riskAssessments.id, id))
       .returning();
-    
-    if (risk.length === 0) {
-      return res.status(404).json({ error: "Risk assessment not found" });
-    }
     
     res.json(risk[0]);
   } catch (error) {
@@ -220,17 +356,39 @@ router.patch("/risk-assessments/:id", async (req, res) => {
 });
 
 // Delete a risk assessment
-router.delete("/risk-assessments/:id", async (req, res) => {
+router.delete("/risk-assessments/:id", authorize(), async (req: any, res) => {
   try {
     const { id } = req.params;
+    const currentUser = req.currentUser;
+    const isRootAdminValue = isRootAdmin(currentUser);
+    const userCompanyId = currentUser?.companyId || currentUser?.company_id;
+    
+    // Get existing risk to verify access
+    const [existingRisk] = await db
+      .select()
+      .from(riskAssessments)
+      .where(eq(riskAssessments.id, id));
+    
+    if (!existingRisk) {
+      return res.status(404).json({ error: "Risk assessment not found" });
+    }
+    
+    // Verify project access unless root admin
+    if (!isRootAdminValue && existingRisk.projectId) {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, existingRisk.projectId));
+      
+      if (!project || project.companyId !== userCompanyId) {
+        return res.status(403).json({ error: "Cannot delete risk assessment for projects outside your company" });
+      }
+    }
+    
     const deleted = await db
       .delete(riskAssessments)
       .where(eq(riskAssessments.id, id))
       .returning();
-    
-    if (deleted.length === 0) {
-      return res.status(404).json({ error: "Risk assessment not found" });
-    }
     
     res.json({ message: "Risk assessment deleted successfully" });
   } catch (error) {

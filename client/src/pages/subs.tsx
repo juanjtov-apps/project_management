@@ -105,7 +105,7 @@ export default function Subs() {
         projectId: data.projectId, // Project is now mandatory
         dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
       };
-      const response = await fetch("/api/tasks", {
+      const response = await fetch("/api/v1/tasks", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -172,10 +172,18 @@ export default function Subs() {
       };
       console.log("Formatted data for API:", formattedData);
       
-      return await apiRequest(`/api/tasks/${data.id}`, {
+      const response = await apiRequest(`/api/tasks/${data.id}`, {
         method: "PATCH",
         body: formattedData,
       });
+      
+      // Parse JSON response - critical for mutation to resolve properly
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      return await response.json();
     },
     onSuccess: () => {
       console.log("Task update successful");

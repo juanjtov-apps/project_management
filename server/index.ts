@@ -1,58 +1,75 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { spawn } from "child_process";
+import path from "path";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupSecurityMiddleware, validateInput, csrfProtection } from "./security";
 // Removed proxy middleware, using manual fetch forwarding instead
+// Backend runs independently - no spawning from Node.js
 
 const app = express();
 
 async function setupFrontendOnly(app: express.Express): Promise<Server> {
   console.log("🚀 FRONTEND-ONLY MODE: Serving frontend, Python backend runs independently");
   console.log("✅ Frontend on port 5000, Python FastAPI backend on port 8000");
-  console.log("🔧 Direct communication - no proxy layer");
+  console.log("🔧 Backend must be started separately - this server only proxies requests");
+  console.log("💡 Start backend with: cd python_backend && python3 main.py");
   
-  // Start Python backend as a child process with proper startup verification
-  console.log("🐍 Starting Python FastAPI backend...");
-  
-  const pythonBackend = spawn('python', ['main.py'], {
-    cwd: '/home/runner/workspace/python_backend',
-    stdio: 'pipe',
-    detached: false
-  });
-  
-  let backendReady = false;
-  
-  pythonBackend.stdout?.on('data', (data) => {
-    const output = data.toString().trim();
-    console.log(`[Python Backend] ${output}`);
-    
-    // Mark backend as ready when we see the startup completion message
-    if (output.includes('Application startup complete') || output.includes('Uvicorn running')) {
-      backendReady = true;
-      console.log("✅ Python backend is ready to accept connections");
+  // Helper function to verify backend is actually accepting HTTP connections
+  async function verifyBackendReady(): Promise<boolean> {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/health', {
+        method: 'GET',
+        signal: AbortSignal.timeout(2000), // 2 second timeout
+      });
+      return response.ok;
+    } catch (error) {
+      return false;
     }
-  });
+  }
   
-  pythonBackend.stderr?.on('data', (data) => {
-    console.error(`[Python Backend Error] ${data.toString().trim()}`);
-  });
+  // Check backend status on startup
+  const initialCheck = await verifyBackendReady();
+  if (initialCheck) {
+    console.log("✅ Python backend is already running");
+  } else {
+    console.log("⚠️  Python backend is not running yet");
+    console.log("   The frontend will start, but API requests will fail until backend is started");
+    console.log("   Start backend in another terminal: cd python_backend && python3 main.py");
+  }
   
-  pythonBackend.on('close', (code) => {
-    console.log(`[Python Backend] Process exited with code ${code}`);
-    backendReady = false;
-  });
-  
-  pythonBackend.on('error', (error) => {
-    console.error(`[Python Backend] Process error: ${error}`);
-    backendReady = false;
-  });
+  // Periodically check backend health (every 10 seconds)
+  let backendReady = initialCheck;
+  setInterval(async () => {
+    const isReady = await verifyBackendReady();
+    if (isReady !== backendReady) {
+      backendReady = isReady;
+      if (isReady) {
+        console.log("✅ Python backend is now available");
+      } else {
+        console.warn("⚠️  Python backend became unavailable");
+      }
+    }
+  }, 10000);
   
   // Add health check endpoint to verify backend status
-  app.get('/api/backend-status', (req, res) => {
-    res.json({ ready: backendReady, message: backendReady ? 'Backend ready' : 'Backend starting up' });
+  app.get('/api/backend-status', async (req, res) => {
+    const isActuallyReady = await verifyBackendReady();
+    res.json({ 
+      ready: isActuallyReady,
+      message: isActuallyReady ? 'Backend ready' : 'Backend unavailable - start it with: cd python_backend && python3 main.py' 
+    });
   });
 
+  // Add request logging BEFORE security middleware to see all requests
+  app.use((req, res, next) => {
+    console.log(`[Request] ${req.method} ${req.path}`, {
+      origin: req.headers.origin,
+      referer: req.headers.referer,
+      userAgent: req.headers['user-agent']?.substring(0, 50),
+    });
+    next();
+  });
+  
   // Setup security middleware
   setupSecurityMiddleware(app);
   
@@ -64,43 +81,145 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-  // Import Node.js routes BEFORE the catch-all proxy
-  console.log("🔧 Loading Node.js routes...");
+  // Register Node.js routes (session store configuration only - PURE PROXY MODE)
   const { registerRoutes } = await import('./routes');
   await registerRoutes(app);
-  console.log("✅ Node.js routes loaded");
+  console.log("✅ Node.js session store configured (PURE PROXY MODE - no business logic)");
+  
+  // ALL API routes are handled by Python FastAPI backend
+  console.log("✅ All /api/* requests will be forwarded to Python FastAPI backend (/api/v1/*)");
 
-  // Add manual API forwarding to Python backend to solve browser CORS issues
+  // Add manual API forwarding to Python backend
   console.log("🔄 Setting up API forwarding to Python backend");
   
-  app.all('/api/*', async (req, res) => {
-    // Exclude /api/objects/ requests - let Node.js handle object storage
-    if (req.originalUrl.startsWith('/api/objects/')) {
-      return res.status(404).json({ message: 'Route should be handled by Node.js, not forwarded' });
+  // Helper function to check if backend is actually reachable
+  async function checkBackendHealth(): Promise<boolean> {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/health', {
+        method: 'GET',
+        signal: AbortSignal.timeout(2000), // 2 second timeout
+      });
+      return response.ok;
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  // Periodically verify backend is still alive
+  setInterval(async () => {
+    if (backendReady) {
+      const isHealthy = await checkBackendHealth();
+      if (!isHealthy) {
+        console.warn('⚠️  Backend health check failed, marking as not ready');
+        backendReady = false;
+      }
+    }
+  }, 10000); // Check every 10 seconds
+  
+  app.all('/api/*', async (req, res, next) => {
+    // PURE PROXY MODE: All API routes are forwarded to Python FastAPI backend
+    // ALL backend logic, database operations, and RBAC checks are handled by FastAPI (Port 8000)
+    // Node.js (Port 5000) only proxies requests - NO business logic here
+    
+    // Wait for backend to be ready (with timeout)
+    if (!backendReady) {
+      console.log(`⏳ Backend not ready yet, waiting... (${req.method} ${req.originalUrl})`);
+      
+      // Wait up to 5 seconds for backend to be ready
+      const maxWait = 5000;
+      const startTime = Date.now();
+      while (!backendReady && (Date.now() - startTime) < maxWait) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      if (!backendReady) {
+        // Try health check as fallback
+        const isHealthy = await checkBackendHealth();
+        if (isHealthy) {
+          console.log('✅ Backend health check passed, marking as ready');
+          backendReady = true;
+        } else {
+          console.error(`❌ Backend not ready after ${maxWait}ms`);
+          return res.status(503).json({ 
+            detail: 'Backend unavailable', 
+            message: 'Python backend is starting up, please try again in a moment' 
+          });
+        }
+      }
     }
     
     try {
-      const backendUrl = `http://127.0.0.1:8000${req.originalUrl}`;
+      // Forward all API requests to Python FastAPI backend
+      // Rewrite /api/* to /api/v1/* for versioning (unless already /api/v1/*)
+      let targetPath = req.originalUrl;
+      if (targetPath.startsWith('/api/') && !targetPath.startsWith('/api/v1/')) {
+        targetPath = targetPath.replace('/api/', '/api/v1/');
+      }
+      const backendUrl = `http://127.0.0.1:8000${targetPath}`;
       console.log(`📡 Forwarding ${req.method} ${req.originalUrl} → ${backendUrl}`);
       
-      const response = await fetch(backendUrl, {
-        method: req.method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cookie': req.headers.cookie || '',
-          'Authorization': req.headers.authorization || '',
-        },
-        body: req.method !== 'GET' && req.method !== 'HEAD' && req.body ? JSON.stringify(req.body) : undefined,
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      try {
+        const response = await fetch(backendUrl, {
+          method: req.method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': req.headers.cookie || '',
+            'Authorization': req.headers.authorization || '',
+            // Forward origin/referer headers for proper CSRF validation
+            ...(req.headers.origin ? { 'Origin': req.headers.origin } : {}),
+            ...(req.headers.referer ? { 'Referer': req.headers.referer } : {}),
+          },
+          body: req.method !== 'GET' && req.method !== 'HEAD' && req.body ? JSON.stringify(req.body) : undefined,
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        const data = await response.text();
+        res.status(response.status);
+        res.set(Object.fromEntries(response.headers.entries()));
+        res.send(data);
+        
+        // If we get a connection error, mark backend as not ready
+        if (response.status === 503 || response.status === 502) {
+          console.warn('⚠️  Backend returned error status, marking as not ready');
+          backendReady = false;
+        }
+        
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        
+        if (fetchError.name === 'AbortError') {
+          console.error('❌ Request to backend timed out');
+          backendReady = false;
+          return res.status(504).json({ detail: 'Backend request timeout' });
+        }
+        
+        throw fetchError;
+      }
+      
+    } catch (error: any) {
+      console.error('❌ API forwarding error:', error.message);
+      console.error('   Error code:', error.code);
+      console.error('   Error name:', error.name);
+      
+      // Mark backend as not ready on connection errors
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'ENOTFOUND') {
+        backendReady = false;
+        return res.status(503).json({ 
+          detail: 'Backend unavailable', 
+          message: 'Cannot connect to Python backend. Please check if it is running.',
+          error: error.code
+        });
+      }
+      
+      res.status(503).json({ 
+        detail: 'Backend unavailable',
+        message: error.message 
       });
-      
-      const data = await response.text();
-      res.status(response.status);
-      res.set(Object.fromEntries(response.headers.entries()));
-      res.send(data);
-      
-    } catch (error) {
-      console.log('API forwarding error:', error.message);
-      res.status(503).json({ detail: 'Backend unavailable' });
     }
   });
 
@@ -143,6 +262,17 @@ app.use((req, res, next) => {
       }
 
       log(logLine);
+      
+      // Log 403 errors with more detail
+      if (res.statusCode === 403) {
+        console.error(`[403 Error] ${req.method} ${path}`, {
+          origin: req.headers.origin,
+          referer: req.headers.referer,
+          ip: req.ip,
+          userAgent: req.headers['user-agent'],
+          response: capturedJsonResponse,
+        });
+      }
     }
   });
 
@@ -154,11 +284,20 @@ app.use((req, res, next) => {
   const server = await setupFrontendOnly(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    // Check if headers have already been sent
+    if (res.headersSent) {
+      return _next(err);
+    }
+    
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
-    throw err;
+    
+    // Only log error if not in production or if it's a server error
+    if (status >= 500) {
+      console.error('Server error:', err);
+    }
   });
 
   // importantly only setup vite in development and after
@@ -177,8 +316,6 @@ app.use((req, res, next) => {
       }
       
       // For all other routes, serve the index.html for client-side routing
-      const path = require('path');
-      const fs = require('fs');
       const indexPath = path.resolve(__dirname, 'public', 'index.html');
       
       if (fs.existsSync(indexPath)) {
@@ -194,11 +331,23 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Production guard: Use 0.0.0.0 in production, 127.0.0.1 in development
+  // macOS doesn't support reusePort, so we use standard listen() method
+  const host = process.env.HOST || (isProduction ? '0.0.0.0' : '127.0.0.1');
+  
+  // Production guard: Verify critical environment variables
+  if (isProduction) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is required in production');
+    }
+    if (!process.env.SESSION_SECRET) {
+      throw new Error('SESSION_SECRET environment variable is required in production');
+    }
+  }
+  
+  server.listen(port, host, () => {
+    log(`serving on ${host}:${port} (${isProduction ? 'production' : 'development'})`);
   });
 })();

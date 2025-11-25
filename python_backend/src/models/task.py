@@ -3,7 +3,7 @@ Task-related models.
 """
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from .base import BaseEntity, TaskStatus, TaskPriority, TaskCategory
 
 
@@ -17,6 +17,16 @@ class TaskBase(BaseModel):
     project_id: Optional[str] = Field(default=None, alias="projectId")
     assignee_id: Optional[str] = Field(default=None, alias="assigneeId")
     due_date: Optional[datetime] = Field(default=None, alias="dueDate")
+    company_id: Optional[str] = Field(default=None, alias="companyId")
+    
+    @validator('status', pre=True)
+    def normalize_status(cls, v):
+        """Normalize status values: 'done' -> 'completed'."""
+        if v is None:
+            return v
+        if isinstance(v, str) and v.lower() == 'done':
+            return TaskStatus.completed
+        return v
 
 
 class TaskCreate(TaskBase):
@@ -34,11 +44,24 @@ class TaskUpdate(BaseModel):
     project_id: Optional[str] = Field(default=None, alias="projectId")
     assignee_id: Optional[str] = Field(default=None, alias="assigneeId")
     due_date: Optional[datetime] = Field(default=None, alias="dueDate")
+    
+    @validator('status', pre=True)
+    def normalize_status(cls, v):
+        """Normalize status values: 'done' -> 'completed'."""
+        if v is None:
+            return v
+        if isinstance(v, str) and v.lower() == 'done':
+            return TaskStatus.completed
+        return v
 
 
 class Task(BaseEntity, TaskBase):
     """Complete task model."""
-    pass
+    
+    class Config:
+        populate_by_name = True
+        # Allow extra fields from database that aren't in the model
+        extra = "ignore"
 
 
 class TaskStats(BaseModel):
@@ -49,4 +72,4 @@ class TaskStats(BaseModel):
     overdue_tasks: int = Field(alias="overdueTasks")
     
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   Plus,
   Edit,
@@ -80,6 +80,13 @@ const isTaskDueThisWeek = (task: Task): boolean => {
 type WorkSegment = "projects" | "tasks";
 
 export default function WorkPage() {
+  // Debug: Track renders
+  const renderCount = useRef(0);
+  renderCount.current += 1;
+  if (renderCount.current % 10 === 0) {
+    console.log("[WorkPage] Render count:", renderCount.current);
+  }
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -122,6 +129,7 @@ export default function WorkPage() {
   const [isTaskDeleteDialogOpen, setIsTaskDeleteDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const isClosingFromMutation = useRef(false);
 
   // Tasks - Filter states
   const [taskSearchTerm, setTaskSearchTerm] = useState("");
@@ -150,13 +158,37 @@ export default function WorkPage() {
     queryKey: ["/api/tasks"],
   });
 
+  // Monitor task query refetches for debugging (only log when loading state changes)
+  // REMOVED tasks.length from dependencies to prevent render loops
+  const prevLoadingRef = useRef(tasksLoading);
+  useEffect(() => {
+    if (prevLoadingRef.current !== tasksLoading) {
+      if (tasksLoading) {
+        console.log("[Task Query] Query started loading/refetching");
+      } else {
+        console.log("[Task Query] Query finished loading", { taskCount: tasks.length });
+      }
+      prevLoadingRef.current = tasksLoading;
+    }
+  }, [tasksLoading]); // Removed tasks.length to prevent infinite loops
+
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users/managers"],
   });
 
   // === PROJECT MUTATIONS ===
   const createProjectMutation = useMutation({
-    mutationFn: (data: InsertProject) => apiRequest("/api/projects", { method: "POST", body: data }),
+    mutationFn: async (data: InsertProject) => {
+      const response = await apiRequest("/api/projects", { method: "POST", body: data });
+      
+      // Parse JSON response - critical for mutation to resolve properly
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      return await response.json();
+    },
     onSuccess: () => {
       // Close dialog and reset form first
       setIsProjectCreateDialogOpen(false);
@@ -169,10 +201,25 @@ export default function WorkPage() {
   });
 
   const updateProjectMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<InsertProject> }) =>
-      apiRequest(`/api/projects/${id}`, { method: "PATCH", body: data }),
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertProject> }) => {
+      const response = await apiRequest(`/api/projects/${id}`, { method: "PATCH", body: data });
+      
+      // Parse JSON response - critical for mutation to resolve properly
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      return await response.json();
+    },
     onSuccess: () => {
+      console.log("[Project Edit] Update mutation succeeded");
+      // Simple synchronous cleanup - match working pattern from tasks.tsx
+      isClosingFromMutation.current = true;
       setIsProjectEditDialogOpen(false);
+      setEditingProject(null);
+      projectEditForm.reset();
+      isClosingFromMutation.current = false;
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       toast({ title: "Project updated successfully" });
     },
@@ -189,7 +236,17 @@ export default function WorkPage() {
 
   // === TASK MUTATIONS ===
   const createTaskMutation = useMutation({
-    mutationFn: (data: InsertTask) => apiRequest("/api/tasks", { method: "POST", body: data }),
+    mutationFn: async (data: InsertTask) => {
+      const response = await apiRequest("/api/tasks", { method: "POST", body: data });
+      
+      // Parse JSON response - critical for mutation to resolve properly
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      return await response.json();
+    },
     onSuccess: () => {
       // Close dialog and reset form first
       setIsTaskCreateDialogOpen(false);
@@ -203,19 +260,51 @@ export default function WorkPage() {
   });
 
   const updateTaskMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<InsertTask> }) =>
-      apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data }),
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertTask> }) => {
+      console.log("[Task Edit] Starting update mutation", { id, data });
+      const response = await apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data });
+      console.log("[Task Edit] Response status:", response.status);
+      
+      // Parse JSON response - critical for mutation to resolve properly
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log("[Task Edit] Parsed response:", result);
+      return result;
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      console.log("[Task Edit] Update mutation succeeded");
+      // Simple synchronous cleanup - match working pattern from tasks.tsx
+      isClosingFromMutation.current = true;
       setIsTaskEditDialogOpen(false);
       setEditingTask(null);
+      taskEditForm.reset();
+      isClosingFromMutation.current = false;
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({ title: "Task updated successfully" });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("[Task Edit] Update mutation failed", error);
       toast({ title: "Failed to update task", variant: "destructive" });
     },
   });
+
+  // Monitor mutation pending state for debugging
+  const prevMutationPendingRef = useRef(updateTaskMutation.isPending);
+  useEffect(() => {
+    if (prevMutationPendingRef.current !== updateTaskMutation.isPending) {
+      if (updateTaskMutation.isPending) {
+        console.log("[Task Edit] Mutation is now pending");
+      } else {
+        console.log("[Task Edit] Mutation is no longer pending");
+      }
+      prevMutationPendingRef.current = updateTaskMutation.isPending;
+    }
+  }, [updateTaskMutation.isPending]);
 
   const deleteTaskMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/tasks/${id}`, { method: "DELETE" }),
@@ -380,19 +469,19 @@ export default function WorkPage() {
   };
 
   const handleEditProject = (project: Project) => {
+    console.log("[Project Edit] Opening edit dialog", { projectId: project.id, projectName: project.name });
+    // Match working pattern - synchronous reset
     setEditingProject(project);
-    setIsProjectEditDialogOpen(true);
-    // Use queueMicrotask to populate form after state updates
-    queueMicrotask(() => {
-      projectEditForm.reset({
-        name: project.name,
-        description: project.description || "",
-        status: project.status,
-        location: project.location || "",
-        progress: project.progress || 0,
-        dueDate: project.dueDate ? new Date(project.dueDate) : undefined,
-      });
+    projectEditForm.reset({
+      name: project.name,
+      description: project.description || "",
+      status: project.status,
+      location: project.location || "",
+      progress: project.progress || 0,
+      dueDate: project.dueDate ? new Date(project.dueDate) : undefined,
     });
+    setIsProjectEditDialogOpen(true);
+    console.log("[Project Edit] Form populated and dialog opened");
   };
 
   const handleUpdateProject = (data: InsertProject) => {
@@ -405,21 +494,7 @@ export default function WorkPage() {
     updateProjectMutation.mutate({ id: editingProject.id, data: projectData });
   };
 
-  const handleProjectEditDialogChange = (open: boolean) => {
-    if (!open) {
-      setEditingProject(null);
-      projectEditForm.reset();
-    }
-    setIsProjectEditDialogOpen(open);
-  };
 
-  const handleTaskEditDialogChange = (open: boolean) => {
-    if (!open) {
-      setEditingTask(null);
-      taskEditForm.reset();
-    }
-    setIsTaskEditDialogOpen(open);
-  };
 
   const handleDeleteProject = (project: Project) => {
     setProjectToDelete(project);
@@ -454,32 +529,53 @@ export default function WorkPage() {
   };
 
   const handleEditTask = (task: Task) => {
+    console.log("[Task Edit] Opening edit dialog", { taskId: task.id, taskTitle: task.title });
+    // Match working pattern from tasks.tsx - synchronous reset
     setEditingTask(task);
-    setIsTaskEditDialogOpen(true);
-    // Use queueMicrotask to populate form after state updates
-    queueMicrotask(() => {
-      taskEditForm.reset({
-        title: task.title,
-        description: task.description || "",
-        projectId: task.projectId,
-        category: task.category || "general",
-        status: task.status,
-        priority: task.priority,
-        dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-        assigneeId: task.assigneeId,
-      });
+    taskEditForm.reset({
+      title: task.title,
+      description: task.description || "",
+      projectId: task.projectId,
+      category: task.category || "general",
+      status: task.status,
+      priority: task.priority,
+      dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+      assigneeId: task.assigneeId,
     });
+    setIsTaskEditDialogOpen(true);
+    console.log("[Task Edit] Form populated and dialog opened");
   };
 
   const handleUpdateTask = (data: InsertTask) => {
-    if (!editingTask) return;
-    const taskData = {
-      ...data,
-      description: data.description?.trim() || null,
-      dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
-    };
-    setIsTaskEditDialogOpen(false);
-    updateTaskMutation.mutate({ id: editingTask.id, data: taskData });
+    console.log("[Task Edit] handleUpdateTask called", { 
+      editingTaskId: editingTask?.id,
+      formData: data,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      if (!editingTask) {
+        console.warn("[Task Edit] handleUpdateTask called but no editingTask");
+        return;
+      }
+      
+      console.log("[Task Edit] Processing task data");
+      const taskData = {
+        ...data,
+        description: data.description?.trim() || null,
+        dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
+      };
+      
+      console.log("[Task Edit] Calling mutation with processed data", { 
+        id: editingTask.id, 
+        taskData 
+      });
+      updateTaskMutation.mutate({ id: editingTask.id, data: taskData });
+      console.log("[Task Edit] Mutation call completed (async)");
+    } catch (error) {
+      console.error("[Task Edit] Error in handleUpdateTask", error);
+      toast({ title: "Error updating task", variant: "destructive" });
+    }
   };
 
   const handleDeleteTask = (task: Task) => {
@@ -489,7 +585,6 @@ export default function WorkPage() {
 
   const handleConfirmTaskDelete = () => {
     if (taskToDelete) {
-      setIsTaskDeleteDialogOpen(false);
       deleteTaskMutation.mutate(taskToDelete.id);
     }
   };
@@ -1014,8 +1109,15 @@ export default function WorkPage() {
 
       {/* === PROJECT DIALOGS === */}
       {/* Create Project Dialog */}
-      <Dialog open={isProjectCreateDialogOpen} onOpenChange={setIsProjectCreateDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog 
+        open={isProjectCreateDialogOpen} 
+        onOpenChange={(open) => {
+          if (open) window.dispatchEvent(new CustomEvent('dialog:open'));
+          else window.dispatchEvent(new CustomEvent('dialog:close'));
+          setIsProjectCreateDialogOpen(open);
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Create New Project</DialogTitle>
           </DialogHeader>
@@ -1178,8 +1280,28 @@ export default function WorkPage() {
       </Dialog>
 
       {/* Edit Project Dialog - Similar structure */}
-      <Dialog open={isProjectEditDialogOpen} onOpenChange={handleProjectEditDialogChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog 
+        open={isProjectEditDialogOpen} 
+        onOpenChange={(open) => {
+          // Emit custom event for header to pause polling
+          if (open) {
+            window.dispatchEvent(new CustomEvent('dialog:open'));
+          } else {
+            // Mark the time when dialog closes to prevent dropdown from opening
+            (window as any).__lastDialogCloseTime = Date.now();
+            window.dispatchEvent(new CustomEvent('dialog:close'));
+          }
+          
+          // Direct setter - match working pattern from tasks.tsx exactly
+          setIsProjectEditDialogOpen(open);
+          
+          // Cleanup when closing manually (not from mutation)
+          if (!open && !isClosingFromMutation.current) {
+            setEditingProject(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Edit Project</DialogTitle>
           </DialogHeader>
@@ -1323,7 +1445,15 @@ export default function WorkPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => handleProjectEditDialogChange(false)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("[Project Edit] Cancel button clicked");
+                    // Mark dialog close time to prevent dropdown from opening
+                    (window as any).__lastDialogCloseTime = Date.now();
+                    // Just close dialog - let onOpenChange handle cleanup
+                    setIsProjectEditDialogOpen(false);
+                  }}
                   data-testid="button-cancel-edit"
                 >
                   Cancel
@@ -1332,6 +1462,10 @@ export default function WorkPage() {
                   type="submit"
                   data-testid="button-submit-edit"
                   disabled={updateProjectMutation.isPending}
+                  onClick={(e) => {
+                    // Prevent event bubbling that might trigger dropdown
+                    e.stopPropagation();
+                  }}
                 >
                   {updateProjectMutation.isPending ? "Updating..." : "Update Project"}
                 </Button>
@@ -1377,8 +1511,15 @@ export default function WorkPage() {
 
       {/* === TASK DIALOGS === */}
       {/* Create Task Dialog */}
-      <Dialog open={isTaskCreateDialogOpen} onOpenChange={setIsTaskCreateDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog 
+        open={isTaskCreateDialogOpen} 
+        onOpenChange={(open) => {
+          if (open) window.dispatchEvent(new CustomEvent('dialog:open'));
+          else window.dispatchEvent(new CustomEvent('dialog:close'));
+          setIsTaskCreateDialogOpen(open);
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Create New Task</DialogTitle>
           </DialogHeader>
@@ -1568,13 +1709,39 @@ export default function WorkPage() {
       </Dialog>
 
       {/* Edit Task Dialog */}
-      <Dialog open={isTaskEditDialogOpen} onOpenChange={handleTaskEditDialogChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog 
+        open={isTaskEditDialogOpen} 
+        onOpenChange={(open) => {
+          // Emit custom event for header to pause polling
+          if (open) {
+            window.dispatchEvent(new CustomEvent('dialog:open'));
+          } else {
+            // Mark the time when dialog closes to prevent dropdown from opening
+            (window as any).__lastDialogCloseTime = Date.now();
+            window.dispatchEvent(new CustomEvent('dialog:close'));
+          }
+          
+          // Direct setter - match working pattern from tasks.tsx exactly
+          setIsTaskEditDialogOpen(open);
+          
+          // Cleanup when closing manually (not from mutation)
+          if (!open && !isClosingFromMutation.current) {
+            setEditingTask(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
           </DialogHeader>
           <Form {...taskEditForm}>
-            <form onSubmit={taskEditForm.handleSubmit(handleUpdateTask)} className="space-y-4">
+            <form 
+              onSubmit={taskEditForm.handleSubmit((data) => {
+                console.log("[Task Edit Form] Form submitted with data", data);
+                handleUpdateTask(data);
+              })} 
+              className="space-y-4"
+            >
               <FormField
                 control={taskEditForm.control}
                 name="title"
@@ -1744,7 +1911,16 @@ export default function WorkPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => handleTaskEditDialogChange(false)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("[Task Edit] Cancel button clicked");
+                    // Mark dialog close time to prevent dropdown from opening
+                    (window as any).__lastDialogCloseTime = Date.now();
+                    // Just close dialog - let onOpenChange handle cleanup
+                    // Match working pattern from tasks-tablet.tsx
+                    setIsTaskEditDialogOpen(false);
+                  }}
                   data-testid="button-cancel-edit-task"
                 >
                   Cancel
@@ -1753,6 +1929,10 @@ export default function WorkPage() {
                   type="submit"
                   data-testid="button-submit-edit-task"
                   disabled={updateTaskMutation.isPending}
+                  onClick={(e) => {
+                    // Prevent event bubbling that might trigger dropdown
+                    e.stopPropagation();
+                  }}
                 >
                   {updateTaskMutation.isPending ? "Updating..." : "Update Task"}
                 </Button>

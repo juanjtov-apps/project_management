@@ -14,7 +14,7 @@ export function useAuth() {
   }, []);
 
   const { data: user, isLoading, error } = useQuery({
-    queryKey: ["/api/auth/user"],
+    queryKey: ["/api/v1/auth/user"],
     // Don't start the query until after startup delay
     enabled: !startupDelay,
     retry: false, // Disable all retries for auth to prevent cascading failures

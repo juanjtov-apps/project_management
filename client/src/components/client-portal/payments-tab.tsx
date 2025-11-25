@@ -284,7 +284,7 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
 
   const handleDownload = async (filePath: string, fileName: string) => {
     try {
-      const response = await fetch('/api/objects/download', {
+      const response = await fetch('/api/v1/objects/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath }),
@@ -311,7 +311,7 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
       setIsUploading(true);
       
       // Get upload URL from backend
-      const uploadResponse = await fetch('/api/objects/upload', { method: 'POST' });
+      const uploadResponse = await fetch('/api/v1/objects/upload', { method: 'POST' });
       const { uploadURL } = await uploadResponse.json();
       
       // Upload file to object storage
@@ -353,7 +353,7 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
       setIsUploadingInvoice(true);
       
       // Get upload URL from backend
-      const uploadResponse = await fetch('/api/objects/upload', { method: 'POST' });
+      const uploadResponse = await fetch('/api/v1/objects/upload', { method: 'POST' });
       const { uploadURL } = await uploadResponse.json();
       
       // Upload file to object storage
@@ -1044,7 +1044,7 @@ function InstallmentRow({ installment, projectId, receipts }: InstallmentRowProp
 
   const handleDownload = async (filePath: string, fileName: string) => {
     try {
-      const response = await fetch('/api/objects/download', {
+      const response = await fetch('/api/v1/objects/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath }),
@@ -1071,7 +1071,7 @@ function InstallmentRow({ installment, projectId, receipts }: InstallmentRowProp
       setIsUploadingReceipt(true);
       
       // Get upload URL from backend
-      const uploadResponse = await fetch('/api/objects/upload', { method: 'POST' });
+      const uploadResponse = await fetch('/api/v1/objects/upload', { method: 'POST' });
       const { uploadURL } = await uploadResponse.json();
       
       // Upload file to object storage

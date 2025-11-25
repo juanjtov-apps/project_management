@@ -71,13 +71,22 @@ class ProjectRepository(BaseRepository):
             return Project(**self._convert_to_camel_case(dict(row)))
         return None
     
-    async def create(self, project: ProjectCreate) -> Project:
+    async def create(self, project: ProjectCreate, company_id: Optional[str] = None) -> Project:
         """Create a new project."""
         project_id = str(uuid.uuid4())
         now = datetime.utcnow()
         
+        # Get data with aliases first, then convert
         data = project.dict(by_alias=True)
         data = self._convert_from_camel_case(data)
+        
+        # Use provided company_id parameter, or get from model, or get from data
+        # Use provided company_id parameter, or get from model, or get from data
+        company_id_value = company_id or getattr(project, 'company_id', None) or data.get('company_id')
+        
+        # Set company_id in data dict if we have a value
+        if company_id_value is not None:
+            data['company_id'] = str(company_id_value)
         
         # Handle due_date timezone conversion
         due_date = data.get('due_date')
@@ -97,11 +106,14 @@ class ProjectRepository(BaseRepository):
             RETURNING *
         """
         
+        company_id_value = data.get('company_id')
+        
         row = await db_manager.execute_one(
             query, project_id, data.get('name'), data.get('description'), 
             data.get('location'), data.get('status'), data.get('progress'),
-            due_date, data.get('company_id'), now
+            due_date, company_id_value, now
         )
+        
         return Project(**self._convert_to_camel_case(dict(row)))
     
     async def update(self, project_id: str, project_update: ProjectUpdate) -> Optional[Project]:
@@ -111,6 +123,10 @@ class ProjectRepository(BaseRepository):
         
         if not data:
             return await self.get_by_id(project_id)
+        
+        # Prevent company_id from being updated (security: company_id is immutable)
+        if 'company_id' in data:
+            del data['company_id']
         
         # Handle due_date timezone conversion
         if 'due_date' in data and data['due_date']:
@@ -147,10 +163,144 @@ class ProjectRepository(BaseRepository):
         return None
     
     async def delete(self, project_id: str) -> bool:
-        """Delete a project."""
-        query = f"DELETE FROM {self.table_name} WHERE id = $1"
-        result = await db_manager.execute(query, project_id)
-        return "DELETE 1" in result
+        """Delete a project with cascade deletion of related data."""
+        from src.database.connection import get_db_pool
+        
+        pool = await get_db_pool()
+        try:
+            async with pool.acquire() as connection:
+                # Start transaction
+                async with connection.transaction():
+                    # Helper to safely delete from tables that might not exist
+                    async def safe_delete(query: str, description: str):
+                        try:
+                            await connection.execute(query, project_id)
+                            print(f"✅ {description}")
+                        except Exception as e:
+                            # Only log if it's not a "table/column doesn't exist" error
+                            error_code = getattr(e, 'code', None)
+                            if error_code not in ('42P01', '42703'):  # table/column doesn't exist
+                                print(f"⚠️  {description} - error: {e}")
+                    
+                    # === CLIENT PORTAL DATA (must be deleted first due to RESTRICT constraints) ===
+                    # Delete payment-related data (in reverse dependency order)
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_events WHERE project_id = $1",
+                        "Deleted payment events"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.invoices WHERE project_id = $1",
+                        "Deleted invoices"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_receipts WHERE project_id = $1",
+                        "Deleted payment receipts"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_documents WHERE project_id = $1",
+                        "Deleted payment documents"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_installments WHERE project_id = $1",
+                        "Deleted payment installments"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_schedules WHERE project_id = $1",
+                        "Deleted payment schedules"
+                    )
+                    
+                    # Delete issue-related data (comments and attachments cascade)
+                    await safe_delete(
+                        "DELETE FROM client_portal.issues WHERE project_id = $1",
+                        "Deleted client portal issues"
+                    )
+                    
+                    # Delete forum-related data (messages and attachments cascade)
+                    await safe_delete(
+                        "DELETE FROM client_portal.forum_threads WHERE project_id = $1",
+                        "Deleted forum threads"
+                    )
+                    
+                    # Delete other client portal data
+                    await safe_delete(
+                        "DELETE FROM client_portal.materials WHERE project_id = $1",
+                        "Deleted materials"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.installment_files WHERE installment_id IN (SELECT id FROM client_portal.installments WHERE project_id = $1)",
+                        "Deleted installment files"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.installments WHERE project_id = $1",
+                        "Deleted installments"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.notification_settings WHERE project_id = $1",
+                        "Deleted notification settings"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.notifications WHERE project_id = $1",
+                        "Deleted notifications"
+                    )
+                    
+                    # === PUBLIC SCHEMA DATA ===
+                    # 1. Delete schedule changes related to tasks in this project
+                    await safe_delete(
+                        "DELETE FROM schedule_changes WHERE task_id IN (SELECT id FROM tasks WHERE project_id = $1)",
+                        "Deleted schedule changes"
+                    )
+                    
+                    # 2. Delete subcontractor assignments for this project
+                    await safe_delete(
+                        "DELETE FROM subcontractor_assignments WHERE project_id = $1",
+                        "Deleted subcontractor assignments"
+                    )
+                    
+                    # 3. Delete all tasks associated with this project
+                    await connection.execute(
+                        "DELETE FROM tasks WHERE project_id = $1",
+                        project_id
+                    )
+                    print("✅ Deleted tasks")
+                    
+                    # 4. Delete any photos associated with this project
+                    await connection.execute(
+                        "DELETE FROM photos WHERE project_id = $1",
+                        project_id
+                    )
+                    print("✅ Deleted photos")
+                    
+                    # 5. Delete any project logs associated with this project
+                    await safe_delete(
+                        "DELETE FROM project_logs WHERE project_id = $1",
+                        "Deleted project logs"
+                    )
+                    
+                    # 6. Delete project health metrics associated with this project
+                    await safe_delete(
+                        "DELETE FROM project_health_metrics WHERE project_id = $1",
+                        "Deleted project health metrics"
+                    )
+                    
+                    # 7. Delete risk assessments associated with this project
+                    await safe_delete(
+                        "DELETE FROM risk_assessments WHERE project_id = $1",
+                        "Deleted risk assessments"
+                    )
+                    
+                    # 8. Finally delete the project
+                    result = await connection.execute(
+                        f"DELETE FROM {self.table_name} WHERE id = $1",
+                        project_id
+                    )
+                    print(f"✅ Deleted project {project_id}")
+                    
+                    return "DELETE 1" in result
+        except Exception as e:
+            import traceback
+            print(f"❌ Error deleting project {project_id} with cascade: {e}")
+            traceback.print_exc()
+            raise
 
 
 class TaskRepository(BaseRepository):
@@ -159,12 +309,32 @@ class TaskRepository(BaseRepository):
     def __init__(self):
         super().__init__("tasks")
     
+    def _normalize_task_status(self, status: Optional[str]) -> Optional[str]:
+        """Normalize task status values from database to model enum values.
+        
+        Maps legacy or alternative status values to valid TaskStatus enum values:
+        - 'done' -> 'completed'
+        - Other values are passed through as-is
+        """
+        if status is None:
+            return None
+        status_lower = status.lower()
+        if status_lower == 'done':
+            return 'completed'
+        return status
+    
     async def get_all(self, project_id: Optional[str] = None, status: Optional[str] = None, 
-                      category: Optional[str] = None, assigned_to: Optional[str] = None) -> List[Task]:
-        """Get tasks with optional filters."""
+                      category: Optional[str] = None, assigned_to: Optional[str] = None,
+                      company_id: Optional[str] = None) -> List[Task]:
+        """Get tasks with optional filters including company_id."""
         query = f"SELECT * FROM {self.table_name} WHERE 1=1"
         params = []
         param_count = 1
+        
+        if company_id:
+            query += f" AND company_id = ${param_count}"
+            params.append(company_id)
+            param_count += 1
         
         if project_id:
             query += f" AND project_id = ${param_count}"
@@ -188,14 +358,37 @@ class TaskRepository(BaseRepository):
         
         query += " ORDER BY created_at DESC"
         rows = await db_manager.execute_query(query, *params)
-        return [Task(**self._convert_to_camel_case(dict(row))) for row in rows]
+        tasks = []
+        for row in rows:
+            try:
+                row_dict = dict(row)
+                # Ensure company_id is present (may be None for old tasks)
+                if 'company_id' not in row_dict:
+                    row_dict['company_id'] = None
+                # Normalize status value (e.g., 'done' -> 'completed')
+                if 'status' in row_dict:
+                    row_dict['status'] = self._normalize_task_status(row_dict['status'])
+                camel_case_dict = self._convert_to_camel_case(row_dict)
+                tasks.append(Task(**camel_case_dict))
+            except Exception as e:
+                print(f"Error converting task row to model: {e}")
+                print(f"Row data: {dict(row)}")
+                import traceback
+                traceback.print_exc()
+                # Skip this task but continue with others
+                continue
+        return tasks
     
     async def get_by_id(self, task_id: str) -> Optional[Task]:
         """Get task by ID."""
         query = f"SELECT * FROM {self.table_name} WHERE id = $1"
         row = await db_manager.execute_one(query, task_id)
         if row:
-            return Task(**self._convert_to_camel_case(dict(row)))
+            row_dict = dict(row)
+            # Normalize status value (e.g., 'done' -> 'completed')
+            if 'status' in row_dict:
+                row_dict['status'] = self._normalize_task_status(row_dict['status'])
+            return Task(**self._convert_to_camel_case(row_dict))
         return None
     
     async def create(self, task: TaskCreate) -> Task:
@@ -205,6 +398,10 @@ class TaskRepository(BaseRepository):
         
         data = task.dict(by_alias=True)
         data = self._convert_from_camel_case(data)
+        
+        # Normalize status value (e.g., 'done' -> 'completed')
+        if 'status' in data:
+            data['status'] = self._normalize_task_status(data['status'])
         
         # Convert timezone-aware due_date to timezone-naive UTC
         due_date = data.get('due_date')
@@ -216,17 +413,22 @@ class TaskRepository(BaseRepository):
         query = f"""
             INSERT INTO {self.table_name} 
             (id, title, description, status, priority, category, project_id, 
-             assignee_id, due_date, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             assignee_id, due_date, company_id, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING *
         """
         
         row = await db_manager.execute_one(
             query, task_id, data.get('title'), data.get('description'),
             data.get('status'), data.get('priority'), data.get('category'),
-            data.get('project_id'), data.get('assignee_id'), data.get('due_date'), now
+            data.get('project_id'), data.get('assignee_id'), data.get('due_date'),
+            data.get('company_id'), now
         )
-        return Task(**self._convert_to_camel_case(dict(row)))
+        row_dict = dict(row)
+        # Normalize status value when reading back
+        if 'status' in row_dict:
+            row_dict['status'] = self._normalize_task_status(row_dict['status'])
+        return Task(**self._convert_to_camel_case(row_dict))
     
     async def update(self, task_id: str, task_update: TaskUpdate) -> Optional[Task]:
         """Update an existing task."""
@@ -235,6 +437,14 @@ class TaskRepository(BaseRepository):
         
         if not data:
             return await self.get_by_id(task_id)
+        
+        # Prevent company_id from being updated (security: company_id is immutable)
+        if 'company_id' in data:
+            del data['company_id']
+        
+        # Normalize status value (e.g., 'done' -> 'completed')
+        if 'status' in data:
+            data['status'] = self._normalize_task_status(data['status'])
         
         # Convert timezone-aware due_date to timezone-naive UTC
         if 'due_date' in data and data['due_date']:
@@ -262,7 +472,11 @@ class TaskRepository(BaseRepository):
         
         row = await db_manager.execute_one(query, *values)
         if row:
-            return Task(**self._convert_to_camel_case(dict(row)))
+            row_dict = dict(row)
+            # Normalize status value when reading back
+            if 'status' in row_dict:
+                row_dict['status'] = self._normalize_task_status(row_dict['status'])
+            return Task(**self._convert_to_camel_case(row_dict))
         return None
     
     async def update_due_date(self, task_id: str, new_due_date: datetime) -> bool:
@@ -356,49 +570,99 @@ class DashboardRepository(BaseRepository):
     def __init__(self):
         super().__init__("")
     
-    async def get_comprehensive_stats(self) -> Dict[str, Any]:
-        """Get comprehensive dashboard statistics."""
+    async def get_comprehensive_stats(self, company_id: Optional[str] = None) -> Dict[str, Any]:
+        """Get comprehensive dashboard statistics with optional company filtering."""
         # Project stats
-        project_stats_query = """
-            SELECT 
-                COUNT(*) as total_projects,
-                COUNT(*) FILTER (WHERE status = 'active') as active_projects,
-                COUNT(*) FILTER (WHERE status = 'completed') as completed_projects,
-                COALESCE(AVG(progress), 0) as average_progress
-            FROM projects
-        """
-        project_row = await db_manager.execute_one(project_stats_query)
+        if company_id:
+            project_stats_query = """
+                SELECT 
+                    COUNT(*) as total_projects,
+                    COUNT(*) FILTER (WHERE status = 'active') as active_projects,
+                    COUNT(*) FILTER (WHERE status = 'completed') as completed_projects,
+                    COALESCE(AVG(progress), 0) as average_progress
+                FROM projects
+                WHERE company_id = $1
+            """
+            project_row = await db_manager.execute_one(project_stats_query, company_id)
+        else:
+            project_stats_query = """
+                SELECT 
+                    COUNT(*) as total_projects,
+                    COUNT(*) FILTER (WHERE status = 'active') as active_projects,
+                    COUNT(*) FILTER (WHERE status = 'completed') as completed_projects,
+                    COALESCE(AVG(progress), 0) as average_progress
+                FROM projects
+            """
+            project_row = await db_manager.execute_one(project_stats_query)
         
         # Task stats  
-        task_stats_query = """
-            SELECT 
-                COUNT(*) as total_tasks,
-                COUNT(*) FILTER (WHERE status = 'done') as completed_tasks,
-                COUNT(*) FILTER (WHERE status IN ('todo', 'in_progress')) as pending_tasks,
-                COUNT(*) FILTER (WHERE due_date < NOW() AND status != 'done') as overdue_tasks
-            FROM tasks
-        """
-        task_row = await db_manager.execute_one(task_stats_query)
+        if company_id:
+            task_stats_query = """
+                SELECT 
+                    COUNT(*) as total_tasks,
+                    COUNT(*) FILTER (WHERE status = 'completed') as completed_tasks,
+                    COUNT(*) FILTER (WHERE status IN ('pending', 'in-progress')) as pending_tasks,
+                    COUNT(*) FILTER (WHERE due_date < NOW() AND status != 'completed') as overdue_tasks
+                FROM tasks
+                WHERE company_id = $1
+            """
+            task_row = await db_manager.execute_one(task_stats_query, company_id)
+        else:
+            task_stats_query = """
+                SELECT 
+                    COUNT(*) as total_tasks,
+                    COUNT(*) FILTER (WHERE status = 'completed') as completed_tasks,
+                    COUNT(*) FILTER (WHERE status IN ('pending', 'in-progress')) as pending_tasks,
+                    COUNT(*) FILTER (WHERE due_date < NOW() AND status != 'completed') as overdue_tasks
+                FROM tasks
+            """
+            task_row = await db_manager.execute_one(task_stats_query)
         
-        # Photo stats
-        photo_stats_query = """
-            SELECT 
-                COUNT(*) as total_photos,
-                COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') as photos_this_week
-            FROM photos
-        """
-        photo_row = await db_manager.execute_one(photo_stats_query)
+        # Photo stats - filter by project company_id
+        if company_id:
+            photo_stats_query = """
+                SELECT 
+                    COUNT(*) as total_photos,
+                    COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') as photos_this_week
+                FROM photos p
+                JOIN projects pr ON p.project_id = pr.id
+                WHERE pr.company_id = $1
+            """
+            photo_row = await db_manager.execute_one(photo_stats_query, company_id)
+        else:
+            photo_stats_query = """
+                SELECT 
+                    COUNT(*) as total_photos,
+                    COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') as photos_this_week
+                FROM photos
+            """
+            photo_row = await db_manager.execute_one(photo_stats_query)
         
         # User stats
-        user_stats_query = """
-            SELECT 
-                COUNT(*) as total_users,
-                COUNT(*) as active_users,
-                COUNT(*) FILTER (WHERE role = 'crew') as crew_members,
-                COUNT(*) FILTER (WHERE role = 'manager') as managers
-            FROM users
-        """
-        user_row = await db_manager.execute_one(user_stats_query)
+        # Use role_name column (from migration fix_roles_table.py)
+        if company_id:
+            user_stats_query = """
+                SELECT 
+                    COUNT(*) as total_users,
+                    COUNT(*) as active_users,
+                    COUNT(*) FILTER (WHERE r.role_name = 'crew') as crew_members,
+                    COUNT(*) FILTER (WHERE r.role_name IN ('manager', 'project_manager', 'office_manager')) as managers
+                FROM users u
+                LEFT JOIN roles r ON u.role_id = r.id
+                WHERE u.company_id = $1
+            """
+            user_row = await db_manager.execute_one(user_stats_query, company_id)
+        else:
+            user_stats_query = """
+                SELECT 
+                    COUNT(*) as total_users,
+                    COUNT(*) as active_users,
+                    COUNT(*) FILTER (WHERE r.role_name = 'crew') as crew_members,
+                    COUNT(*) FILTER (WHERE r.role_name IN ('manager', 'project_manager', 'office_manager')) as managers
+                FROM users u
+                LEFT JOIN roles r ON u.role_id = r.id
+            """
+            user_row = await db_manager.execute_one(user_stats_query)
         
         return {
             "projects": self._convert_to_camel_case(dict(project_row)) if project_row else {},
@@ -535,8 +799,25 @@ class UserRepository(BaseRepository):
     async def get_by_role(self, role: str) -> List["User"]:
         """Get users by role."""
         from ..models.user import User
-        query = f"SELECT id, first_name, last_name, email, role FROM {self.table_name} WHERE role = $1 ORDER BY first_name, last_name"
-        rows = await db_manager.execute_query(query, role)
+        # Look up role_id from role name
+        role_id = await db_manager.execute_one("""
+            SELECT id FROM roles 
+            WHERE LOWER(role_name) = LOWER($1)
+            LIMIT 1
+        """, role)
+        
+        if not role_id:
+            return []
+        
+        query = f"""
+            SELECT u.id, u.first_name, u.last_name, u.email, 
+                   COALESCE(r.role_name, 'user') as role 
+            FROM {self.table_name} u
+            LEFT JOIN roles r ON u.role_id = r.id
+            WHERE u.role_id = $1 
+            ORDER BY u.first_name, u.last_name
+        """
+        rows = await db_manager.execute_query(query, role_id['id'])
         return [User(**self._convert_to_camel_case(dict(row))) for row in rows]
     
     async def get_by_id(self, user_id: str) -> Optional["User"]:

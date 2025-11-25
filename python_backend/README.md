@@ -82,6 +82,30 @@ export DATABASE_URL="postgresql://user:pass@host:port/db"
 export NODE_ENV="development"
 ```
 
+### Cloud SQL (GCP) Configuration
+
+For connecting to Google Cloud SQL, you need to configure SSL certificates. You have two options:
+
+**Option 1: Using a certificate directory (Recommended)**
+```bash
+export DATABASE_URL="postgresql://user:password@PUBLIC_IP:5432/dbname"
+export DB_SSL_DIR="/path/to/ssl/certificates"
+```
+The directory should contain:
+- `server-ca.pem` (required) - Server CA certificate
+- `client-cert.pem` (optional but recommended) - Client certificate
+- `client-key.pem` (optional but recommended) - Client private key
+
+**Option 2: Using individual certificate paths**
+```bash
+export DATABASE_URL="postgresql://user:password@PUBLIC_IP:5432/dbname"
+export DB_SSL_ROOT_CERT="/path/to/server-ca.pem"
+export DB_SSL_CERT="/path/to/client-cert.pem"
+export DB_SSL_KEY="/path/to/client-key.pem"
+```
+
+**Note:** The `server-ca.pem` certificate is required for Cloud SQL connections. Client certificates (`client-cert.pem` and `client-key.pem`) are optional but recommended for enhanced security.
+
 3. Run the application:
 ```bash
 python main.py
@@ -93,10 +117,21 @@ The API will be available at `http://localhost:8000` with documentation at `http
 
 Configuration is managed in `src/core/config.py` using Pydantic settings:
 
-- `DATABASE_URL`: PostgreSQL connection string
+- `DATABASE_URL`: PostgreSQL connection string (required)
+- `DB_SSL_DIR`: Directory containing SSL certificates for Cloud SQL (optional)
+- `DB_SSL_ROOT_CERT`: Path to server CA certificate (server-ca.pem) (optional)
+- `DB_SSL_CERT`: Path to client certificate (client-cert.pem) (optional)
+- `DB_SSL_KEY`: Path to client private key (client-key.pem) (optional)
 - `PORT`: Server port (default: 8000)
 - `NODE_ENV`: Environment mode (development/production)
 - `UPLOAD_DIR`: Directory for file uploads (default: uploads)
+
+### Database Connection
+
+The backend automatically detects Cloud SQL connections and configures SSL appropriately:
+- If SSL certificates are provided, it uses certificate-based SSL
+- For Neon databases, it uses simple SSL mode
+- For other databases, SSL is optional
 
 ## Development
 

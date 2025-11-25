@@ -9,7 +9,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, EmailStr
 import asyncpg
 from ..database.connection import get_db_pool
-from .auth import get_current_user_dependency
+from .auth import get_current_user_dependency, is_root_admin
 import bcrypt
 import uuid
 
@@ -39,12 +39,9 @@ class UserResponse(BaseModel):
 # Helper to verify company admin access
 async def verify_company_admin(current_user: dict):
     """Verify the current user is a company admin or root admin."""
-    is_root = (
-        current_user.get("id") == "0" or 
-        current_user.get("email") == "chacjjlegacy@proesphera.com" or
-        current_user.get("email") == "admin@proesphere.com"
-    )
+    from .auth import is_root_admin
     
+    is_root = is_root_admin(current_user)
     is_company_admin = current_user.get("role") == "admin"
     
     if not (is_root or is_company_admin):
@@ -69,7 +66,8 @@ async def list_company_users(
     await verify_company_admin(current_user)
     
     # Root admin can see all companies, company admin sees only their company
-    is_root = current_user.get("id") == "0" or current_user.get("email") in ["chacjjlegacy@proesphera.com", "admin@proesphere.com"]
+    from .auth import is_root_admin
+    is_root = is_root_admin(current_user)
     company_id = current_user.get("company_id")
     
     if not is_root and not company_id:
@@ -163,19 +161,36 @@ async def invite_user(
         temp_password = str(uuid.uuid4())[:12]
         hashed_password = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         
+        # Get role_id from roles table based on role name
+        role_id = await conn.fetchval("""
+            SELECT id FROM roles 
+            WHERE LOWER(name) = LOWER($1) OR LOWER(role_name) = LOWER($1)
+            LIMIT 1
+        """, request.role)
+        
+        if not role_id:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Role '{request.role}' not found in roles table"
+            )
+        
         # Create user
         user_id = str(uuid.uuid4())
         name = f"{request.first_name} {request.last_name}".strip()
         
         await conn.execute("""
-            INSERT INTO users (id, email, name, first_name, last_name, password, role, company_id, is_active, created_at, updated_at)
+            INSERT INTO users (id, email, name, first_name, last_name, password, role_id, company_id, is_active, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, NOW(), NOW())
-        """, user_id, request.email, name, request.first_name, request.last_name, hashed_password, request.role, company_id)
+        """, user_id, request.email, name, request.first_name, request.last_name, hashed_password, role_id, company_id)
         
-        # Fetch the created user
-        user = await conn.fetchrow(
-            "SELECT id, email, name, role, company_id, is_active, created_at, last_login_at FROM users WHERE id = $1",
-            user_id
+        # Fetch the created user with role information
+        user = await conn.fetchrow("""
+            SELECT u.id, u.email, u.name, u.company_id, u.is_active, u.created_at, u.last_login_at,
+                   COALESCE(r.name, r.role_name, 'user') as role
+            FROM users u
+            LEFT JOIN roles r ON u.role_id = r.id
+            WHERE u.id = $1
+        """, user_id
         )
         
         # TODO: Implement secure invite email delivery with one-time token
@@ -203,66 +218,191 @@ async def assign_user_role(
     Assign a role to a user (company admin only).
     Cannot modify root admin or users from other companies.
     """
-    await verify_company_admin(current_user)
-    
-    company_id = current_user.get("company_id")
-    is_root = current_user.get("id") == "0" or current_user.get("email") in ["chacjjlegacy@proesphera.com", "admin@proesphere.com"]
-    
-    # Validate role - unified role set across Node.js and Python backends
-    # Includes both current Node.js roles and legacy database roles
-    valid_roles = [
-        "admin",           # Admin role
-        "project_manager", # Project Manager role (Node.js)
-        "office_manager",  # Office Manager role (Node.js)
-        "manager",         # Legacy Manager role (may be migrated to project_manager)
-        "crew",            # Legacy Crew role (may be migrated to subcontractor)
-        "subcontractor",   # Subcontractor role (Node.js)
-        "contractor",      # Legacy Contractor role
-        "client"           # Client role
-    ]
-    if request.role not in valid_roles:
-        raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")
-    
-    async with pool.acquire() as conn:
-        # Get target user
-        target_user = await conn.fetchrow(
-            "SELECT id, company_id, email FROM users WHERE id = $1",
-            user_id
+    try:
+        await verify_company_admin(current_user)
+        
+        # Handle both camelCase and snake_case
+        company_id = current_user.get("company_id") or current_user.get("companyId")
+        is_root = is_root_admin(current_user)
+        
+        # Validate role - unified role set across Node.js and Python backends
+        # Includes both current Node.js roles and legacy database roles
+        valid_roles = [
+            "admin",           # Admin role
+            "project_manager", # Project Manager role (Node.js)
+            "office_manager",  # Office Manager role (Node.js)
+            "manager",         # Legacy Manager role (may be migrated to project_manager)
+            "crew",            # Legacy Crew role (may be migrated to subcontractor)
+            "subcontractor",   # Subcontractor role (Node.js)
+            "contractor",      # Legacy Contractor role
+            "client"           # Client role
+        ]
+        if request.role not in valid_roles:
+            raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")
+        
+        print(f"Assigning role '{request.role}' to user {user_id} by {current_user.get('email')}")
+        
+        async with pool.acquire() as conn:
+            # Get target user
+            target_user = await conn.fetchrow(
+                "SELECT id, company_id, email FROM users WHERE id = $1",
+                user_id
+            )
+        
+            if not target_user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            # Prevent modifying root admin
+            # Convert database row to dict for is_root_admin check
+            target_user_dict = dict(target_user) if target_user else {}
+            if is_root_admin(target_user_dict):
+                raise HTTPException(status_code=403, detail="Cannot modify root administrator")
+            
+            # Company admin can only modify users in their company
+            if not is_root and target_user["company_id"] != company_id:
+                raise HTTPException(status_code=403, detail="Cannot modify users from other companies")
+            
+            # Get role_id from roles table based on role name
+            # Check which columns exist in roles table
+            columns_result = await conn.fetch("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = 'roles'
+                ORDER BY ordinal_position
+            """)
+            column_names = [col['column_name'] for col in columns_result] if columns_result else []
+            
+            has_company_id = 'company_id' in column_names
+            has_role_name = 'role_name' in column_names
+            has_name = 'name' in column_names
+            has_is_active = 'is_active' in column_names
+            
+            print(f"Roles table columns: {column_names}")
+            print(f"Looking for role: {request.role}")
+            
+            if has_company_id and has_role_name:
+                # Complex roles table with company_id and role_name
+                role_id = await conn.fetchval("""
+                    SELECT id FROM roles 
+                    WHERE (company_id = $1 OR company_id IS NULL) 
+                    AND LOWER(role_name) = LOWER($2)
+                    AND (is_active = TRUE OR is_active IS NULL)
+                    ORDER BY CASE WHEN company_id = $1 THEN 0 ELSE 1 END
+                    LIMIT 1
+                """, target_user["company_id"] or company_id, request.role)
+                
+                if not role_id:
+                    # If role doesn't exist, try to find it in any company
+                    role_id = await conn.fetchval("""
+                        SELECT id FROM roles 
+                        WHERE LOWER(role_name) = LOWER($1)
+                        AND (is_active = TRUE OR is_active IS NULL)
+                        LIMIT 1
+                    """, request.role)
+            elif has_company_id and has_name:
+                # Complex roles table with company_id but using name column (legacy)
+                role_id = await conn.fetchval("""
+                    SELECT id FROM roles 
+                    WHERE (company_id = $1 OR company_id IS NULL) 
+                    AND LOWER(name) = LOWER($2)
+                    AND (is_active = TRUE OR is_active IS NULL)
+                    ORDER BY CASE WHEN company_id = $1 THEN 0 ELSE 1 END
+                    LIMIT 1
+                """, target_user["company_id"] or company_id, request.role)
+                
+                if not role_id:
+                    role_id = await conn.fetchval("""
+                        SELECT id FROM roles 
+                        WHERE LOWER(name) = LOWER($1)
+                        AND (is_active = TRUE OR is_active IS NULL)
+                        LIMIT 1
+                    """, request.role)
+            elif has_role_name:
+                # Simple roles table with role_name (from fix_roles_table.py)
+                role_id = await conn.fetchval("""
+                    SELECT id FROM roles 
+                    WHERE LOWER(role_name) = LOWER($1)
+                    LIMIT 1
+                """, request.role)
+            elif has_name:
+                # Simple roles table with name (legacy)
+                role_id = await conn.fetchval("""
+                    SELECT id FROM roles 
+                    WHERE LOWER(name) = LOWER($1)
+                    LIMIT 1
+                """, request.role)
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Roles table structure not recognized. Expected role_name or name column."
+                )
+            
+            # Update user role_id (primary field)
+            if role_id:
+                await conn.execute(
+                    "UPDATE users SET role_id = $1, updated_at = NOW() WHERE id = $2",
+                    role_id, user_id
+                )
+                print(f"✅ Updated user {user_id} with role_id {role_id}")
+            else:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Role '{request.role}' not found in roles table"
+                )
+            
+            # Fetch updated user with role information
+            # Build query based on which columns exist in roles table
+            if has_role_name:
+                user = await conn.fetchrow("""
+                    SELECT u.id, u.email, u.name, u.company_id, u.is_active, u.created_at,
+                           r.role_name,
+                           r.display_name as role_display_name
+                    FROM users u
+                    LEFT JOIN roles r ON u.role_id = r.id
+                    WHERE u.id = $1
+                """, user_id)
+            elif has_name:
+                user = await conn.fetchrow("""
+                    SELECT u.id, u.email, u.name, u.company_id, u.is_active, u.created_at,
+                           r.name as role_name,
+                           r.display_name as role_display_name
+                    FROM users u
+                    LEFT JOIN roles r ON u.role_id = r.id
+                    WHERE u.id = $1
+                """, user_id)
+            else:
+                # Fallback if neither column exists
+                user = await conn.fetchrow("""
+                    SELECT u.id, u.email, u.name, u.company_id, u.is_active, u.created_at,
+                           'user' as role_name,
+                           NULL as role_display_name
+                    FROM users u
+                    WHERE u.id = $1
+                """, user_id)
+            
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found after update")
+            
+            return {
+                "id": str(user["id"]),
+                "email": user["email"],
+                "name": user.get("name") or "",
+                "role": user.get("role_name") or "user",  # Use role name from roles table
+                "company_id": str(user["company_id"]) if user.get("company_id") else None,
+                "is_active": user.get("is_active", True),
+                "created_at": user["created_at"].isoformat() if user.get("created_at") else None,
+                "last_login_at": None  # This field doesn't exist in the database
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error assigning role to user: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to assign role: {str(e)}"
         )
-        
-        if not target_user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Prevent modifying root admin
-        if target_user["id"] == "0" or target_user["email"] in ["chacjjlegacy@proesphera.com", "admin@proesphere.com"]:
-            raise HTTPException(status_code=403, detail="Cannot modify root administrator")
-        
-        # Company admin can only modify users in their company
-        if not is_root and target_user["company_id"] != company_id:
-            raise HTTPException(status_code=403, detail="Cannot modify users from other companies")
-        
-        # Update user role
-        await conn.execute(
-            "UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2",
-            request.role, user_id
-        )
-        
-        # Fetch updated user
-        user = await conn.fetchrow(
-            "SELECT id, email, name, role, company_id, is_active, created_at FROM users WHERE id = $1",
-            user_id
-        )
-        
-        return {
-            "id": user["id"],
-            "email": user["email"],
-            "name": user["name"],
-            "role": user["role"],
-            "company_id": user["company_id"],
-            "is_active": user["is_active"],
-            "created_at": user["created_at"].isoformat() if user["created_at"] else None,
-            "last_login_at": None  # This field doesn't exist in the database
-        }
 
 @router.put("/users/{user_id}/suspend")
 async def suspend_user(
@@ -276,8 +416,9 @@ async def suspend_user(
     """
     await verify_company_admin(current_user)
     
-    company_id = current_user.get("company_id")
-    is_root = current_user.get("id") == "0" or current_user.get("email") in ["chacjjlegacy@proesphera.com", "admin@proesphere.com"]
+    # Handle both camelCase and snake_case
+    company_id = current_user.get("company_id") or current_user.get("companyId")
+    is_root = is_root_admin(current_user)
     
     async with pool.acquire() as conn:
         # Get target user
@@ -290,7 +431,7 @@ async def suspend_user(
             raise HTTPException(status_code=404, detail="User not found")
         
         # Prevent suspending root admin
-        if target_user["id"] == "0" or target_user["email"] in ["chacjjlegacy@proesphera.com", "admin@proesphere.com"]:
+        if is_root_admin(dict(target_user)):
             raise HTTPException(status_code=403, detail="Cannot suspend root administrator")
         
         # Company admin can only suspend users in their company
@@ -316,8 +457,9 @@ async def activate_user(
     """
     await verify_company_admin(current_user)
     
-    company_id = current_user.get("company_id")
-    is_root = current_user.get("id") == "0" or current_user.get("email") in ["chacjjlegacy@proesphera.com", "admin@proesphere.com"]
+    # Handle both camelCase and snake_case
+    company_id = current_user.get("company_id") or current_user.get("companyId")
+    is_root = is_root_admin(current_user)
     
     async with pool.acquire() as conn:
         # Get target user

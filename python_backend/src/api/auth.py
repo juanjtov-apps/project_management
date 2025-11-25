@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import asyncpg
 from ..database.connection import get_db_pool
 from ..models.user import User
+from ..core.config import settings
 import os
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -135,6 +136,13 @@ async def create_session(user_id: str, user_data: Dict[str, Any]) -> str:
                 serializable_data[key] = value.isoformat()
             else:
                 serializable_data[key] = value
+        
+        # Add current_organization_id to session data
+        current_org_id = None
+        if not is_root_admin(user_data):
+            current_org_id = str(user_data.get("company_id") or user_data.get("companyId") or "")
+        serializable_data["current_organization_id"] = current_org_id
+        
         session_data = json.dumps(serializable_data)
         await conn.execute("""
             INSERT INTO sessions (sid, sess, expire)
@@ -145,10 +153,17 @@ async def create_session(user_id: str, user_data: Dict[str, Any]) -> str:
         """, session_id, session_data, expires_at)
     
     # Store session data in memory for quick access
+    # Initialize current_organization_id to user's company_id for non-root users
+    # Root users start with None (can switch context)
+    current_org_id = None
+    if not is_root_admin(user_data):
+        current_org_id = str(user_data.get("company_id") or user_data.get("companyId") or "")
+    
     session_store[session_id] = {
         "userId": user_id,
         "expires_at": expires_at,
-        "user_data": user_data
+        "user_data": user_data,
+        "current_organization_id": current_org_id
     }
     
     return session_id
@@ -187,16 +202,28 @@ async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
             if isinstance(data, dict):
                 user_id = data.get("userId") or data.get("id")
                 if user_id:
+                    # Use role_name column (from migration fix_roles_table.py)
                     user_row = await conn.fetchrow(
-                        """SELECT * FROM users WHERE id = $1""",
+                        """SELECT u.*, r.role_name
+                           FROM users u
+                           LEFT JOIN roles r ON u.role_id = r.id
+                           WHERE u.id = $1""",
                         user_id,
                     )
                     if user_row:
                         user_data = dict(user_row)
+                        # Initialize current_organization_id if not in session
+                        current_org_id = data.get("current_organization_id")
+                        if current_org_id is None:
+                            # For non-root users, set to their company_id
+                            if not is_root_admin(user_data):
+                                current_org_id = str(user_data.get("company_id") or user_data.get("companyId") or "")
+                        
                         session_data = {
                             "userId": user_id,
                             "expires_at": row["expire"],
                             "user_data": user_data,
+                            "current_organization_id": current_org_id
                         }
                         # Cache in memory
                         session_store[session_id] = session_data
@@ -221,9 +248,13 @@ async def login(request: LoginRequest, response: Response):
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            # Get user by email
+            # Get user by email with role information
+            # Use role_name column (from migration fix_roles_table.py)
             user_row = await conn.fetchrow("""
-                SELECT * FROM users WHERE email = $1
+                SELECT u.*, r.role_name
+                FROM users u
+                LEFT JOIN roles r ON u.role_id = r.id
+                WHERE u.email = $1
             """, request.email)
             
             if not user_row:
@@ -267,14 +298,24 @@ async def login(request: LoginRequest, response: Response):
             # Remove password from response
             user_data.pop("password", None)
             
-            # Add navigation permissions
-            is_root_admin = (user_data.get("id") == "0" or 
-                           user_data.get("email") == "chacjjlegacy@proesphera.com" or
-                           user_data.get("email") == "admin@proesphere.com")
+            # Convert company_id to companyId for frontend compatibility
+            if 'company_id' in user_data:
+                user_data['companyId'] = user_data['company_id']
             
-            permissions = get_navigation_permissions(user_data.get("role", "user"), is_root_admin)
+            # Convert is_root to isRoot for frontend compatibility
+            if 'is_root' in user_data:
+                user_data['isRoot'] = user_data['is_root']
+            
+            # Use role_name from roles table, fallback to text role for backward compatibility
+            role_name = user_data.get("role_name") or user_data.get("role", "user")
+            user_data["role"] = role_name  # Set role for backward compatibility
+            
+            # Add navigation permissions
+            is_root = is_root_admin(user_data)
+            
+            permissions = get_navigation_permissions(role_name, is_root)
             user_data["permissions"] = permissions
-            user_data["isRootAdmin"] = is_root_admin
+            user_data["isRootAdmin"] = is_root
             
             return LoginResponse(user=user_data, session_id=session_id)
             
@@ -316,14 +357,31 @@ async def get_current_user(request: Request):
         user_data = session_data["user_data"].copy()
         user_data.pop("password", None)
         
-        # Add navigation permissions
-        is_root_admin = (user_data.get("id") == "0" or 
-                        user_data.get("email") == "chacjjlegacy@proesphera.com" or
-                        user_data.get("email") == "admin@proesphere.com")
+        # Convert company_id to companyId for frontend compatibility
+        if 'company_id' in user_data:
+            user_data['companyId'] = user_data['company_id']
         
-        permissions = get_navigation_permissions(user_data.get("role", "user"), is_root_admin)
+        # Convert is_root to isRoot for frontend compatibility
+        if 'is_root' in user_data:
+            user_data['isRoot'] = user_data['is_root']
+        
+        # Use role_name from roles table, fallback to text role for backward compatibility
+        role_name = user_data.get("role_name") or user_data.get("role", "user")
+        user_data["role"] = role_name  # Set role for backward compatibility
+        
+        # Add navigation permissions
+        is_root = is_root_admin(user_data)
+        
+        permissions = get_navigation_permissions(role_name, is_root)
         user_data["permissions"] = permissions
-        user_data["isRootAdmin"] = is_root_admin
+        user_data["isRootAdmin"] = is_root
+        
+        # Add current_organization_id from session if available (already have session_data)
+        if "current_organization_id" in session_data:
+            current_org_id = session_data.get("current_organization_id")
+            if current_org_id:
+                user_data["currentOrganizationId"] = current_org_id
+                user_data["current_organization_id"] = current_org_id
         
         return user_data
         
@@ -395,18 +453,166 @@ async def get_current_user_dependency(request: Request) -> Dict[str, Any]:
     user_data = session_data["user_data"].copy()
     user_data.pop("password", None)
     
+    # Add current_organization_id to user data for context switching
+    current_org_id = session_data.get("current_organization_id")
+    if current_org_id:
+        user_data["currentOrganizationId"] = current_org_id
+        user_data["current_organization_id"] = current_org_id
+    
     return user_data
+
+class SetOrganizationContextRequest(BaseModel):
+    organization_id: Optional[str] = None  # None to clear context (show all)
+
+@router.post("/set-organization-context")
+async def set_organization_context(
+    request_body: SetOrganizationContextRequest,
+    request: Request,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Set organization context for root users (allows switching between organizations)."""
+    try:
+        # Only root users can switch organization context
+        if not is_root_admin(current_user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only root administrators can switch organization context"
+            )
+        
+        # Get session ID
+        session_id = request.cookies.get("session_id")
+        if not session_id:
+            auth_header = request.headers.get("authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                session_id = auth_header[7:]
+        
+        if not session_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session not found"
+            )
+        
+        # Validate organization_id if provided
+        org_id = request_body.organization_id
+        if org_id:
+            pool = await get_db_pool()
+            async with pool.acquire() as conn:
+                company = await conn.fetchrow(
+                    "SELECT id, name FROM companies WHERE id = $1",
+                    org_id
+                )
+                if not company:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Organization not found"
+                    )
+        
+        # Update session with new organization context
+        session_data = await get_session(session_id)
+        if not session_data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session expired or invalid"
+            )
+        
+        # Update current_organization_id
+        session_data["current_organization_id"] = org_id
+        
+        # Persist to database
+        import json
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            # Get existing session data
+            row = await conn.fetchrow(
+                "SELECT sess FROM sessions WHERE sid = $1",
+                session_id
+            )
+            if row:
+                existing_data = row["sess"]
+                if isinstance(existing_data, str):
+                    try:
+                        existing_data = json.loads(existing_data)
+                    except json.JSONDecodeError:
+                        existing_data = {}
+                
+                # Update with new organization context
+                existing_data["current_organization_id"] = org_id
+                
+                # Save back to database
+                await conn.execute("""
+                    UPDATE sessions 
+                    SET sess = $1 
+                    WHERE sid = $2
+                """, json.dumps(existing_data), session_id)
+        
+        # Update memory cache
+        session_store[session_id] = session_data
+        
+        return {
+            "success": True,
+            "message": f"Organization context {'set' if org_id else 'cleared'}",
+            "current_organization_id": org_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Set organization context error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to set organization context"
+        )
 
 # Helper function to check if user is admin
 def is_user_admin(user: Dict[str, Any]) -> bool:
     """Check if user has admin privileges."""
-    return (user.get("role") == "admin" or 
-            user.get("email") == "chacjjlegacy@proesphera.com" or
-            user.get("email") == "admin@proesphere.com" or
-            user.get("id") == "0")
+    # Check role first
+    if user.get("role") == "admin":
+        return True
+    
+    # Check if root user
+    if is_root_admin(user):
+        return True
+    
+    return False
 
 def is_root_admin(user: Dict[str, Any]) -> bool:
-    """Check if user is root admin."""
-    return (user.get("id") == "0" or 
-            user.get("email") == "chacjjlegacy@proesphera.com" or
-            user.get("email") == "admin@proesphere.com")
+    """Check if user is root admin.
+    
+    Checks in order:
+    1. is_root field from database (preferred)
+    2. id == "0" (backward compatibility)
+    3. Root emails from environment variable (configurable)
+    """
+    # First check is_root field (preferred method)
+    if user.get("is_root") is True:
+        return True
+    
+    # Backward compatibility: check id
+    if user.get("id") == "0":
+        return True
+    
+    # Check against root user emails from environment variable
+    # This will raise ValueError if ROOT_USER_EMAILS is not configured (fail-fast for security)
+    user_email = user.get("email")
+    if user_email:
+        root_emails = settings.root_user_emails_list
+        if user_email in root_emails:
+            return True
+    
+    return False
+
+def get_effective_company_id(user: Dict[str, Any]) -> Optional[str]:
+    """Get the effective company_id for filtering queries.
+    
+    For root users with organization context set, returns current_organization_id.
+    For root users without context, returns None (show all).
+    For non-root users, returns their company_id.
+    """
+    if is_root_admin(user):
+        # Root users can have organization context
+        current_org_id = user.get("currentOrganizationId") or user.get("current_organization_id")
+        return current_org_id  # None means show all
+    else:
+        # Non-root users are always scoped to their company
+        return str(user.get("companyId") or user.get("company_id") or "")
