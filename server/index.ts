@@ -1,18 +1,71 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import path from "path";
+import { spawn, ChildProcess } from "child_process";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupSecurityMiddleware, validateInput, csrfProtection } from "./security";
-// Removed proxy middleware, using manual fetch forwarding instead
-// Backend runs independently - no spawning from Node.js
 
 const app = express();
 
+// Python backend process
+let pythonBackend: ChildProcess | null = null;
+
+function startPythonBackend(): void {
+  if (pythonBackend) {
+    console.log("🐍 Python backend already started");
+    return;
+  }
+  
+  console.log("🐍 Starting Python FastAPI backend...");
+  
+  pythonBackend = spawn("python3", ["main.py"], {
+    cwd: path.join(process.cwd(), "python_backend"),
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env },
+  });
+  
+  pythonBackend.stdout?.on("data", (data) => {
+    console.log(`[Python Backend] ${data.toString().trim()}`);
+  });
+  
+  pythonBackend.stderr?.on("data", (data) => {
+    console.log(`[Python Backend Error] ${data.toString().trim()}`);
+  });
+  
+  pythonBackend.on("error", (err) => {
+    console.error("❌ Failed to start Python backend:", err);
+    pythonBackend = null;
+  });
+  
+  pythonBackend.on("exit", (code) => {
+    console.log(`🐍 Python backend exited with code ${code}`);
+    pythonBackend = null;
+  });
+}
+
+// Cleanup on exit
+process.on("SIGINT", () => {
+  if (pythonBackend) {
+    console.log("🛑 Stopping Python backend...");
+    pythonBackend.kill();
+  }
+  process.exit();
+});
+
+process.on("SIGTERM", () => {
+  if (pythonBackend) {
+    console.log("🛑 Stopping Python backend...");
+    pythonBackend.kill();
+  }
+  process.exit();
+});
+
 async function setupFrontendOnly(app: express.Express): Promise<Server> {
-  console.log("🚀 FRONTEND-ONLY MODE: Serving frontend, Python backend runs independently");
+  console.log("🚀 Starting Proesphere: Frontend + Python Backend");
   console.log("✅ Frontend on port 5000, Python FastAPI backend on port 8000");
-  console.log("🔧 Backend must be started separately - this server only proxies requests");
-  console.log("💡 Start backend with: cd python_backend && python3 main.py");
+  
+  // Start Python backend automatically
+  startPythonBackend();
   
   // Helper function to verify backend is actually accepting HTTP connections
   async function verifyBackendReady(): Promise<boolean> {
