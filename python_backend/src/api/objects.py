@@ -162,7 +162,19 @@ async def get_upload_url():
         
         # Generate a unique object ID
         object_id = str(uuid.uuid4())
-        object_path = f"{private_dir}/uploads/{object_id}".lstrip('/')
+        
+        # CRITICAL: Strip bucket prefix from private_dir before constructing path
+        # private_dir may contain full path like "/replit-objstore-xxx/.private"
+        # but bucket_name is already "replit-objstore-xxx", so we need just ".private"
+        clean_private_dir = private_dir
+        if bucket_id and private_dir.startswith(f"/{bucket_id}"):
+            clean_private_dir = private_dir[len(f"/{bucket_id}"):]
+        elif bucket_id and private_dir.startswith(bucket_id):
+            clean_private_dir = private_dir[len(bucket_id):]
+        clean_private_dir = clean_private_dir.lstrip('/')
+        
+        object_path = f"{clean_private_dir}/uploads/{object_id}"
+        print(f"📤 [UPLOAD] Generated object path: {object_path}")
         
         # Create signed URL for PUT (upload)
         expires_at = (datetime.utcnow() + timedelta(minutes=15)).isoformat() + "Z"
