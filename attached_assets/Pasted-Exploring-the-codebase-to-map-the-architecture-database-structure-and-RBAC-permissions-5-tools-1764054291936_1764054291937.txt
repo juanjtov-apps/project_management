@@ -1,0 +1,667 @@
+Exploring the codebase to map the architecture, database structure, and RBAC permissions.
+
+
+[5 tools called]
+
+
+Gathering more details on the architecture and database structure:
+
+
+[5 tools called]
+
+
+Gathering more details on database tables and relationships:
+
+
+[3 tools called]
+
+
+Compiling the architecture documentation. Checking a few more details:
+
+
+[2 tools called]
+
+
+# Proesphere Architecture Documentation
+
+## 1. Application Architecture
+
+### Development Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CLIENT (Browser)                          │
+│              React + TypeScript + Wouter                     │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ HTTP Requests
+                       │ /api/* → Port 5000
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│         NODE.JS SERVER (Port 5000)                           │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  Express.js - PURE PROXY MODE                        │  │
+│  │  • Session Management (express-session)              │  │
+│  │  • Static File Serving (React build)                 │  │
+│  │  • API Request Forwarding                            │  │
+│  │  • NO Business Logic                                 │  │
+│  │  • NO Database Queries                               │  │
+│  │  • NO RBAC Checks                                    │  │
+│  └──────────────────┬───────────────────────────────────┘  │
+└──────────────────────┼──────────────────────────────────────┘
+                       │ Proxy /api/* requests
+                       │ to http://127.0.0.1:8000
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│      PYTHON FASTAPI BACKEND (Port 8000)                     │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  FastAPI Application                                  │  │
+│  │  • ALL Business Logic                                 │  │
+│  │  • ALL Database Operations (asyncpg)                 │  │
+│  │  • ALL RBAC Checks                                    │  │
+│  │  • Authentication & Authorization                     │  │
+│  │  • API Endpoints (/api/v1/*)                          │  │
+│  └──────────────────┬───────────────────────────────────┘  │
+└──────────────────────┼──────────────────────────────────────┘
+                       │ PostgreSQL Queries
+                       │ (asyncpg connection pool)
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│              POSTGRESQL DATABASE                            │
+│  • Multi-tenant schema (company_id isolation)              │
+│  • Row-Level Security (RLS) policies                      │
+│  • RBAC tables (roles, permissions, company_users)         │
+│  • Application tables (projects, tasks, logs, photos)       │
+│  • Client Portal schema (client_portal.*)                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Production Architecture
+
+Same structure, with:
+- Environment variables for database URLs
+- SSL/TLS for database connections
+- CORS configured for production domains
+- Static files served from `dist/public`
+- Session store using PostgreSQL (connect-pg-simple)
+
+### Key Architecture Rules
+
+1. Node.js (Port 5000): Pure proxy
+   - Serves React static files
+   - Proxies `/api/*` to FastAPI
+   - Manages sessions (express-session)
+   - No business logic
+
+2. Python/FastAPI (Port 8000): All logic
+   - All database operations
+   - All RBAC checks
+   - All business logic
+   - All API endpoints
+
+---
+
+## 2. Database Schema & Relationships
+
+### Core RBAC Tables
+
+#### `companies`
+```sql
+id (SERIAL PRIMARY KEY)
+name (VARCHAR)
+subscription_id (VARCHAR)
+status (VARCHAR) -- 'active', 'suspended', 'pending'
+is_platform (BOOLEAN) -- true for Company 0 (Platform)
+created_at, updated_at
+```
+
+#### `users`
+```sql
+id (SERIAL PRIMARY KEY) -- Note: In practice uses VARCHAR/UUID
+email (VARCHAR UNIQUE)
+first_name, last_name
+password_hash (VARCHAR)
+profile_image (VARCHAR)
+mfa_enabled (BOOLEAN)
+created_at, updated_at
+```
+
+#### `roles`
+```sql
+id (SERIAL PRIMARY KEY)
+company_id (INTEGER → companies.id)
+name (VARCHAR) -- 'Platform Admin', 'Company Admin', etc.
+description (TEXT)
+template_id (INTEGER → roles.id) -- For inheritance
+is_template (BOOLEAN) -- true for Company 0 templates
+created_at
+UNIQUE(company_id, name)
+```
+
+#### `permissions`
+```sql
+id (SERIAL PRIMARY KEY)
+code (INTEGER UNIQUE) -- Permission ID (1, 10, 20, etc.)
+name (VARCHAR) -- 'System Admin', 'Manage Users', etc.
+resource (VARCHAR) -- 'system', 'users', 'projects', etc.
+action (VARCHAR) -- 'admin', 'manage', 'view', etc.
+description (TEXT)
+```
+
+#### `role_permissions`
+```sql
+id (SERIAL PRIMARY KEY)
+company_id (INTEGER → companies.id)
+role_id (INTEGER → roles.id)
+permission_id (INTEGER → permissions.id)
+abac_rule (JSONB) -- Optional attribute-based rules
+created_at
+```
+
+#### `company_users`
+```sql
+id (SERIAL PRIMARY KEY)
+company_id (INTEGER → companies.id)
+user_id (INTEGER/VARCHAR → users.id)
+role_id (INTEGER → roles.id)
+granted_by_user_id (INTEGER → users.id)
+granted_at (TIMESTAMP)
+expires_at (TIMESTAMP) -- NULL = permanent
+created_at
+UNIQUE(company_id, user_id, role_id)
+```
+
+#### `user_effective_permissions`
+```sql
+id (SERIAL PRIMARY KEY)
+company_id (INTEGER → companies.id)
+user_id (INTEGER/VARCHAR → users.id)
+permissions (JSONB) -- Array of permission codes [1, 10, 20]
+updated_at
+UNIQUE(company_id, user_id)
+```
+
+### Application Tables
+
+#### `projects`
+```sql
+id (SERIAL PRIMARY KEY or VARCHAR/UUID)
+company_id (INTEGER → companies.id)
+name (VARCHAR)
+description (TEXT)
+status (VARCHAR) -- 'active', 'completed', 'on-hold'
+budget (DECIMAL)
+budget_visible_to_roles (INTEGER[]) -- Role IDs that can see budget
+created_by (INTEGER → users.id)
+created_at, updated_at
+```
+
+#### `project_assignments`
+```sql
+id (SERIAL PRIMARY KEY)
+company_id (INTEGER → companies.id)
+project_id (INTEGER → projects.id)
+user_id (INTEGER/VARCHAR → users.id)
+role_type (VARCHAR) -- 'client', 'subcontractor', 'manager'
+granted_by_user_id (INTEGER → users.id)
+granted_at, expires_at
+created_at
+UNIQUE(company_id, project_id, user_id)
+```
+
+#### `tasks`
+```sql
+id (SERIAL PRIMARY KEY or VARCHAR/UUID)
+company_id (INTEGER → companies.id)
+project_id (INTEGER → projects.id)
+title (VARCHAR)
+description (TEXT)
+status (VARCHAR) -- 'pending', 'in-progress', 'completed'
+priority (VARCHAR) -- 'low', 'medium', 'high', 'critical'
+assigned_to (INTEGER → users.id)
+created_by (INTEGER → users.id)
+due_date (TIMESTAMP)
+created_at, updated_at
+```
+
+#### `project_logs`
+```sql
+id (VARCHAR/UUID PRIMARY KEY)
+project_id (VARCHAR → projects.id)
+company_id (VARCHAR → companies.id)
+title, description, content (TEXT)
+created_by (VARCHAR → users.id)
+created_at, updated_at
+```
+
+#### `photos`
+```sql
+id (VARCHAR/UUID PRIMARY KEY)
+project_id (VARCHAR → projects.id)
+company_id (VARCHAR → companies.id)
+url (TEXT)
+uploaded_by (VARCHAR → users.id)
+created_at
+```
+
+### Client Portal Schema (`client_portal.*`)
+
+#### `client_portal.issues`
+```sql
+id (UUID PRIMARY KEY)
+project_id (VARCHAR → projects.id)
+created_by (VARCHAR → users.id)
+assigned_to (VARCHAR → users.id)
+title, description, category, priority, status
+due_date, visibility
+created_at, updated_at
+```
+
+#### `client_portal.forum_threads`
+```sql
+id (UUID PRIMARY KEY)
+project_id (VARCHAR → projects.id)
+title, created_by
+pinned (BOOLEAN)
+created_at
+```
+
+#### `client_portal.materials`
+```sql
+id (UUID PRIMARY KEY)
+project_id (VARCHAR → projects.id)
+added_by (VARCHAR → users.id)
+name, spec, link, vendor, unit
+qty, unit_price, needed_by, status
+created_at
+```
+
+#### `client_portal.installments`
+```sql
+id (UUID PRIMARY KEY)
+project_id (VARCHAR → projects.id)
+label, due_date, amount, status, method, reference
+created_at
+```
+
+### Entity Relationship Diagram
+
+```
+┌─────────────┐
+│  COMPANIES  │◄─────────────────┐
+│  id (PK)    │                  │
+│  name       │                  │
+│  is_platform│                  │
+└──────┬──────┘                  │
+       │                          │
+       │ 1:N                     │
+       │                          │
+       ▼                          │
+┌─────────────┐                  │
+│   ROLES     │                  │
+│  id (PK)    │                  │
+│  company_id │──────────────────┘
+│  name       │
+│  template_id│──┐
+└──────┬──────┘  │ (self-reference)
+       │         │
+       │ 1:N     │
+       │         │
+       ▼         │
+┌─────────────────────┐
+│  ROLE_PERMISSIONS   │
+│  role_id (FK)       │
+│  permission_id (FK) │
+│  company_id (FK)    │
+└──────┬──────────────┘
+       │
+       │ N:1
+       │
+       ▼
+┌─────────────┐
+│ PERMISSIONS │
+│  id (PK)    │
+│  code (INT) │
+│  name       │
+└─────────────┘
+
+┌─────────────┐
+│    USERS    │
+│  id (PK)    │
+│  email      │
+└──────┬──────┘
+       │
+       │ N:M (via company_users)
+       │
+       ▼
+┌─────────────────────┐      ┌─────────────┐
+│   COMPANY_USERS     │──────►│   ROLES     │
+│  company_id (FK)    │  N:1  │  id (PK)    │
+│  user_id (FK)       │       └─────────────┘
+│  role_id (FK)       │
+│  expires_at         │
+└─────────────────────┘
+
+┌─────────────┐
+│  PROJECTS   │
+│  id (PK)    │
+│  company_id │──┐
+│  name       │  │
+│  budget     │  │
+└──────┬──────┘  │
+       │         │
+       │ 1:N     │
+       │         │
+       ▼         │
+┌─────────────┐  │
+│    TASKS    │  │
+│  id (PK)    │  │
+│  project_id │  │
+│  company_id │──┘
+│  assigned_to│──► users.id
+└─────────────┘
+
+┌─────────────────────┐
+│ PROJECT_ASSIGNMENTS │
+│  project_id (FK)    │──► projects.id
+│  user_id (FK)       │──► users.id
+│  company_id (FK)    │──► companies.id
+│  role_type          │
+└─────────────────────┘
+```
+
+---
+
+## 3. RBAC Permission System
+
+### Permission Categories & Codes
+
+#### Platform Admin Permissions (1-9)
+- `1` - SYSTEM_ADMIN: Full platform administration
+- `2` - IMPERSONATE_USER: Impersonate customer accounts
+- `3` - MANAGE_COMPANIES: Create/manage companies
+- `4` - PLATFORM_ANALYTICS: View cross-company analytics
+
+#### Company Admin Permissions (10-19)
+- `10` - MANAGE_USERS: Add/remove company users
+- `11` - VIEW_FINANCIALS: View budget information
+- `12` - EDIT_FINANCIALS: Modify budget information
+- `13` - CLONE_ROLES: Clone role templates
+- `14` - COMPANY_SETTINGS: Manage company settings
+- `15` - EXPORT_DATA: Export company data
+
+#### Project Manager Permissions (20-29)
+- `20` - VIEW_ALL_PROJECTS: Access all company projects
+- `21` - MANAGE_TASKS: Create/edit/delete tasks
+- `22` - ASSIGN_SUBCONTRACTORS: Assign tasks to subcontractors
+- `23` - APPROVE_BUDGETS: Approve project budgets
+- `24` - PROJECT_REPORTS: Generate project reports
+- `25` - SCHEDULE_MANAGEMENT: Manage project schedules
+
+#### Subcontractor Permissions (30-39)
+- `30` - VIEW_ASSIGNED_PROJECTS: View only assigned projects
+- `31` - UPDATE_TASK_STATUS: Change task status
+- `32` - UPLOAD_PHOTOS: Upload project photos
+- `33` - VIEW_PROJECT_DOCS: View project documents
+- `34` - SUBMIT_REPORTS: Submit work reports
+
+#### Client Permissions (40-49)
+- `40` - VIEW_PROJECT_PROGRESS: View project status
+- `41` - VIEW_PHOTOS: View photos and logs
+- `42` - COMMENT_ON_UPDATES: Comment on project updates
+- `43` - REQUEST_CHANGES: Request project changes
+- `44` - DOWNLOAD_REPORTS: Download project reports
+
+### Role Templates (Company 0 - Platform)
+
+1. Platform Admin (ID: 1)
+   - Company: 0 (Platform)
+   - Permissions: All (1-44)
+   - MFA Required: Yes
+
+2. Company Admin (ID: 2)
+   - Company: 0 (Template)
+   - Permissions: 10, 11, 12, 13, 20, 21, 22, 32, 40, 41
+   - MFA Required: Yes
+
+3. Project Manager (ID: 3)
+   - Company: 0 (Template)
+   - Permissions: 20, 21, 22, 32, 40, 41
+   - ABAC Rule: Can edit only projects they created
+
+4. Subcontractor (ID: 4)
+   - Company: 0 (Template)
+   - Permissions: 30, 31, 32
+   - Project Assignment Required: Yes
+
+5. Client (ID: 5)
+   - Company: 0 (Template)
+   - Permissions: 40, 41
+   - Project Assignment Required: Yes
+
+### Permission Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    USER LOGIN                                │
+│  • Authenticate credentials                                  │
+│  • Create session                                            │
+│  • Get user's company_id                                     │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│          GET USER'S COMPANY ROLES                            │
+│  SELECT * FROM company_users                                 │
+│  WHERE user_id = $1 AND company_id = $2                     │
+│  AND is_active = true                                        │
+│  AND (expires_at IS NULL OR expires_at > NOW())            │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│        GET ROLE PERMISSIONS                                  │
+│  For each role:                                              │
+│  1. Get template permissions (role_templates.permission_set)│
+│  2. Get custom permissions (roles.custom_permissions)        │
+│  3. Get role_permissions mappings                           │
+│  4. Apply ABAC rules if present                             │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│      GET PROJECT-SPECIFIC PERMISSIONS                       │
+│  SELECT permissions FROM project_assignments                │
+│  WHERE user_id = $1 AND company_id = $2                    │
+│  AND is_active = true                                        │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│        COMPUTE EFFECTIVE PERMISSIONS                         │
+│  • Union all permission sets                                 │
+│  • Remove duplicates                                         │
+│  • Cache in user_effective_permissions                       │
+│  • TTL: 1 hour                                               │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│          PERMISSION CHECK (On API Request)                  │
+│  • Get cached permissions                                    │
+│  • Check if required permission in user's set                │
+│  • Apply ABAC rules if needed                                │
+│  • Return 403 if denied                                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### How Permissions Are Granted
+
+#### 1. Company-Level Role Assignment
+
+```sql
+-- Assign user to company with role
+INSERT INTO company_users (company_id, user_id, role_id, granted_by_user_id)
+VALUES (123, 'user-uuid', 2, 'admin-uuid');
+
+-- This grants all permissions from:
+-- 1. Role template (if template_id exists)
+-- 2. Custom permissions on the role
+-- 3. Direct role_permissions mappings
+```
+
+#### 2. Project-Level Assignment
+
+```sql
+-- Assign user to specific project
+INSERT INTO project_assignments (company_id, project_id, user_id, role_type)
+VALUES (123, 456, 'user-uuid', 'client');
+
+-- This grants project-specific permissions
+-- (defined in the role_type or custom permissions array)
+```
+
+#### 3. Permission Inheritance
+
+```
+Role Template (Company 0)
+    │
+    │ template_id reference
+    │
+    ▼
+Company Role (Company 123)
+    │
+    │ Inherits template permissions
+    │ + Custom permissions
+    │
+    ▼
+User Assignment (company_users)
+    │
+    │ Gets all role permissions
+    │
+    ▼
+Effective Permissions (user_effective_permissions)
+```
+
+### Row-Level Security (RLS)
+
+All tables with `company_id` have RLS policies:
+
+```sql
+-- Universal RLS policy
+CREATE POLICY company_isolation_policy ON projects
+    FOR ALL TO authenticated
+    USING (company_id = CAST(current_setting('app.current_company', true) AS INTEGER));
+```
+
+This ensures:
+- Users can only see data from their company
+- Root admins can bypass by setting `app.current_company` to 0
+- Database-level isolation (defense in depth)
+
+---
+
+## 4. API Endpoint Structure
+
+### FastAPI Routes (`/api/v1/*`)
+
+```
+/api/v1/
+├── auth/              # Authentication & session
+├── projects/          # Project CRUD
+├── tasks/             # Task management
+├── photos/            # Photo uploads
+├── logs/              # Project logs
+├── rbac/              # RBAC operations
+│   ├── companies/
+│   ├── roles/
+│   ├── permissions/
+│   ├── users/
+│   └── role-templates/
+├── users/             # User management
+├── companies/         # Company management
+├── dashboard/         # Dashboard data
+├── activities/        # Activity feed
+├── objects/           # Object management
+├── client-portal/     # Client portal features
+├── pm-notifications/  # PM notifications
+├── communications/    # Communications
+├── change-orders/     # Change orders
+├── time-entries/      # Time tracking
+└── invoices/          # Invoice management
+```
+
+### Permission Enforcement Example
+
+```python
+@router.get("/projects")
+async def get_projects(
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    # Get user's company_id
+    user_company_id = current_user.get('companyId')
+    
+    # Check if root admin (bypass company filter)
+    if is_root_admin(current_user):
+        projects = await project_repo.get_all()
+    else:
+        # Filter by company_id (RLS also enforces this)
+        projects = await project_repo.get_by_company(user_company_id)
+    
+    return projects
+```
+
+---
+
+## 5. Development vs Production Differences
+
+| Aspect | Development | Production |
+|--------|------------|------------|
+| **Database** | Local PostgreSQL or Cloud SQL | Neon Serverless / Cloud SQL |
+| **CORS** | `localhost:5000`, `127.0.0.1:5000` | Production domains from env |
+| **Session Store** | In-memory (FastAPI) / PostgreSQL (Node) | PostgreSQL |
+| **Static Files** | Vite dev server | `dist/public` directory |
+| **SSL/TLS** | Optional | Required for database |
+| **Logging** | Console output | Structured logging |
+| **Error Handling** | Detailed stack traces | Sanitized errors |
+
+---
+
+## 6. Security Features
+
+1. Multi-tenant isolation
+   - Company-scoped data
+   - RLS policies
+   - Session-based company context
+
+2. RBAC
+   - Role templates
+   - Permission inheritance
+   - Project-level assignments
+   - ABAC rules for edge cases
+
+3. Authentication
+   - Session-based auth
+   - MFA support
+   - Password hashing (bcrypt)
+
+4. Authorization
+   - Permission checks on every endpoint
+   - Company-level filtering
+   - Root admin bypass (with audit)
+
+5. Audit trail
+   - `audit_logs` table
+   - Tracks all RBAC changes
+   - User actions logged
+
+---
+
+This architecture supports:
+- Multi-tenant SaaS
+- Scalable permission system
+- Company data isolation
+- Flexible role management
+- Project-level access control
+- Production-ready security
+
+All business logic and database operations are in the Python/FastAPI backend, while Node.js serves as a pure proxy for the React frontend.
