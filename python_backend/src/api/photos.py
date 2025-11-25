@@ -311,6 +311,8 @@ async def get_photo_file(
                     )
         
         from fastapi.responses import RedirectResponse
+        import httpx
+        from datetime import datetime, timedelta
         
         # Priority 1: For UUID filenames, always generate fresh signed URL from object storage
         # This handles photos uploaded via Replit Object Storage (most common case)
@@ -322,10 +324,50 @@ async def get_photo_file(
             )
             if is_uuid_filename:
                 # This is a UUID stored in Replit Object Storage (GCP bucket)
-                # Generate a fresh signed URL via the objects endpoint
-                object_url = f"/api/v1/objects/image/{photo.filename}"
-                print(f"🔄 [GCS] Generating fresh signed URL via objects endpoint: {object_url}")
-                return RedirectResponse(url=object_url, status_code=302)
+                # Generate signed URL directly to avoid double redirect
+                bucket_id = os.getenv("DEFAULT_OBJECT_STORAGE_BUCKET_ID")
+                private_dir = os.getenv("PRIVATE_OBJECT_DIR", "")
+                sidecar_endpoint = "http://127.0.0.1:1106"
+                
+                # Extract just the UUID from filename (remove any query params)
+                clean_uuid = photo.filename.split('?')[0]
+                
+                # Construct clean object path
+                if private_dir:
+                    clean_private_dir = private_dir
+                    if bucket_id and private_dir.startswith(f"/{bucket_id}"):
+                        clean_private_dir = private_dir[len(f"/{bucket_id}"):]
+                    elif bucket_id and private_dir.startswith(bucket_id):
+                        clean_private_dir = private_dir[len(bucket_id):]
+                    clean_private_dir = clean_private_dir.lstrip('/')
+                    object_path = f"{clean_private_dir}/uploads/{clean_uuid}"
+                else:
+                    object_path = f".private/uploads/{clean_uuid}"
+                
+                print(f"🔄 [GCS] Generating signed URL directly for: {object_path}")
+                
+                # Generate signed URL directly
+                expires_at = (datetime.utcnow() + timedelta(hours=1)).isoformat() + "Z"
+                request_data = {
+                    "bucket_name": bucket_id,
+                    "object_name": object_path,
+                    "method": "GET",
+                    "expires_at": expires_at
+                }
+                
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(
+                        f"{sidecar_endpoint}/object-storage/signed-object-url",
+                        headers={"Content-Type": "application/json"},
+                        json=request_data
+                    )
+                    
+                    if response.status_code == 200:
+                        result = response.json()
+                        signed_url = result.get("signed_url")
+                        if signed_url:
+                            print(f"✅ [GCS] Direct signed URL generated: {signed_url[:80]}...")
+                            return RedirectResponse(url=signed_url, status_code=302)
         
         # Priority 2: Legacy local file serving (for backward compatibility)
         if photo.filename:
