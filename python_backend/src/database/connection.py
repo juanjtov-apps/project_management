@@ -38,12 +38,20 @@ def _create_ssl_context() -> Optional[ssl.SSLContext]:
     
     if is_neon:
         # Neon (Production): Simple SSL with 'require' mode
-        print("🔵 Connecting to Neon database (production)")
+        print("=" * 60)
+        print("🔵 DATABASE: Neon (PRODUCTION)")
+        print("   SSL Mode: require")
+        print("   Environment: Production")
+        print("=" * 60)
         return 'require'
     
     if is_cloud_sql:
         # Cloud SQL (Development): Full SSL certificate configuration
-        print("🟢 Connecting to Cloud SQL database (development)")
+        print("=" * 60)
+        print("🟢 DATABASE: Cloud SQL (DEVELOPMENT)")
+        print("   SSL Mode: Full certificate authentication")
+        print("   Environment: Development")
+        print("=" * 60)
         ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_REQUIRED
@@ -90,11 +98,18 @@ def _create_ssl_context() -> Optional[ssl.SSLContext]:
     
     # Other providers: Check connection string for SSL requirements
     if 'sslmode=require' in db_url_lower:
-        print("🔵 Using SSL from connection string")
+        print("=" * 60)
+        print("🔵 DATABASE: Custom Provider")
+        print("   SSL Mode: require (from connection string)")
+        print("=" * 60)
         return 'require'
     
     # No SSL required
-    print("⚪ No SSL configuration (local development)")
+    print("=" * 60)
+    print("⚪ DATABASE: Local Development")
+    print("   SSL Mode: None")
+    print("   Environment: Local")
+    print("=" * 60)
     return None
 
 async def get_db_pool() -> asyncpg.Pool:

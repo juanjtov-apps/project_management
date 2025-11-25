@@ -9,16 +9,18 @@ import express from "express";
  * ALL business logic, database operations, and RBAC checks are handled by FastAPI (Port 8000).
  * 
  * Node.js (Port 5000) responsibilities:
- * 1. Session store configuration (for express-session middleware)
+ * 1. Session store configuration (for express-session middleware - legacy compatibility)
  * 2. Serving React static files
  * 3. Proxying /api/* requests to FastAPI (handled in index.ts)
  * 
- * NO business logic, NO database queries, NO RBAC checks should exist here.
+ * NO business logic, NO database queries, NO RBAC checks exist here.
  */
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Session configuration for express-session middleware
-  // Note: FastAPI handles its own session management, but we keep this for compatibility
+  console.log('🔧 Configuring Node.js proxy server (session store only)...');
+  
+  // Session configuration for express-session middleware (legacy compatibility)
+  // FastAPI handles its own session management
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);
   
@@ -49,8 +51,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.warn('⚠️  WARNING: SESSION_SECRET not set. Using default secret. This is UNSAFE for production!');
   }
 
-  // Configure express-session middleware
-  // This is kept for compatibility, but FastAPI handles actual authentication
+  // Configure express-session middleware (legacy compatibility only)
   app.use(session({
     secret: sessionSecret || 'default-secret-change-in-production',
     store: sessionStore,
@@ -58,24 +59,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: isProduction, // Secure cookies in production (requires HTTPS)
+      secure: isProduction,
       maxAge: sessionTtl,
     },
   }));
 
-  // NOTE: Project health routes contain business logic and should be migrated to FastAPI
-  // They are commented out to maintain pure proxy pattern
-  // TODO: Migrate project-health routes to FastAPI (/api/v1/project-health/*)
-  // try {
-  //   const projectHealthRoutes = await import("./routes/project-health");
-  //   app.use("/api", projectHealthRoutes.default);
-  // } catch (error) {
-  //   console.warn("Project health routes not available:", error);
-  // }
-
-  // ALL API endpoints are now handled by FastAPI backend
-  // The proxy in index.ts forwards all /api/* requests to /api/v1/* on Port 8000
-  // No business logic routes should be defined here
+  console.log('✅ Session store configured');
+  console.log('📡 All API requests will be proxied to FastAPI on port 8000');
 
   const httpServer = createServer(app);
   return httpServer;

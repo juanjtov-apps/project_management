@@ -245,49 +245,51 @@ async def get_photo_file(
                         detail="Access denied: Photo belongs to different company"
                     )
         
-        # Check if original_name contains a pre-signed Google Cloud Storage URL (priority)
-        if photo.original_name and ('googleapis.com' in photo.original_name or photo.original_name.startswith('http')):
-            from fastapi.responses import RedirectResponse
-            print(f"✅ Redirecting to pre-signed GCS URL: {photo.original_name[:100]}...")
+        from fastapi.responses import RedirectResponse
+        
+        # Priority 1: Check if original_name contains a GCS signed URL
+        if photo.original_name and ('googleapis.com' in photo.original_name or 'storage.cloud.google.com' in photo.original_name):
+            print(f"✅ [GCS] Serving from pre-signed URL in original_name: {photo.original_name[:100]}...")
             return RedirectResponse(url=photo.original_name, status_code=302)
         
-        # Check if filename is a Google Cloud Storage URL
-        if photo.filename and ('googleapis.com' in photo.filename or photo.filename.startswith('http')):
-            # For Google Cloud Storage URLs, redirect to the URL
-            from fastapi.responses import RedirectResponse
-            print(f"Redirecting to GCS URL: {photo.filename}")
+        # Priority 2: Check if filename contains a GCS signed URL
+        if photo.filename and ('googleapis.com' in photo.filename or 'storage.cloud.google.com' in photo.filename):
+            print(f"✅ [GCS] Serving from pre-signed URL in filename: {photo.filename[:100]}...")
             return RedirectResponse(url=photo.filename, status_code=302)
         
-        # For simple UUID filenames, redirect to Node.js object storage
-        if photo.filename and len(photo.filename) == 36 and '-' in photo.filename:
-            from fastapi.responses import RedirectResponse
-            object_url = f"http://127.0.0.1:5000/api/objects/image/{photo.filename}"
-            print(f"🔄 Redirecting to Node.js object storage: {object_url}")
+        # Priority 3: For UUID filenames, use object storage service to generate signed URL
+        if photo.filename and (len(photo.filename) == 36 or (len(photo.filename) > 36 and photo.filename.count('-') == 4)):
+            # This is a UUID stored in Replit Object Storage (GCP bucket)
+            # Generate a signed URL via the objects endpoint
+            object_url = f"/api/v1/objects/image/{photo.filename}"
+            print(f"🔄 [GCS] Generating signed URL via objects endpoint: {object_url}")
             return RedirectResponse(url=object_url, status_code=302)
         
-        # For local files, serve from filesystem
+        # Priority 4: Legacy local file serving (for backward compatibility)
         file_path = os.path.join(settings.upload_dir, photo.filename)
-        if not os.path.exists(file_path):
-            print(f"Local file not found: {file_path}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Photo file not found"
+        if os.path.exists(file_path):
+            print(f"📁 [LOCAL] Serving from filesystem: {file_path}")
+            import mimetypes
+            media_type = mimetypes.guess_type(file_path)[0] or "image/jpeg"
+            return FileResponse(
+                path=file_path,
+                media_type=media_type,
+                filename=photo.original_name
             )
         
-        # Determine media type from file extension
-        import mimetypes
-        media_type = mimetypes.guess_type(file_path)[0] or "image/jpeg"
-        
-        return FileResponse(
-            path=file_path,
-            media_type=media_type,
-            filename=photo.original_name
+        # Photo not found
+        print(f"❌ Photo file not found: filename={photo.filename}, original_name={photo.original_name}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Photo file not found in any storage location"
         )
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error retrieving photo file {photo_id}: {e}")
+        print(f"❌ Error retrieving photo file {photo_id}: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve photo file"

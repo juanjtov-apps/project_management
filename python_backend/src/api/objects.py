@@ -28,9 +28,9 @@ def get_storage_config():
 
 @router.get("/image/{object_id}")
 async def get_object_image(object_id: str):
-    """Get an image from object storage by object ID."""
+    """Get an image from object storage by object ID (generates GCS signed URL)."""
     try:
-        print(f"🖼️ Serving object image: {object_id}")
+        print(f"🖼️ [GCS] Generating signed URL for object: {object_id}")
         
         # Get storage configuration
         config = get_storage_config()
@@ -39,37 +39,48 @@ async def get_object_image(object_id: str):
         sidecar_endpoint = config["sidecar_endpoint"]
         
         if not all([bucket_id, private_dir, sidecar_endpoint]):
-            print(f"❌ Storage config incomplete: bucket={bucket_id}, dir={bool(private_dir)}, endpoint={bool(sidecar_endpoint)}")
+            print(f"❌ [GCS] Storage config incomplete:")
+            print(f"   - bucket_id: {bucket_id or 'MISSING'}")
+            print(f"   - private_dir: {private_dir or 'MISSING'}")
+            print(f"   - sidecar_endpoint: {sidecar_endpoint or 'MISSING'}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Object storage not configured"
+                detail="Object storage not configured. Check DEFAULT_OBJECT_STORAGE_BUCKET_ID and PRIVATE_OBJECT_DIR environment variables."
             )
         
-        # Construct the object path
-        object_path = f"{private_dir}/uploads/{object_id}".lstrip('/')
+        # Construct the object path - handle both UUID and UUID.ext formats
+        object_filename = object_id
+        if not any(object_id.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']):
+            # No extension provided, try common image extensions
+            print(f"🔍 [GCS] No extension in object_id, will try common extensions")
+        
+        object_path = f"{private_dir}/uploads/{object_filename}".lstrip('/')
+        print(f"📂 [GCS] Bucket: {bucket_id}")
+        print(f"📂 [GCS] Object path: {object_path}")
         
         # Create a signed URL for the object
         signed_url = await create_signed_url(bucket_id, object_path, sidecar_endpoint)
         
         if signed_url:
-            print(f"✅ Redirecting to signed URL: {signed_url[:100]}...")
+            print(f"✅ [GCS] Generated signed URL successfully")
+            print(f"🔗 [GCS] URL: {signed_url[:100]}...")
             return RedirectResponse(url=signed_url, status_code=302)
         else:
-            print(f"❌ Failed to create signed URL for object: {object_id}")
+            print(f"❌ [GCS] Failed to create signed URL for object: {object_id}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Object not found"
+                detail=f"Object not found in GCS bucket: {object_id}"
             )
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error serving object image {object_id}: {e}")
+        print(f"❌ [GCS] Error serving object image {object_id}: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to serve object"
+            detail=f"Failed to serve object from GCS: {str(e)}"
         )
 
 async def create_signed_url(bucket_name: str, object_name: str, sidecar_endpoint: str) -> str:
