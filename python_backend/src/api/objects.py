@@ -38,14 +38,14 @@ async def get_object_image(object_id: str):
         private_dir = config["private_dir"]
         sidecar_endpoint = config["sidecar_endpoint"]
         
-        if not all([bucket_id, private_dir, sidecar_endpoint]):
+        if not all([bucket_id, sidecar_endpoint]):
             print(f"❌ [GCS] Storage config incomplete:")
             print(f"   - bucket_id: {bucket_id or 'MISSING'}")
             print(f"   - private_dir: {private_dir or 'MISSING'}")
             print(f"   - sidecar_endpoint: {sidecar_endpoint or 'MISSING'}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Object storage not configured. Check DEFAULT_OBJECT_STORAGE_BUCKET_ID and PRIVATE_OBJECT_DIR environment variables."
+                detail="Object storage not configured. Check DEFAULT_OBJECT_STORAGE_BUCKET_ID environment variable."
             )
         
         # Construct the object path - handle both UUID and UUID.ext formats
@@ -54,7 +54,22 @@ async def get_object_image(object_id: str):
             # No extension provided, try common image extensions
             print(f"🔍 [GCS] No extension in object_id, will try common extensions")
         
-        object_path = f"{private_dir}/uploads/{object_filename}".lstrip('/')
+        # PRIVATE_OBJECT_DIR contains the full path like "/replit-objstore-.../. private"
+        # We need to extract just the ".private" part for the object path
+        # The object path in GCS should be: .private/uploads/{uuid}
+        if private_dir:
+            # Strip the bucket name prefix if present
+            clean_private_dir = private_dir
+            if bucket_id and private_dir.startswith(f"/{bucket_id}"):
+                clean_private_dir = private_dir[len(f"/{bucket_id}"):]
+            elif bucket_id and private_dir.startswith(bucket_id):
+                clean_private_dir = private_dir[len(bucket_id):]
+            clean_private_dir = clean_private_dir.lstrip('/')
+            object_path = f"{clean_private_dir}/uploads/{object_filename}"
+        else:
+            # Fallback to default path
+            object_path = f".private/uploads/{object_filename}"
+        
         print(f"📂 [GCS] Bucket: {bucket_id}")
         print(f"📂 [GCS] Object path: {object_path}")
         
