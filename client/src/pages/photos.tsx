@@ -50,7 +50,7 @@ export default function Photos() {
   const { data: photos = [], isLoading: photosLoading } = useQuery<Photo[]>({
     queryKey: ["/api/photos"],
     staleTime: 0, // Always refetch to get latest photos and tags
-    cacheTime: 0, // Don't cache to ensure fresh data
+    gcTime: 0, // Don't cache to ensure fresh data (gcTime replaces cacheTime in v5)
   });
 
   const { data: projects = [] } = useQuery<Project[]>({
@@ -109,12 +109,9 @@ export default function Photos() {
         break;
       case "tag":
         if (selectedTag !== "all") {
-
           filtered = filtered.filter(photo => {
-            const hasTags = photo.tags && Array.isArray(photo.tags);
-            return hasTags && photo.tags.includes(selectedTag);
+            return photo.tags && Array.isArray(photo.tags) && photo.tags.includes(selectedTag);
           });
-
         }
         break;
       case "log":
@@ -167,11 +164,16 @@ export default function Photos() {
     mutationFn: async (data: { uploadedUrls: string[]; formData: PhotoUploadData }) => {
       // Create photo entries in database using uploaded URLs
       const photoPromises = data.uploadedUrls.map(url => {
+        // Extract UUID from signed URL - strip query parameters
+        // URL looks like: https://storage.googleapis.com/bucket/.private/uploads/UUID?X-Goog-Algorithm=...
+        const lastSegment = url.split('/').pop() || '';
+        const uuid = lastSegment.split('?')[0]; // Remove query parameters to get clean UUID
+        
         const photoData = {
           projectId: data.formData.projectId,
           userId: "sample-user-id", // In a real app, this would come from auth
-          filename: url.split('/').pop() || '',
-          originalName: url.split('/').pop() || '',
+          filename: uuid,
+          originalName: uuid,
           description: data.formData.description,
           tags: data.formData.tags,
         };
