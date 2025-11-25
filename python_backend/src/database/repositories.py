@@ -71,13 +71,22 @@ class ProjectRepository(BaseRepository):
             return Project(**self._convert_to_camel_case(dict(row)))
         return None
     
-    async def create(self, project: ProjectCreate) -> Project:
+    async def create(self, project: ProjectCreate, company_id: Optional[str] = None) -> Project:
         """Create a new project."""
         project_id = str(uuid.uuid4())
         now = datetime.utcnow()
         
+        # Get data with aliases first, then convert
         data = project.dict(by_alias=True)
         data = self._convert_from_camel_case(data)
+        
+        # Use provided company_id parameter, or get from model, or get from data
+        # Use provided company_id parameter, or get from model, or get from data
+        company_id_value = company_id or getattr(project, 'company_id', None) or data.get('company_id')
+        
+        # Set company_id in data dict if we have a value
+        if company_id_value is not None:
+            data['company_id'] = str(company_id_value)
         
         # Handle due_date timezone conversion
         due_date = data.get('due_date')
@@ -97,11 +106,14 @@ class ProjectRepository(BaseRepository):
             RETURNING *
         """
         
+        company_id_value = data.get('company_id')
+        
         row = await db_manager.execute_one(
             query, project_id, data.get('name'), data.get('description'), 
             data.get('location'), data.get('status'), data.get('progress'),
-            due_date, data.get('company_id'), now
+            due_date, company_id_value, now
         )
+        
         return Project(**self._convert_to_camel_case(dict(row)))
     
     async def update(self, project_id: str, project_update: ProjectUpdate) -> Optional[Project]:
@@ -151,10 +163,144 @@ class ProjectRepository(BaseRepository):
         return None
     
     async def delete(self, project_id: str) -> bool:
-        """Delete a project."""
-        query = f"DELETE FROM {self.table_name} WHERE id = $1"
-        result = await db_manager.execute(query, project_id)
-        return "DELETE 1" in result
+        """Delete a project with cascade deletion of related data."""
+        from src.database.connection import get_db_pool
+        
+        pool = await get_db_pool()
+        try:
+            async with pool.acquire() as connection:
+                # Start transaction
+                async with connection.transaction():
+                    # Helper to safely delete from tables that might not exist
+                    async def safe_delete(query: str, description: str):
+                        try:
+                            await connection.execute(query, project_id)
+                            print(f"✅ {description}")
+                        except Exception as e:
+                            # Only log if it's not a "table/column doesn't exist" error
+                            error_code = getattr(e, 'code', None)
+                            if error_code not in ('42P01', '42703'):  # table/column doesn't exist
+                                print(f"⚠️  {description} - error: {e}")
+                    
+                    # === CLIENT PORTAL DATA (must be deleted first due to RESTRICT constraints) ===
+                    # Delete payment-related data (in reverse dependency order)
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_events WHERE project_id = $1",
+                        "Deleted payment events"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.invoices WHERE project_id = $1",
+                        "Deleted invoices"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_receipts WHERE project_id = $1",
+                        "Deleted payment receipts"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_documents WHERE project_id = $1",
+                        "Deleted payment documents"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_installments WHERE project_id = $1",
+                        "Deleted payment installments"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_schedules WHERE project_id = $1",
+                        "Deleted payment schedules"
+                    )
+                    
+                    # Delete issue-related data (comments and attachments cascade)
+                    await safe_delete(
+                        "DELETE FROM client_portal.issues WHERE project_id = $1",
+                        "Deleted client portal issues"
+                    )
+                    
+                    # Delete forum-related data (messages and attachments cascade)
+                    await safe_delete(
+                        "DELETE FROM client_portal.forum_threads WHERE project_id = $1",
+                        "Deleted forum threads"
+                    )
+                    
+                    # Delete other client portal data
+                    await safe_delete(
+                        "DELETE FROM client_portal.materials WHERE project_id = $1",
+                        "Deleted materials"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.installment_files WHERE installment_id IN (SELECT id FROM client_portal.installments WHERE project_id = $1)",
+                        "Deleted installment files"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.installments WHERE project_id = $1",
+                        "Deleted installments"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.notification_settings WHERE project_id = $1",
+                        "Deleted notification settings"
+                    )
+                    await safe_delete(
+                        "DELETE FROM client_portal.notifications WHERE project_id = $1",
+                        "Deleted notifications"
+                    )
+                    
+                    # === PUBLIC SCHEMA DATA ===
+                    # 1. Delete schedule changes related to tasks in this project
+                    await safe_delete(
+                        "DELETE FROM schedule_changes WHERE task_id IN (SELECT id FROM tasks WHERE project_id = $1)",
+                        "Deleted schedule changes"
+                    )
+                    
+                    # 2. Delete subcontractor assignments for this project
+                    await safe_delete(
+                        "DELETE FROM subcontractor_assignments WHERE project_id = $1",
+                        "Deleted subcontractor assignments"
+                    )
+                    
+                    # 3. Delete all tasks associated with this project
+                    await connection.execute(
+                        "DELETE FROM tasks WHERE project_id = $1",
+                        project_id
+                    )
+                    print("✅ Deleted tasks")
+                    
+                    # 4. Delete any photos associated with this project
+                    await connection.execute(
+                        "DELETE FROM photos WHERE project_id = $1",
+                        project_id
+                    )
+                    print("✅ Deleted photos")
+                    
+                    # 5. Delete any project logs associated with this project
+                    await safe_delete(
+                        "DELETE FROM project_logs WHERE project_id = $1",
+                        "Deleted project logs"
+                    )
+                    
+                    # 6. Delete project health metrics associated with this project
+                    await safe_delete(
+                        "DELETE FROM project_health_metrics WHERE project_id = $1",
+                        "Deleted project health metrics"
+                    )
+                    
+                    # 7. Delete risk assessments associated with this project
+                    await safe_delete(
+                        "DELETE FROM risk_assessments WHERE project_id = $1",
+                        "Deleted risk assessments"
+                    )
+                    
+                    # 8. Finally delete the project
+                    result = await connection.execute(
+                        f"DELETE FROM {self.table_name} WHERE id = $1",
+                        project_id
+                    )
+                    print(f"✅ Deleted project {project_id}")
+                    
+                    return "DELETE 1" in result
+        except Exception as e:
+            import traceback
+            print(f"❌ Error deleting project {project_id} with cascade: {e}")
+            traceback.print_exc()
+            raise
 
 
 class TaskRepository(BaseRepository):

@@ -58,7 +58,7 @@ async def get_project(
         
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
-            user_company_id = str(current_user.get('companyId'))
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
             project_company_id = str(project.get('company_id'))
             if project_company_id != user_company_id:
                 raise HTTPException(
@@ -84,7 +84,8 @@ async def create_project(
 ):
     """Create a new project with authentication and company assignment."""
     try:
-        user_company_id = current_user.get('companyId')
+        # Try both camelCase and snake_case for compatibility
+        user_company_id = current_user.get('companyId') or current_user.get('company_id')
         if not user_company_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -92,10 +93,11 @@ async def create_project(
             )
         
         # Assign project to user's company
-        project_data = project.dict()
-        project_data['company_id'] = str(user_company_id)
-        
-        return await project_repo.create(ProjectCreate(**project_data))
+        # Create the project model first, then set company_id directly in the repository
+        print(f"Creating project for user {current_user.get('email')} (company {user_company_id}): {project}")
+        # Pass company_id as a separate parameter to ensure it's set
+        created_project = await project_repo.create(project, company_id=str(user_company_id))
+        return created_project
     except HTTPException:
         raise
     except Exception as e:
@@ -123,7 +125,7 @@ async def update_project(
         
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
-            user_company_id = str(current_user.get('companyId'))
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
             project_company_id = str(existing_project.get('company_id'))
             if project_company_id != user_company_id:
                 raise HTTPException(
@@ -158,8 +160,13 @@ async def delete_project(
         
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
-            user_company_id = str(current_user.get('companyId'))
-            project_company_id = str(existing_project.get('company_id'))
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
+            # existing_project is a Project model, access attribute directly or via dict
+            if hasattr(existing_project, 'company_id'):
+                project_company_id = str(getattr(existing_project, 'company_id', None) or '')
+            else:
+                project_dict = existing_project.dict(by_alias=False) if hasattr(existing_project, 'dict') else {}
+                project_company_id = str(project_dict.get('company_id', ''))
             if project_company_id != user_company_id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -176,10 +183,14 @@ async def delete_project(
         raise
     except Exception as e:
         error_msg = str(e)
+        import traceback
+        print(f"Error deleting project {project_id}: {error_msg}")
+        traceback.print_exc()
+        
         if "foreign key constraint" in error_msg.lower():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot delete project because it has associated data"
+                detail="Cannot delete project because it has associated data (tasks, photos, client portal data, etc.). Please remove all related data first."
             )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
