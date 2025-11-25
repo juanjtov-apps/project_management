@@ -156,19 +156,7 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       staleTime: 5000,
       retry: false,
-      // Add global error handling to prevent unhandled rejections
       throwOnError: false,
-      // Suppress console errors for expected 401s on auth endpoints
-      onError: (error: any) => {
-        // Don't log expected authentication check failures
-        if (error?.isAuthCheck || 
-            error?.message?.includes('Authentication check:') ||
-            (error?.message?.includes('401') && (error?.message?.includes('/api/auth/') || error?.message?.includes('/api/v1/auth/')))) {
-          return; // Silent - this is expected behavior
-        }
-        // Log other errors normally
-        console.error('Query error:', error);
-      },
     },
     mutations: {
       retry: false,

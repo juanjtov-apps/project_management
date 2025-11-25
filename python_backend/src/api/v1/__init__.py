@@ -13,6 +13,12 @@ try:
 except ImportError:
     company_admin_router = None
 
+# Import admin router from main api (root admin endpoints)
+try:
+    from ...api.admin import router as admin_router
+except ImportError:
+    admin_router = None
+
 # Import user_management router for complete RBAC endpoints (POST/PATCH/DELETE)
 try:
     from ...api.user_management import router as user_management_router
@@ -55,6 +61,10 @@ def create_v1_router() -> APIRouter:
     # Include company-admin router for v1 API (frontend proxy rewrites /api/company-admin to /api/v1/company-admin)
     if company_admin_router:
         v1_router.include_router(company_admin_router, tags=["company-admin"])
+    
+    # Include admin router for v1 API (root admin endpoints)
+    if admin_router:
+        v1_router.include_router(admin_router, tags=["admin"])
     
     return v1_router
 
