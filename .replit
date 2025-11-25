@@ -112,3 +112,8 @@ integrations = [
 
 [objectStorage]
 defaultBucketID = "replit-objstore-19d9abdb-d40b-44f2-b96f-7b47591275d4"
+
+[userenv]
+
+[userenv.shared]
+ROOT_USER_EMAILS = "daniel@tiento.com,david@tiento.com"
