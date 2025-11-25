@@ -312,35 +312,40 @@ async def get_photo_file(
         
         from fastapi.responses import RedirectResponse
         
-        # Priority 1: Check if original_name contains a GCS signed URL
-        if photo.original_name and ('googleapis.com' in photo.original_name or 'storage.cloud.google.com' in photo.original_name):
-            print(f"✅ [GCS] Serving from pre-signed URL in original_name: {photo.original_name[:100]}...")
-            return RedirectResponse(url=photo.original_name, status_code=302)
-        
-        # Priority 2: Check if filename contains a GCS signed URL
-        if photo.filename and ('googleapis.com' in photo.filename or 'storage.cloud.google.com' in photo.filename):
-            print(f"✅ [GCS] Serving from pre-signed URL in filename: {photo.filename[:100]}...")
-            return RedirectResponse(url=photo.filename, status_code=302)
-        
-        # Priority 3: For UUID filenames, use object storage service to generate signed URL
-        if photo.filename and (len(photo.filename) == 36 or (len(photo.filename) > 36 and photo.filename.count('-') == 4)):
-            # This is a UUID stored in Replit Object Storage (GCP bucket)
-            # Generate a signed URL via the objects endpoint
-            object_url = f"/api/v1/objects/image/{photo.filename}"
-            print(f"🔄 [GCS] Generating signed URL via objects endpoint: {object_url}")
-            return RedirectResponse(url=object_url, status_code=302)
-        
-        # Priority 4: Legacy local file serving (for backward compatibility)
-        file_path = os.path.join(settings.upload_dir, photo.filename)
-        if os.path.exists(file_path):
-            print(f"📁 [LOCAL] Serving from filesystem: {file_path}")
-            import mimetypes
-            media_type = mimetypes.guess_type(file_path)[0] or "image/jpeg"
-            return FileResponse(
-                path=file_path,
-                media_type=media_type,
-                filename=photo.original_name
+        # Priority 1: For UUID filenames, always generate fresh signed URL from object storage
+        # This handles photos uploaded via Replit Object Storage (most common case)
+        if photo.filename:
+            # Check if filename is a UUID (36 chars with dashes, or UUID pattern)
+            is_uuid_filename = (
+                (len(photo.filename) == 36 and photo.filename.count('-') == 4) or
+                (len(photo.filename) > 36 and photo.filename.count('-') >= 4 and '.' not in photo.filename[:36])
             )
+            if is_uuid_filename:
+                # This is a UUID stored in Replit Object Storage (GCP bucket)
+                # Generate a fresh signed URL via the objects endpoint
+                object_url = f"/api/v1/objects/image/{photo.filename}"
+                print(f"🔄 [GCS] Generating fresh signed URL via objects endpoint: {object_url}")
+                return RedirectResponse(url=object_url, status_code=302)
+        
+        # Priority 2: Legacy local file serving (for backward compatibility)
+        if photo.filename:
+            file_path = os.path.join(settings.upload_dir, photo.filename)
+            if os.path.exists(file_path):
+                print(f"📁 [LOCAL] Serving from filesystem: {file_path}")
+                import mimetypes
+                media_type = mimetypes.guess_type(file_path)[0] or "image/jpeg"
+                return FileResponse(
+                    path=file_path,
+                    media_type=media_type,
+                    filename=photo.original_name
+                )
+        
+        # Priority 3: If filename looks like a regular file but doesn't exist locally,
+        # try object storage as a fallback
+        if photo.filename:
+            object_url = f"/api/v1/objects/image/{photo.filename}"
+            print(f"🔄 [GCS] Fallback - trying object storage: {object_url}")
+            return RedirectResponse(url=object_url, status_code=302)
         
         # Photo not found
         print(f"❌ Photo file not found: filename={photo.filename}, original_name={photo.original_name}")

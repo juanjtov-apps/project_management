@@ -596,10 +596,10 @@ export default function Photos() {
             <Card key={photo.id} className={viewMode === "list" ? "flex" : ""}>
               <div className={viewMode === "list" ? "w-32 h-32 flex-shrink-0" : "aspect-square"}>
                 <img
-                  src={`/api/photos/${photo.id}`}
+                  src={`/api/photos/${photo.id}/file`}
                   alt={photo.description || photo.originalName}
                   className="w-full h-full object-cover rounded-t-lg cursor-pointer hover:opacity-90 transition-opacity"
-                  onClick={() => window.open(`/api/photos/${photo.id}`, '_blank')}
+                  onClick={() => window.open(`/api/photos/${photo.id}/file`, '_blank')}
                   onError={(e) => {
                     e.currentTarget.src = `data:image/svg+xml;base64,${btoa(`
                       <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
@@ -667,7 +667,7 @@ export default function Photos() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open(`/api/photos/${photo.id}`, '_blank')}
+                      onClick={() => window.open(`/api/photos/${photo.id}/file`, '_blank')}
                       data-testid={`button-view-photo-${photo.id}`}
                     >
                       <Download size={12} className="mr-1" />
