@@ -1986,7 +1986,7 @@ export default function WorkPage() {
 
       {/* Project Quick View Panel */}
       <ProjectQuickView
-        project={quickViewProject!}
+        project={quickViewProject}
         photos={quickViewPhotos}
         members={users}
         onClose={() => setQuickViewProject(null)}

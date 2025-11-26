@@ -5,7 +5,7 @@ import { AvatarGroup } from "@/components/ui/avatar-group";
 import type { Project, Photo, User } from "@shared/schema";
 
 interface ProjectQuickViewProps {
-  project: Project;
+  project: Project | null;
   photos?: Photo[];
   members?: User[];
   onClose: () => void;
@@ -21,6 +21,11 @@ export function ProjectQuickView({
   isOpen,
   className,
 }: ProjectQuickViewProps) {
+  // Early return if not open or no project - prevents null access errors
+  if (!isOpen || !project) {
+    return null;
+  }
+
   const thumbnailUrl = photos.length > 0 
     ? `/api/photos/${photos[0].id}/file`
     : null;
