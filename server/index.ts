@@ -227,14 +227,48 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
           },
           body: req.method !== 'GET' && req.method !== 'HEAD' && req.body ? JSON.stringify(req.body) : undefined,
           signal: controller.signal,
+          redirect: 'manual', // Don't follow redirects - pass them to browser
         });
         
         clearTimeout(timeoutId);
         
-        const data = await response.text();
+        // Set status code
         res.status(response.status);
-        res.set(Object.fromEntries(response.headers.entries()));
-        res.send(data);
+        
+        // Forward all headers from backend response
+        response.headers.forEach((value, key) => {
+          // Skip transfer-encoding as it can cause issues
+          if (key.toLowerCase() !== 'transfer-encoding') {
+            res.set(key, value);
+          }
+        });
+        
+        // Handle redirect responses (3xx) - pass them through to the browser
+        if (response.status >= 300 && response.status < 400) {
+          const location = response.headers.get('location');
+          if (location) {
+            res.set('Location', location);
+          }
+          return res.end();
+        }
+        
+        // Check if this is a binary/file response based on content-type
+        const contentType = response.headers.get('content-type') || '';
+        const isBinary = contentType.startsWith('image/') || 
+                         contentType.startsWith('audio/') || 
+                         contentType.startsWith('video/') ||
+                         contentType.includes('octet-stream') ||
+                         contentType.includes('application/pdf');
+        
+        if (isBinary) {
+          // Handle binary data properly
+          const buffer = await response.arrayBuffer();
+          res.send(Buffer.from(buffer));
+        } else {
+          // Handle text/JSON responses
+          const data = await response.text();
+          res.send(data);
+        }
         
         // If we get a connection error, mark backend as not ready
         if (response.status === 503 || response.status === 502) {
