@@ -238,6 +238,21 @@ input[type="file"] {
 }
 
 /* =====================================================
+   PROJECT GRID LAYOUT
+   ===================================================== */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .project-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+}
+
+/* =====================================================
    BASE STYLES
    ===================================================== */
 @layer base {
