@@ -653,7 +653,7 @@ export default function Projects() {
               </Button>
               
               {!collapsedSections['active'] && (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                   {activeProjects.map((project) => {
                     const projectTasks = getProjectTasks(project.id);
                     
@@ -921,7 +921,7 @@ export default function Projects() {
               </Button>
               
               {!collapsedSections['completed'] && (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                   {completedProjects.map((project) => {
                     const projectTasks = getProjectTasks(project.id);
                     
