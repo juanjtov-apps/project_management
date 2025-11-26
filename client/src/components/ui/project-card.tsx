@@ -49,7 +49,6 @@ export function ProjectCard({
       className={cn(
         "group relative rounded-lg overflow-hidden cursor-pointer transition-all duration-200",
         "hover:ring-2 hover:ring-[#4ADE80]/50",
-        "w-full max-w-[180px]",
         isSelected && "ring-2 ring-[#4ADE80]",
         className
       )}
