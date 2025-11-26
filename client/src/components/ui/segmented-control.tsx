@@ -25,7 +25,7 @@ export function SegmentedControl({
     <div
       data-testid={testId}
       className={cn(
-        "inline-flex items-center gap-1 p-1 bg-[var(--surface-muted)] rounded-lg",
+        "inline-flex items-center gap-1 p-1 bg-[#1F242C] border border-[#2D333B] rounded-lg",
         className
       )}
       role="tablist"
@@ -40,8 +40,8 @@ export function SegmentedControl({
             "tap-target px-4 py-2 text-sm font-medium rounded-md transition-all",
             "focus-visible-ring",
             value === option.value
-              ? "bg-white text-[var(--text-primary)] shadow-sm"
-              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              ? "bg-[#2D333B] text-white shadow-sm"
+              : "text-[#9CA3AF] hover:text-white"
           )}
           role="tab"
           aria-selected={value === option.value}

@@ -28,10 +28,10 @@ interface TaskCardProps {
 }
 
 const priorityColors = {
-  low: "bg-green-100 text-green-800 border-green-200",
-  medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  high: "bg-orange-100 text-orange-800 border-orange-200",
-  critical: "bg-red-100 text-red-800 border-red-200",
+  low: "bg-[#166534]/20 text-[#4ADE80] border-[#166534]/30",
+  medium: "bg-[#854D0E]/20 text-[#EAB308] border-[#854D0E]/30",
+  high: "bg-[#9A3412]/20 text-[#F97316] border-[#9A3412]/30",
+  critical: "bg-[#991B1B]/20 text-[#EF4444] border-[#991B1B]/30",
 };
 
 export function TaskCard({
@@ -63,9 +63,9 @@ export function TaskCard({
     <div
       data-testid={testId}
       className={cn(
-        "group relative flex items-center gap-4 p-4 bg-white border border-border rounded-lg",
-        "hover:border-primary/50 hover:shadow-md transition-all",
-        isSelected && "ring-2 ring-primary border-primary",
+        "group relative flex items-center gap-4 p-4 bg-[#161B22] border border-[#2D333B] rounded-lg",
+        "hover:border-[#4ADE80]/50 hover:shadow-lg transition-all",
+        isSelected && "ring-2 ring-[#4ADE80] border-[#4ADE80]",
         className
       )}
     >
@@ -87,7 +87,7 @@ export function TaskCard({
               checked={isSelected}
               onChange={onSelect}
               data-testid={`task-checkbox-${id}`}
-              className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+              className="w-5 h-5 rounded border-[#2D333B] bg-[#1F242C] text-[#4ADE80] focus:ring-[#4ADE80] cursor-pointer"
             />
           </label>
         )}

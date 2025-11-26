@@ -40,7 +40,7 @@ export function FilterBar({
     <div
       data-testid={testId}
       className={cn(
-        "flex flex-col gap-3 p-4 bg-white border-b border-border",
+        "flex flex-col gap-3 p-4 bg-[#0F1115] border-b border-[#2D333B]",
         sticky && "sticky-top",
         className
       )}

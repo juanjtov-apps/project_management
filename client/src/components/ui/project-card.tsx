@@ -23,15 +23,15 @@ interface ProjectCardProps {
 const statusConfig = {
   active: {
     label: "Active",
-    className: "bg-green-100 text-green-800 border-green-200",
+    className: "bg-[#166534]/20 text-[#4ADE80] border-[#166534]/30",
   },
   on_hold: {
     label: "On Hold",
-    className: "bg-yellow-100 text-yellow-800 border-yellow-200",
+    className: "bg-[#854D0E]/20 text-[#EAB308] border-[#854D0E]/30",
   },
   completed: {
     label: "Completed",
-    className: "bg-blue-100 text-blue-800 border-blue-200",
+    className: "bg-[#1E40AF]/20 text-[#60A5FA] border-[#1E40AF]/30",
   },
 };
 
@@ -55,8 +55,8 @@ export function ProjectCard({
     <div
       data-testid={testId}
       className={cn(
-        "card-surface group relative transition-all",
-        "border border-border hover:border-primary/50 hover:shadow-lg",
+        "rounded-xl p-5 bg-[#161B22] group relative transition-all",
+        "border border-[#2D333B] hover:border-[#4ADE80]/50 hover:shadow-lg",
         onClick && "cursor-pointer",
         className
       )}
