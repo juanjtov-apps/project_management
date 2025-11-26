@@ -61,6 +61,12 @@ input[type="file"] {
   --pro-mint-800: #166534;
   --pro-mint-900: #14532D;
   
+  /* Accent Colors */
+  --pro-blue: #3B82F6;
+  --pro-purple: #8B5CF6;
+  --pro-yellow: #EAB308;
+  --pro-text-muted: #6B7280;
+  
   /* Status Colors */
   --pro-status-on-track: #4ADE80;
   --pro-status-at-risk: #F97316;
