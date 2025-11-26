@@ -23,6 +23,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -45,19 +51,16 @@ interface SidebarProps {
 export default function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps = {}) {
   const [location] = useLocation();
   
-  // Get current user with permissions
   const { data: currentUser } = useQuery<any>({
     queryKey: ['/api/v1/auth/user'],
     retry: false
   });
   
-  // Role-based navigation filtering using backend permissions
   const permissions = currentUser?.permissions || {};
   
-  // Map navigation items to their permission keys (match Node.js backend permission structure)
   const navigationPermissions = {
     'Dashboard': 'dashboard',
-    'Work': 'projects', // Work combines projects and tasks - check projects permission
+    'Work': 'projects',
     'Project Health': 'projectHealth',
     'Schedule': 'schedule',
     'Photos': 'photos',
@@ -68,30 +71,89 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
     'RBAC Admin': 'rbacAdmin'
   };
   
-  // Filter navigation based on user permissions from backend
   const filteredNavigation = navigation.filter(item => {
     const permissionKey = navigationPermissions[item.name as keyof typeof navigationPermissions];
     return permissions[permissionKey] === true;
   });
-  
-  console.log('Sidebar navigation items:', filteredNavigation.length, filteredNavigation.map(item => item.name));
 
-  const NavigationContent = () => (
-    <>
-      <div className="p-6 border-b border-border">
+  const NavigationRail = () => (
+    <TooltipProvider delayDuration={0}>
+      <div className="flex flex-col h-full" style={{ backgroundColor: '#0F1115' }}>
+        <div className="flex items-center justify-center py-4 border-b" style={{ borderColor: '#2D333B' }}>
+          <Logo size="sm" className="shadow-lg" />
+        </div>
+        
+        <nav className="flex-1 py-4">
+          <ul className="flex flex-col items-center gap-1">
+            {filteredNavigation.map((item) => {
+              const isActive = location === item.href || 
+                (item.href === "/work" && (location === "/projects" || location === "/tasks"));
+              const Icon = item.icon;
+              
+              return (
+                <li key={item.name}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link href={item.href}>
+                        <div 
+                          className={cn(
+                            "relative w-11 h-11 flex items-center justify-center rounded-lg transition-all duration-200 cursor-pointer group",
+                            isActive 
+                              ? "text-[#4ADE80]" 
+                              : "text-[#9CA3AF] hover:text-white hover:bg-[#1F242C]"
+                          )}
+                          onClick={() => onMobileClose?.()}
+                          data-testid={`nav-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
+                        >
+                          {isActive && (
+                            <div 
+                              className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 rounded-r-full"
+                              style={{ backgroundColor: '#4ADE80' }}
+                            />
+                          )}
+                          <Icon 
+                            className={cn(
+                              "h-5 w-5 transition-colors",
+                              isActive ? "text-[#4ADE80]" : ""
+                            )} 
+                          />
+                        </div>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent 
+                      side="right" 
+                      className="text-white border-0"
+                      style={{ backgroundColor: '#1F242C' }}
+                    >
+                      {item.name}
+                    </TooltipContent>
+                  </Tooltip>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </div>
+    </TooltipProvider>
+  );
+
+  const MobileNavigationContent = () => (
+    <div className="flex flex-col h-full" style={{ backgroundColor: '#0F1115' }}>
+      <div className="p-6 border-b" style={{ borderColor: '#2D333B' }}>
         <div className="flex items-center gap-3">
           <Logo size="md" className="shadow-lg" />
           <div>
-            <h1 className="text-fluid-lg font-semibold text-foreground">Proesphere</h1>
-            <p className="text-xs text-muted-foreground">Construction Management</p>
+            <h1 className="text-lg font-semibold text-white">Proesphere</h1>
+            <p className="text-xs" style={{ color: '#9CA3AF' }}>Construction Management</p>
           </div>
         </div>
       </div>
       
-      <nav className="flex-1 p-6">
+      <nav className="flex-1 p-4">
         <ul className="space-y-1">
           {filteredNavigation.map((item) => {
-            const isActive = location === item.href;
+            const isActive = location === item.href || 
+              (item.href === "/work" && (location === "/projects" || location === "/tasks"));
             const Icon = item.icon;
             
             return (
@@ -99,18 +161,21 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                 <Link href={item.href}>
                   <div 
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer group focus-ring min-h-[44px]",
-                      "hover:bg-muted active:scale-95",
+                      "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer group min-h-[48px]",
                       isActive 
-                        ? "bg-brand-100 text-brand-600 border-l-4 border-brand-600 font-semibold" 
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "text-[#4ADE80] border-l-4"
+                        : "text-[#9CA3AF] hover:text-white"
                     )}
+                    style={{ 
+                      backgroundColor: isActive ? '#1F242C' : 'transparent',
+                      borderLeftColor: isActive ? '#4ADE80' : 'transparent'
+                    }}
                     onClick={() => onMobileClose?.()}
                   >
                     <Icon 
                       className={cn(
                         "h-5 w-5 shrink-0 transition-colors",
-                        isActive ? "text-brand-600" : "text-muted-foreground group-hover:text-foreground"
+                        isActive ? "text-[#4ADE80]" : "text-[#9CA3AF] group-hover:text-white"
                       )} 
                     />
                     <span className="truncate">{item.name}</span>
@@ -121,27 +186,32 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           })}
         </ul>
       </nav>
-    </>
+    </div>
   );
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <aside className="w-64 bg-surface/50 border-r border-border hidden lg:block backdrop-blur-sm">
-        <NavigationContent />
+      <aside 
+        className="w-[60px] hidden lg:flex flex-col border-r"
+        style={{ 
+          backgroundColor: '#0F1115',
+          borderColor: '#2D333B'
+        }}
+      >
+        <NavigationRail />
       </aside>
 
-      {/* Mobile Sheet Navigation */}
       <Sheet open={isMobileOpen} onOpenChange={(open) => !open && onMobileClose?.()}>
         <SheetContent 
           side="left" 
-          className="w-80 p-0 focus-ring"
+          className="w-80 p-0 border-0"
+          style={{ backgroundColor: '#0F1115' }}
           aria-describedby={undefined}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Navigation Menu</SheetTitle>
           </SheetHeader>
-          <NavigationContent />
+          <MobileNavigationContent />
         </SheetContent>
       </Sheet>
     </>

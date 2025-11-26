@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ProjectHealthCard } from "@/components/ui/project-health-card";
 import type { Project } from "@shared/schema";
 import { 
   Building, 
@@ -12,17 +11,36 @@ import {
   Clock,
   DollarSign,
   Calendar,
-  ArrowUp,
-  ArrowDown
+  ArrowRight
 } from "lucide-react";
 
-const getHealthStatus = (progress: number, status: string) => {
-  if (status === "completed") return { icon: CheckCircle, color: { color: 'var(--brand-teal)' }, text: "Complete" };
-  if (status === "delayed") return { icon: AlertTriangle, color: { color: 'var(--brand-coral)' }, text: "At Risk" };
-  if (progress >= 80) return { icon: TrendingUp, color: { color: 'var(--brand-teal)' }, text: "On Track" };
-  if (progress >= 50) return { icon: Clock, color: { color: 'var(--brand-ink)' }, text: "Moderate" };
-  return { icon: TrendingDown, color: { color: 'var(--brand-coral)' }, text: "Behind" };
+const getStatusConfig = (status: string) => {
+  switch (status) {
+    case "completed":
+      return { color: "#10B981", bgColor: "rgba(16, 185, 129, 0.15)", label: "Complete" };
+    case "delayed":
+      return { color: "#EF4444", bgColor: "rgba(239, 68, 68, 0.15)", label: "Delayed" };
+    case "on-hold":
+      return { color: "#F97316", bgColor: "rgba(249, 115, 22, 0.15)", label: "At Risk" };
+    default:
+      return { color: "#4ADE80", bgColor: "rgba(74, 222, 128, 0.15)", label: "On Track" };
+  }
 };
+
+const statusColors = {
+  "On Track": "#4ADE80",
+  "At Risk": "#F97316",
+  "Delayed": "#EF4444",
+};
+
+interface TimelineProject {
+  id: string;
+  name: string;
+  startDate: Date;
+  endDate: Date;
+  progress: number;
+  status: string;
+}
 
 export default function MultiProjectOverview() {
   const [, setLocation] = useLocation();
@@ -31,30 +49,26 @@ export default function MultiProjectOverview() {
     queryKey: ["/api/projects"],
   });
 
-  // Calculate insights from existing projects data only (no new backend calls)
   const delayedProjects = projects.filter(p => p.status === "delayed");
   const behindSchedule = projects.filter(p => p.status === "active" && p.progress < 50);
   const overBudget = projects.filter(p => 
     p.budget && p.actualCost && p.actualCost > p.budget
   );
   
-  // Projects completing this month
   const now = new Date();
-  const thisMonth = projects.filter(p => {
-    if (!p.dueDate) return false;
-    const due = new Date(p.dueDate);
-    return due.getMonth() === now.getMonth() && due.getFullYear() === now.getFullYear();
-  });
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="rounded-2xl bg-white ring-1 ring-slate-200 p-4 shadow-sm">
+      <div className="space-y-6">
+        <div 
+          className="rounded-xl p-5"
+          style={{ backgroundColor: '#161B22', border: '1px solid #2D333B' }}
+        >
           <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-slate-200 rounded w-1/3"></div>
-            <div className="flex flex-wrap gap-2">
+            <div className="h-6 rounded w-1/3" style={{ backgroundColor: '#1F242C' }}></div>
+            <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-8 bg-slate-200 rounded px-3"></div>
+                <div key={i} className="h-8 rounded" style={{ backgroundColor: '#1F242C' }}></div>
               ))}
             </div>
           </div>
@@ -63,135 +77,185 @@ export default function MultiProjectOverview() {
     );
   }
 
+  const timelineProjects: TimelineProject[] = projects.slice(0, 4).map(p => {
+    const createdDate = (p as any).createdAt ? new Date((p as any).createdAt) : new Date();
+    return {
+      id: p.id,
+      name: p.name,
+      startDate: createdDate,
+      endDate: p.dueDate ? new Date(p.dueDate) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      progress: p.progress,
+      status: p.status === "delayed" ? "Delayed" : p.status === "on-hold" ? "At Risk" : "On Track",
+    };
+  });
+
+  const minDate = timelineProjects.length > 0 
+    ? new Date(Math.min(...timelineProjects.map(p => p.startDate.getTime())))
+    : new Date();
+  const maxDate = timelineProjects.length > 0
+    ? new Date(Math.max(...timelineProjects.map(p => p.endDate.getTime())))
+    : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+  const totalDays = Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24)) || 1;
+  
+  const todayPosition = ((now.getTime() - minDate.getTime()) / (maxDate.getTime() - minDate.getTime())) * 100;
+
   return (
-    <div className="space-y-4" data-testid="multi-project-overview">
-      {/* Overview Header */}
-      <div className="rounded-2xl bg-white ring-1 ring-slate-200 p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold" style={{color: 'var(--brand-blue)'}}>Multi-Project Overview</h2>
+    <div className="space-y-6" data-testid="multi-project-overview">
+      <div 
+        className="rounded-xl p-5"
+        style={{ backgroundColor: '#161B22', border: '1px solid #2D333B' }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-semibold text-white">Multi-Project Overview</h2>
+            <div className="flex items-center gap-4 ml-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#4ADE80' }}></div>
+                <span className="text-xs" style={{ color: '#9CA3AF' }}>On Track</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#F97316' }}></div>
+                <span className="text-xs" style={{ color: '#9CA3AF' }}>At Risk</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#EF4444' }}></div>
+                <span className="text-xs" style={{ color: '#9CA3AF' }}>Delayed</span>
+              </div>
+            </div>
+          </div>
           <Button
-            variant="outline"
+            variant="ghost"
             onClick={() => setLocation("/projects")}
-            className="hover:text-white focus:outline-none focus:ring-4 focus:ring-slate-200" style={{color: 'var(--brand-teal)', borderColor: 'var(--brand-teal)'}} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--brand-teal)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            className="text-[#4ADE80] hover:text-[#4ADE80] hover:bg-[#1F242C]"
             data-testid="view-all-projects"
-            aria-label="View all projects"
           >
-            View All Projects
+            View All
+            <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
 
-        {/* Insights - Different from top KPIs, computed from existing project data */}
-        <div className="flex flex-wrap gap-2">
-          {delayedProjects.length > 0 && (
-            <div 
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 border border-red-200 text-sm font-medium text-red-700"
-              data-testid="insight-delayed-projects"
-            >
-              <AlertTriangle className="h-4 w-4" />
-              <span>{delayedProjects.length} delayed project{delayedProjects.length !== 1 ? 's' : ''}</span>
-            </div>
-          )}
-          
-          {behindSchedule.length > 0 && (
-            <div 
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-sm font-medium text-amber-700"
-              data-testid="insight-behind-schedule"
-            >
-              <Clock className="h-4 w-4" />
-              <span>{behindSchedule.length} behind schedule</span>
-            </div>
-          )}
-          
-          {overBudget.length > 0 && (
-            <div 
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-50 border border-orange-200 text-sm font-medium text-orange-700"
-              data-testid="insight-over-budget"
-            >
-              <DollarSign className="h-4 w-4" />
-              <span>{overBudget.length} over budget</span>
-            </div>
-          )}
-          
-          {thisMonth.length > 0 && (
-            <div 
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-sm font-medium text-blue-700"
-              data-testid="insight-completing-this-month"
-            >
-              <Calendar className="h-4 w-4" />
-              <span>{thisMonth.length} due this month</span>
-            </div>
-          )}
-          
-          {delayedProjects.length === 0 && behindSchedule.length === 0 && overBudget.length === 0 && thisMonth.length === 0 && (
-            <div 
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-sm font-medium text-green-700"
-              data-testid="insight-all-on-track"
-            >
-              <CheckCircle className="h-4 w-4" />
-              <span>All projects on track</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Project Health Cards */}
-      <div className="rounded-2xl bg-white ring-1 ring-slate-200 p-4 shadow-sm">
-        <h3 className="text-lg font-semibold mb-4" style={{color: 'var(--brand-blue)'}}>Project Health Status</h3>
-        
         {projects.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Building size={48} className="mx-auto mb-4 text-gray-400" />
-            <p className="text-lg mb-2">No projects yet</p>
-            <p className="text-sm">Create your first project to get started</p>
+          <div className="text-center py-12">
+            <Building size={48} className="mx-auto mb-4" style={{ color: '#9CA3AF' }} />
+            <p className="text-lg mb-2 text-white">No projects yet</p>
+            <p className="text-sm mb-4" style={{ color: '#9CA3AF' }}>Create your first project to get started</p>
             <Button 
-              className="mt-4" style={{backgroundColor: 'var(--brand-teal)'}} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(180, 70%, 35%)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--brand-teal)'}
               onClick={() => setLocation("/projects")}
+              style={{ backgroundColor: '#4ADE80', color: '#0F1115' }}
+              className="hover:opacity-90"
             >
               Create Project
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 md:gap-6">
-            {projects.slice(0, 6).map((project) => {
-              const health = getHealthStatus(project.progress, project.status);
-              const statusMap: Record<string, "active" | "on-hold" | "completed" | "planning"> = {
-                "active": "active",
-                "on-hold": "on-hold",
-                "completed": "completed",
-                "planning": "planning",
-                "delayed": "on-hold",
-              };
-              
-              return (
-                <ProjectHealthCard
-                  key={project.id}
-                  projectName={project.name}
-                  location={project.location}
-                  progress={project.progress}
-                  status={statusMap[project.status] || "planning"}
-                  healthIcon={health.icon}
-                  healthLabel={health.text}
-                  healthColor={health.color.color}
-                  dueDate={project.dueDate ? new Date(project.dueDate).toLocaleDateString() : undefined}
-                  onClick={() => setLocation("/projects")}
-                  data-testid={`project-health-card-${project.id}`}
-                />
-              );
-            })}
-          </div>
-        )}
-
-        {projects.length > 6 && (
-          <div className="mt-4 text-center">
-            <Button
-              variant="outline"
-              onClick={() => setLocation("/projects")}
-              className="hover:text-white" style={{color: 'var(--brand-teal)', borderColor: 'var(--brand-teal)'}} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--brand-teal)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          <div className="relative">
+            <div 
+              className="absolute top-0 bottom-0 w-0.5 z-10"
+              style={{ 
+                left: `${Math.max(0, Math.min(100, todayPosition))}%`,
+                backgroundColor: 'white'
+              }}
             >
-              View All {projects.length} Projects
-            </Button>
+              <div 
+                className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs px-2 py-0.5 rounded whitespace-nowrap"
+                style={{ backgroundColor: 'white', color: '#0F1115' }}
+              >
+                Today
+              </div>
+            </div>
+            
+            <div className="space-y-4 pt-8">
+              {timelineProjects.map((project) => {
+                const startOffset = ((project.startDate.getTime() - minDate.getTime()) / (maxDate.getTime() - minDate.getTime())) * 100;
+                const width = ((project.endDate.getTime() - project.startDate.getTime()) / (maxDate.getTime() - minDate.getTime())) * 100;
+                const statusColor = statusColors[project.status as keyof typeof statusColors] || "#4ADE80";
+                
+                return (
+                  <div key={project.id} className="flex items-center gap-4">
+                    <div className="w-32 shrink-0">
+                      <span className="text-sm font-medium text-white truncate block">{project.name}</span>
+                    </div>
+                    <div className="flex-1 h-7 rounded-full relative" style={{ backgroundColor: '#1F242C' }}>
+                      <div 
+                        className="absolute h-full rounded-full transition-all duration-500"
+                        style={{ 
+                          left: `${startOffset}%`,
+                          width: `${Math.max(width, 5)}%`,
+                          backgroundColor: statusColor,
+                          opacity: 0.3
+                        }}
+                      />
+                      <div 
+                        className="absolute h-full rounded-full transition-all duration-500"
+                        style={{ 
+                          left: `${startOffset}%`,
+                          width: `${Math.max((width * project.progress) / 100, 2)}%`,
+                          backgroundColor: statusColor
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {projects.slice(0, 3).map((project) => {
+          const config = getStatusConfig(project.status);
+          return (
+            <div 
+              key={project.id}
+              className="rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:translate-y-[-4px]"
+              style={{ 
+                backgroundColor: '#161B22',
+                border: '1px solid #2D333B'
+              }}
+              onClick={() => setLocation("/projects")}
+              data-testid={`project-thumbnail-${project.id}`}
+            >
+              <div 
+                className="h-40 relative"
+                style={{ 
+                  background: `linear-gradient(135deg, #1F242C 0%, #0F1115 100%)`
+                }}
+              >
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Building className="h-16 w-16" style={{ color: '#2D333B' }} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                  <h3 className="text-white font-semibold text-sm truncate">{project.name}</h3>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div 
+                      className="flex-1 h-1.5 rounded-full overflow-hidden"
+                      style={{ backgroundColor: '#1F242C' }}
+                    >
+                      <div 
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${project.progress}%`,
+                          backgroundColor: config.color
+                        }}
+                      />
+                    </div>
+                    <span 
+                      className="text-xs px-2 py-0.5 rounded-full font-medium"
+                      style={{ 
+                        backgroundColor: config.bgColor,
+                        color: config.color
+                      }}
+                    >
+                      {config.label}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

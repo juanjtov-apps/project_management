@@ -23,26 +23,26 @@ import type { Task, ScheduleChange, InsertScheduleChange, Project } from "@share
 const getStatusColor = (status: string) => {
   switch (status) {
     case "approved":
-      return "bg-green-100 text-green-800";
+      return "bg-[var(--pro-mint)]/20 text-[var(--pro-mint)]";
     case "rejected":
-      return "bg-red-100 text-red-800";
+      return "bg-[var(--pro-red)]/20 text-[var(--pro-red)]";
     case "pending":
-      return "bg-brand-coral/10 text-brand-coral";
+      return "bg-[var(--pro-orange)]/20 text-[var(--pro-orange)]";
     default:
-      return "bg-gray-100 text-gray-800";
+      return "bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)]";
   }
 };
 
 const getStatusIcon = (status: string) => {
   switch (status) {
     case "approved":
-      return <CheckCircle size={16} className="text-green-600" />;
+      return <CheckCircle size={16} className="text-[var(--pro-mint)]" />;
     case "rejected":
-      return <XCircle size={16} className="text-red-600" />;
+      return <XCircle size={16} className="text-[var(--pro-red)]" />;
     case "pending":
-      return <Clock size={16} className="text-brand-coral" />;
+      return <Clock size={16} className="text-[var(--pro-orange)]" />;
     default:
-      return <AlertTriangle size={16} className="text-gray-600" />;
+      return <AlertTriangle size={16} className="text-[var(--pro-text-secondary)]" />;
   }
 };
 
@@ -69,11 +69,11 @@ export default function Schedule() {
   });
 
   const createScheduleChangeMutation = useMutation({
-    mutationFn: (data: InsertScheduleChange) => apiRequest("POST", "/api/schedule-changes", data),
+    mutationFn: (data: InsertScheduleChange) => apiRequest("/api/schedule-changes", { method: "POST", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/schedule-changes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] }); // Refresh task data to show updated due dates
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setIsCreateDialogOpen(false);
       form.reset();
     },
@@ -81,10 +81,10 @@ export default function Schedule() {
 
   const updateScheduleChangeMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<InsertScheduleChange> }) =>
-      apiRequest("PATCH", `/api/schedule-changes/${id}`, updates),
+      apiRequest(`/api/schedule-changes/${id}`, { method: "PATCH", body: updates }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/schedule-changes"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] }); // Refresh task data to show updated due dates
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
 

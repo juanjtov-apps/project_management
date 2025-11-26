@@ -23,45 +23,45 @@ import type { ProjectLog, InsertProjectLog, Project } from "@shared/schema";
 const getTypeColor = (type: string) => {
   switch (type) {
     case "issue":
-      return "bg-red-100 text-red-800";
+      return "bg-[var(--pro-red)]/20 text-[var(--pro-red)]";
     case "milestone":
-      return "bg-green-100 text-green-800";
+      return "bg-[var(--pro-mint)]/20 text-[var(--pro-mint)]";
     case "safety":
-      return "bg-brand-coral/10 text-brand-coral";
+      return "bg-[var(--pro-orange)]/20 text-[var(--pro-orange)]";
     case "general":
-      return "bg-blue-100 text-blue-800";
+      return "bg-blue-500/20 text-blue-400";
     default:
-      return "bg-gray-100 text-gray-800";
+      return "bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)]";
   }
 };
 
 const getStatusColor = (status: string) => {
   switch (status) {
     case "open":
-      return "bg-blue-100 text-blue-800";
+      return "bg-blue-500/20 text-blue-400";
     case "in-progress":
-      return "bg-brand-coral/10 text-brand-coral";
+      return "bg-[var(--pro-orange)]/20 text-[var(--pro-orange)]";
     case "resolved":
-      return "bg-green-100 text-green-800";
+      return "bg-[var(--pro-mint)]/20 text-[var(--pro-mint)]";
     case "closed":
-      return "bg-gray-100 text-gray-800";
+      return "bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)]";
     default:
-      return "bg-gray-100 text-gray-800";
+      return "bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)]";
   }
 };
 
 const getTypeIcon = (type: string) => {
   switch (type) {
     case "issue":
-      return <AlertTriangle size={16} className="text-red-600" />;
+      return <AlertTriangle size={16} className="text-[var(--pro-red)]" />;
     case "milestone":
-      return <CheckCircle size={16} className="text-green-600" />;
+      return <CheckCircle size={16} className="text-[var(--pro-mint)]" />;
     case "safety":
-      return <AlertTriangle size={16} className="text-brand-coral" />;
+      return <AlertTriangle size={16} className="text-[var(--pro-orange)]" />;
     case "general":
-      return <FileText size={16} className="text-blue-600" />;
+      return <FileText size={16} className="text-blue-400" />;
     default:
-      return <FileText size={16} className="text-gray-600" />;
+      return <FileText size={16} className="text-[var(--pro-text-secondary)]" />;
   }
 };
 
@@ -360,10 +360,8 @@ export default function Logs() {
     } catch (error) {
       console.error('❌ Failed to get upload parameters:', error);
       toast({
-
         title: "Upload Error", 
-        description: `Failed to get upload URL: ${error.message}`,
-
+        description: `Failed to get upload URL: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive",
       });
       throw error;

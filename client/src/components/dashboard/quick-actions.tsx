@@ -4,100 +4,70 @@ import { useLocation } from "wouter";
 
 function QuickActions() {
   const [, setLocation] = useLocation();
-  
-  console.log("QuickActions component rendering - this should appear!");
-  console.log("setLocation function:", typeof setLocation);
-  
-  // Force re-render test
-  console.log("Current timestamp:", Date.now());
 
   const actions = [
     {
       icon: Plus,
       label: "Add Project",
       isPrimary: true,
-      onClick: () => {
-        console.log("Navigating to projects");
-        setLocation("/projects");
-      }
+      onClick: () => setLocation("/projects")
     },
     {
       icon: ClipboardList,
       label: "Add Tasks",
       isPrimary: false,
-      onClick: () => {
-        console.log("Navigating to tasks");
-        setLocation("/tasks");
-      }
+      onClick: () => setLocation("/tasks")
     },
     {
       icon: Camera,
       label: "Upload Photos",
       isPrimary: false,
-      onClick: () => {
-        console.log("Navigating to photos");
-        setLocation("/photos");
-      }
+      onClick: () => setLocation("/photos")
     },
     {
       icon: UserPlus,
       label: "Assign Task",
       isPrimary: false,
-      onClick: () => {
-        console.log("Navigating to subs");
-        setLocation("/subs");
-      }
+      onClick: () => setLocation("/subs")
     }
   ];
 
-  console.log("About to render QuickActions, actions count:", actions.length);
-
-  if (!actions || actions.length === 0) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800">Quick Actions</h3>
-        </div>
-        <div className="p-6">
-          <div className="text-gray-500">Loading actions...</div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="elevated w-full">
-      <div className="p-6 border-b border-brand-grey">
-        <h3 className="text-lg font-semibold text-brand-blue">Quick Actions</h3>
+    <div 
+      className="rounded-xl w-full"
+      style={{ backgroundColor: '#161B22', border: '1px solid #2D333B' }}
+      data-testid="quick-actions"
+    >
+      <div className="p-5 border-b" style={{ borderColor: '#2D333B' }}>
+        <h3 className="text-lg font-semibold text-white">Quick Actions</h3>
       </div>
-      <div className="p-6 grid grid-cols-2 gap-4">
+      <div className="p-5 grid grid-cols-2 gap-3">
         {actions.map((action, index) => {
           const Icon = action.icon;
-          console.log(`Rendering action ${index}:`, action.label);
           return (
-            <Button
+            <button
               key={`action-${index}-${action.label}`}
-              variant="outline"
-              className={`border border-gray-200 shadow-sm flex flex-col items-center py-6 gap-2 h-24 transition-all duration-200 cursor-pointer hover:shadow-md hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-teal/40 focus-visible:outline-offset-2 ${
-                action.isPrimary 
-                  ? "bg-brand-coral text-white hover:bg-brand-coral/90 border-brand-coral" 
-                  : "bg-white text-brand-blue hover:bg-brand-teal/10 hover:border-brand-teal"
-              }`}
+              className="flex flex-col items-center justify-center py-5 gap-2 rounded-xl transition-all duration-200 cursor-pointer hover:translate-y-[-2px]"
+              style={{
+                backgroundColor: action.isPrimary ? '#4ADE80' : '#1F242C',
+                border: action.isPrimary ? 'none' : '1px solid #2D333B',
+                color: action.isPrimary ? '#0F1115' : '#9CA3AF',
+              }}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log("Button clicked:", action.label);
                 action.onClick();
               }}
+              data-testid={`quick-action-${action.label.toLowerCase().replace(/\s+/g, '-')}`}
             >
               <Icon 
-                className={`transition-all duration-200 ${action.isPrimary ? "text-white" : "text-brand-teal hover:-translate-y-0.5"}`}
-                size={24} 
+                size={24}
+                style={{ color: action.isPrimary ? '#0F1115' : '#4ADE80' }}
               />
-              <span className="font-medium text-inherit text-sm text-center leading-tight">
+              <span className="font-medium text-sm text-center leading-tight">
                 {action.label}
               </span>
-            </Button>
+            </button>
           );
         })}
       </div>

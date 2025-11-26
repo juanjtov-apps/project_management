@@ -7,18 +7,18 @@ import { apiRequest } from "@/lib/queryClient";
 import type { Task } from "@shared/schema";
 import { AlertTriangle, Clock, ArrowRight } from "lucide-react";
 
-const getPriorityColor = (priority: string) => {
+const getPriorityConfig = (priority: string) => {
   switch (priority) {
     case "critical":
-      return "bg-red-100 text-red-800 border-red-200";
+      return { bg: "rgba(239, 68, 68, 0.15)", color: "#EF4444", label: "Critical" };
     case "high":
-      return "bg-brand-coral/10 text-brand-coral border-brand-coral/20";
+      return { bg: "rgba(249, 115, 22, 0.15)", color: "#F97316", label: "High" };
     case "medium":
-      return "bg-blue-100 text-blue-800 border-blue-200";
+      return { bg: "rgba(96, 165, 250, 0.15)", color: "#60A5FA", label: "Medium" };
     case "low":
-      return "bg-green-100 text-green-800 border-green-200";
+      return { bg: "rgba(74, 222, 128, 0.15)", color: "#4ADE80", label: "Low" };
     default:
-      return "bg-gray-100 text-gray-800 border-gray-200";
+      return { bg: "rgba(156, 163, 175, 0.15)", color: "#9CA3AF", label: priority };
   }
 };
 
@@ -42,25 +42,20 @@ export default function ExpiredUpcomingTasks() {
 
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) =>
-      apiRequest(`/api/tasks/${id}`, {
-        method: "PATCH",
-        body: updates,
-      }),
+      apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: updates }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
     },
   });
 
-  // Get expired tasks (overdue and not completed)
   const expiredTasks = tasks.filter(task => {
     if (!task.dueDate || task.status === "completed") return false;
     const taskDate = new Date(task.dueDate);
     const now = new Date();
     return taskDate < now;
-  }).slice(0, 5); // Show top 5 expired tasks
+  }).slice(0, 5);
 
-  // Get next 3 upcoming tasks by priority (due in future, not completed)
   const upcomingTasks = tasks
     .filter(task => {
       if (!task.dueDate || task.status === "completed") return false;
@@ -69,7 +64,6 @@ export default function ExpiredUpcomingTasks() {
       return taskDate >= now;
     })
     .sort((a, b) => {
-      // Sort by priority first, then by due date
       const priorityDiff = getPriorityValue(b.priority) - getPriorityValue(a.priority);
       if (priorityDiff !== 0) return priorityDiff;
       
@@ -77,7 +71,7 @@ export default function ExpiredUpcomingTasks() {
       const bDate = new Date(b.dueDate!);
       return aDate.getTime() - bDate.getTime();
     })
-    .slice(0, 3); // Show next 3 tasks
+    .slice(0, 3);
 
   const handleTaskToggle = (task: Task, completed: boolean) => {
     updateTaskMutation.mutate({
@@ -106,39 +100,42 @@ export default function ExpiredUpcomingTasks() {
   };
 
   const handleTaskClick = (task: Task) => {
-    console.log('🔍 Dashboard task clicked:', task.title);
     setLocation(`/tasks`);
   };
 
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Expired Tasks Loading */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-red-600">Expired Tasks</h3>
+        <div 
+          className="rounded-xl"
+          style={{ backgroundColor: '#161B22', border: '1px solid #2D333B' }}
+        >
+          <div className="p-5 border-b" style={{ borderColor: '#2D333B' }}>
+            <h3 className="text-lg font-semibold" style={{ color: '#EF4444' }}>Expired Tasks</h3>
           </div>
-          <div className="p-6">
+          <div className="p-5">
             <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="animate-pulse">
-                  <div className="h-16 bg-gray-200 rounded-lg"></div>
+                  <div className="h-16 rounded-lg" style={{ backgroundColor: '#1F242C' }}></div>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Upcoming Tasks Loading */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-blue-600">Next 3 Priority Tasks</h3>
+        <div 
+          className="rounded-xl"
+          style={{ backgroundColor: '#161B22', border: '1px solid #2D333B' }}
+        >
+          <div className="p-5 border-b" style={{ borderColor: '#2D333B' }}>
+            <h3 className="text-lg font-semibold" style={{ color: '#60A5FA' }}>Next 3 Priority Tasks</h3>
           </div>
-          <div className="p-6">
+          <div className="p-5">
             <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="animate-pulse">
-                  <div className="h-16 bg-gray-200 rounded-lg"></div>
+                  <div className="h-16 rounded-lg" style={{ backgroundColor: '#1F242C' }}></div>
                 </div>
               ))}
             </div>
@@ -149,20 +146,29 @@ export default function ExpiredUpcomingTasks() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Expired Tasks */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-testid="expired-upcoming-tasks">
+      <div 
+        className="rounded-xl"
+        style={{ backgroundColor: '#161B22', border: '1px solid #2D333B' }}
+      >
+        <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#2D333B' }}>
           <div className="flex items-center space-x-2">
-            <AlertTriangle className="text-red-500" size={20} />
-            <h3 className="text-lg font-semibold text-red-600">Expired Tasks</h3>
-            <Badge className="bg-red-100 text-red-800 border-red-200">
+            <AlertTriangle size={20} style={{ color: '#EF4444' }} />
+            <h3 className="text-lg font-semibold" style={{ color: '#EF4444' }}>Expired Tasks</h3>
+            <span 
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+              style={{ 
+                backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                color: '#EF4444'
+              }}
+            >
               {expiredTasks.length}
-            </Badge>
+            </span>
           </div>
           <Button
             variant="ghost"
-            className="text-red-600 hover:text-red-700 text-sm font-medium"
+            className="text-sm font-medium"
+            style={{ color: '#EF4444' }}
             onClick={() => setLocation("/tasks")}
             data-testid="view-all-expired-tasks"
           >
@@ -170,65 +176,82 @@ export default function ExpiredUpcomingTasks() {
             <ArrowRight size={16} className="ml-1" />
           </Button>
         </div>
-        <div className="p-6">
+        <div className="p-5">
           <div className="space-y-3">
             {expiredTasks.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Clock size={32} className="mx-auto mb-2 text-gray-400" />
-                <p>No expired tasks</p>
-                <p className="text-sm">Great job staying on top of deadlines!</p>
+              <div className="text-center py-8">
+                <Clock size={32} className="mx-auto mb-2" style={{ color: '#9CA3AF' }} />
+                <p className="text-white font-medium">No expired tasks</p>
+                <p className="text-sm" style={{ color: '#9CA3AF' }}>Great job staying on top of deadlines!</p>
               </div>
             ) : (
-              expiredTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-center space-x-3 p-3 rounded-lg bg-red-50 border border-red-100 hover:bg-red-100 transition-colors cursor-pointer"
-                  data-testid={`expired-task-${task.id}`}
-                  onClick={(e) => {
-                    // Don't trigger click if checkbox was clicked
-                    if (!(e.target as HTMLElement).closest('[role="checkbox"]')) {
-                      handleTaskClick(task);
-                    }
-                  }}
-                >
-                  <Checkbox
-                    checked={task.status === "completed"}
-                    onCheckedChange={(checked) => handleTaskToggle(task, !!checked)}
-                    className="data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600"
-                  />
-                  <div className="flex-1">
-                    <h4 className={`font-medium ${task.status === "completed" ? "line-through text-gray-500" : "text-red-800"}`}>
-                      {task.title}
-                    </h4>
-                    <p className={`text-sm ${task.status === "completed" ? "text-gray-400" : "text-red-600"}`}>
-                      {task.description}
-                    </p>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Badge className={getPriorityColor(task.priority)}>
-                        {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                      </Badge>
-                      <span className="text-xs text-red-600 font-medium">
-                        {formatDueDate(task.dueDate!)}
-                      </span>
+              expiredTasks.map((task) => {
+                const config = getPriorityConfig(task.priority);
+                return (
+                  <div
+                    key={task.id}
+                    className="flex items-center space-x-3 p-4 rounded-xl cursor-pointer transition-all duration-200 hover:translate-y-[-2px]"
+                    style={{ 
+                      backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                      border: '1px solid rgba(239, 68, 68, 0.2)'
+                    }}
+                    data-testid={`expired-task-${task.id}`}
+                    onClick={(e) => {
+                      if (!(e.target as HTMLElement).closest('[role="checkbox"]')) {
+                        handleTaskClick(task);
+                      }
+                    }}
+                  >
+                    <Checkbox
+                      checked={task.status === "completed"}
+                      onCheckedChange={(checked) => handleTaskToggle(task, !!checked)}
+                      className="data-[state=checked]:bg-[#EF4444] data-[state=checked]:border-[#EF4444]"
+                    />
+                    <div className="flex-1">
+                      <h4 className={`font-medium ${task.status === "completed" ? "line-through" : ""}`}
+                        style={{ color: task.status === "completed" ? '#6B7280' : '#FFFFFF' }}>
+                        {task.title}
+                      </h4>
+                      <p className={`text-sm ${task.status === "completed" ? "line-through" : ""}`}
+                        style={{ color: task.status === "completed" ? '#4B5563' : '#9CA3AF' }}>
+                        {task.description}
+                      </p>
+                      <div className="flex items-center space-x-2 mt-2">
+                        <span 
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                          style={{ 
+                            backgroundColor: config.bg,
+                            color: config.color
+                          }}
+                        >
+                          {config.label}
+                        </span>
+                        <span className="text-xs font-medium" style={{ color: '#EF4444' }}>
+                          {formatDueDate(task.dueDate!)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
       </div>
 
-      {/* Next 3 Priority Tasks */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+      <div 
+        className="rounded-xl"
+        style={{ backgroundColor: '#161B22', border: '1px solid #2D333B' }}
+      >
+        <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#2D333B' }}>
           <div className="flex items-center space-x-2">
-            <Clock className="text-blue-500" size={20} />
-            <h3 className="text-lg font-semibold text-blue-600">Next 3 Priority Tasks</h3>
+            <Clock size={20} style={{ color: '#60A5FA' }} />
+            <h3 className="text-lg font-semibold" style={{ color: '#60A5FA' }}>Next 3 Priority Tasks</h3>
           </div>
           <Button
             variant="ghost"
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+            className="text-sm font-medium"
+            style={{ color: '#60A5FA' }}
             onClick={() => setLocation("/tasks")}
             data-testid="view-all-upcoming-tasks"
           >
@@ -236,53 +259,73 @@ export default function ExpiredUpcomingTasks() {
             <ArrowRight size={16} className="ml-1" />
           </Button>
         </div>
-        <div className="p-6">
+        <div className="p-5">
           <div className="space-y-3">
             {upcomingTasks.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Clock size={32} className="mx-auto mb-2 text-gray-400" />
-                <p>No upcoming tasks</p>
-                <p className="text-sm">You're all caught up!</p>
+              <div className="text-center py-8">
+                <Clock size={32} className="mx-auto mb-2" style={{ color: '#9CA3AF' }} />
+                <p className="text-white font-medium">No upcoming tasks</p>
+                <p className="text-sm" style={{ color: '#9CA3AF' }}>You're all caught up!</p>
               </div>
             ) : (
-              upcomingTasks.map((task, index) => (
-                <div
-                  key={task.id}
-                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-blue-50 border border-blue-100 transition-colors cursor-pointer"
-                  data-testid={`upcoming-task-${task.id}`}
-                  onClick={(e) => {
-                    // Don't trigger click if checkbox was clicked
-                    if (!(e.target as HTMLElement).closest('[role="checkbox"]')) {
-                      handleTaskClick(task);
-                    }
-                  }}
-                >
-                  <div className="flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-600 rounded-full text-sm font-semibold">
-                    {index + 1}
-                  </div>
-                  <Checkbox
-                    checked={task.status === "completed"}
-                    onCheckedChange={(checked) => handleTaskToggle(task, !!checked)}
-                    className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                  />
-                  <div className="flex-1">
-                    <h4 className={`font-medium ${task.status === "completed" ? "line-through text-gray-500" : "text-blue-800"}`}>
-                      {task.title}
-                    </h4>
-                    <p className={`text-sm ${task.status === "completed" ? "text-gray-400" : "text-gray-600"}`}>
-                      {task.description}
-                    </p>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Badge className={getPriorityColor(task.priority)}>
-                        {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                      </Badge>
-                      <span className="text-xs text-blue-600 font-medium">
-                        {formatDueDate(task.dueDate!)}
-                      </span>
+              upcomingTasks.map((task, index) => {
+                const config = getPriorityConfig(task.priority);
+                return (
+                  <div
+                    key={task.id}
+                    className="flex items-center space-x-3 p-4 rounded-xl cursor-pointer transition-all duration-200 hover:translate-y-[-2px]"
+                    style={{ 
+                      backgroundColor: 'rgba(96, 165, 250, 0.08)',
+                      border: '1px solid rgba(96, 165, 250, 0.2)'
+                    }}
+                    data-testid={`upcoming-task-${task.id}`}
+                    onClick={(e) => {
+                      if (!(e.target as HTMLElement).closest('[role="checkbox"]')) {
+                        handleTaskClick(task);
+                      }
+                    }}
+                  >
+                    <div 
+                      className="flex items-center justify-center w-6 h-6 rounded-full text-sm font-semibold"
+                      style={{ 
+                        backgroundColor: 'rgba(96, 165, 250, 0.2)',
+                        color: '#60A5FA'
+                      }}
+                    >
+                      {index + 1}
+                    </div>
+                    <Checkbox
+                      checked={task.status === "completed"}
+                      onCheckedChange={(checked) => handleTaskToggle(task, !!checked)}
+                      className="data-[state=checked]:bg-[#60A5FA] data-[state=checked]:border-[#60A5FA]"
+                    />
+                    <div className="flex-1">
+                      <h4 className={`font-medium ${task.status === "completed" ? "line-through" : ""}`}
+                        style={{ color: task.status === "completed" ? '#6B7280' : '#FFFFFF' }}>
+                        {task.title}
+                      </h4>
+                      <p className={`text-sm ${task.status === "completed" ? "line-through" : ""}`}
+                        style={{ color: task.status === "completed" ? '#4B5563' : '#9CA3AF' }}>
+                        {task.description}
+                      </p>
+                      <div className="flex items-center space-x-2 mt-2">
+                        <span 
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                          style={{ 
+                            backgroundColor: config.bg,
+                            color: config.color
+                          }}
+                        >
+                          {config.label}
+                        </span>
+                        <span className="text-xs font-medium" style={{ color: '#60A5FA' }}>
+                          {formatDueDate(task.dueDate!)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

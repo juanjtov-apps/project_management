@@ -17,13 +17,11 @@ interface ActivityItem {
 }
 
 export default function RecentActivity() {
-  // Get real activities from API
   const { data: activities = [], isLoading } = useQuery<ActivityItem[]>({
     queryKey: ['/api/activities'],
     retry: false
   });
 
-  // Map activity types to icons
   const getActivityIcon = (actionType: string) => {
     switch (actionType) {
       case 'task_created': return Plus;
@@ -36,7 +34,6 @@ export default function RecentActivity() {
     }
   };
 
-  // Format relative time
   const formatRelativeTime = (dateString: string) => {
     try {
       return formatDistanceToNow(new Date(dateString), { addSuffix: true });
@@ -45,7 +42,6 @@ export default function RecentActivity() {
     }
   };
 
-  // Group activities by day
   const groupActivitiesByDay = (activities: ActivityItem[]) => {
     const groups: { [key: string]: ActivityItem[] } = {};
     
@@ -67,7 +63,6 @@ export default function RecentActivity() {
         }
         groups[dayLabel].push(activity);
       } catch {
-        // Fallback for invalid dates
         if (!groups['Recently']) {
           groups['Recently'] = [];
         }
@@ -82,18 +77,21 @@ export default function RecentActivity() {
 
   if (isLoading) {
     return (
-      <div className="elevated">
-        <div className="p-6 border-b border-brand-grey">
-          <h3 className="text-lg font-semibold text-brand-blue">Recent Activity</h3>
+      <div 
+        className="rounded-xl"
+        style={{ backgroundColor: '#161B22', border: '1px solid #2D333B' }}
+      >
+        <div className="p-5 border-b" style={{ borderColor: '#2D333B' }}>
+          <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
         </div>
-        <div className="p-6">
+        <div className="p-5">
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-start space-x-3 pb-4 border-b border-brand-grey/50 last:border-b-0">
-                <div className="w-2 h-2 bg-brand-grey rounded-full mt-2 flex-shrink-0 animate-pulse"></div>
+              <div key={i} className="flex items-start space-x-3 pb-4 border-b last:border-b-0" style={{ borderColor: '#2D333B' }}>
+                <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0 animate-pulse" style={{ backgroundColor: '#2D333B' }}></div>
                 <div className="flex-1">
-                  <div className="h-4 bg-brand-grey/20 rounded animate-pulse mb-2"></div>
-                  <div className="h-3 bg-brand-grey/20 rounded animate-pulse w-3/4"></div>
+                  <div className="h-4 rounded animate-pulse mb-2" style={{ backgroundColor: '#1F242C' }}></div>
+                  <div className="h-3 rounded animate-pulse w-3/4" style={{ backgroundColor: '#1F242C' }}></div>
                 </div>
               </div>
             ))}
@@ -104,51 +102,58 @@ export default function RecentActivity() {
   }
 
   return (
-    <div className="elevated">
-      <div className="p-6 border-b border-brand-grey">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-brand-blue">Recent Activity</h3>
-          <button className="text-sm text-brand-coral hover:text-brand-coral/80 font-medium focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:ring-offset-2 rounded px-1">
-            View all
-          </button>
-        </div>
+    <div 
+      className="rounded-xl"
+      style={{ backgroundColor: '#161B22', border: '1px solid #2D333B' }}
+      data-testid="recent-activity"
+    >
+      <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#2D333B' }}>
+        <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
+        <button 
+          className="text-sm font-medium transition-colors hover:opacity-80"
+          style={{ color: '#4ADE80' }}
+          data-testid="view-all-activity"
+        >
+          View all
+        </button>
       </div>
-      <div className="p-6">
+      <div className="p-5">
         {activities.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-brand-text opacity-60">No recent activity in your company</p>
+            <p style={{ color: '#9CA3AF' }}>No recent activity in your company</p>
           </div>
         ) : (
           <div className="space-y-6">
             {Object.entries(groupedActivities).map(([dayLabel, dayActivities]) => (
               <div key={dayLabel} className="space-y-3">
-                <div className="sticky top-0 bg-background/80 backdrop-blur-sm py-2 -mx-6 px-6">
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{dayLabel}</h4>
+                <div className="sticky top-0 py-2 -mx-5 px-5" style={{ backgroundColor: '#161B22' }}>
+                  <h4 className="text-sm font-semibold uppercase tracking-wide" style={{ color: '#9CA3AF' }}>{dayLabel}</h4>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {dayActivities.slice(0, 5).map((activity) => {
                     const Icon = getActivityIcon(activity.action_type);
                     return (
                       <button
                         key={activity.id}
-                        className="w-full flex items-start space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors text-left focus-ring"
+                        className="w-full flex items-start space-x-3 p-3 rounded-lg transition-colors text-left hover:bg-[#1F242C]"
                         onClick={() => {
                           console.log('Navigate to:', activity.entity_type, activity.entity_id);
                         }}
+                        data-testid={`activity-item-${activity.id}`}
                       >
-                        <div className="w-2 h-2 bg-brand-teal rounded-full mt-2 flex-shrink-0"></div>
+                        <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0" style={{ backgroundColor: '#4ADE80' }}></div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-foreground font-medium truncate">
+                          <p className="text-sm font-medium truncate text-white">
                             {activity.first_name || activity.email || 'User'}
                           </p>
-                          <p className="text-sm text-muted-foreground mt-1 truncate">
+                          <p className="text-sm mt-1 truncate" style={{ color: '#9CA3AF' }}>
                             {activity.description}
                           </p>
                           <div className="flex items-center justify-between mt-1">
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs" style={{ color: '#6B7280' }}>
                               {formatRelativeTime(activity.created_at)}
                             </p>
-                            <Icon className="w-4 h-4 text-brand-teal flex-shrink-0" />
+                            <Icon className="w-4 h-4 flex-shrink-0" style={{ color: '#4ADE80' }} />
                           </div>
                         </div>
                       </button>

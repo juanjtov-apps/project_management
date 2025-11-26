@@ -23,30 +23,24 @@ interface HeaderProps {
 export default function Header({ onToggleMobileMenu, onToggleNotifications, pageTitle = "Dashboard" }: HeaderProps) {
   const { user } = useAuth() as { user: User | undefined };
   
-  // Use new PM notifications endpoint for unread count
-  // Pause polling when any dialog is open to prevent conflicts
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
-  // Listen for dialog open/close events
   useEffect(() => {
     const handleDialogOpen = () => setIsDialogOpen(true);
     const handleDialogClose = () => setIsDialogOpen(false);
     
-    // Listen for dialog state changes via custom events
     window.addEventListener('dialog:open', handleDialogOpen);
     window.addEventListener('dialog:close', handleDialogClose);
     
-    // Also check for open dialogs in the DOM
     const checkDialogs = () => {
       const hasOpenDialog = document.querySelector('[role="dialog"][data-state="open"]') !== null;
       setIsDialogOpen(hasOpenDialog);
     };
     
-    // Check periodically and on mutations
     const observer = new MutationObserver(checkDialogs);
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-state'] });
     
-    checkDialogs(); // Initial check
+    checkDialogs();
     
     return () => {
       window.removeEventListener('dialog:open', handleDialogOpen);
@@ -57,11 +51,10 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
   
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: ["/api/pm-notifications/unread-count"],
-    refetchInterval: isDialogOpen ? false : 15000, // Pause polling when dialog is open
-    refetchOnWindowFocus: !isDialogOpen, // Also pause refetch on focus when dialog is open
+    refetchInterval: isDialogOpen ? false : 15000,
+    refetchOnWindowFocus: !isDialogOpen,
   });
 
-  // Get current user data for organization selector
   const { data: currentUser } = useQuery<any>({
     queryKey: ['/api/v1/auth/user'],
     retry: false,
@@ -88,27 +81,27 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
       window.location.href = "/login";
     } catch (error) {
       console.error("Logout error:", error);
-      // Force redirect anyway
       window.location.href = "/login";
     }
   };
 
   return (
     <header 
-      className="sticky top-0 z-40 bg-white border-b border-slate-200 px-4 py-2"
+      className="sticky top-0 z-40 border-b"
       style={{
         height: '56px',
+        backgroundColor: '#0F1115',
+        borderColor: '#2D333B',
         paddingLeft: 'max(1rem, env(safe-area-inset-left))',
         paddingRight: 'max(1rem, env(safe-area-inset-right))'
       }}
     >
-      <div className="flex h-full items-center justify-between gap-3 max-w-screen-2xl mx-auto">
-        {/* Left: Mobile menu + Breadcrumb/Page Title */}
+      <div className="flex h-full items-center justify-between gap-3 max-w-screen-2xl mx-auto px-4">
         <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden min-w-[48px] min-h-[48px] p-0 flex-shrink-0"
+            className="lg:hidden min-w-[48px] min-h-[48px] p-0 flex-shrink-0 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C]"
             onClick={onToggleMobileMenu}
             aria-label="Open navigation menu"
             data-testid="button-mobile-menu"
@@ -116,95 +109,117 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
             <Menu className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-sm text-slate-500 hidden md:block">Dashboard</span>
-            <ChevronRight className="h-4 w-4 text-slate-400 hidden md:block" />
-            <h1 className="text-lg font-semibold text-slate-900 truncate">{pageTitle}</h1>
+            <span className="text-sm hidden md:block" style={{ color: '#9CA3AF' }}>Dashboard</span>
+            <ChevronRight className="h-4 w-4 hidden md:block" style={{ color: '#9CA3AF' }} />
+            <h1 className="text-lg font-semibold text-white truncate">{pageTitle}</h1>
           </div>
         </div>
           
-        {/* Right: Organization Selector (root users) + Search + Notifications + User */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Organization Selector for Root Users */}
           {currentUser && (currentUser.isRootAdmin || currentUser.isRoot) && (
             <div className="hidden md:block">
               <OrganizationSelector currentUser={currentUser} />
             </div>
           )}
           
-          {/* Search Icon */}
           <Button
             variant="ghost"
             size="icon"
-            className="min-w-[48px] min-h-[48px] p-0 focus:outline-none focus:ring-4 focus:ring-slate-200"
+            className="min-w-[48px] min-h-[48px] p-0 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C] focus:outline-none focus:ring-2"
+            style={{ '--tw-ring-color': '#4ADE80' } as any}
             aria-label="Search"
             data-testid="button-search"
           >
             <Search className="h-5 w-5" />
           </Button>
 
-          {/* Notifications */}
           <Button
             variant="ghost"
             size="icon"
-            className="relative min-w-[48px] min-h-[48px] p-0 focus:outline-none focus:ring-4 focus:ring-slate-200"
+            className="relative min-w-[48px] min-h-[48px] p-0 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C] focus:outline-none focus:ring-2"
+            style={{ '--tw-ring-color': '#4ADE80' } as any}
             onClick={onToggleNotifications}
             aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
             data-testid="button-notifications"
           >
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 bg-danger text-white text-xs rounded-full min-w-5 h-5 flex items-center justify-center px-1">
+              <span 
+                className="absolute top-1 right-1 text-white text-xs rounded-full min-w-5 h-5 flex items-center justify-center px-1"
+                style={{ backgroundColor: '#EF4444' }}
+              >
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </Button>
 
-          {/* User Avatar with Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="min-h-[48px] p-0 px-2 data-[state=open]:bg-slate-100 focus:outline-none focus:ring-4 focus:ring-slate-200"
+                className="min-h-[48px] p-0 px-2 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C] data-[state=open]:bg-[#1F242C] focus:outline-none focus:ring-2"
+                style={{ '--tw-ring-color': '#4ADE80' } as any}
                 aria-label="User menu"
                 data-testid="button-user-menu"
               >
                 <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-blue-600 text-white text-sm font-medium flex items-center justify-center flex-shrink-0">
+                  <div 
+                    className="h-8 w-8 rounded-full text-sm font-medium flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: '#4ADE80', color: '#0F1115' }}
+                  >
                     {getUserInitials(user)}
                   </div>
                   <div className="hidden md:block text-left min-w-0">
-                    <div className="text-sm font-medium text-slate-900 truncate">
+                    <div className="text-sm font-medium text-white truncate">
                       {user?.firstName || user?.name || "User"}
                     </div>
-                    <div className="text-xs text-slate-500 capitalize truncate">
+                    <div className="text-xs capitalize truncate" style={{ color: '#9CA3AF' }}>
                       {user?.role?.replace(/_/g, ' ') || 'User'}
                     </div>
                   </div>
                 </div>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent 
+              align="end" 
+              className="w-56 border"
+              style={{ 
+                backgroundColor: '#161B22',
+                borderColor: '#2D333B',
+                color: '#FFFFFF'
+              }}
+            >
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium">
+                  <p className="text-sm font-medium text-white">
                     {user?.firstName || user?.name || user?.email || "User"}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs" style={{ color: '#9CA3AF' }}>
                     {user?.email}
                   </p>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem disabled>
+              <DropdownMenuSeparator style={{ backgroundColor: '#2D333B' }} />
+              <DropdownMenuItem 
+                disabled 
+                className="text-[#9CA3AF] focus:bg-[#1F242C] focus:text-white"
+              >
                 <UserIcon className="mr-2 h-4 w-4" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem disabled>
+              <DropdownMenuItem 
+                disabled 
+                className="text-[#9CA3AF] focus:bg-[#1F242C] focus:text-white"
+              >
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-danger focus:text-danger">
+              <DropdownMenuSeparator style={{ backgroundColor: '#2D333B' }} />
+              <DropdownMenuItem 
+                onClick={handleLogout} 
+                className="focus:bg-[#1F242C]"
+                style={{ color: '#EF4444' }}
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out
               </DropdownMenuItem>

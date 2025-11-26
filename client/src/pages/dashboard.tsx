@@ -20,115 +20,125 @@ import CommunicationFeed from "@/components/communications/communication-feed";
 import FinancialHealthDashboard from "@/components/financial/financial-health-dashboard";
 
 export default function Dashboard() {
-  console.log("Dashboard component rendering");
   const [isMobileFABOpen, setIsMobileFABOpen] = useState(false);
   
   return (
-    <div className="overflow-hidden h-full" data-testid="dashboard">
+    <div 
+      className="overflow-hidden h-full" 
+      data-testid="dashboard"
+      style={{ backgroundColor: '#0F1115' }}
+    >
       <div className="overflow-auto h-full">
-        <div className="mx-auto max-w-screen-lg px-6 md:px-8 space-y-8 mt-6">
-      {/* Quick Stats */}
-      <StatsCards />
+        <div className="mx-auto max-w-screen-xl px-6 md:px-8 space-y-8 py-6">
+          <StatsCards />
 
-      <Tabs defaultValue="overview" className="w-full">
-        <div className="sticky top-[56px] z-30 bg-white border-b border-slate-200 px-2 py-2 -mx-6 md:-mx-8 mb-8">
-          <TabsList className="w-full grid grid-cols-2 md:grid-cols-4 p-1 bg-slate-50 rounded-lg">
-            <TabsTrigger 
-              value="overview" 
-              className="min-h-[48px] data-[state=active]:bg-white data-[state=active]:shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-200" 
-              style={{color: 'var(--brand-blue)'}}
-              aria-label="Project Overview"
+          <Tabs defaultValue="overview" className="w-full">
+            <div 
+              className="sticky top-[56px] z-30 border-b px-2 py-2 -mx-6 md:-mx-8 mb-8"
+              style={{ 
+                backgroundColor: '#0F1115',
+                borderColor: '#2D333B'
+              }}
             >
-              Project Overview
-            </TabsTrigger>
-            <TabsTrigger 
-              value="tasks" 
-              className="min-h-[48px] data-[state=active]:bg-white data-[state=active]:shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-200" 
-              style={{color: 'var(--brand-blue)'}}
-              aria-label="Task Management"
-            >
-              Task Management
-            </TabsTrigger>
-            <TabsTrigger 
-              value="communications" 
-              className="min-h-[48px] data-[state=active]:bg-white data-[state=active]:shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-200" 
-              style={{color: 'var(--brand-blue)'}}
-              aria-label="Communications"
-            >
-              Communications
-            </TabsTrigger>
-            <TabsTrigger 
-              value="financial" 
-              className="min-h-[48px] data-[state=active]:bg-white data-[state=active]:shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-200" 
-              style={{color: 'var(--brand-blue)'}}
-              aria-label="Financial Health"
-            >
-              Financial Health
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="overview" className="space-y-8">
-          {/* Multi-Project Overview Dashboard */}
-          <MultiProjectOverview />
-
-          {/* Recent Activity & Quick Actions */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
-              <RecentActivity />
+              <TabsList 
+                className="w-full grid grid-cols-2 md:grid-cols-4 p-1 rounded-xl"
+                style={{ backgroundColor: '#161B22' }}
+              >
+                <TabsTrigger 
+                  value="overview" 
+                  className="min-h-[48px] text-[#9CA3AF] data-[state=active]:text-white data-[state=active]:bg-[#1F242C] rounded-lg transition-all"
+                  aria-label="Project Overview"
+                  data-testid="tab-overview"
+                >
+                  Project Overview
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="tasks" 
+                  className="min-h-[48px] text-[#9CA3AF] data-[state=active]:text-white data-[state=active]:bg-[#1F242C] rounded-lg transition-all"
+                  aria-label="Task Management"
+                  data-testid="tab-tasks"
+                >
+                  Task Management
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="communications" 
+                  className="min-h-[48px] text-[#9CA3AF] data-[state=active]:text-white data-[state=active]:bg-[#1F242C] rounded-lg transition-all"
+                  aria-label="Communications"
+                  data-testid="tab-communications"
+                >
+                  Communications
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="financial" 
+                  className="min-h-[48px] text-[#9CA3AF] data-[state=active]:text-white data-[state=active]:bg-[#1F242C] rounded-lg transition-all"
+                  aria-label="Financial Health"
+                  data-testid="tab-financial"
+                >
+                  Financial Health
+                </TabsTrigger>
+              </TabsList>
             </div>
-            <div className="hidden lg:block">
-              <QuickActions />
-            </div>
-          </div>
 
-          {/* Active Projects */}
-          <ActiveProjects />
-        </TabsContent>
+            <TabsContent value="overview" className="space-y-8">
+              <MultiProjectOverview />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2">
+                  <RecentActivity />
+                </div>
+                <div className="hidden lg:block">
+                  <QuickActions />
+                </div>
+              </div>
+              <ActiveProjects />
+            </TabsContent>
 
-        <TabsContent value="tasks" className="space-y-8">
-          {/* Critical Task Management for General Contractors */}
-          <ExpiredUpcomingTasks />
+            <TabsContent value="tasks" className="space-y-8">
+              <ExpiredUpcomingTasks />
+              <TodaysTasks />
+            </TabsContent>
 
-          {/* Today's Tasks */}
-          <TodaysTasks />
-        </TabsContent>
+            <TabsContent value="communications" className="space-y-8">
+              <CommunicationFeed />
+            </TabsContent>
 
-        <TabsContent value="communications" className="space-y-8">
-          {/* Integrated Communication System */}
-          <CommunicationFeed />
-        </TabsContent>
+            <TabsContent value="financial" className="space-y-8">
+              <FinancialHealthDashboard />
+            </TabsContent>
+          </Tabs>
 
-        <TabsContent value="financial" className="space-y-8">
-          {/* Financial Health Monitoring */}
-          <FinancialHealthDashboard />
-        </TabsContent>
-      </Tabs>
-
-      {/* Mobile FAB for Quick Actions */}
-      <Sheet open={isMobileFABOpen} onOpenChange={setIsMobileFABOpen}>
-        <SheetTrigger asChild>
-          <Button
-            className="fixed bottom-6 right-6 lg:hidden w-14 h-14 rounded-full shadow-lg hover:shadow-xl bg-primary hover:bg-primary/90 text-primary-foreground focus-ring z-50"
-            style={{
-              bottom: 'calc(24px + env(safe-area-inset-bottom))',
-              right: 'calc(24px + env(safe-area-inset-right))'
-            }}
-            aria-label="Quick Actions"
-            data-testid="mobile-fab"
-          >
-            <Plus className="h-6 w-6" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="bottom" className="h-auto max-h-[80vh] focus-ring" aria-describedby={undefined}>
-          <SheetHeader>
-            <SheetTitle>Quick Actions</SheetTitle>
-          </SheetHeader>
-          <div className="mt-6">
-            <QuickActions />
-          </div>
-        </SheetContent>
-      </Sheet>
+          <Sheet open={isMobileFABOpen} onOpenChange={setIsMobileFABOpen}>
+            <SheetTrigger asChild>
+              <Button
+                className="fixed bottom-6 right-6 lg:hidden w-14 h-14 rounded-full shadow-2xl hover:shadow-xl z-50"
+                style={{
+                  bottom: 'calc(24px + env(safe-area-inset-bottom))',
+                  right: 'calc(24px + env(safe-area-inset-right))',
+                  backgroundColor: '#4ADE80',
+                  color: '#0F1115'
+                }}
+                aria-label="Quick Actions"
+                data-testid="mobile-fab"
+              >
+                <Plus className="h-6 w-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent 
+              side="bottom" 
+              className="h-auto max-h-[80vh] border-t"
+              style={{ 
+                backgroundColor: '#161B22',
+                borderColor: '#2D333B'
+              }}
+              aria-describedby={undefined}
+            >
+              <SheetHeader>
+                <SheetTitle className="text-white">Quick Actions</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6">
+                <QuickActions />
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </div>
