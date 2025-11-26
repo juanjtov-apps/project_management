@@ -65,8 +65,8 @@ export function ProjectCard({
       )}
       onClick={onClick}
     >
-      {/* Thumbnail Image - 16:9 aspect ratio for better desktop proportions */}
-      <div className="aspect-video relative">
+      {/* Thumbnail Image - 4:3 aspect ratio for compact desktop cards */}
+      <div className="aspect-[4/3] relative">
         {thumbnailUrl ? (
           <img
             src={thumbnailUrl}
