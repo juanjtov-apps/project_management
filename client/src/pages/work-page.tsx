@@ -843,9 +843,12 @@ export default function WorkPage() {
               <div
                 className={cn(
                   projectViewMode === "grid"
-                    ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3"
+                    ? "grid gap-4"
                     : "space-y-3"
                 )}
+                style={projectViewMode === "grid" ? {
+                  gridTemplateColumns: "repeat(auto-fill, minmax(150px, 180px))"
+                } : undefined}
               >
                 {filteredProjects.map((project) => (
                   <ProjectCard
