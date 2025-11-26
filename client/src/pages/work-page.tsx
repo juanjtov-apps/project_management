@@ -46,6 +46,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ProjectCard } from "@/components/ui/project-card";
+import { ProjectQuickView } from "@/components/ui/project-quick-view";
 import { TaskCard as TabletTaskCard } from "@/components/ui/task-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
@@ -61,7 +62,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
-import type { Project, InsertProject, Task, InsertTask, User } from "@shared/schema";
+import type { Project, InsertProject, Task, InsertTask, User, Photo } from "@shared/schema";
 
 // Helper functions
 const isTaskOverdue = (task: Task): boolean => {
@@ -111,6 +112,9 @@ export default function WorkPage() {
   const [isProjectDeleteDialogOpen, setIsProjectDeleteDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  
+  // Quick View state
+  const [quickViewProject, setQuickViewProject] = useState<Project | null>(null);
 
   // Projects - Filter states
   const [projectSearchTerm, setProjectSearchTerm] = useState("");
@@ -175,6 +179,28 @@ export default function WorkPage() {
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users/managers"],
   });
+
+  // Fetch all photos to get thumbnails for projects
+  const { data: allPhotos = [] } = useQuery<Photo[]>({
+    queryKey: ["/api/photos"],
+  });
+
+  // Create a map of project ID to first photo for thumbnails
+  const projectThumbnails = useMemo(() => {
+    const thumbnailMap: Record<string, string> = {};
+    allPhotos.forEach((photo) => {
+      if (photo.projectId && !thumbnailMap[photo.projectId]) {
+        thumbnailMap[photo.projectId] = `/api/photos/${photo.id}/file`;
+      }
+    });
+    return thumbnailMap;
+  }, [allPhotos]);
+
+  // Get photos for the quick view project
+  const quickViewPhotos = useMemo(() => {
+    if (!quickViewProject) return [];
+    return allPhotos.filter((p) => p.projectId === quickViewProject.id);
+  }, [allPhotos, quickViewProject]);
 
   // === PROJECT MUTATIONS ===
   const createProjectMutation = useMutation({
@@ -817,42 +843,24 @@ export default function WorkPage() {
               <div
                 className={cn(
                   projectViewMode === "grid"
-                    ? "grid grid-cols-1 md:grid-cols-2 gap-6"
+                    ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
                     : "space-y-3"
                 )}
               >
-                {filteredProjects.map((project) => {
-                  const members = users.slice(0, 3).map((u) => ({
-                    id: u.id,
-                    name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email || "Unknown",
-                  }));
-
-                  return (
-                    <ProjectCard
-                      key={project.id}
-                      id={project.id}
-                      title={project.name}
-                      status={project.status as any}
-                      location={project.location || undefined}
-                      progress={project.progress || 0}
-                      taskCount={0}
-                      lastUpdated={project.dueDate ? new Date(project.dueDate) : undefined}
-                      members={members}
-                      onClick={() => handleOpenProject(project)}
-                      menuItems={[
-                        { label: "Edit", icon: Edit, onClick: () => handleEditProject(project) },
-                        {
-                          label: "Delete",
-                          icon: Trash2,
-                          onClick: () => handleDeleteProject(project),
-                          variant: "danger",
-                          separator: true,
-                        },
-                      ]}
-                      data-testid={`project-card-${project.id}`}
-                    />
-                  );
-                })}
+                {filteredProjects.map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    id={project.id}
+                    title={project.name}
+                    status={project.status as any}
+                    location={project.location || undefined}
+                    progress={project.progress || 0}
+                    thumbnailUrl={projectThumbnails[project.id]}
+                    onClick={() => setQuickViewProject(project)}
+                    isSelected={quickViewProject?.id === project.id}
+                    data-testid={`project-card-${project.id}`}
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -1975,6 +1983,15 @@ export default function WorkPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Project Quick View Panel */}
+      <ProjectQuickView
+        project={quickViewProject!}
+        photos={quickViewPhotos}
+        members={users}
+        onClose={() => setQuickViewProject(null)}
+        isOpen={quickViewProject !== null}
+      />
     </div>
   );
 }

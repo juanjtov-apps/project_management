@@ -1,9 +1,6 @@
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { AvatarGroup } from "@/components/ui/avatar-group";
-import { OverflowMenu, OverflowMenuItem } from "@/components/ui/overflow-menu";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { Building2 } from "lucide-react";
 
 interface ProjectCardProps {
   id: string;
@@ -11,27 +8,25 @@ interface ProjectCardProps {
   status: "active" | "on_hold" | "completed";
   location?: string;
   progress: number;
-  taskCount: number;
-  lastUpdated?: Date;
-  members?: Array<{ id: string; name: string; image?: string }>;
-  menuItems?: OverflowMenuItem[];
+  thumbnailUrl?: string;
   onClick?: () => void;
+  isSelected?: boolean;
   className?: string;
   "data-testid"?: string;
 }
 
 const statusConfig = {
   active: {
-    label: "Active",
-    className: "bg-[#166534]/20 text-[#4ADE80] border-[#166534]/30",
+    label: "In Progress",
+    color: "#4ADE80",
   },
   on_hold: {
     label: "On Hold",
-    className: "bg-[#854D0E]/20 text-[#EAB308] border-[#854D0E]/30",
+    color: "#EAB308",
   },
   completed: {
     label: "Completed",
-    className: "bg-[#1E40AF]/20 text-[#60A5FA] border-[#1E40AF]/30",
+    color: "#60A5FA",
   },
 };
 
@@ -41,11 +36,9 @@ export function ProjectCard({
   status,
   location,
   progress,
-  taskCount,
-  lastUpdated,
-  members = [],
-  menuItems,
+  thumbnailUrl,
   onClick,
+  isSelected,
   className,
   "data-testid": testId,
 }: ProjectCardProps) {
@@ -55,70 +48,50 @@ export function ProjectCard({
     <div
       data-testid={testId}
       className={cn(
-        "rounded-xl p-5 bg-[#161B22] group relative transition-all",
-        "border border-[#2D333B] hover:border-[#4ADE80]/50 hover:shadow-lg",
-        onClick && "cursor-pointer",
+        "group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-300",
+        "hover:scale-[1.02] hover:shadow-2xl",
+        isSelected && "ring-2 ring-[#4ADE80] ring-offset-2 ring-offset-[#0F1115]",
         className
       )}
       onClick={onClick}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div className="flex-1 min-w-0">
-          <h3
-            className="font-semibold text-lg text-[var(--text-primary)] truncate mb-1"
-            title={title}
-          >
+      {/* Thumbnail Image */}
+      <div className="aspect-[4/3] relative">
+        {thumbnailUrl ? (
+          <img
+            src={thumbnailUrl}
+            alt={title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#1F242C] to-[#161B22] flex items-center justify-center">
+            <Building2 className="w-16 h-16 text-[#2D333B]" />
+          </div>
+        )}
+        
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+        
+        {/* Progress Badge - Top Right */}
+        <div 
+          className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-bold"
+          style={{ 
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            color: statusInfo.color 
+          }}
+        >
+          {progress}%
+        </div>
+        
+        {/* Content Overlay - Bottom */}
+        <div className="absolute bottom-0 left-0 right-0 p-4">
+          <h3 className="font-semibold text-white text-lg mb-1 truncate">
             {title}
           </h3>
-          {location && (
-            <p className="text-sm text-[var(--text-secondary)] truncate">
-              {location}
-            </p>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className={statusInfo.className}>
+          <p className="text-sm text-white/70 truncate">
             {statusInfo.label}
-          </Badge>
-          
-          {menuItems && menuItems.length > 0 && (
-            <div onClick={(e) => e.stopPropagation()}>
-              <OverflowMenu items={menuItems} data-testid={`project-menu-${id}`} />
-            </div>
-          )}
+          </p>
         </div>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-[var(--text-secondary)]">Progress</span>
-          <span className="text-xs font-medium text-[var(--text-primary)]">
-            {progress}%
-          </span>
-        </div>
-        <Progress value={progress} className="h-2" />
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-[var(--text-secondary)]">
-            {taskCount} {taskCount === 1 ? "task" : "tasks"}
-          </span>
-          
-          {lastUpdated && (
-            <span className="text-xs text-[var(--text-secondary)]">
-              Updated {format(lastUpdated, "MMM d")}
-            </span>
-          )}
-        </div>
-
-        {members.length > 0 && (
-          <AvatarGroup avatars={members} max={4} size="sm" />
-        )}
       </div>
     </div>
   );
