@@ -363,12 +363,9 @@ export default function TabletProjects() {
           <div
             className={cn(
               viewMode === "grid"
-                ? "grid gap-4 md:gap-6"
+                ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
                 : "space-y-4"
             )}
-            style={viewMode === "grid" ? {
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
-            } : undefined}
           >
             {filteredProjects.map((project) => (
               <ProjectCard
