@@ -4,7 +4,7 @@ import { Building2 } from "lucide-react";
 interface ProjectCardProps {
   id: string;
   title: string;
-  status: "active" | "on_hold" | "completed";
+  status: string;
   location?: string;
   progress: number;
   thumbnailUrl?: string;
@@ -14,12 +14,16 @@ interface ProjectCardProps {
   "data-testid"?: string;
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string }> = {
   active: {
-    label: "Construction",
+    label: "Active",
     color: "#4ADE80",
   },
   on_hold: {
+    label: "On Hold",
+    color: "#EAB308",
+  },
+  "on-hold": {
     label: "On Hold",
     color: "#EAB308",
   },
@@ -27,7 +31,13 @@ const statusConfig = {
     label: "Completed",
     color: "#60A5FA",
   },
+  delayed: {
+    label: "Delayed",
+    color: "#EF4444",
+  },
 };
+
+const defaultStatus = { label: "In Progress", color: "#4ADE80" };
 
 export function ProjectCard({
   id,
@@ -41,7 +51,8 @@ export function ProjectCard({
   className,
   "data-testid": testId,
 }: ProjectCardProps) {
-  const statusInfo = statusConfig[status];
+  const normalizedStatus = status?.toLowerCase().replace(/[\s]+/g, "_") || "active";
+  const statusInfo = statusConfig[normalizedStatus] || statusConfig[status] || defaultStatus;
 
   return (
     <div
