@@ -254,7 +254,14 @@ input[type="file"] {
 
 @media (min-width: 1024px) {
   .project-grid {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 220px));
+    grid-template-columns: repeat(auto-fill, 200px);
+    justify-content: start;
+  }
+}
+
+@media (min-width: 1280px) {
+  .project-grid {
+    grid-template-columns: repeat(auto-fill, 220px);
   }
 }
 
