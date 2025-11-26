@@ -1,0 +1,105 @@
+# Role: Senior Frontend Engineer & UI Specialist
+**Objective:** Update the application frontend to match the "Proesphere" Dark Mode Design System exactly as described below.
+**Tech Stack Preference:** React / Next.js, Tailwind CSS, Framer Motion (for interactions).
+
+---
+
+## 1. Global Design System (The "Proesphere" Look)
+
+Implement the following design tokens globally. The aesthetic is "Professional Dark Mode," characterized by high contrast, matte dark grays, mint green accents, and subtle glassmorphism.
+
+### A. Color Palette (Tailwind Config)
+* **Background (Deep):** `#0F1115` (Main app background)
+* **Surface (Cards/Panels):** `#161B22` (Secondary background)
+* **Surface Highlight:** `#1F242C` (Hover states/Active tabs)
+* **Primary Brand (Mint):** `#4ADE80` (Buttons, Active Toggles, Progress Bars, "On Track" status)
+* **Secondary Accent (Orange):** `#F97316` (Warnings, "At Risk" status)
+* **Critical Accent (Red):** `#EF4444` (Errors, "Delayed" status)
+* **Text Primary:** `#FFFFFF`
+* **Text Secondary:** `#9CA3AF` (Muted/Subtitles)
+* **Borders:** `#2D333B` (Subtle dividers)
+
+### B. Typography & Shapes
+* **Font Family:** Inter or Roboto (Clean sans-serif).
+* **Border Radius:**
+    * Standard Cards: `rounded-xl` (12px) or `rounded-2xl` (16px).
+    * Buttons/Badges: `rounded-md` or `rounded-full`.
+* **Shadows:** Deep, diffuse shadows for depth (`shadow-2xl` for modals, `shadow-lg` for cards).
+
+---
+
+## 2. Module-Specific Implementation Guidelines
+
+You are to implement/update the following 7 modules. Each module must strictly adhere to the layout defined below:
+
+### Module 1: Main Dashboard
+**Layout:** 3-Row Grid.
+1.  **Top Row (KPI Cards):** 4 Cards. Display "Active Projects," "Tasks Due Today," "Completed Tasks," and "Financial Health" (featuring a radial progress circle in Mint Green).
+2.  **Middle Row (Multi-Project Overview):** A timeline visualizer.
+    * Background: Dark card.
+    * Visual: Horizontal rounded bars representing project duration.
+    * Colors: Use Mint, Orange, and Red to indicate status directly on the timeline bars.
+    * Current Day Indicator: A vertical white line with a "Today" label tag.
+3.  **Bottom Row (Project Thumbnails):** 3 Cards with architectural renderings.
+    * Overlay text on the image bottom: Project Name + Progress Bar + Status Badge.
+
+### Module 2: Schedule (Gantt Chart)
+**Layout:** Sidebar + Main Canvas.
+* **Header:** Tab navigation (Overview, Timeline, Gantt Chart, Calendar).
+* **Gantt Component:**
+    * Left Column: Nested list of tasks (e.g., "Foundation Pour," "Steel Framing"). Use indentation for sub-tasks.
+    * Right Canvas: Horizontal bars with rounded edges.
+    * Dependencies: Draw bezier curves connecting dependent tasks.
+    * UI Detail: Use a "Mint Green" fill for completed/active segments and "Gray/Ghost" for future segments.
+* **AI Insights Panel:** A floating glass-morphism card in the top right: "AI Insights: Weather delay predicted..."
+
+### Module 3: Work (Projects Grid)
+**Layout:** Grid View (3 columns).
+* **Card Design:**
+    * Top 70%: High-quality project render image.
+    * Image Overlay: "Quick View" button appears on hover.
+    * Bottom 30%: Dark container.
+    * Details: Project Name (Bold), Location (Muted), Team Avatars (bottom left), Progress Percentage (bottom right).
+    * Status Indication: A glowing border (Green/Mint) around the card for active projects.
+
+### Module 4: Work (Tasks View)
+**Layout:** Dashboard Stats + List View.
+* **Stats Header:** 4 colored blocks (Total Tasks, Overdue [Red], Due This Week, Completed [Green]).
+* **Task List:**
+    * Rows: Dark gray strip with rounded corners.
+    * Columns: Checkbox | Task Name | Tags (Pill shape, e.g., "Structural", "Urgent") | Date | Assignee Avatar.
+    * Action: Hovering a row reveals a "context menu" icon (three dots) or quick actions (Edit, Assign).
+
+### Module 5: Client Portal
+**Layout:** Asymmetrical Dashboard.
+* **Hero Section:** Large background image of the specific project with a "Welcome, [Name]" text overlay.
+* **Widgets:**
+    * **Recent Activity:** Vertical timeline with icons connecting steps.
+    * **Financial Snapshot:** Minimalist progress bar showing Budget vs. Invoiced.
+    * **Messages:** A compact chat widget on the right side showing recent threads with avatars.
+
+### Module 6: Project Logs (Daily Report)
+**Layout:** Vertical Stack (Accordion Style).
+* **Header:** Date + Weather Widget (Sun icon + Temperature).
+* **Entry Rows:** "Work Performed," "Crew & Equipment," "Material Deliveries."
+* **Interaction:** Each row has an "Add Entry" button on the right.
+* **Gantt Preview:** A mini-Gantt chart at the bottom of the log to show how daily work impacts the schedule.
+
+### Module 7: RBAC Admin (User Management)
+**Layout:** Data Table + Modal Overlay.
+* **Table:**
+    * Columns: User | Role (Badge) | Project Access | Status (Toggle Switch) | Last Active.
+    * Toggles: Use Mint Green for "On" and Gray for "Off."
+* **Edit Role Modal:**
+    * Appearance: Floating centered modal with `backdrop-blur-md` overlay.
+    * Content: "Edit Role" header.
+    * Grid System: A matrix of permissions (Admin, Project Manager, Subcontractor) vs. Actions (Read, Write, Delete).
+    * Checkboxes: Custom styled checkboxes (Green tick when selected).
+
+---
+
+## 3. UI/UX Refinement Rules
+1.  **Glassmorphism:** Use `bg-opacity-10` or `bg-opacity-20` with `backdrop-filter: blur(10px)` for floating elements (modals, dropdowns, AI insight toasts).
+2.  **Navigation Rail:** Implement a slim left vertical sidebar (50-60px width) containing icons (Dashboard, Work, Schedule, Photos, Logs). The active tab must have a Mint Green indicator line on the left edge.
+3.  **Contrast:** Ensure text on dark cards is `text-gray-200`, not pure white, to reduce eye strain, unless it is a header.
+4.  **Charts:** For all charts (Financial Health, Gantt), use the Mint Green `#4ADE80` as the primary data color to maintain brand consistency.
