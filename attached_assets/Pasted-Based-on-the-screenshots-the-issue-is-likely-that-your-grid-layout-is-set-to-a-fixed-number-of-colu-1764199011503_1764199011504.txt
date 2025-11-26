@@ -1,0 +1,34 @@
+Based on the screenshots, the issue is likely that your grid layout is set to a fixed number of columns (e.g., 2 columns) regardless of the screen width. On mobile, 2 columns look great, but on a wide desktop screen, those same 2 columns stretch to fill the space, resulting in "giant" cards.
+
+Here is a prompt you can copy and paste to an AI agent to fix this immediately. I have provided two versions depending on how your project is built.
+
+Option 1: The "Auto-Layout" Prompt (Best for pure CSS/SCSS)
+Use this if you want the grid to automatically calculate how many items fit in a row.
+
+"I have a project dashboard displaying a grid of cards. Currently, the layout looks good on mobile (2 columns), but on desktop, the cards stretch to become huge because the column count doesn't increase.
+
+Please refactor the CSS for the grid container to use CSS Grid with minmax.
+
+specifically, use a pattern like: grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));.
+
+The goal is to ensure the cards stay a consistent, reasonable size (around 250-300px wide) and the grid automatically adds more columns as the screen gets wider, rather than just stretching the existing cards."
+
+Option 2: The "Tailwind CSS" Prompt
+Use this if your project uses Tailwind classes.
+
+"I have a card grid that looks good on mobile but the cards are too large on desktop. Currently, it seems to use a fixed column count.
+
+Please update the className for the grid container to be responsive. Keep grid-cols-2 for mobile, but add breakpoints for larger screens.
+
+Please apply something similar to: grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4. Adjust the breakpoints so the cards maintain a visually appealing aspect ratio on wide monitors."
+
+Why this works (The Technical Logic)
+To solve this, you are moving from a Fixed Layout to a Responsive Layout.
+
+The Mobile View (Current): You likely have grid-template-columns: 1fr 1fr;. This forces the content into two equal chunks.
+
+The Desktop View (The Fix):
+
+Method A (Media Queries): You explicitly tell the browser: "If the screen is 1024px wide, use 4 columns."
+
+Method B (Auto-fill - Recommended): You tell the browser: "Fit as many columns as you can, as long as every column is at least 250px wide." This is usually the smoothest solution for dashboards like yours.
