@@ -363,44 +363,25 @@ export default function TabletProjects() {
           <div
             className={cn(
               viewMode === "grid"
-                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                ? "grid gap-4 md:gap-6"
                 : "space-y-4"
             )}
+            style={viewMode === "grid" ? {
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
+            } : undefined}
           >
-            {filteredProjects.map((project) => {
-              // Get project members (simplified - you can enhance this)
-              const members = users.slice(0, 3).map((u) => ({
-                id: u.id,
-                name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email || "Unknown",
-              }));
-
-              return (
-                <ProjectCard
-                  key={project.id}
-                  id={project.id}
-                  title={project.name}
-                  status={project.status as any}
-                  location={project.location || undefined}
-                  progress={project.progress || 0}
-                  taskCount={0} // You can enhance this with actual task count
-                  lastUpdated={project.dueDate ? new Date(project.dueDate) : undefined}
-                  members={members}
-                  onClick={() => handleOpenProject(project)}
-                  menuItems={[
-                    { label: "Open", icon: ExternalLink, onClick: () => handleOpenProject(project) },
-                    { label: "Edit", icon: Edit, onClick: () => handleEditProject(project) },
-                    {
-                      label: "Delete",
-                      icon: Trash2,
-                      onClick: () => handleDeleteClick(project),
-                      variant: "danger",
-                      separator: true,
-                    },
-                  ]}
-                  data-testid={`project-card-${project.id}`}
-                />
-              );
-            })}
+            {filteredProjects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                id={project.id}
+                title={project.name}
+                status={project.status as any}
+                location={project.location || undefined}
+                progress={project.progress || 0}
+                onClick={() => handleOpenProject(project)}
+                data-testid={`project-card-${project.id}`}
+              />
+            ))}
           </div>
         )}
       </div>
