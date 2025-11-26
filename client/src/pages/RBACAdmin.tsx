@@ -2071,21 +2071,21 @@ export default function RBACAdmin() {
   };
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto p-6 bg-[var(--pro-bg)] min-h-screen">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Shield className="w-8 h-8" />
+        <h1 className="text-3xl font-bold flex items-center gap-2 text-[var(--pro-text-primary)]">
+          <Shield className="w-8 h-8 text-[var(--pro-mint)]" />
           RBAC Administration
         </h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-[var(--pro-text-secondary)] mt-2">
           Comprehensive role-based access control management system
         </p>
       </div>
 
       {(permissionsLoading || rolesLoading || companiesLoading || usersLoading) && (
-        <Alert className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
+        <Alert className="mb-6 bg-[var(--pro-surface)] border-[var(--pro-border)]">
+          <AlertCircle className="h-4 w-4 text-[var(--pro-blue)]" />
+          <AlertDescription className="text-[var(--pro-text-primary)]">
             Loading RBAC data...
           </AlertDescription>
         </Alert>

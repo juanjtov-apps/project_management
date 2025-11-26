@@ -89,14 +89,14 @@ export default function ClientPortal() {
     enabled: !!selectedProject,
   });
 
-  // Define all possible tabs
+  // Define all possible tabs - using Proesphere dark theme colors
   const allTabItems = [
     {
       value: "issues",
       label: "Issues",
       icon: AlertTriangle,
       description: "Report and track project issues",
-      color: "text-amber-600",
+      color: "text-[var(--pro-orange)]",
       requiresPermission: null // Always visible
     },
     {
@@ -104,7 +104,7 @@ export default function ClientPortal() {
       label: "Forum",
       icon: MessageSquare,
       description: "Q&A with project managers",
-      color: "text-blue-600",
+      color: "text-[var(--pro-blue)]",
       requiresPermission: null // Always visible
     },
     {
@@ -112,7 +112,7 @@ export default function ClientPortal() {
       label: "Materials",
       icon: Package,
       description: "Collaborative material list",
-      color: "text-green-600",
+      color: "text-[var(--pro-mint)]",
       requiresPermission: null // Always visible
     },
     {
@@ -120,7 +120,7 @@ export default function ClientPortal() {
       label: "Payments",
       icon: CreditCard,
       description: "Payment schedule tracking",
-      color: "text-purple-600",
+      color: "text-[var(--pro-purple)]",
       requiresPermission: "clientPortalPayments" // Only visible with payment permission
     }
   ];
@@ -137,12 +137,12 @@ export default function ClientPortal() {
                    tabItems.length === 2 ? 'grid-cols-2' : 'grid-cols-1';
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 bg-[var(--pro-bg)] min-h-screen">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Client Portal</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold text-[var(--pro-text-primary)]">Client Portal</h1>
+          <p className="text-[var(--pro-text-secondary)]">
             Communicate and collaborate on your construction projects
           </p>
         </div>
@@ -173,12 +173,12 @@ export default function ClientPortal() {
       </div>
 
       {!selectedProject ? (
-        <Card>
+        <Card className="bg-[var(--pro-surface)] border-[var(--pro-border)]">
           <CardContent className="pt-6">
             <div className="text-center py-12">
-              <Building className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Select a Project</h3>
-              <p className="text-muted-foreground">
+              <Building className="h-16 w-16 mx-auto text-[var(--pro-text-muted)] mb-4" />
+              <h3 className="text-xl font-semibold mb-2 text-[var(--pro-text-primary)]">Select a Project</h3>
+              <p className="text-[var(--pro-text-secondary)]">
                 Choose a project to access issues, forum, materials, and payment information.
               </p>
             </div>

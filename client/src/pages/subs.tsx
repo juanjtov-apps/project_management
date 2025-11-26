@@ -287,36 +287,36 @@ export default function Subs() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "completed": return "bg-green-100 text-green-800";
-      case "in-progress": return "bg-blue-100 text-blue-800";
-      case "blocked": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "completed": return "bg-[var(--pro-mint)]/20 text-[var(--pro-mint)]";
+      case "in-progress": return "bg-[var(--pro-blue)]/20 text-[var(--pro-blue)]";
+      case "blocked": return "bg-[var(--pro-red)]/20 text-[var(--pro-red)]";
+      default: return "bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)]";
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "critical": return "bg-red-500";
-      case "high": return "bg-brand-coral";
-      case "medium": return "bg-blue-500";
-      default: return "bg-green-500";
+      case "critical": return "bg-[var(--pro-red)]";
+      case "high": return "bg-[var(--pro-orange)]";
+      case "medium": return "bg-[var(--pro-blue)]";
+      default: return "bg-[var(--pro-mint)]";
     }
   };
 
   if (isLoadingTasks || isLoadingProjects || isLoadingUsers || isLoadingAssignments) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading subcontractor data...</div>
+      <div className="flex items-center justify-center h-64 bg-[var(--pro-bg)]">
+        <div className="text-lg text-[var(--pro-text-primary)]">Loading subcontractor data...</div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-[var(--pro-bg)] min-h-screen p-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold construction-secondary">Subcontractors</h1>
-          <p className="text-gray-600 mt-2">Manage subcontractor assignments, tasks, and schedules</p>
+          <h1 className="text-3xl font-bold text-[var(--pro-text-primary)]">Subcontractors</h1>
+          <p className="text-[var(--pro-text-secondary)] mt-2">Manage subcontractor assignments, tasks, and schedules</p>
         </div>
         <Dialog open={isAddTaskOpen} onOpenChange={(open) => {
           if (open) {

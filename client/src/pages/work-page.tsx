@@ -655,22 +655,22 @@ export default function WorkPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <div className="min-h-screen bg-[var(--pro-bg)] p-6">
         <LoadingSkeleton variant="grid" count={6} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[var(--pro-bg)]">
       {/* Sticky Header with Segmented Control */}
-      <div className="sticky top-0 z-20 bg-background border-b border-border">
+      <div className="sticky top-0 z-20 bg-[var(--pro-bg)] border-b border-[var(--pro-border)]">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Left: Breadcrumb */}
             <div>
-              <h1 className="text-2xl font-bold text-[var(--text-primary)]">Work</h1>
-              <p className="text-sm text-[var(--text-secondary)] mt-1">
+              <h1 className="text-2xl font-bold text-[var(--pro-text-primary)]">Work</h1>
+              <p className="text-sm text-[var(--pro-text-secondary)] mt-1">
                 Manage your projects and tasks
               </p>
             </div>
@@ -863,7 +863,7 @@ export default function WorkPage() {
       {activeSegment === "tasks" && (
         <>
           {/* Task Stats Row - Sticky */}
-          <div className="sticky-top bg-background border-b border-border px-6 py-4 z-10">
+          <div className="sticky-top bg-[var(--pro-bg)] border-b border-[var(--pro-border)] px-6 py-4 z-10">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatCard
                 icon={ListTodo}

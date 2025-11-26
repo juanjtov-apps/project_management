@@ -284,22 +284,22 @@ export default function Photos() {
 
   if (photosLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--pro-bg)]">
         <div className="text-center">
-          <div className="w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-brand-text">Loading photos...</p>
+          <div className="w-10 h-10 border-4 border-[var(--pro-mint)] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-[var(--pro-text-primary)]">Loading photos...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-[var(--pro-bg)] min-h-screen p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-brand-text">Photo Gallery</h1>
-          <p className="text-brand-muted">
+          <h1 className="text-2xl font-bold text-[var(--pro-text-primary)]">Photo Gallery</h1>
+          <p className="text-[var(--pro-text-secondary)]">
             {filteredPhotosData.length} of {photos.length} photos
             {filterType !== "all" && ` (filtered by ${filterType})`}
           </p>
@@ -320,7 +320,7 @@ export default function Photos() {
           
           <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-teal-600 hover:bg-teal-700" data-testid="button-upload-photos">
+              <Button className="bg-[var(--pro-mint)] hover:bg-[var(--pro-mint)]/90 text-[var(--pro-bg-deep)]" data-testid="button-upload-photos">
                 <Camera size={16} className="mr-2" />
                 Upload Photos
               </Button>
