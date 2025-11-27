@@ -523,7 +523,7 @@ export default function Landing() {
               <a href="#" className="hover:text-white transition-colors">Contact</a>
             </div>
             <p className="text-sm text-white/40">
-              © 2024 Proesphere. All rights reserved.
+              © 2026 Proesphere. All rights reserved.
             </p>
           </div>
         </div>
