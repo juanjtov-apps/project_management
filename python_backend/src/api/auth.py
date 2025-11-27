@@ -387,16 +387,17 @@ async def get_current_user(request: Request):
         company_id = user_data.get('company_id') or user_data.get('companyId')
         if company_id:
             try:
-                from ..database.db import db_manager
-                company_row = await db_manager.execute_one(
-                    "SELECT id, name FROM companies WHERE id = $1",
-                    str(company_id)
-                )
-                if company_row:
-                    user_data["organization"] = {
-                        "id": str(company_row["id"]),
-                        "name": company_row["name"]
-                    }
+                pool = await get_db_pool()
+                async with pool.acquire() as conn:
+                    company_row = await conn.fetchrow(
+                        "SELECT id, name FROM companies WHERE id = $1",
+                        str(company_id)
+                    )
+                    if company_row:
+                        user_data["organization"] = {
+                            "id": str(company_row["id"]),
+                            "name": company_row["name"]
+                        }
             except Exception as e:
                 print(f"Error fetching company name: {e}")
         
