@@ -1,7 +1,8 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import type { Project } from "@shared/schema";
+import type { Project, Photo } from "@shared/schema";
 import { 
   Building, 
   TrendingUp, 
@@ -48,6 +49,27 @@ export default function MultiProjectOverview() {
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
   });
+
+  const { data: allPhotos = [] } = useQuery<Photo[]>({
+    queryKey: ["/api/photos"],
+  });
+
+  const projectThumbnails = useMemo(() => {
+    const thumbnailMap: Record<string, string> = {};
+    
+    projects.forEach((project) => {
+      if (project.coverPhotoId) {
+        thumbnailMap[project.id] = `/api/photos/${project.coverPhotoId}/file`;
+      }
+    });
+    
+    allPhotos.forEach((photo) => {
+      if (photo.projectId && !thumbnailMap[photo.projectId]) {
+        thumbnailMap[photo.projectId] = `/api/photos/${photo.id}/file`;
+      }
+    });
+    return thumbnailMap;
+  }, [allPhotos, projects]);
 
   const delayedProjects = projects.filter(p => p.status === "delayed");
   const behindSchedule = projects.filter(p => p.status === "active" && p.progress < 50);
@@ -222,7 +244,22 @@ export default function MultiProjectOverview() {
                   background: `linear-gradient(135deg, #1F242C 0%, #0F1115 100%)`
                 }}
               >
-                <div className="absolute inset-0 flex items-center justify-center">
+                {projectThumbnails[project.id] ? (
+                  <img
+                    src={projectThumbnails[project.id]}
+                    alt={project.name}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div 
+                  className="absolute inset-0 items-center justify-center"
+                  style={{ display: projectThumbnails[project.id] ? 'none' : 'flex' }}
+                >
                   <Building className="h-16 w-16" style={{ color: '#2D333B' }} />
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
