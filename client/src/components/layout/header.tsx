@@ -109,8 +109,14 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
             <Menu className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-sm hidden md:block" style={{ color: '#9CA3AF' }}>Dashboard</span>
-            <ChevronRight className="h-4 w-4 hidden md:block" style={{ color: '#9CA3AF' }} />
+            {currentUser?.organization?.name && (
+              <>
+                <span className="text-sm hidden md:block font-medium" style={{ color: '#4ADE80' }}>
+                  {currentUser.organization.name}
+                </span>
+                <ChevronRight className="h-4 w-4 hidden md:block" style={{ color: '#9CA3AF' }} />
+              </>
+            )}
             <h1 className="text-lg font-semibold text-white truncate">{pageTitle}</h1>
           </div>
         </div>

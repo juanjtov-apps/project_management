@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -45,6 +46,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps = {}) {
   const [location] = useLocation();
+  const [isExpanded, setIsExpanded] = useState(false);
   
   const { data: currentUser } = useQuery<any>({
     queryKey: ['/api/v1/auth/user'],
@@ -70,27 +72,45 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   });
 
   const NavigationRail = () => (
-    <TooltipProvider delayDuration={0}>
-      <div className="flex flex-col h-full" style={{ backgroundColor: '#0F1115' }}>
-        <div className="flex items-center justify-center py-4 border-b" style={{ borderColor: '#2D333B' }}>
-          <Logo size="sm" className="shadow-lg" />
-        </div>
-        
-        <nav className="flex-1 py-4">
-          <ul className="flex flex-col items-center gap-1">
-            {filteredNavigation.map((item) => {
-              const isActive = location === item.href || 
-                (item.href === "/work" && (location === "/projects" || location === "/tasks"));
-              const Icon = item.icon;
-              
-              return (
-                <li key={item.name}>
+    <div 
+      className="flex flex-col h-full transition-all duration-300 ease-in-out" 
+      style={{ 
+        backgroundColor: '#0F1115',
+        width: isExpanded ? '200px' : '60px'
+      }}
+      onMouseEnter={() => setIsExpanded(true)}
+      onMouseLeave={() => setIsExpanded(false)}
+    >
+      <div 
+        className="flex items-center py-4 px-3 border-b overflow-hidden" 
+        style={{ borderColor: '#2D333B', height: '65px' }}
+      >
+        {isExpanded ? (
+          <Logo variant="full" size="md" className="shadow-lg" />
+        ) : (
+          <div className="flex items-center justify-center w-full">
+            <Logo size="sm" className="shadow-lg" />
+          </div>
+        )}
+      </div>
+      
+      <nav className="flex-1 py-4 overflow-hidden">
+        <ul className="flex flex-col gap-1 px-2">
+          {filteredNavigation.map((item) => {
+            const isActive = location === item.href || 
+              (item.href === "/work" && (location === "/projects" || location === "/tasks"));
+            const Icon = item.icon;
+            
+            return (
+              <li key={item.name}>
+                <TooltipProvider delayDuration={0}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Link href={item.href}>
                         <div 
                           className={cn(
-                            "relative w-11 h-11 flex items-center justify-center rounded-lg transition-all duration-200 cursor-pointer group",
+                            "relative flex items-center gap-3 h-11 rounded-lg transition-all duration-200 cursor-pointer group",
+                            isExpanded ? "px-3" : "justify-center",
                             isActive 
                               ? "text-[#4ADE80]" 
                               : "text-[#9CA3AF] hover:text-white hover:bg-[#1F242C]"
@@ -106,40 +126,44 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                           )}
                           <Icon 
                             className={cn(
-                              "h-5 w-5 transition-colors",
+                              "h-5 w-5 shrink-0 transition-colors",
                               isActive ? "text-[#4ADE80]" : ""
                             )} 
                           />
+                          {isExpanded && (
+                            <span className={cn(
+                              "text-sm font-medium whitespace-nowrap transition-opacity duration-200",
+                              isActive ? "text-[#4ADE80]" : ""
+                            )}>
+                              {item.name}
+                            </span>
+                          )}
                         </div>
                       </Link>
                     </TooltipTrigger>
-                    <TooltipContent 
-                      side="right" 
-                      className="text-white border-0"
-                      style={{ backgroundColor: '#1F242C' }}
-                    >
-                      {item.name}
-                    </TooltipContent>
+                    {!isExpanded && (
+                      <TooltipContent 
+                        side="right" 
+                        className="text-white border-0"
+                        style={{ backgroundColor: '#1F242C' }}
+                      >
+                        {item.name}
+                      </TooltipContent>
+                    )}
                   </Tooltip>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-      </div>
-    </TooltipProvider>
+                </TooltipProvider>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    </div>
   );
 
   const MobileNavigationContent = () => (
     <div className="flex flex-col h-full" style={{ backgroundColor: '#0F1115' }}>
-      <div className="p-6 border-b" style={{ borderColor: '#2D333B' }}>
-        <div className="flex items-center gap-3">
-          <Logo size="md" className="shadow-lg" />
-          <div>
-            <h1 className="text-lg font-semibold text-white">Proesphere</h1>
-            <p className="text-xs" style={{ color: '#9CA3AF' }}>Construction Management</p>
-          </div>
-        </div>
+      <div className="p-4 border-b" style={{ borderColor: '#2D333B' }}>
+        <Logo variant="full" size="lg" className="shadow-lg" />
       </div>
       
       <nav className="flex-1 p-4">
@@ -185,11 +209,14 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   return (
     <>
       <aside 
-        className="w-[60px] hidden lg:flex flex-col border-r"
+        className="hidden lg:flex flex-col border-r transition-all duration-300 ease-in-out"
         style={{ 
           backgroundColor: '#0F1115',
-          borderColor: '#2D333B'
+          borderColor: '#2D333B',
+          width: isExpanded ? '200px' : '60px'
         }}
+        onMouseEnter={() => setIsExpanded(true)}
+        onMouseLeave={() => setIsExpanded(false)}
       >
         <NavigationRail />
       </aside>
