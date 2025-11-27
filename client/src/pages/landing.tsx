@@ -122,44 +122,44 @@ export default function Landing() {
             <div className="px-3 py-1.5 text-white/40">Communications</div>
             <div className="px-3 py-1.5 text-white/40">Financial Health</div>
           </div>
-          {/* Multi-Project Overview */}
-          <div className="p-3 border-t" style={{ borderColor: 'rgba(74, 222, 128, 0.1)' }}>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-white">Multi-Project Overview</span>
-              <div className="flex gap-3 text-xs text-white/50">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: '#4ADE80' }}></span> On Track</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-400"></span> At Risk</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400"></span> Delayed</span>
-              </div>
+          {/* Project Cards with Cover Photos */}
+          <div className="p-4 border-t" style={{ borderColor: 'rgba(74, 222, 128, 0.1)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-medium text-white">Active Projects</span>
+              <span className="text-xs text-white/40">View All</span>
             </div>
-            <div className="relative">
-              <div className="absolute top-0 bottom-0 left-1/2 w-px bg-white/20" style={{ marginLeft: '60px' }}></div>
-              <div className="text-xs text-white/40 absolute" style={{ left: 'calc(50% + 50px)', top: '-4px' }}>Today</div>
-              <div className="space-y-2 pt-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-white/60 w-28 truncate">Brookfield</span>
-                  <div className="flex-1 h-4 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(74, 222, 128, 0.1)' }}>
-                    <div className="h-full rounded-full" style={{ width: '35%', backgroundColor: '#4ADE80' }} />
-                  </div>
+            <div className="grid grid-cols-3 gap-3">
+              {/* Project Card 1 */}
+              <div className="rounded-lg overflow-hidden border" style={{ borderColor: 'rgba(74, 222, 128, 0.2)', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                <div className="h-20 bg-gradient-to-br from-green-600/30 to-green-800/20 relative">
+                  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=200')] bg-cover bg-center opacity-40"></div>
+                  <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: '#4ADE80', color: '#000' }}>65%</div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-white/60 w-28 truncate">Valles de Espana</span>
-                  <div className="flex-1 h-4 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(74, 222, 128, 0.1)' }}>
-                    <div className="h-full rounded-full" style={{ width: '65%', backgroundColor: '#4ADE80' }} />
-                  </div>
+                <div className="p-2">
+                  <div className="text-xs font-medium text-white truncate">Brookfield Estates</div>
+                  <div className="text-[10px] text-white/40">12 tasks • 3 due today</div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-white/60 w-28 truncate">Cabecera de la si...</span>
-                  <div className="flex-1 h-4 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(74, 222, 128, 0.1)' }}>
-                    <div className="h-full rounded-full" style={{ width: '15%', backgroundColor: '#4ADE80' }} />
-                    <div className="h-full rounded-full ml-auto" style={{ width: '60%', backgroundColor: 'rgba(74, 222, 128, 0.3)' }} />
-                  </div>
+              </div>
+              {/* Project Card 2 */}
+              <div className="rounded-lg overflow-hidden border" style={{ borderColor: 'rgba(74, 222, 128, 0.2)', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                <div className="h-20 bg-gradient-to-br from-blue-600/30 to-blue-800/20 relative">
+                  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=200')] bg-cover bg-center opacity-40"></div>
+                  <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded text-[10px] font-medium bg-orange-400 text-black">35%</div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-white/60 w-28 truncate">Horizon 27</span>
-                  <div className="flex-1 h-4 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(74, 222, 128, 0.1)' }}>
-                    <div className="h-full rounded-full" style={{ width: '25%', backgroundColor: '#4ADE80' }} />
-                  </div>
+                <div className="p-2">
+                  <div className="text-xs font-medium text-white truncate">Valles de España</div>
+                  <div className="text-[10px] text-white/40">8 tasks • 1 at risk</div>
+                </div>
+              </div>
+              {/* Project Card 3 */}
+              <div className="rounded-lg overflow-hidden border" style={{ borderColor: 'rgba(74, 222, 128, 0.2)', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                <div className="h-20 bg-gradient-to-br from-purple-600/30 to-purple-800/20 relative">
+                  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=200')] bg-cover bg-center opacity-40"></div>
+                  <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: '#4ADE80', color: '#000' }}>82%</div>
+                </div>
+                <div className="p-2">
+                  <div className="text-xs font-medium text-white truncate">Horizon Tower 27</div>
+                  <div className="text-[10px] text-white/40">5 tasks • On track</div>
                 </div>
               </div>
             </div>
@@ -170,43 +170,118 @@ export default function Landing() {
     {
       icon: CalendarRange,
       title: "Smart Scheduling",
-      description: "Visual Gantt charts and scheduling for smart project prioritization.",
+      description: "Visual Gantt charts with dependencies and critical path tracking.",
       preview: (
         <div 
-          className="rounded-lg p-4 border"
+          className="rounded-lg border overflow-hidden"
           style={{ 
             backgroundColor: '#0F1115',
             borderColor: 'rgba(74, 222, 128, 0.2)'
           }}
         >
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="text-white/50 text-xs w-20 truncate">Foundation</span>
-              <div className="flex-1 h-5 rounded" style={{ backgroundColor: '#4ADE80', width: '70%' }} />
+          {/* Header with time controls */}
+          <div className="px-4 py-2 border-b flex items-center justify-between" style={{ borderColor: 'rgba(74, 222, 128, 0.1)' }}>
+            <div className="flex gap-1">
+              <span className="px-2 py-1 text-[10px] rounded" style={{ backgroundColor: 'rgba(74, 222, 128, 0.15)', color: '#4ADE80' }}>Weeks</span>
+              <span className="px-2 py-1 text-[10px] text-white/40">Months</span>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-white/50 text-xs w-20 truncate">Framing</span>
-              <div className="flex-1 h-5 rounded ml-8" style={{ backgroundColor: '#22d3ee', width: '50%' }} />
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-white/50 text-xs w-20 truncate">Electrical</span>
-              <div className="flex-1 h-5 rounded ml-16" style={{ backgroundColor: '#facc15', width: '40%' }} />
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-white/50 text-xs w-20 truncate">Plumbing</span>
-              <div className="flex-1 h-5 rounded ml-20" style={{ backgroundColor: '#4ADE80', width: '35%' }} />
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-white/50 text-xs w-20 truncate">Interior</span>
-              <div className="flex-1 h-5 rounded ml-24" style={{ backgroundColor: '#a78bfa', width: '45%' }} />
+            <div className="flex items-center gap-2 text-[10px] text-white/50">
+              <span>Zoom</span>
+              <div className="w-16 h-1 rounded-full bg-white/20 relative">
+                <div className="absolute left-1/2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full" style={{ backgroundColor: '#4ADE80' }}></div>
+              </div>
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between text-xs text-white/30 border-t pt-3" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-            <span>Week 1</span>
-            <span>Week 2</span>
-            <span>Week 3</span>
-            <span>Week 4</span>
-            <span>Week 5</span>
+          
+          {/* Date header with Today marker */}
+          <div className="px-4 py-2 border-b flex" style={{ borderColor: 'rgba(74, 222, 128, 0.1)' }}>
+            <div className="w-32 flex-shrink-0 text-[10px] text-white/50">Task</div>
+            <div className="flex-1 grid grid-cols-7 text-[10px] text-white/40 text-center">
+              <span>Nov 24</span>
+              <span>Nov 25</span>
+              <span className="px-1 py-0.5 rounded" style={{ backgroundColor: 'rgba(74, 222, 128, 0.2)', color: '#4ADE80' }}>Today</span>
+              <span>Nov 27</span>
+              <span>Nov 28</span>
+              <span>Nov 29</span>
+              <span>Nov 30</span>
+            </div>
+          </div>
+          
+          {/* Gantt rows */}
+          <div className="px-4 py-2">
+            {/* Phase 1 - with expand arrow */}
+            <div className="flex items-center py-1.5">
+              <div className="w-32 flex-shrink-0 flex items-center gap-1 text-[11px] text-white/70">
+                <span className="text-white/30">▼</span> Phase 1: Foundation
+              </div>
+              <div className="flex-1 relative h-5">
+                <div className="absolute h-full rounded" style={{ left: '0%', width: '42%', backgroundColor: '#4ADE80' }}>
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-black font-medium">75%</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Excavation */}
+            <div className="flex items-center py-1.5 pl-4">
+              <div className="w-28 flex-shrink-0 flex items-center gap-1 text-[10px] text-white/50">
+                <span className="text-green-400">✓</span> Excavation
+              </div>
+              <div className="flex-1 relative h-4">
+                <div className="absolute h-full rounded" style={{ left: '0%', width: '28%', backgroundColor: '#4ADE80' }}></div>
+              </div>
+            </div>
+            
+            {/* Formwork - in progress */}
+            <div className="flex items-center py-1.5 pl-4">
+              <div className="w-28 flex-shrink-0 text-[10px] text-white/50">Formwork</div>
+              <div className="flex-1 relative h-4">
+                <div className="absolute h-full rounded flex items-center overflow-hidden" style={{ left: '20%', width: '35%', backgroundColor: 'rgba(74, 222, 128, 0.3)' }}>
+                  <div className="h-full" style={{ width: '80%', backgroundColor: '#4ADE80' }}></div>
+                  <span className="absolute right-1 text-[8px] text-white/80">80%</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Rebar - in progress with warning */}
+            <div className="flex items-center py-1.5 pl-4">
+              <div className="w-28 flex-shrink-0 text-[10px] text-white/50">Rebar</div>
+              <div className="flex-1 relative h-4">
+                <div className="absolute h-full rounded flex items-center overflow-hidden" style={{ left: '35%', width: '28%', backgroundColor: 'rgba(251, 146, 60, 0.3)' }}>
+                  <div className="h-full" style={{ width: '40%', backgroundColor: '#fb923c' }}></div>
+                  <span className="absolute right-1 text-[8px] text-white/80">40%</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Pour Concrete - upcoming */}
+            <div className="flex items-center py-1.5 pl-4">
+              <div className="w-28 flex-shrink-0 text-[10px] text-white/50">Pour Concrete</div>
+              <div className="flex-1 relative h-4">
+                <div className="absolute h-full rounded" style={{ left: '57%', width: '25%', backgroundColor: 'rgba(251, 191, 36, 0.5)' }}></div>
+              </div>
+            </div>
+            
+            {/* Phase 2 - collapsed */}
+            <div className="flex items-center py-1.5 mt-1">
+              <div className="w-32 flex-shrink-0 flex items-center gap-1 text-[11px] text-white/50">
+                <span className="text-white/30">▶</span> Phase 2: Framing (20%)
+              </div>
+              <div className="flex-1 relative h-4">
+                <div className="absolute h-full rounded" style={{ left: '70%', width: '30%', backgroundColor: 'rgba(74, 222, 128, 0.2)' }}></div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Footer with legend */}
+          <div className="px-4 py-2 border-t flex items-center justify-between" style={{ borderColor: 'rgba(74, 222, 128, 0.1)' }}>
+            <div className="flex gap-3 text-[9px] text-white/40">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ backgroundColor: '#4ADE80' }}></span> Complete</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-orange-400"></span> At Risk</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-amber-400/50"></span> Upcoming</span>
+            </div>
+            <div className="flex items-center gap-1 text-[9px] text-white/40">
+              Critical Path <span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: '#4ADE80' }}></span>
+            </div>
           </div>
         </div>
       )
@@ -338,7 +413,7 @@ export default function Landing() {
               <span className="text-white">Manage Smarter.</span>
             </h1>
             <p className="text-lg md:text-xl text-white/70 mb-10 max-w-2xl mx-auto">
-              The all-in-one platform for construction project success.
+              One intelligent hub connecting tasks, schedule, photos, clients, and payments—built from real GC experience with real-time insights that prevent delays and run projects with clarity.
             </p>
             <Button 
               onClick={handleJoinWaitlist}

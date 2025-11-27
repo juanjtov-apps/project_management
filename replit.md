@@ -56,3 +56,14 @@ Preferred communication style: Simple, everyday language.
 - **lucide-react**: Icon library.
 - **date-fns**: Date manipulation.
 - **Google Cloud Storage**: For photo storage via Replit's object storage.
+
+## Recent Updates
+
+### Landing Page MVP Release (Nov 2025)
+- **Hero Section**: Updated value proposition messaging emphasizing platform as "One intelligent hub connecting tasks, schedule, photos, clients, and payments"
+- **Feature Carousel**: Dark glass-morphism cards with green accent borders (#4ADE80) showcasing:
+  - Dashboard Command Center with project cards featuring cover photos and progress percentages
+  - Smart Scheduling with sophisticated Gantt chart preview (task hierarchy, Today marker, progress indicators, critical path)
+  - Field Collaboration, Photo Documentation, Project Logs, Client Portal
+- **Waitlist System**: Database-integrated signup form (POST /api/v1/waitlist) with SendGrid email confirmation
+- **Design**: Luxury mansion background image with dark overlay and glass-morphism aesthetic
