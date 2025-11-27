@@ -142,6 +142,13 @@ except Exception as e:
     logger.error(f"Error importing company admin router: {e}")
     company_admin_router = None
 
+try:
+    from .waitlist import router as waitlist_router
+    logger.debug("Waitlist router imported")
+except Exception as e:
+    logger.error(f"Error importing waitlist router: {e}")
+    waitlist_router = None
+
 # Import other routers as they are created
 # from .logs import router as logs_router
 
@@ -271,6 +278,12 @@ def create_api_router() -> APIRouter:
         logger.debug("Company admin router included")
     else:
         logger.warning("Company admin router skipped (import failed)")
+    
+    if waitlist_router:
+        api_router.include_router(waitlist_router, tags=["waitlist"])
+        logger.debug("Waitlist router included")
+    else:
+        logger.warning("Waitlist router skipped (import failed)")
     
     # Include additional routers as they are implemented
     # api_router.include_router(logs_router)

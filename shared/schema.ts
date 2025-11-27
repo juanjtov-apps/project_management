@@ -339,6 +339,21 @@ export const insertCommunicationSchema = createInsertSchema(communications).omit
 export const insertChangeOrderSchema = createInsertSchema(changeOrders).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({ id: true, createdAt: true });
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true, updatedAt: true });
+
+// Waitlist for interested users before launch
+export const waitlist = pgTable("waitlist", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  email: varchar("email").notNull().unique(),
+  company: text("company"),
+  role: text("role"),
+  phone: varchar("phone"),
+  message: text("message"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const insertWaitlistSchema = createInsertSchema(waitlist).omit({ id: true, createdAt: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, completedAt: true }).extend({
   dueDate: z.union([z.date(), z.string(), z.null()]).optional().nullable(),
@@ -417,3 +432,7 @@ export type InsertClientInstallment = z.infer<typeof insertClientInstallmentSche
 export type ClientInstallment = typeof clientInstallments.$inferSelect;
 export type InsertClientNotificationSetting = z.infer<typeof insertClientNotificationSettingSchema>;
 export type ClientNotificationSetting = typeof clientNotificationSettings.$inferSelect;
+
+// Waitlist Types
+export type InsertWaitlist = z.infer<typeof insertWaitlistSchema>;
+export type Waitlist = typeof waitlist.$inferSelect;
