@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import mansionBg from "@assets/stock_images/luxury_mansion_estat_bcb681bb.jpg";
+import mansionBg from "@assets/mansion_1764218970788.jpeg";
 
 export default function Landing() {
   const [currentSlide, setCurrentSlide] = useState(0);
