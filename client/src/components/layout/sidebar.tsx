@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Logo } from "@/components/ui/logo";
+import logoImage from "@assets/final logo_1764221763825.png";
 import { 
   LayoutDashboard, 
   Briefcase,
@@ -82,14 +83,18 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
       onMouseLeave={() => setIsExpanded(false)}
     >
       <div 
-        className="flex items-center py-4 px-3 border-b overflow-hidden" 
-        style={{ borderColor: '#2D333B', height: '65px' }}
+        className="flex items-center justify-center py-3 px-2 border-b" 
+        style={{ borderColor: '#2D333B', minHeight: '70px' }}
       >
         {isExpanded ? (
-          <Logo variant="full" size="md" className="shadow-lg" />
+          <Logo variant="full" size="sm" className="shadow-lg" />
         ) : (
-          <div className="flex items-center justify-center w-full">
-            <Logo size="sm" className="shadow-lg" />
+          <div className="flex items-center justify-center w-full h-12">
+            <img 
+              src={logoImage} 
+              alt="Proesphere" 
+              className="h-12 w-auto object-contain"
+            />
           </div>
         )}
       </div>
