@@ -73,7 +73,7 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
           project_id: projectId,
           title: data.title,
           description: data.description,
-          // photos will be handled separately via attachments
+          photos: data.photos,
         },
       });
       return res.json();

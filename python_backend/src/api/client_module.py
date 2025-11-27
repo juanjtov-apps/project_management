@@ -20,6 +20,7 @@ class IssueCreate(BaseModel):
     category: Optional[str] = None
     priority: Optional[str] = "medium"
     assigned_to: Optional[str] = None
+    photos: Optional[List[str]] = None
 
 class IssueCommentCreate(BaseModel):
     issue_id: str
@@ -228,7 +229,11 @@ async def get_issues(
                 """SELECT i.*, 
                    u.name as created_by_name,
                    (SELECT COUNT(*) FROM client_portal.issue_comments WHERE issue_id = i.id) as comment_count,
-                   (SELECT COUNT(*) FROM client_portal.issue_attachments WHERE issue_id = i.id) as attachment_count
+                   (SELECT COUNT(*) FROM client_portal.issue_attachments WHERE issue_id = i.id) as attachment_count,
+                   COALESCE(
+                       (SELECT array_agg(url) FROM client_portal.issue_attachments WHERE issue_id = i.id),
+                       ARRAY[]::text[]
+                   ) as photos
                    FROM client_portal.issues i
                    LEFT JOIN public.users u ON i.created_by = u.id
                    WHERE i.project_id = $1
@@ -240,7 +245,11 @@ async def get_issues(
                 """SELECT i.*, 
                    u.name as created_by_name,
                    (SELECT COUNT(*) FROM client_portal.issue_comments WHERE issue_id = i.id) as comment_count,
-                   (SELECT COUNT(*) FROM client_portal.issue_attachments WHERE issue_id = i.id) as attachment_count
+                   (SELECT COUNT(*) FROM client_portal.issue_attachments WHERE issue_id = i.id) as attachment_count,
+                   COALESCE(
+                       (SELECT array_agg(url) FROM client_portal.issue_attachments WHERE issue_id = i.id),
+                       ARRAY[]::text[]
+                   ) as photos
                    FROM client_portal.issues i
                    LEFT JOIN public.users u ON i.created_by = u.id
                    WHERE i.project_id = ANY($1::varchar[])
@@ -272,7 +281,20 @@ async def create_issue(
             issue.category,
             issue.priority
         )
-        return dict(row)
+        issue_data = dict(row)
+        
+        # Save photo attachments if provided
+        if issue.photos:
+            for photo_url in issue.photos:
+                await conn.execute(
+                    """INSERT INTO client_portal.issue_attachments (issue_id, url, uploaded_by)
+                       VALUES ($1, $2, $3)""",
+                    issue_data['id'],
+                    photo_url,
+                    current_user['id']
+                )
+        
+        return issue_data
 
 @router.patch("/client-issues/{issue_id}")
 async def update_issue(
