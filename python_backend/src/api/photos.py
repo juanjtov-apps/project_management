@@ -262,7 +262,7 @@ async def get_photo(
         
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
-            user_company_id = str(current_user.get('companyId'))
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id') or '')
             photo_project_id = photo.project_id
             if photo_project_id:
                 project = await project_repo.get_by_id(photo_project_id)
@@ -300,7 +300,7 @@ async def get_photo_file(
         
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
-            user_company_id = str(current_user.get('companyId'))
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id') or '')
             photo_project_id = photo.project_id
             if photo_project_id:
                 project = await project_repo.get_by_id(photo_project_id)
@@ -424,7 +424,7 @@ async def delete_photo(
         
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
-            user_company_id = str(current_user.get('companyId'))
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id') or '')
             photo_project_id = photo.project_id
             if photo_project_id:
                 project = await project_repo.get_by_id(photo_project_id)
