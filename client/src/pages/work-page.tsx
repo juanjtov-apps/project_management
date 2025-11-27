@@ -554,6 +554,7 @@ export default function WorkPage() {
       ...data,
       description: data.description?.trim() || null,
       dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
+      coverPhotoId: data.coverPhotoId || null,
     } as any;
     updateProjectMutation.mutate({ id: editingProject.id, data: projectData });
   };
