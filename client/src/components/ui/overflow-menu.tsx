@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,44 +29,31 @@ export function OverflowMenu({
   "data-testid": testId,
 }: OverflowMenuProps) {
   const [open, setOpen] = useState(false);
+  const isProcessingClick = useRef(false);
 
-  // Prevent dropdown from opening when a dialog is closing
-  useEffect(() => {
-    const handleDialogClose = () => {
-      // Close dropdown if it's open when dialog closes
-      if (open) {
-        setOpen(false);
-      }
-      // Block opening for a short period after dialog closes
-      const blockUntil = Date.now() + 200; // 200ms block period
-      const checkBlock = () => {
-        if (Date.now() < blockUntil) {
-          setOpen(false);
-          requestAnimationFrame(checkBlock);
-        }
-      };
-      requestAnimationFrame(checkBlock);
-    };
+  const handleOpenChange = useCallback((newOpen: boolean) => {
+    if (isProcessingClick.current) {
+      return;
+    }
+    setOpen(newOpen);
+  }, []);
 
-    window.addEventListener('dialog:close', handleDialogClose);
-    return () => {
-      window.removeEventListener('dialog:close', handleDialogClose);
-    };
-  }, [open]);
+  const handleItemClick = useCallback((e: React.MouseEvent, itemOnClick: () => void) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    isProcessingClick.current = true;
+    setOpen(false);
+    
+    // Execute the callback after a brief delay to ensure menu closes first
+    setTimeout(() => {
+      itemOnClick();
+      isProcessingClick.current = false;
+    }, 0);
+  }, []);
 
   return (
-    <DropdownMenu open={open} onOpenChange={(newOpen) => {
-      // Prevent opening if a dialog was just closed (within 200ms)
-      const timeSinceLastDialogClose = (window as any).__lastDialogCloseTime || 0;
-      const timeSinceClose = Date.now() - timeSinceLastDialogClose;
-      
-      if (newOpen && timeSinceClose < 200) {
-        // Block opening if dialog was just closed
-        return;
-      }
-      
-      setOpen(newOpen);
-    }}>
+    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger
         data-testid={testId}
         className={cn(
@@ -77,15 +64,7 @@ export function OverflowMenu({
         )}
         aria-label="More options"
         onClick={(e) => {
-          // Prevent opening if clicking right after dialog close
-          const timeSinceLastDialogClose = (window as any).__lastDialogCloseTime || 0;
-          const timeSinceClose = Date.now() - timeSinceLastDialogClose;
-          
-          if (timeSinceClose < 200) {
-            e.preventDefault();
-            e.stopPropagation();
-            return;
-          }
+          e.stopPropagation();
         }}
       >
         <MoreVertical className="w-5 h-5 text-[var(--text-secondary)]" />
@@ -95,11 +74,7 @@ export function OverflowMenu({
           <div key={index}>
             {item.separator && index > 0 && <DropdownMenuSeparator />}
             <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                item.onClick();
-                setOpen(false);
-              }}
+              onClick={(e) => handleItemClick(e, item.onClick)}
               data-testid={`menu-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               className={cn(
                 "tap-target cursor-pointer",
