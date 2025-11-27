@@ -843,7 +843,7 @@ export default function WorkPage() {
               <div
                 className={cn(
                   projectViewMode === "grid"
-                    ? "grid grid-cols-2 md:grid-cols-3 gap-6"
+                    ? "grid grid-cols-2 lg:grid-cols-3 gap-6 lg:justify-items-center"
                     : "space-y-3"
                 )}
               >
@@ -858,7 +858,7 @@ export default function WorkPage() {
                     thumbnailUrl={projectThumbnails[project.id]}
                     onClick={() => setQuickViewProject(project)}
                     isSelected={quickViewProject?.id === project.id}
-                    className="max-w-[320px] mx-auto md:max-w-none"
+                    className="w-full lg:w-[300px]"
                     data-testid={`project-card-${project.id}`}
                   />
                 ))}
