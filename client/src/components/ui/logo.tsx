@@ -1,4 +1,4 @@
-import logoFull from "@assets/generated_images/proesphere_green_p_logo.png";
+import logoFull from "@assets/final logo_1764221763825.png";
 
 interface LogoProps {
   size?: "sm" | "md" | "lg";
