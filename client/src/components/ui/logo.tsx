@@ -8,15 +8,15 @@ interface LogoProps {
 
 export function Logo({ size = "md", className = "", variant = "icon" }: LogoProps) {
   const iconSizeClasses = {
-    sm: "h-10",
-    md: "h-12", 
-    lg: "h-14"
+    sm: "h-14",
+    md: "h-16", 
+    lg: "h-20"
   };
   
   const fullSizeClasses = {
-    sm: "h-10",
-    md: "h-12", 
-    lg: "h-14"
+    sm: "h-14",
+    md: "h-16", 
+    lg: "h-20"
   };
 
   if (variant === "full") {
