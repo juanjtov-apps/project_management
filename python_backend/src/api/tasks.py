@@ -3,7 +3,7 @@ Task API endpoints with authentication and company filtering.
 """
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, status, Query, Depends, Request
-from src.models import Task, TaskCreate, TaskUpdate
+from src.models import Task, TaskCreate, TaskUpdate, Project
 from src.database.repositories import TaskRepository, ProjectRepository
 from src.database.auth_repositories import auth_repo
 from src.api.auth import get_current_user_dependency, is_root_admin
@@ -12,7 +12,7 @@ router = APIRouter()
 task_repo = TaskRepository()
 project_repo = ProjectRepository()
 
-async def verify_task_company_access(task_id: str, user_company_id: str) -> Dict[str, Any]:
+async def verify_task_company_access(task_id: str, user_company_id: str) -> Task:
     """Verify user has access to task based on company_id."""
     task = await task_repo.get_by_id(task_id)
     if not task:
@@ -127,7 +127,7 @@ async def create_task(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Project not found"
                 )
-            if not is_root_admin(current_user) and str(project.get('company_id')) != user_company_id:
+            if not is_root_admin(current_user) and str(project.company_id) != user_company_id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Cannot create task for project from different company"
