@@ -267,9 +267,22 @@ export default function WorkPage() {
 
   const deleteProjectMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/projects/${id}`, { method: "DELETE" }),
-    onSuccess: () => {
+    onSuccess: (_data, deletedId) => {
+      // Clear all related state BEFORE closing dialog to prevent stale references
+      const wasQuickViewProject = quickViewProject?.id === deletedId;
+      
+      // Clear project references first
+      setProjectToDelete(null);
+      if (wasQuickViewProject) {
+        setQuickViewProject(null);
+      }
+      
+      // Then close dialog
       setIsProjectDeleteDialogOpen(false);
+      
+      // Finally invalidate queries and show toast
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
       toast({ title: "Project deleted successfully" });
     },
   });
@@ -1516,9 +1529,12 @@ export default function WorkPage() {
       <AlertDialog 
         open={isProjectDeleteDialogOpen} 
         onOpenChange={(open) => {
-          if (!deleteProjectMutation.isPending) {
+          // Only handle user-initiated close (not programmatic close from mutation success)
+          if (!deleteProjectMutation.isPending && open !== isProjectDeleteDialogOpen) {
             setIsProjectDeleteDialogOpen(open);
-            if (!open) setProjectToDelete(null);
+            if (!open && projectToDelete) {
+              setProjectToDelete(null);
+            }
           }
         }}
       >
