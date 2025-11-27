@@ -10,8 +10,8 @@ from .base import BaseEntity, ProjectStatus
 class ProjectBase(BaseModel):
     """Base project model."""
     name: str
-    description: Optional[str] = ""
-    location: Optional[str] = ""
+    description: str = ""
+    location: str = ""
     status: ProjectStatus = ProjectStatus.active
     progress: int = Field(default=0, ge=0, le=100)
     due_date: Optional[datetime] = Field(default=None, alias="dueDate")
