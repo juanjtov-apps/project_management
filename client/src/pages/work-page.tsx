@@ -843,12 +843,9 @@ export default function WorkPage() {
               <div
                 className={cn(
                   projectViewMode === "grid"
-                    ? "grid grid-cols-2 gap-6"
+                    ? "grid grid-cols-2 gap-6 w-full lg:[grid-template-columns:repeat(auto-fit,minmax(300px,300px))]"
                     : "space-y-3"
                 )}
-                style={projectViewMode === "grid" ? { 
-                  gridTemplateColumns: "repeat(auto-fill, minmax(300px, 300px))" 
-                } : undefined}
               >
                 {filteredProjects.map((project) => (
                   <ProjectCard
@@ -861,7 +858,7 @@ export default function WorkPage() {
                     thumbnailUrl={projectThumbnails[project.id]}
                     onClick={() => setQuickViewProject(project)}
                     isSelected={quickViewProject?.id === project.id}
-                    className="w-[300px]"
+                    className="w-full lg:w-[300px]"
                     data-testid={`project-card-${project.id}`}
                   />
                 ))}
