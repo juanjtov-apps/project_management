@@ -19,6 +19,12 @@ try:
 except ImportError:
     admin_router = None
 
+# Import waitlist router (public endpoint, no auth required)
+try:
+    from ...api.waitlist import router as waitlist_router
+except ImportError:
+    waitlist_router = None
+
 # Import user_management router for complete RBAC endpoints (POST/PATCH/DELETE)
 try:
     from ...api.user_management import router as user_management_router
@@ -65,6 +71,10 @@ def create_v1_router() -> APIRouter:
     # Include admin router for v1 API (root admin endpoints)
     if admin_router:
         v1_router.include_router(admin_router, tags=["admin"])
+    
+    # Include waitlist router (public endpoint)
+    if waitlist_router:
+        v1_router.include_router(waitlist_router, tags=["waitlist"])
     
     return v1_router
 

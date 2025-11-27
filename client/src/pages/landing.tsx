@@ -38,7 +38,7 @@ export default function Landing() {
     setIsSubmitting(true);
     
     try {
-      const response = await fetch("/api/waitlist", {
+      const response = await fetch("/api/v1/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)
