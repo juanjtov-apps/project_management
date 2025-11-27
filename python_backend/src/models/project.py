@@ -16,6 +16,7 @@ class ProjectBase(BaseModel):
     progress: int = Field(default=0, ge=0, le=100)
     due_date: Optional[datetime] = Field(default=None, alias="dueDate")
     company_id: Optional[str] = Field(default=None, alias="companyId")
+    cover_photo_id: Optional[str] = Field(default=None, alias="coverPhotoId")
 
 
 class ProjectCreate(ProjectBase):
@@ -32,6 +33,7 @@ class ProjectUpdate(BaseModel):
     progress: Optional[int] = Field(default=None, ge=0, le=100)
     due_date: Optional[datetime] = Field(default=None, alias="dueDate")
     company_id: Optional[str] = Field(default=None, alias="companyId")
+    cover_photo_id: Optional[str] = Field(default=None, alias="coverPhotoId")
 
 
 class Project(BaseEntity, ProjectBase):

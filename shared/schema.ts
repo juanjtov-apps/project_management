@@ -76,6 +76,7 @@ export const projects = pgTable("projects", {
   clientName: text("client_name"),
   clientEmail: varchar("client_email"),
   clientPhone: varchar("client_phone"),
+  coverPhotoId: varchar("cover_photo_id"), // ID of the photo to use as cover image
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   companyId: varchar("company_id").references(() => companies.id), // Links project to a company for multi-tenancy
 });

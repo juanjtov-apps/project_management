@@ -10,6 +10,7 @@ import {
   Calendar as CalendarIcon,
   CheckCircle,
   Briefcase,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -185,16 +186,25 @@ export default function WorkPage() {
     queryKey: ["/api/photos"],
   });
 
-  // Create a map of project ID to first photo for thumbnails
+  // Create a map of project ID to cover photo or first photo for thumbnails
   const projectThumbnails = useMemo(() => {
     const thumbnailMap: Record<string, string> = {};
+    
+    // First, set thumbnails from coverPhotoId if available
+    projects.forEach((project) => {
+      if (project.coverPhotoId) {
+        thumbnailMap[project.id] = `/api/photos/${project.coverPhotoId}/file`;
+      }
+    });
+    
+    // Then, for projects without cover photos, use the first photo
     allPhotos.forEach((photo) => {
       if (photo.projectId && !thumbnailMap[photo.projectId]) {
         thumbnailMap[photo.projectId] = `/api/photos/${photo.id}/file`;
       }
     });
     return thumbnailMap;
-  }, [allPhotos]);
+  }, [allPhotos, projects]);
 
   // Create a map of project ID to array of photo URLs for card thumbnails
   const projectPhotoUrls = useMemo(() => {
@@ -532,6 +542,7 @@ export default function WorkPage() {
       location: project.location || "",
       progress: project.progress || 0,
       dueDate: project.dueDate ? new Date(project.dueDate) : undefined,
+      coverPhotoId: project.coverPhotoId || undefined,
     });
     setIsProjectEditDialogOpen(true);
     console.log("[Project Edit] Form populated and dialog opened");
@@ -1389,6 +1400,77 @@ export default function WorkPage() {
                   </FormItem>
                 )}
               />
+
+              {/* Cover Photo Selection */}
+              {editingProject && (
+                <FormField
+                  control={projectEditForm.control}
+                  name="coverPhotoId"
+                  render={({ field }) => {
+                    const projectPhotos = allPhotos.filter(p => p.projectId === editingProject.id);
+                    return (
+                      <FormItem>
+                        <FormLabel>Cover Photo</FormLabel>
+                        <FormControl>
+                          <div className="space-y-2">
+                            {projectPhotos.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">
+                                No photos uploaded yet. Upload photos to the project first to set a cover image.
+                              </p>
+                            ) : (
+                              <>
+                                <p className="text-sm text-muted-foreground mb-2">
+                                  Select a photo to use as the project cover image
+                                </p>
+                                <div className="grid grid-cols-4 gap-2">
+                                  {projectPhotos.slice(0, 8).map((photo) => (
+                                    <div
+                                      key={photo.id}
+                                      onClick={() => field.onChange(photo.id)}
+                                      className={cn(
+                                        "relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all",
+                                        field.value === photo.id
+                                          ? "border-[#4ADE80] ring-2 ring-[#4ADE80]"
+                                          : "border-transparent hover:border-[#4ADE80]/50"
+                                      )}
+                                      data-testid={`cover-photo-option-${photo.id}`}
+                                    >
+                                      <img
+                                        src={`/api/photos/${photo.id}/file`}
+                                        alt={photo.originalName}
+                                        className="w-full h-full object-cover"
+                                      />
+                                      {field.value === photo.id && (
+                                        <div className="absolute inset-0 bg-[#4ADE80]/20 flex items-center justify-center">
+                                          <div className="w-6 h-6 rounded-full bg-[#4ADE80] flex items-center justify-center">
+                                            <Check className="w-4 h-4 text-black" />
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                                {field.value && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => field.onChange(undefined)}
+                                    className="text-sm text-muted-foreground"
+                                  >
+                                    Clear cover photo
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
