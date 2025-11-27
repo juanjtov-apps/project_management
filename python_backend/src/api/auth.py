@@ -383,6 +383,23 @@ async def get_current_user(request: Request):
                 user_data["currentOrganizationId"] = current_org_id
                 user_data["current_organization_id"] = current_org_id
         
+        # Fetch and add organization/company name
+        company_id = user_data.get('company_id') or user_data.get('companyId')
+        if company_id:
+            try:
+                from ..database.db import db_manager
+                company_row = await db_manager.execute_one(
+                    "SELECT id, name FROM companies WHERE id = $1",
+                    str(company_id)
+                )
+                if company_row:
+                    user_data["organization"] = {
+                        "id": str(company_row["id"]),
+                        "name": company_row["name"]
+                    }
+            except Exception as e:
+                print(f"Error fetching company name: {e}")
+        
         return user_data
         
     except HTTPException:

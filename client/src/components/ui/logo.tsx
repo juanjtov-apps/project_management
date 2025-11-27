@@ -1,4 +1,3 @@
-import logoIcon from "@/assets/proesphere-logo.png";
 import logoFull from "@/assets/proesphere-hd-logo.png";
 
 interface LogoProps {
@@ -8,10 +7,10 @@ interface LogoProps {
 }
 
 export function Logo({ size = "md", className = "", variant = "icon" }: LogoProps) {
-  const sizeClasses = {
-    sm: "h-8 w-8",
-    md: "h-10 w-10", 
-    lg: "h-12 w-12"
+  const iconSizeClasses = {
+    sm: "h-7",
+    md: "h-8", 
+    lg: "h-10"
   };
   
   const fullSizeClasses = {
@@ -31,10 +30,13 @@ export function Logo({ size = "md", className = "", variant = "icon" }: LogoProp
   }
 
   return (
-    <img 
-      src={logoIcon} 
-      alt="Proesphere Logo" 
-      className={`${sizeClasses[size]} ${className}`}
-    />
+    <div className={`${iconSizeClasses[size]} overflow-hidden ${className}`}>
+      <img 
+        src={logoFull} 
+        alt="Proesphere" 
+        className="h-full w-auto object-cover object-left"
+        style={{ maxWidth: '200%' }}
+      />
+    </div>
   );
 }
