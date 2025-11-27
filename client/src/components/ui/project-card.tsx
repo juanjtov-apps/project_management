@@ -1,3 +1,4 @@
+import { useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Building2, MapPin, MoreVertical, ArrowRight } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -82,6 +83,83 @@ export function ProjectCard({
   const statusInfo = statusConfig[normalizedStatus] || statusConfig[status] || defaultStatus;
   const formattedDueDate = formatDate(dueDate);
 
+  // Controlled dropdown state with guard to prevent focus-triggered reopening
+  const [menuOpen, setMenuOpen] = useState(false);
+  const isProcessingAction = useRef(false);
+  const lastActionTime = useRef(0);
+
+  const handleOpenChange = useCallback((open: boolean) => {
+    // Block reopening for 300ms after an action was triggered
+    const timeSinceAction = Date.now() - lastActionTime.current;
+    if (open && timeSinceAction < 300) {
+      return;
+    }
+    
+    // Block if we're currently processing an action
+    if (isProcessingAction.current) {
+      return;
+    }
+    
+    setMenuOpen(open);
+  }, []);
+
+  const handleEdit = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    // Set guard flags
+    isProcessingAction.current = true;
+    lastActionTime.current = Date.now();
+    
+    // Close menu first
+    setMenuOpen(false);
+    
+    // Execute callback after menu closes
+    setTimeout(() => {
+      if (onEdit) {
+        onEdit();
+      }
+      // Release guard after a delay to prevent focus-triggered reopen
+      setTimeout(() => {
+        isProcessingAction.current = false;
+      }, 300);
+    }, 10);
+  }, [onEdit]);
+
+  const handleDelete = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    // Set guard flags
+    isProcessingAction.current = true;
+    lastActionTime.current = Date.now();
+    
+    // Close menu first
+    setMenuOpen(false);
+    
+    // Execute callback after menu closes
+    setTimeout(() => {
+      if (onDelete) {
+        onDelete();
+      }
+      // Release guard after a delay to prevent focus-triggered reopen
+      setTimeout(() => {
+        isProcessingAction.current = false;
+      }, 300);
+    }, 10);
+  }, [onDelete]);
+
+  const handleTriggerClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Block if we recently performed an action
+    const timeSinceAction = Date.now() - lastActionTime.current;
+    if (timeSinceAction < 300) {
+      e.preventDefault();
+      return;
+    }
+  }, []);
+
   return (
     <div
       data-testid={testId}
@@ -106,15 +184,15 @@ export function ProjectCard({
           </div>
         )}
         
-        {/* 3-dot Menu */}
+        {/* 3-dot Menu - Controlled with guard */}
         <div className="absolute top-2 right-2">
-          <DropdownMenu>
+          <DropdownMenu open={menuOpen} onOpenChange={handleOpenChange}>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 rounded-full bg-black/40 hover:bg-black/60 text-white"
-                onClick={(e) => e.stopPropagation()}
+                onClick={handleTriggerClick}
                 data-testid={`button-menu-${id}`}
               >
                 <MoreVertical className="h-4 w-4" />
@@ -123,10 +201,7 @@ export function ProjectCard({
             <DropdownMenuContent align="end" className="bg-[#1A1F26] border-[#2D333B]">
               {onEdit && (
                 <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEdit();
-                  }}
+                  onClick={handleEdit}
                   data-testid={`menu-edit-${id}`}
                 >
                   Edit Project
@@ -134,10 +209,7 @@ export function ProjectCard({
               )}
               {onDelete && (
                 <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete();
-                  }}
+                  onClick={handleDelete}
                   className="text-red-400"
                   data-testid={`menu-delete-${id}`}
                 >
