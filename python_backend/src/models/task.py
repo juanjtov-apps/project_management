@@ -19,6 +19,9 @@ class TaskBase(BaseModel):
     due_date: Optional[datetime] = Field(default=None, alias="dueDate")
     company_id: Optional[str] = Field(default=None, alias="companyId")
     
+    class Config:
+        populate_by_name = True
+    
     @validator('status', pre=True)
     def normalize_status(cls, v):
         """Normalize status values: 'done' -> 'completed', 'in_progress' -> 'in-progress'."""
@@ -48,6 +51,9 @@ class TaskUpdate(BaseModel):
     project_id: Optional[str] = Field(default=None, alias="projectId")
     assignee_id: Optional[str] = Field(default=None, alias="assigneeId")
     due_date: Optional[datetime] = Field(default=None, alias="dueDate")
+    
+    class Config:
+        populate_by_name = True
     
     @validator('status', pre=True)
     def normalize_status(cls, v):

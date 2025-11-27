@@ -67,3 +67,10 @@ Preferred communication style: Simple, everyday language.
   - Field Collaboration, Photo Documentation, Project Logs, Client Portal
 - **Waitlist System**: Database-integrated signup form (POST /api/v1/waitlist) with SendGrid email confirmation
 - **Design**: Luxury mansion background image with dark overlay and glass-morphism aesthetic
+
+### Task Persistence Fix (Nov 2025)
+- **Issue**: Task creation was not saving project_id and company_id to database
+- **Root Cause**: `TaskBase` and `TaskUpdate` Pydantic models were missing `populate_by_name = True` config
+- **Technical Detail**: When calling `task.dict()` (returns snake_case keys) then `TaskCreate(**task_data)`, Pydantic ignores snake_case keys without this config because it expects the camelCase aliases
+- **Solution**: Added `class Config: populate_by_name = True` to TaskBase and TaskUpdate models
+- **Bug Pattern**: All Pydantic models with Field aliases need `populate_by_name = True` in Config to accept both snake_case field names and camelCase aliases
