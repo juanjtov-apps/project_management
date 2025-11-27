@@ -1,7 +1,7 @@
-import { LayoutDashboard, CalendarRange, Users, ArrowRight } from "lucide-react";
+import { LayoutDashboard, CalendarRange, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
-import constructionBg from "@assets/stock_images/construction_site_bu_20bf8193.jpg";
+import constructionBg from "@assets/stock_images/modern_skyscraper_bu_af9649f9.jpg";
 
 export default function Landing() {
   const handleSignIn = () => {
@@ -22,7 +22,7 @@ export default function Landing() {
         }}
       >
         {/* Dark overlay */}
-        <div className="absolute inset-0 bg-black/50" />
+        <div className="absolute inset-0 bg-black/60" />
         
         {/* Header */}
         <header className="relative z-20">
@@ -140,33 +140,52 @@ export default function Landing() {
               <p className="text-white/60 text-sm mb-5">
                 The all-in-one platform for construction project success.
               </p>
-              {/* Dashboard Preview */}
+              {/* Dashboard Preview - Realistic mockup */}
               <div 
-                className="rounded-lg p-4 border"
+                className="rounded-lg overflow-hidden border"
                 style={{ 
-                  backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                  backgroundColor: '#0F1115',
                   borderColor: 'rgba(74, 222, 128, 0.2)'
                 }}
               >
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 rounded-full bg-red-500" />
-                  <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                  <div className="w-2 h-2 rounded-full bg-green-500" />
-                  <span className="text-white/40 text-xs ml-2">Proesphere</span>
+                {/* Stats Row */}
+                <div className="p-3 grid grid-cols-4 gap-2">
+                  <div className="rounded p-2" style={{ backgroundColor: 'rgba(74, 222, 128, 0.1)' }}>
+                    <div className="text-xs text-white/50">Projects</div>
+                    <div className="text-sm font-semibold" style={{ color: '#4ADE80' }}>13</div>
+                  </div>
+                  <div className="rounded p-2" style={{ backgroundColor: 'rgba(251, 146, 60, 0.1)' }}>
+                    <div className="text-xs text-white/50">Due Today</div>
+                    <div className="text-sm font-semibold text-orange-400">4</div>
+                  </div>
+                  <div className="rounded p-2" style={{ backgroundColor: 'rgba(74, 222, 128, 0.1)' }}>
+                    <div className="text-xs text-white/50">Completed</div>
+                    <div className="text-sm font-semibold" style={{ color: '#4ADE80' }}>156</div>
+                  </div>
+                  <div className="rounded p-2" style={{ backgroundColor: 'rgba(74, 222, 128, 0.1)' }}>
+                    <div className="text-xs text-white/50">Budget</div>
+                    <div className="text-sm font-semibold" style={{ color: '#4ADE80' }}>$1.2M</div>
+                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  <div className="h-16 rounded" style={{ backgroundColor: 'rgba(74, 222, 128, 0.2)' }} />
-                  <div className="h-16 rounded" style={{ backgroundColor: 'rgba(74, 222, 128, 0.15)' }} />
-                  <div className="h-16 rounded" style={{ backgroundColor: 'rgba(74, 222, 128, 0.1)' }} />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-end gap-1 h-12">
-                    <div className="w-4 rounded-t" style={{ height: '60%', backgroundColor: '#4ADE80' }} />
-                    <div className="w-4 rounded-t" style={{ height: '80%', backgroundColor: '#4ADE80' }} />
-                    <div className="w-4 rounded-t" style={{ height: '45%', backgroundColor: '#4ADE80' }} />
-                    <div className="w-4 rounded-t" style={{ height: '90%', backgroundColor: '#4ADE80' }} />
-                    <div className="w-4 rounded-t" style={{ height: '70%', backgroundColor: '#4ADE80' }} />
-                    <div className="w-4 rounded-t" style={{ height: '55%', backgroundColor: '#4ADE80' }} />
+                {/* Project Bars */}
+                <div className="px-3 pb-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white/40 text-xs w-20 truncate">Brookfield</span>
+                    <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(74, 222, 128, 0.1)' }}>
+                      <div className="h-full rounded-full" style={{ width: '65%', backgroundColor: '#4ADE80' }} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-white/40 text-xs w-20 truncate">Valles de Espana</span>
+                    <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(74, 222, 128, 0.1)' }}>
+                      <div className="h-full rounded-full" style={{ width: '85%', backgroundColor: '#4ADE80' }} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-white/40 text-xs w-20 truncate">Horizon 27</span>
+                    <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(74, 222, 128, 0.1)' }}>
+                      <div className="h-full rounded-full" style={{ width: '40%', backgroundColor: '#4ADE80' }} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -191,21 +210,16 @@ export default function Landing() {
               </div>
               <h3 className="text-xl font-semibold text-white mb-2">Smart Scheduling</h3>
               <p className="text-white/60 text-sm mb-5">
-                Gantt and Scheduling Gantt, smart project prioritization essential.
+                Visual Gantt charts and scheduling for smart project prioritization.
               </p>
               {/* Gantt Preview */}
               <div 
                 className="rounded-lg p-4 border"
                 style={{ 
-                  backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                  backgroundColor: '#0F1115',
                   borderColor: 'rgba(74, 222, 128, 0.2)'
                 }}
               >
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 rounded-full bg-red-500" />
-                  <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                  <div className="w-2 h-2 rounded-full bg-green-500" />
-                </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-white/40 text-xs w-16 truncate">Foundation</span>
@@ -252,39 +266,33 @@ export default function Landing() {
               </div>
               <h3 className="text-xl font-semibold text-white mb-2">Field Collaboration</h3>
               <p className="text-white/60 text-sm mb-5">
-                Map, media, space link, and messaging UI in no-code zones.
+                Real-time messaging and updates for seamless team coordination.
               </p>
               {/* Collaboration Preview */}
               <div 
                 className="rounded-lg p-4 border"
                 style={{ 
-                  backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                  backgroundColor: '#0F1115',
                   borderColor: 'rgba(74, 222, 128, 0.2)'
                 }}
               >
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 rounded-full bg-red-500" />
-                  <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                  <div className="w-2 h-2 rounded-full bg-green-500" />
-                  <span className="text-white/40 text-xs ml-2">Messages</span>
-                </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex items-start gap-2">
-                    <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ backgroundColor: '#4ADE80' }} />
+                    <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-medium text-white" style={{ backgroundColor: '#4ADE80' }}>M</div>
                     <div className="rounded-lg p-2 text-xs text-white/70" style={{ backgroundColor: 'rgba(74, 222, 128, 0.15)' }}>
                       Foundation complete, moving to framing
                     </div>
                   </div>
                   <div className="flex items-start gap-2 justify-end">
                     <div className="rounded-lg p-2 text-xs text-white/70" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
-                      Great! Materials are ready
+                      Great! Materials are ready on site
                     </div>
-                    <div className="w-6 h-6 rounded-full flex-shrink-0 bg-blue-500" />
+                    <div className="w-6 h-6 rounded-full flex-shrink-0 bg-blue-500 flex items-center justify-center text-xs font-medium text-white">J</div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <div className="w-6 h-6 rounded-full flex-shrink-0 bg-orange-500" />
+                    <div className="w-6 h-6 rounded-full flex-shrink-0 bg-orange-500 flex items-center justify-center text-xs font-medium text-white">S</div>
                     <div className="rounded-lg p-2 text-xs text-white/70" style={{ backgroundColor: 'rgba(251, 146, 60, 0.15)' }}>
-                      Inspection scheduled for 2pm
+                      Inspection scheduled for 2pm today
                     </div>
                   </div>
                 </div>
