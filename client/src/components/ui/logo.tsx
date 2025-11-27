@@ -1,4 +1,4 @@
-import logoFull from "@assets/Apple 4_1764218989512.png";
+import logoFull from "@assets/Final logo_1764221479285.png";
 
 interface LogoProps {
   size?: "sm" | "md" | "lg";
@@ -8,15 +8,15 @@ interface LogoProps {
 
 export function Logo({ size = "md", className = "", variant = "icon" }: LogoProps) {
   const iconSizeClasses = {
-    sm: "h-7",
-    md: "h-8", 
-    lg: "h-10"
+    sm: "h-10",
+    md: "h-12", 
+    lg: "h-14"
   };
   
   const fullSizeClasses = {
-    sm: "h-6",
-    md: "h-8", 
-    lg: "h-10"
+    sm: "h-10",
+    md: "h-12", 
+    lg: "h-14"
   };
 
   if (variant === "full") {
