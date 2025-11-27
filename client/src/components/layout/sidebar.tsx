@@ -10,7 +10,6 @@ import {
   Calendar, 
   Camera, 
   ClipboardList, 
-  Wrench,
   Shield,
   TrendingUp,
   MessageSquare
@@ -36,7 +35,6 @@ const navigation = [
   { name: "Photos", href: "/photos", icon: Camera },
   { name: "Project Logs", href: "/logs", icon: ClipboardList },
   { name: "Client Portal", href: "/client-portal", icon: MessageSquare },
-  { name: "Subs", href: "/subs", icon: Wrench },
   { name: "RBAC Admin", href: "/rbac", icon: Shield },
 ];
 
@@ -63,7 +61,6 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
     'Photos': 'photos',
     'Project Logs': 'logs',
     'Client Portal': 'clientPortal',
-    'Subs': 'subs',
     'RBAC Admin': 'rbacAdmin'
   };
   

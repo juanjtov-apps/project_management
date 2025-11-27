@@ -8,7 +8,6 @@ import {
   Camera, 
   ClipboardList, 
   X,
-  Wrench,
   Shield,
   TrendingUp
 } from "lucide-react";
@@ -23,7 +22,6 @@ const navigation = [
   { name: "Schedule", href: "/schedule", icon: Calendar },
   { name: "Photos", href: "/photos", icon: Camera },
   { name: "Project Logs", href: "/logs", icon: ClipboardList },
-  { name: "Subs", href: "/subs", icon: Wrench },
   { name: "RBAC Admin", href: "/rbac", icon: Shield },
 ];
 

@@ -59,11 +59,7 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
               <ClientPortal />
             </ProtectedRoute>
           </Route>
-          <Route path="/subs">
-            <ProtectedRoute requiredPermission="subs">
-              <Subs />
-            </ProtectedRoute>
-          </Route>
+          {/* Subs module hidden for MVP - will be re-enabled later */}
           <Route path="/rbac">
             <ProtectedRoute requiredPermission="rbacAdmin">
               <RBACAdmin />
