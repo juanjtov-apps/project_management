@@ -21,11 +21,15 @@ class TaskBase(BaseModel):
     
     @validator('status', pre=True)
     def normalize_status(cls, v):
-        """Normalize status values: 'done' -> 'completed'."""
+        """Normalize status values: 'done' -> 'completed', 'in_progress' -> 'in-progress'."""
         if v is None:
             return v
-        if isinstance(v, str) and v.lower() == 'done':
-            return TaskStatus.completed
+        if isinstance(v, str):
+            v_lower = v.lower()
+            if v_lower == 'done':
+                return TaskStatus.completed
+            if v_lower == 'in_progress':
+                return TaskStatus.in_progress
         return v
 
 
@@ -47,11 +51,15 @@ class TaskUpdate(BaseModel):
     
     @validator('status', pre=True)
     def normalize_status(cls, v):
-        """Normalize status values: 'done' -> 'completed'."""
+        """Normalize status values: 'done' -> 'completed', 'in_progress' -> 'in-progress'."""
         if v is None:
             return v
-        if isinstance(v, str) and v.lower() == 'done':
-            return TaskStatus.completed
+        if isinstance(v, str):
+            v_lower = v.lower()
+            if v_lower == 'done':
+                return TaskStatus.completed
+            if v_lower == 'in_progress':
+                return TaskStatus.in_progress
         return v
 
 
