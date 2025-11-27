@@ -112,7 +112,8 @@ app.add_middleware(LogRequests)
 from src.middleware.security import setup_security_middleware
 setup_security_middleware(app)
 
-# Add CORS middleware - full access for development with credentials support
+# Add CORS middleware - allow development and production origins with credentials support
+# Production domains include Replit deployment URLs
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -120,8 +121,9 @@ app.add_middleware(
         "http://127.0.0.1:5000",
         "http://0.0.0.0:5000",
         "https://localhost:5000",
-        "https://127.0.0.1:5000"
+        "https://127.0.0.1:5000",
     ],
+    allow_origin_regex=r"https://.*\.replit\.app|https://.*\.replit\.dev|https://.*\.repl\.co",
     allow_credentials=True,  # Enable credentials for session auth
     allow_methods=["*"],
     allow_headers=["*"],

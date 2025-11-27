@@ -37,6 +37,44 @@ async def logout_options():
 SESSION_TTL = 7 * 24 * 60 * 60  # 1 week in seconds
 SESSION_SECRET = os.getenv("SESSION_SECRET", "default-secret-key")
 
+def is_production() -> bool:
+    """Check if running in production environment.
+    
+    Checks multiple indicators:
+    - NODE_ENV not set to 'development'
+    - REPLIT_DEPLOYMENT environment variable is set (Replit production)
+    - REPL_SLUG is set (running on Replit)
+    """
+    node_env = os.getenv("NODE_ENV", "")
+    replit_deployment = os.getenv("REPLIT_DEPLOYMENT", "")
+    repl_slug = os.getenv("REPL_SLUG", "")
+    
+    # If explicitly set to development, we're not in production
+    if node_env == "development":
+        return False
+    
+    # If REPLIT_DEPLOYMENT is set, we're in Replit production
+    if replit_deployment:
+        return True
+    
+    # If REPL_SLUG is set but not development mode, we're on Replit (could be dev preview or production)
+    # Default to secure cookies on Replit since it uses HTTPS
+    if repl_slug:
+        return True
+    
+    # If NODE_ENV is set to production, we're in production
+    if node_env == "production":
+        return True
+    
+    return False
+
+def get_cookie_secure() -> bool:
+    """Get secure flag for cookies based on environment.
+    
+    Returns True if running in production (HTTPS required).
+    """
+    return is_production()
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -285,14 +323,15 @@ async def login(request: LoginRequest, response: Response):
             # Create session
             session_id = await create_session(user_data["id"], user_data)
             
-            # Set session cookie
+            # Set session cookie with environment-aware secure flag
+            # Using samesite="lax" since frontend proxies to backend (same origin)
             response.set_cookie(
                 key="session_id",
                 value=session_id,
                 max_age=SESSION_TTL,
                 httponly=True,
-                secure=False,  # Set to True in production with HTTPS
-                samesite="lax"
+                secure=get_cookie_secure(),  # True in production (HTTPS), False in development
+                samesite="lax"  # Same-origin requests work with lax
             )
             
             # Remove password from response
