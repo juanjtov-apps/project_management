@@ -110,7 +110,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
           </Button>
           <div className="flex items-center gap-2 min-w-0">
             {currentUser?.organization?.name ? (
-              <span className="text-lg hidden md:block font-semibold text-white">
+              <span className="text-lg hidden md:block font-semibold" style={{ color: '#4ADE80' }}>
                 {currentUser.organization.name}
               </span>
             ) : (
