@@ -7,7 +7,6 @@ import {
   Calendar, 
   Camera, 
   ClipboardList, 
-  Users,
   Wrench,
   Shield,
   TrendingUp,
@@ -31,7 +30,6 @@ const navigation = [
   { name: "Photos", href: "/photos", icon: Camera },
   { name: "Project Logs", href: "/logs", icon: ClipboardList },
   { name: "Client Portal", href: "/client-portal", icon: MessageSquare },
-  { name: "Crew", href: "/crew", icon: Users },
   { name: "Subs", href: "/subs", icon: Wrench },
   { name: "RBAC Admin", href: "/rbac", icon: Shield },
 ];
@@ -72,7 +70,6 @@ export default function MobileSheet({ open, onOpenChange }: MobileSheetProps) {
     'Photos': 'photos',
     'Project Logs': 'logs',
     'Client Portal': 'clientPortal',
-    'Crew': 'crew',
     'Subs': 'subs',
     'RBAC Admin': 'rbacAdmin'
   };

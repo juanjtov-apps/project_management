@@ -13,7 +13,6 @@ import Schedule from "@/pages/schedule";
 import Photos from "@/pages/photos";
 import Logs from "@/pages/logs";
 import ClientPortal from "@/pages/client-portal";
-import Crew from "@/pages/crew";
 import Subs from "@/pages/subs";
 import RBACAdmin from "@/pages/RBACAdmin";
 import ProjectHealth from "@/pages/project-health";
@@ -58,11 +57,6 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
           <Route path="/client-portal">
             <ProtectedRoute requiredPermission="clientPortal">
               <ClientPortal />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/crew">
-            <ProtectedRoute requiredPermission="crew">
-              <Crew />
             </ProtectedRoute>
           </Route>
           <Route path="/subs">

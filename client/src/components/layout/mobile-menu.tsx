@@ -7,8 +7,6 @@ import {
   Calendar, 
   Camera, 
   ClipboardList, 
-  Users,
-  HardHat,
   X,
   Wrench,
   Shield,
@@ -25,7 +23,6 @@ const navigation = [
   { name: "Schedule", href: "/schedule", icon: Calendar },
   { name: "Photos", href: "/photos", icon: Camera },
   { name: "Project Logs", href: "/logs", icon: ClipboardList },
-  { name: "Crew", href: "/crew", icon: Users },
   { name: "Subs", href: "/subs", icon: Wrench },
   { name: "RBAC Admin", href: "/rbac", icon: Shield },
 ];
