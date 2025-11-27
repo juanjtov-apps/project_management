@@ -528,7 +528,7 @@ export default function WorkPage() {
     if (!editingProject) return;
     const projectData = {
       ...data,
-      description: data.description?.trim() || null,
+      description: data.description?.trim() || "",
       dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
     } as any;
     updateProjectMutation.mutate({ id: editingProject.id, data: projectData });
