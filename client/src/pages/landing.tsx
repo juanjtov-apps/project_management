@@ -517,9 +517,6 @@ export default function Landing() {
       <footer className="py-12" style={{ backgroundColor: '#0a0a0a' }}>
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <Logo size="sm" variant="full" />
-            </div>
             <div className="flex items-center gap-6 text-sm text-white/50">
               <a href="#" className="hover:text-white transition-colors">Privacy</a>
               <a href="#" className="hover:text-white transition-colors">Terms</a>
