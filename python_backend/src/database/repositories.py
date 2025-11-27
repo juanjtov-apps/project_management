@@ -626,7 +626,7 @@ class DashboardRepository(BaseRepository):
             photo_stats_query = """
                 SELECT 
                     COUNT(*) as total_photos,
-                    COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') as photos_this_week
+                    COUNT(*) FILTER (WHERE p.created_at >= NOW() - INTERVAL '7 days') as photos_this_week
                 FROM photos p
                 JOIN projects pr ON p.project_id = pr.id
                 WHERE pr.company_id = $1
@@ -636,8 +636,8 @@ class DashboardRepository(BaseRepository):
             photo_stats_query = """
                 SELECT 
                     COUNT(*) as total_photos,
-                    COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') as photos_this_week
-                FROM photos
+                    COUNT(*) FILTER (WHERE p.created_at >= NOW() - INTERVAL '7 days') as photos_this_week
+                FROM photos p
             """
             photo_row = await db_manager.execute_one(photo_stats_query)
         
