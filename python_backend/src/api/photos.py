@@ -97,7 +97,9 @@ async def upload_photo(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail="Project not found"
                     )
-                if str(project.get('company_id')) != user_company_id:
+                # Handle both dict and object access patterns
+                project_company_id = project.get('company_id') if isinstance(project, dict) else getattr(project, 'company_id', None)
+                if str(project_company_id) != user_company_id:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail="Cannot upload photo to project from different company"
