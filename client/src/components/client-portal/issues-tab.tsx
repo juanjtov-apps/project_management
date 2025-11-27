@@ -30,8 +30,10 @@ interface Issue {
   description: string;
   photos: string[];
   createdBy: string;
+  created_by_name: string | null;
   status: "open" | "closed";
   createdAt: string;
+  created_at: string;
 }
 
 interface IssuesTabProps {
@@ -318,7 +320,12 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
                     <div className="flex-1">
                       <CardTitle className="text-lg">{issue.title}</CardTitle>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Created {new Date(issue.createdAt).toLocaleDateString()}
+                        Created {(() => {
+                          const dateStr = issue.created_at || issue.createdAt;
+                          if (!dateStr) return "Unknown date";
+                          const date = new Date(dateStr);
+                          return isNaN(date.getTime()) ? "Unknown date" : date.toLocaleDateString();
+                        })()} by {issue.created_by_name || "Unknown"}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

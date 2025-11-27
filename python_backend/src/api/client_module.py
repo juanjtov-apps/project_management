@@ -226,9 +226,11 @@ async def get_issues(
                 )
             rows = await conn.fetch(
                 """SELECT i.*, 
+                   u.name as created_by_name,
                    (SELECT COUNT(*) FROM client_portal.issue_comments WHERE issue_id = i.id) as comment_count,
                    (SELECT COUNT(*) FROM client_portal.issue_attachments WHERE issue_id = i.id) as attachment_count
                    FROM client_portal.issues i
+                   LEFT JOIN public.users u ON i.created_by = u.id
                    WHERE i.project_id = $1
                    ORDER BY i.created_at DESC""",
                 project_id
@@ -236,9 +238,11 @@ async def get_issues(
         else:
             rows = await conn.fetch(
                 """SELECT i.*, 
+                   u.name as created_by_name,
                    (SELECT COUNT(*) FROM client_portal.issue_comments WHERE issue_id = i.id) as comment_count,
                    (SELECT COUNT(*) FROM client_portal.issue_attachments WHERE issue_id = i.id) as attachment_count
                    FROM client_portal.issues i
+                   LEFT JOIN public.users u ON i.created_by = u.id
                    WHERE i.project_id = ANY($1::varchar[])
                    ORDER BY i.created_at DESC""",
                 accessible_projects
