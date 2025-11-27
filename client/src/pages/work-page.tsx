@@ -45,7 +45,7 @@ import {
 import { StatCard } from "@/components/ui/stat-card";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { ProjectCard } from "@/components/ui/project-card";
+import { ProjectCard, CreateProjectCard } from "@/components/ui/project-card";
 import { ProjectQuickView } from "@/components/ui/project-quick-view";
 import { TaskCard as TabletTaskCard } from "@/components/ui/task-card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -194,6 +194,20 @@ export default function WorkPage() {
       }
     });
     return thumbnailMap;
+  }, [allPhotos]);
+
+  // Create a map of project ID to array of photo URLs for card thumbnails
+  const projectPhotoUrls = useMemo(() => {
+    const photoMap: Record<string, string[]> = {};
+    allPhotos.forEach((photo) => {
+      if (photo.projectId) {
+        if (!photoMap[photo.projectId]) {
+          photoMap[photo.projectId] = [];
+        }
+        photoMap[photo.projectId].push(`/api/photos/${photo.id}/file`);
+      }
+    });
+    return photoMap;
   }, [allPhotos]);
 
   // Get photos for the quick view project
@@ -843,7 +857,7 @@ export default function WorkPage() {
               <div
                 className={cn(
                   projectViewMode === "grid"
-                    ? "flex flex-wrap gap-6"
+                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
                     : "space-y-3"
                 )}
               >
@@ -855,13 +869,27 @@ export default function WorkPage() {
                     status={project.status as any}
                     location={project.location || undefined}
                     progress={project.progress || 0}
+                    dueDate={project.dueDate}
                     thumbnailUrl={projectThumbnails[project.id]}
+                    photoUrls={projectPhotoUrls[project.id] || []}
                     onClick={() => setQuickViewProject(project)}
+                    onEdit={() => {
+                      setEditingProject(project);
+                      setIsProjectEditDialogOpen(true);
+                    }}
+                    onDelete={() => {
+                      setProjectToDelete(project);
+                      setIsProjectDeleteDialogOpen(true);
+                    }}
                     isSelected={quickViewProject?.id === project.id}
-                    className="w-[calc(50%-12px)] lg:w-[300px]"
                     data-testid={`project-card-${project.id}`}
                   />
                 ))}
+                {/* Create New Project Card */}
+                <CreateProjectCard
+                  onClick={() => setIsProjectCreateDialogOpen(true)}
+                  data-testid="button-create-project-card"
+                />
               </div>
             )}
           </div>
