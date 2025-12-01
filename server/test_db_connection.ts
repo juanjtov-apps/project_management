@@ -17,12 +17,94 @@ async function testConnection() {
 
   // Display configuration
   console.log('📋 Configuration:');
-  const dbUrl = process.env.DATABASE_URL || '';
-  const displayUrl = dbUrl.length > 60 ? dbUrl.substring(0, 57) + '...' : dbUrl;
-  console.log(`   DATABASE_URL: ${displayUrl}`);
+  
+  // Show environment
+  const nodeEnv = (process.env.NODE_ENV || '').toLowerCase();
+  console.log(`   NODE_ENV: ${nodeEnv || '(not set)'}`);
+  
+  // Show which database URL variables are set
+  const databaseUrlDev = process.env.DATABASE_URL_DEV;
+  const databaseUrlProd = process.env.DATABASE_URL_PROD;
+  const databaseUrlFallback = process.env.DATABASE_URL;
+  
+  console.log();
+  console.log('   Environment Variables:');
+  if (databaseUrlDev) {
+    const displayDev = databaseUrlDev.length > 50 ? databaseUrlDev.substring(0, 47) + '...' : databaseUrlDev;
+    console.log(`   ✅ DATABASE_URL_DEV: ${displayDev}`);
+  } else {
+    console.log(`   ⚪ DATABASE_URL_DEV: (not set)`);
+  }
+  
+  if (databaseUrlProd) {
+    const displayProd = databaseUrlProd.length > 50 ? databaseUrlProd.substring(0, 47) + '...' : databaseUrlProd;
+    console.log(`   ✅ DATABASE_URL_PROD: ${displayProd}`);
+  } else {
+    console.log(`   ⚪ DATABASE_URL_PROD: (not set)`);
+  }
+  
+  if (databaseUrlFallback) {
+    const displayFallback = databaseUrlFallback.length > 50 ? databaseUrlFallback.substring(0, 47) + '...' : databaseUrlFallback;
+    console.log(`   ✅ DATABASE_URL: ${displayFallback}`);
+  } else {
+    console.log(`   ⚪ DATABASE_URL: (not set)`);
+  }
+  
+  // Determine which one is being used (same logic as db.ts)
+  let databaseUrl: string;
+  if (nodeEnv === 'development') {
+    databaseUrl = databaseUrlDev || databaseUrlFallback || '';
+  } else if (nodeEnv === 'production') {
+    databaseUrl = databaseUrlProd || databaseUrlFallback || '';
+  } else {
+    databaseUrl = databaseUrlFallback || '';
+  }
+  
+  console.log();
+  console.log('   Selected Database URL:');
+  if (nodeEnv === 'development') {
+    if (databaseUrlDev) {
+      console.log(`   🔵 Using: DATABASE_URL_DEV (NODE_ENV=development)`);
+    } else if (databaseUrlFallback) {
+      console.log(`   🔵 Using: DATABASE_URL (fallback, NODE_ENV=development)`);
+    } else {
+      console.log(`   ❌ No database URL available for development`);
+    }
+  } else if (nodeEnv === 'production') {
+    if (databaseUrlProd) {
+      console.log(`   🔵 Using: DATABASE_URL_PROD (NODE_ENV=production)`);
+    } else if (databaseUrlFallback) {
+      console.log(`   🔵 Using: DATABASE_URL (fallback, NODE_ENV=production)`);
+    } else {
+      console.log(`   ❌ No database URL available for production`);
+    }
+  } else {
+    if (databaseUrlFallback) {
+      console.log(`   🔵 Using: DATABASE_URL (NODE_ENV not set)`);
+    } else {
+      console.log(`   ❌ No database URL available`);
+    }
+  }
+  
+  // Show the actual URL being used (masked)
+  if (databaseUrl) {
+    let displayUrl = databaseUrl.length > 50 ? databaseUrl.substring(0, 47) + '...' : databaseUrl;
+    // Mask password in URL
+    if (displayUrl.includes('@') && displayUrl.includes('://')) {
+      const parts = displayUrl.split('@');
+      if (parts.length === 2) {
+        const protocolUserPass = parts[0];
+        if (protocolUserPass.includes(':')) {
+          const protocolUser = protocolUserPass.split(':')[0] + ':***';
+          displayUrl = protocolUser + '@' + parts[1];
+        }
+      }
+    }
+    console.log(`   URL: ${displayUrl}`);
+  }
 
   // Check SSL configuration
-  const dbUrlLower = dbUrl.toLowerCase();
+  const dbUrlLower = databaseUrl.toLowerCase();
   const isNeon = dbUrlLower.includes('neon.tech');
   const isCloudSQL = 
     process.env.DB_SSL_DIR || 
@@ -32,7 +114,15 @@ async function testConnection() {
     dbUrlLower.includes('cloudsql') ||
     dbUrlLower.includes('gcp');
 
-  console.log(`   Database Type: ${isNeon ? '🔵 Neon (Production)' : isCloudSQL ? '🟢 Cloud SQL (Development)' : '⚪ Other'}`);
+  console.log();
+  if (isNeon) {
+    const envLabel = nodeEnv === 'production' ? 'PRODUCTION' : 'DEVELOPMENT';
+    console.log(`   Database Type: 🔵 Neon (${envLabel})`);
+  } else if (isCloudSQL) {
+    console.log(`   Database Type: 🟢 Cloud SQL`);
+  } else {
+    console.log(`   Database Type: ⚪ Other`);
+  }
 
   if (isCloudSQL) {
     if (process.env.DB_SSL_DIR) {
@@ -164,12 +254,12 @@ async function testConnection() {
     }
     console.log();
     console.log('Troubleshooting tips:');
-    console.log('1. Verify DATABASE_URL is correct');
-    console.log('2. Check that SSL certificates are in the correct location');
-    console.log('3. Ensure the Cloud SQL instance allows connections from your IP');
-    console.log('4. Verify database credentials are correct');
-    console.log('5. Check firewall rules for Cloud SQL');
-    console.log('6. For Cloud SQL, ensure server-ca.pem is present');
+    console.log('1. Verify DATABASE_URL, DATABASE_URL_DEV, or DATABASE_URL_PROD is correct');
+    console.log('2. Check that NODE_ENV is set to \'development\' or \'production\'');
+    console.log('3. Check that SSL certificates are in the correct location (for Cloud SQL)');
+    console.log('4. Ensure the database instance allows connections from your IP');
+    console.log('5. Verify database credentials are correct');
+    console.log('6. Check firewall rules');
     return false;
   } finally {
     // Close the pool

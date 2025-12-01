@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     
     # Database
     database_url: str = os.getenv("DATABASE_URL", "")
+    database_url_dev: str = os.getenv("DATABASE_URL_DEV", "")
+    database_url_prod: str = os.getenv("DATABASE_URL_PROD", "")
     
     # Cloud SQL SSL Certificates (for GCP Cloud SQL)
     # Option 1: Specify a directory containing all certificates

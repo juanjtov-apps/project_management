@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Test script for Cloud SQL database connection
-Tests the database connection with SSL certificates configured.
+Test script for database connection
+Tests the database connection with environment-based URL selection.
 """
 
 import asyncio
@@ -18,13 +18,98 @@ from database.connection import get_db_pool, close_db_pool, DATABASE_URL, DB_SSL
 async def test_connection():
     """Test database connection and perform basic queries"""
     print("=" * 60)
-    print("🔍 Testing Cloud SQL Database Connection")
+    print("🔍 Testing Database Connection")
     print("=" * 60)
     print()
     
     # Display configuration
     print("📋 Configuration:")
-    print(f"   DATABASE_URL: {DATABASE_URL[:50]}..." if len(DATABASE_URL) > 50 else f"   DATABASE_URL: {DATABASE_URL}")
+    
+    # Show environment
+    node_env = os.getenv("NODE_ENV", "").lower()
+    print(f"   NODE_ENV: {node_env or '(not set)'}")
+    
+    # Show which database URL variables are set
+    database_url_dev = os.getenv("DATABASE_URL_DEV")
+    database_url_prod = os.getenv("DATABASE_URL_PROD")
+    database_url_fallback = os.getenv("DATABASE_URL")
+    
+    print()
+    print("   Environment Variables:")
+    if database_url_dev:
+        display_dev = database_url_dev[:50] + "..." if len(database_url_dev) > 50 else database_url_dev
+        print(f"   ✅ DATABASE_URL_DEV: {display_dev}")
+    else:
+        print(f"   ⚪ DATABASE_URL_DEV: (not set)")
+    
+    if database_url_prod:
+        display_prod = database_url_prod[:50] + "..." if len(database_url_prod) > 50 else database_url_prod
+        print(f"   ✅ DATABASE_URL_PROD: {display_prod}")
+    else:
+        print(f"   ⚪ DATABASE_URL_PROD: (not set)")
+    
+    if database_url_fallback:
+        display_fallback = database_url_fallback[:50] + "..." if len(database_url_fallback) > 50 else database_url_fallback
+        print(f"   ✅ DATABASE_URL: {display_fallback}")
+    else:
+        print(f"   ⚪ DATABASE_URL: (not set)")
+    
+    # Determine which one is being used
+    print()
+    print("   Selected Database URL:")
+    if node_env == "development":
+        if database_url_dev:
+            print(f"   🔵 Using: DATABASE_URL_DEV (NODE_ENV=development)")
+        elif database_url_fallback:
+            print(f"   🔵 Using: DATABASE_URL (fallback, NODE_ENV=development)")
+        else:
+            print(f"   ❌ No database URL available for development")
+    elif node_env == "production":
+        if database_url_prod:
+            print(f"   🔵 Using: DATABASE_URL_PROD (NODE_ENV=production)")
+        elif database_url_fallback:
+            print(f"   🔵 Using: DATABASE_URL (fallback, NODE_ENV=production)")
+        else:
+            print(f"   ❌ No database URL available for production")
+    else:
+        if database_url_fallback:
+            print(f"   🔵 Using: DATABASE_URL (NODE_ENV not set)")
+        else:
+            print(f"   ❌ No database URL available")
+    
+    # Show the actual URL being used (masked)
+    if DATABASE_URL:
+        display_url = DATABASE_URL[:50] + "..." if len(DATABASE_URL) > 50 else DATABASE_URL
+        # Mask password in URL
+        if "@" in display_url and "://" in display_url:
+            parts = display_url.split("@")
+            if len(parts) == 2:
+                protocol_user_pass = parts[0]
+                if ":" in protocol_user_pass:
+                    protocol_user = protocol_user_pass.split(":")[0] + ":***"
+                    display_url = protocol_user + "@" + parts[1]
+        print(f"   URL: {display_url}")
+    
+    # Detect database type
+    db_url_lower = DATABASE_URL.lower() if DATABASE_URL else ""
+    is_neon = 'neon.tech' in db_url_lower
+    is_cloud_sql = (
+        'cloudsql' in db_url_lower or 
+        'gcp' in db_url_lower or
+        DB_SSL_ROOT_CERT or 
+        DB_SSL_CERT or 
+        DB_SSL_KEY or
+        DB_SSL_DIR
+    )
+    
+    print()
+    if is_neon:
+        env_label = "PRODUCTION" if node_env == "production" else "DEVELOPMENT"
+        print(f"   Database Type: 🔵 Neon ({env_label})")
+    elif is_cloud_sql:
+        print(f"   Database Type: 🟢 Cloud SQL")
+    else:
+        print(f"   Database Type: ⚪ Other")
     
     if DB_SSL_DIR:
         print(f"   DB_SSL_DIR: {DB_SSL_DIR}")
@@ -50,7 +135,8 @@ async def test_connection():
             print(f"   DB_SSL_KEY: {DB_SSL_KEY}")
             print(f"   {'✅' if Path(DB_SSL_KEY).exists() else '❌'} File exists")
     else:
-        print("   ⚠️  No SSL certificates configured")
+        if not is_neon:
+            print("   ⚠️  No SSL certificates configured")
     
     print()
     print("-" * 60)
@@ -101,8 +187,11 @@ async def test_connection():
             # Test SSL connection info
             print()
             print("🔒 Testing SSL Connection...")
-            ssl_info = await conn.fetchval("SHOW ssl")
-            print(f"   SSL Status: {ssl_info}")
+            try:
+                ssl_info = await conn.fetchval("SHOW ssl")
+                print(f"   SSL Status: {ssl_info}")
+            except:
+                print("   ℹ️  SSL status query not available")
             
             # Try to get SSL version if available
             try:
@@ -125,11 +214,12 @@ async def test_connection():
         print(f"Error: {e}")
         print()
         print("Troubleshooting tips:")
-        print("1. Verify DATABASE_URL is correct")
-        print("2. Check that SSL certificates are in the correct location")
-        print("3. Ensure the Cloud SQL instance allows connections from your IP")
-        print("4. Verify database credentials are correct")
-        print("5. Check firewall rules for Cloud SQL")
+        print("1. Verify DATABASE_URL, DATABASE_URL_DEV, or DATABASE_URL_PROD is correct")
+        print("2. Check that NODE_ENV is set to 'development' or 'production'")
+        print("3. Check that SSL certificates are in the correct location (for Cloud SQL)")
+        print("4. Ensure the database instance allows connections from your IP")
+        print("5. Verify database credentials are correct")
+        print("6. Check firewall rules")
         return False
     
     finally:
@@ -140,10 +230,13 @@ async def test_connection():
 async def main():
     """Main test function"""
     if not DATABASE_URL:
-        print("❌ Error: DATABASE_URL environment variable is not set")
+        print("❌ Error: No database URL available")
         print()
-        print("Please set it using:")
+        print("Please set one of the following:")
         print("  export DATABASE_URL='postgresql://user:pass@host:port/dbname'")
+        print("  export DATABASE_URL_DEV='postgresql://user:pass@host:port/dbname' (for development)")
+        print("  export DATABASE_URL_PROD='postgresql://user:pass@host:port/dbname' (for production)")
+        print("  export NODE_ENV='development' or 'production'")
         sys.exit(1)
     
     success = await test_connection()
@@ -152,4 +245,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

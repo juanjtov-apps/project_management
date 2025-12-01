@@ -8,9 +8,26 @@ import asyncpg
 from typing import AsyncGenerator, Optional
 from pathlib import Path
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Select database URL based on environment
+NODE_ENV = os.getenv("NODE_ENV", "").lower()
+DATABASE_URL_DEV = os.getenv("DATABASE_URL_DEV")
+DATABASE_URL_PROD = os.getenv("DATABASE_URL_PROD")
+DATABASE_URL_FALLBACK = os.getenv("DATABASE_URL")
+
+# Determine which database URL to use
+if NODE_ENV == "development":
+    DATABASE_URL = DATABASE_URL_DEV or DATABASE_URL_FALLBACK
+elif NODE_ENV == "production":
+    DATABASE_URL = DATABASE_URL_PROD or DATABASE_URL_FALLBACK
+else:
+    # Fallback: use DATABASE_URL if no environment-specific variable is set
+    DATABASE_URL = DATABASE_URL_FALLBACK
+
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is required")
+    raise ValueError(
+        "DATABASE_URL environment variable is required. "
+        "Set DATABASE_URL, DATABASE_URL_DEV, or DATABASE_URL_PROD based on NODE_ENV."
+    )
 
 # SSL certificate paths for Cloud SQL
 DB_SSL_ROOT_CERT = os.getenv("DB_SSL_ROOT_CERT")  # server-ca.pem
@@ -22,11 +39,10 @@ DB_SSL_DIR = os.getenv("DB_SSL_DIR")  # Directory containing certificates
 _pool = None
 
 def _create_ssl_context() -> Optional[ssl.SSLContext]:
-    """Create SSL context based on database type: Neon (production) or Cloud SQL (development)"""
+    """Create SSL context based on database type: Neon (dev/prod) or Cloud SQL"""
     db_url_lower = DATABASE_URL.lower()
     
-    # Detect database type
-    is_neon = 'neon.tech' in db_url_lower
+    # Detect database type - Cloud SQL has highest priority (SSL certs present)
     is_cloud_sql = (
         'cloudsql' in db_url_lower or 
         'gcp' in db_url_lower or
@@ -36,19 +52,17 @@ def _create_ssl_context() -> Optional[ssl.SSLContext]:
         DB_SSL_DIR
     )
     
-    if is_neon:
-        # Neon (Production): Simple SSL with 'require' mode
-        print("=" * 60)
-        print("🔵 DATABASE: Neon (PRODUCTION)")
-        print("   SSL Mode: require")
-        print("   Environment: Production")
-        print("=" * 60)
-        return 'require'
+    is_neon = 'neon.tech' in db_url_lower
     
+    # Determine environment for Neon databases
+    is_production = NODE_ENV == "production"
+    is_development = NODE_ENV == "development"
+    
+    # Cloud SQL detection (highest priority)
     if is_cloud_sql:
-        # Cloud SQL (Development): Full SSL certificate configuration
+        # Cloud SQL: Full SSL certificate configuration
         print("=" * 60)
-        print("🟢 DATABASE: Cloud SQL (DEVELOPMENT)")
+        print("🟢 DATABASE: Cloud SQL")
         print("   SSL Mode: Full certificate authentication")
         print("   Environment: Development")
         print("=" * 60)
@@ -95,6 +109,18 @@ def _create_ssl_context() -> Optional[ssl.SSLContext]:
                 print("⚠️  Warning: Client certificate/key not found, using server CA only")
         
         return ssl_context
+    
+    # Neon database detection
+    if is_neon:
+        # Neon: Simple SSL with 'require' mode
+        env_label = "PRODUCTION" if is_production else "DEVELOPMENT"
+        print("=" * 60)
+        print(f"🔵 DATABASE: Neon ({env_label})")
+        print("   SSL Mode: require")
+        print(f"   Environment: {env_label}")
+        print("=" * 60)
+        return 'require'
+    
     
     # Other providers: Check connection string for SSL requirements
     if 'sslmode=require' in db_url_lower:
