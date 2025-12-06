@@ -134,10 +134,10 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-  // Register Node.js routes (session store configuration only - PURE PROXY MODE)
+  // Register Node.js routes (pure proxy mode - no session management)
   const { registerRoutes } = await import('./routes');
   await registerRoutes(app);
-  console.log("✅ Node.js session store configured (PURE PROXY MODE - no business logic)");
+  console.log("✅ Node.js proxy configured (PURE PROXY MODE - session management handled by FastAPI)");
   
   // ALL API routes are handled by Python FastAPI backend
   console.log("✅ All /api/* requests will be forwarded to Python FastAPI backend (/api/v1/*)");
@@ -425,13 +425,12 @@ app.use((req, res, next) => {
   const host = process.env.HOST || (isProduction ? '0.0.0.0' : '127.0.0.1');
   
   // Production guard: Verify critical environment variables
+  // NOTE: SESSION_SECRET is no longer required here - FastAPI handles all session management
   if (isProduction) {
     if (!process.env.DATABASE_URL) {
       throw new Error('DATABASE_URL environment variable is required in production');
     }
-    if (!process.env.SESSION_SECRET) {
-      throw new Error('SESSION_SECRET environment variable is required in production');
-    }
+    // SESSION_SECRET is handled by FastAPI backend, not Node.js
   }
   
   server.listen(port, host, () => {

@@ -1,5 +1,4 @@
 import type { Request, Response, NextFunction } from "express";
-import { storage } from "./storage";
 import { isRootAdmin } from "./constants";
 
 declare global {
@@ -20,50 +19,69 @@ export interface AuthorizedRequest extends Request {
 }
 
 // RBAC Authorization Middleware
+// NOTE: This middleware is used by legacy routes that directly query the database.
+// Ideally, all routes should be proxied to FastAPI which handles authentication.
 export const authorize = (allowedRoles: string[] = []) => {
   return async (req: AuthorizedRequest, res: Response, next: NextFunction) => {
     try {
-      // Check if user is authenticated via session
-      const userId = (req.session as any)?.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+      // Get session_id from cookie (FastAPI session management)
+      const sessionId = req.cookies?.session_id;
+      if (!sessionId) {
+        return res.status(401).json({ message: "Not authenticated - no session cookie" });
       }
 
-      // Get current user data
-      const currentUser = await storage.getUser(userId);
-      if (!currentUser) {
-        return res.status(401).json({ message: "User not found" });
-      }
+      // Fetch user from FastAPI backend using session
+      try {
+        const backendUrl = `http://127.0.0.1:8000/api/v1/auth/user`;
+        const response = await fetch(backendUrl, {
+          method: 'GET',
+          headers: {
+            'Cookie': `session_id=${sessionId}`,
+          },
+        });
 
-      // Attach user info to request
-      req.currentUser = currentUser;
-      
-      // Check if root admin (always has access)
-      const isRootAdminValue = isRootAdmin(currentUser);
-      req.isRootAdmin = isRootAdminValue;
-      
-      // Root admin bypasses all role checks
-      if (isRootAdminValue) {
-        console.log(`✅ RBAC: Root admin ${currentUser.email} granted access`);
-        return next();
-      }
-
-      // Check if company admin
-      const isCompanyAdmin = currentUser.role === 'admin';
-      req.isCompanyAdmin = isCompanyAdmin;
-
-      // If specific roles are required, check them
-      if (allowedRoles.length > 0) {
-        if (!allowedRoles.includes(currentUser.role)) {
-          console.log(`❌ RBAC: User ${currentUser.email} with role ${currentUser.role} denied access. Required: ${allowedRoles.join(', ')}`);
-          return res.status(403).json({ 
-            message: `Access denied. Required role: ${allowedRoles.join(' or ')}` 
-          });
+        if (!response.ok) {
+          return res.status(401).json({ message: "Not authenticated - invalid session" });
         }
-      }
 
-      console.log(`✅ RBAC: User ${currentUser.email} with role ${currentUser.role} granted access`);
-      next();
+        const currentUser = await response.json();
+        if (!currentUser) {
+          return res.status(401).json({ message: "User not found" });
+        }
+
+        // Attach user info to request
+        req.currentUser = currentUser;
+        
+        // Check if root admin (always has access)
+        const isRootAdminValue = isRootAdmin(currentUser);
+        req.isRootAdmin = isRootAdminValue;
+        
+        // Root admin bypasses all role checks
+        if (isRootAdminValue) {
+          console.log(`✅ RBAC: Root admin ${currentUser.email} granted access`);
+          return next();
+        }
+
+        // Check if company admin
+        const isCompanyAdmin = currentUser.role === 'admin';
+        req.isCompanyAdmin = isCompanyAdmin;
+
+        // If specific roles are required, check them
+        if (allowedRoles.length > 0) {
+          if (!allowedRoles.includes(currentUser.role)) {
+            console.log(`❌ RBAC: User ${currentUser.email} with role ${currentUser.role} denied access. Required: ${allowedRoles.join(', ')}`);
+            return res.status(403).json({ 
+              message: `Access denied. Required role: ${allowedRoles.join(' or ')}` 
+            });
+          }
+        }
+
+        console.log(`✅ RBAC: User ${currentUser.email} with role ${currentUser.role} granted access`);
+        next();
+      } catch (fetchError) {
+        console.error('Failed to fetch user from FastAPI:', fetchError);
+        return res.status(401).json({ message: "Not authenticated - backend unavailable" });
+      }
     } catch (error) {
       console.error('RBAC Authorization error:', error);
       res.status(500).json({ message: "Authorization error" });

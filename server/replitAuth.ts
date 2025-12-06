@@ -2,10 +2,8 @@ import * as client from "openid-client";
 import { Strategy, type VerifyFunction } from "openid-client/passport";
 
 import passport from "passport";
-import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
-import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
 if (!process.env.REPLIT_DOMAINS) {
@@ -32,51 +30,9 @@ const getOidcConfig = memoize(
   { maxAge: 3600 * 1000 }
 );
 
-export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  
-  // Import SSL config and create pool for session store
-  const { createDbPool } = require('./db');
-  const sessionPool = createDbPool();
-  
-  // Create session store with the SSL-configured pool
-  const sessionStore = new pgStore({
-    pool: sessionPool,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
-
-  // Production guard: SESSION_SECRET is required in production
-  const isProduction = process.env.NODE_ENV === 'production';
-  const sessionSecret = process.env.SESSION_SECRET;
-  
-  if (isProduction && !sessionSecret) {
-    throw new Error(
-      'SESSION_SECRET environment variable is required in production. ' +
-      'Set a secure random secret before deploying.'
-    );
-  }
-
-  if (!sessionSecret) {
-    console.warn('⚠️  WARNING: SESSION_SECRET not set. Using default secret. This is UNSAFE for production!');
-  }
-
-  return session({
-    secret: sessionSecret || 'default-secret-change-in-production',
-    store: sessionStore,
-    resave: false,
-    saveUninitialized: false,
-    rolling: true, // Regenerate session ID on every response to prevent session fixation
-    cookie: {
-      httpOnly: true,
-      secure: isProduction, // Secure cookies in production (requires HTTPS)
-      sameSite: "strict", // CSRF protection
-      maxAge: sessionTtl,
-    },
-  });
-}
+// NOTE: Express session management has been removed.
+// All session management is now handled by FastAPI backend (Port 8000).
+// FastAPI uses 'session_id' cookie for session management.
 
 function updateUserSession(
   user: any,
@@ -102,9 +58,9 @@ async function upsertUser(
 
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
-  app.use(getSession());
+  // NOTE: Express session middleware removed - FastAPI handles all session management
   app.use(passport.initialize());
-  app.use(passport.session());
+  // NOTE: passport.session() removed - sessions are managed by FastAPI
 
   const config = await getOidcConfig();
 
@@ -238,31 +194,12 @@ export async function setupAuth(app: Express) {
   });
 }
 
+// NOTE: isAuthenticated middleware removed - authentication is handled by FastAPI backend.
+// All API requests are proxied to FastAPI which handles session validation.
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
-
-  if (!req.isAuthenticated() || !user.expires_at) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  if (now <= user.expires_at) {
-    return next();
-  }
-
-  const refreshToken = user.refresh_token;
-  if (!refreshToken) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
-
-  try {
-    const config = await getOidcConfig();
-    const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
-    updateUserSession(user, tokenResponse);
-    return next();
-  } catch (error) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
+  // This middleware is deprecated - FastAPI handles all authentication.
+  // For Replit OIDC flows, authentication should be handled through FastAPI endpoints.
+  return res.status(401).json({ 
+    message: "Authentication must be handled through FastAPI backend. Use /api/v1/auth/login endpoint." 
+  });
 };

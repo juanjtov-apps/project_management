@@ -323,6 +323,11 @@ async def login(request: LoginRequest, response: Response):
             # Create session
             session_id = await create_session(user_data["id"], user_data)
             
+            # Generate CSRF token for this session
+            from ..middleware.security import generate_csrf_token, store_csrf_token
+            csrf_token = generate_csrf_token()
+            store_csrf_token(session_id, csrf_token)
+            
             # Set session cookie with environment-aware secure flag
             # Using samesite="lax" since frontend proxies to backend (same origin)
             response.set_cookie(
@@ -333,6 +338,9 @@ async def login(request: LoginRequest, response: Response):
                 secure=get_cookie_secure(),  # True in production (HTTPS), False in development
                 samesite="lax"  # Same-origin requests work with lax
             )
+            
+            # Add CSRF token to response headers for frontend
+            response.headers["X-CSRF-Token"] = csrf_token
             
             # Remove password from response
             user_data.pop("password", None)
@@ -371,10 +379,10 @@ async def login(request: LoginRequest, response: Response):
 async def get_current_user(request: Request):
     """Get current authenticated user."""
     try:
-        # Get session ID from cookie or header
+        # Get session ID from cookie (unified session management)
         session_id = request.cookies.get("session_id")
         if not session_id:
-            # Try header as fallback
+            # Try header as fallback for API clients
             auth_header = request.headers.get("authorization")
             if auth_header and auth_header.startswith("Bearer "):
                 session_id = auth_header[7:]
@@ -472,15 +480,17 @@ async def logout(request: Request, response: Response):
 
 # Dependency for protected routes
 async def get_current_user_dependency(request: Request) -> Dict[str, Any]:
-    """Dependency to get current authenticated user for protected routes."""
+    """Dependency to get current authenticated user for protected routes.
+    
+    Uses unified session management - only FastAPI session_id cookie is supported.
+    """
     from urllib.parse import unquote
     
-    # Get session ID from cookie or header
-    # Node.js backend uses 'connect.sid' as the cookie name
-    session_id = request.cookies.get("connect.sid") or request.cookies.get("session_id")
+    # Get session ID from cookie (unified session management - only session_id)
+    session_id = request.cookies.get("session_id")
     
     if not session_id:
-        # Try header as fallback
+        # Try header as fallback for API clients
         auth_header = request.headers.get("authorization")
         if auth_header and auth_header.startswith("Bearer "):
             session_id = auth_header[7:]
@@ -491,13 +501,8 @@ async def get_current_user_dependency(request: Request) -> Dict[str, Any]:
             detail="Authentication required"
         )
     
-    # URL-decode the cookie value (fixes %3A -> :)
+    # URL-decode the cookie value if needed
     session_id = unquote(session_id)
-    
-    # Express-session signs cookies in the format "s:sessionId.signature"
-    # We need to extract just the session ID part
-    if session_id.startswith("s:"):
-        session_id = session_id[2:].split(".")[0]
     
     # Get session data
     session_data = await get_session(session_id)
