@@ -329,7 +329,8 @@ export default function RBACAdmin() {
       last_name: '',
       company_id: '',
       role_id: '',
-      password: ''
+      password: '',
+      confirm_password: ''
     });
 
     // Password validation helper
@@ -344,6 +345,7 @@ export default function RBACAdmin() {
     
     const passwordChecks = validatePassword(newUser.password);
     const isPasswordValid = Object.values(passwordChecks).every(Boolean);
+    const passwordsMatch = newUser.password === newUser.confirm_password && newUser.confirm_password.length > 0;
     
     // Form validation - use currentUserCompanyId from outer scope
     const isFormValid = 
@@ -352,7 +354,8 @@ export default function RBACAdmin() {
       newUser.last_name && 
       newUser.role_id && 
       currentUserCompanyId &&
-      isPasswordValid;
+      isPasswordValid &&
+      passwordsMatch;
 
     // Toggle user active status
     const toggleUserStatus = useMutation({
@@ -497,6 +500,21 @@ export default function RBACAdmin() {
                     </p>
                   </div>
                 </div>
+                <div>
+                  <Label htmlFor="confirm_password">Confirm Password *</Label>
+                  <Input
+                    id="confirm_password"
+                    type="password"
+                    value={newUser.confirm_password}
+                    onChange={(e) => setNewUser({ ...newUser, confirm_password: e.target.value })}
+                    placeholder="Re-enter password"
+                  />
+                  {newUser.confirm_password && (
+                    <p className={`mt-1 text-xs ${passwordsMatch ? "text-green-600" : "text-red-500"}`}>
+                      {passwordsMatch ? "✓ Passwords match" : "✗ Passwords do not match"}
+                    </p>
+                  )}
+                </div>
                 {/* Company is auto-assigned - no selection needed */}
                 <div>
                   <Label>Company</Label>
@@ -606,7 +624,7 @@ export default function RBACAdmin() {
                     createUserMutation.mutate(userPayload, {
                       onSuccess: () => {
                         setIsCreateDialogOpen(false);
-                        setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '' });
+                        setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '', confirm_password: '' });
                       }
                     });
                   }}

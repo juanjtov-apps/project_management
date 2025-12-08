@@ -36,13 +36,9 @@ def validate_password_strength(password: str, min_length: int = 8) -> str:
     if not re.search(r'\d', password):
         raise ValueError("Password must contain at least one digit")
     
-    # Check for common weak passwords
-    weak_passwords = [
-        'password', 'password123', '12345678', 'qwerty', 'abc123',
-        'letmein', 'welcome', 'admin', 'root'
-    ]
-    if password.lower() in weak_passwords:
-        raise ValueError("Password is too common. Please choose a stronger password")
+    # Note: We no longer check for "common" passwords - as long as the password
+    # meets the basic requirements (length, uppercase, lowercase, digit), it's accepted.
+    # This allows admins to create users with simpler passwords if needed.
     
     return password
 
