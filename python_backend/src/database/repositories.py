@@ -642,14 +642,15 @@ class DashboardRepository(BaseRepository):
             photo_row = await db_manager.execute_one(photo_stats_query)
         
         # User stats
-        # Use role_name column (from migration fix_roles_table.py)
+        # Dynamically handle both 'role_name' and 'name' columns in roles table
+        # Use COALESCE to handle either column being present
         if company_id:
             user_stats_query = """
                 SELECT 
                     COUNT(*) as total_users,
                     COUNT(*) as active_users,
-                    COUNT(*) FILTER (WHERE r.role_name = 'crew') as crew_members,
-                    COUNT(*) FILTER (WHERE r.role_name IN ('manager', 'project_manager', 'office_manager')) as managers
+                    COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) = 'crew') as crew_members,
+                    COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) IN ('manager', 'project_manager', 'office_manager')) as managers
                 FROM users u
                 LEFT JOIN roles r ON u.role_id = r.id
                 WHERE u.company_id = $1
@@ -660,8 +661,8 @@ class DashboardRepository(BaseRepository):
                 SELECT 
                     COUNT(*) as total_users,
                     COUNT(*) as active_users,
-                    COUNT(*) FILTER (WHERE r.role_name = 'crew') as crew_members,
-                    COUNT(*) FILTER (WHERE r.role_name IN ('manager', 'project_manager', 'office_manager')) as managers
+                    COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) = 'crew') as crew_members,
+                    COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) IN ('manager', 'project_manager', 'office_manager')) as managers
                 FROM users u
                 LEFT JOIN roles r ON u.role_id = r.id
             """
@@ -814,7 +815,7 @@ class UserRepository(BaseRepository):
         
         query = f"""
             SELECT u.id, u.first_name, u.last_name, u.email, 
-                   COALESCE(r.role_name, 'user') as role 
+                   COALESCE(r.role_name, r.name, 'user') as role 
             FROM {self.table_name} u
             LEFT JOIN roles r ON u.role_id = r.id
             WHERE u.role_id = $1 

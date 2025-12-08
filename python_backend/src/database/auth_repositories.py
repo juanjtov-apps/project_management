@@ -38,15 +38,35 @@ class AuthRepository:
     
     async def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user by ID (without password for general use)."""
-        # Use role_name column (from migration fix_roles_table.py)
-        query = f"""
-            SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
-                   u.company_id, u.is_root, u.created_at,
-                   r.role_name, r.display_name as role_display_name
-            FROM {self.table_name} u
-            LEFT JOIN roles r ON u.role_id = r.id
-            WHERE u.id = $1
-        """
+        # Dynamically detect roles table schema to handle both 'role_name' and 'name' columns
+        has_role_name, has_name, has_display_name, role_name_col = await self._get_roles_column_info()
+        
+        if role_name_col:
+            # Build query based on available columns
+            role_select = f"r.{role_name_col} as role_name"
+            if has_display_name:
+                role_select += ", r.display_name as role_display_name"
+            else:
+                role_select += f", r.{role_name_col} as role_display_name"
+            
+            query = f"""
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
+                       u.company_id, u.is_root, u.created_at,
+                       {role_select}
+                FROM {self.table_name} u
+                LEFT JOIN roles r ON u.role_id = r.id
+                WHERE u.id = $1
+            """
+        else:
+            # Fallback: no role info available
+            query = f"""
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
+                       u.company_id, u.is_root, u.created_at,
+                       NULL as role_name, NULL as role_display_name
+                FROM {self.table_name} u
+                WHERE u.id = $1
+            """
+        
         row = await db_manager.execute_one(query, user_id)
         if row:
             user_data = dict(row)
@@ -65,76 +85,258 @@ class AuthRepository:
             return self._convert_to_camel_case(user_data)
         return None
     
+    async def _get_roles_column_info(self) -> tuple:
+        """Get information about which columns exist in the roles table.
+        
+        Returns:
+            tuple: (has_role_name, has_name, has_display_name, role_name_col)
+        """
+        columns_query = """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'roles'
+        """
+        columns_result = await db_manager.execute_query(columns_query)
+        column_names = [col['column_name'] for col in columns_result] if columns_result else []
+        
+        has_role_name = 'role_name' in column_names
+        has_name = 'name' in column_names
+        has_display_name = 'display_name' in column_names
+        
+        # Determine which column to use for role name
+        role_name_col = 'role_name' if has_role_name else 'name' if has_name else None
+        
+        return has_role_name, has_name, has_display_name, role_name_col
+    
     async def get_users(self) -> List[Dict[str, Any]]:
         """Get all users (without passwords)."""
-        # Use role_name column (from migration fix_roles_table.py)
-        query = f"""
-            SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
-                   u.company_id, u.is_active, u.is_root, u.created_at, 
-                   c.name as company_name,
-                   r.role_name, r.display_name as role_display_name
-            FROM {self.table_name} u
-            LEFT JOIN companies c ON u.company_id = c.id
-            LEFT JOIN roles r ON u.role_id = r.id
-            ORDER BY u.first_name, u.last_name
+        # Dynamically detect roles table schema to handle both 'role_name' and 'name' columns
+        has_role_name, has_name, has_display_name, role_name_col = await self._get_roles_column_info()
+        
+        print(f"[DEBUG get_users] Role column info: has_role_name={has_role_name}, has_name={has_name}, has_display_name={has_display_name}, role_name_col={role_name_col}")
+        
+        # Also check if users table has a legacy 'role' text column
+        users_columns_query = """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'users'
         """
+        users_columns_result = await db_manager.execute_query(users_columns_query)
+        users_column_names = [col['column_name'] for col in users_columns_result] if users_columns_result else []
+        has_legacy_role = 'role' in users_column_names
+        print(f"[DEBUG get_users] Users table has legacy 'role' column: {has_legacy_role}")
+        
+        # Build the role selection part of the query
+        if role_name_col:
+            # Primary: Get role from roles table via JOIN
+            role_select = f"r.{role_name_col} as role_name"
+            if has_display_name:
+                role_select += ", r.display_name as role_display_name"
+            else:
+                role_select += f", r.{role_name_col} as role_display_name"
+            
+            # If legacy role column exists, include it as fallback
+            if has_legacy_role:
+                role_select += ", u.role as legacy_role"
+            
+            query = f"""
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
+                       u.company_id, u.is_active, u.is_root, u.created_at, 
+                       c.name as company_name,
+                       {role_select}
+                FROM {self.table_name} u
+                LEFT JOIN companies c ON u.company_id::text = c.id::text
+                LEFT JOIN roles r ON u.role_id::text = r.id::text
+                ORDER BY u.first_name, u.last_name
+            """
+        elif has_legacy_role:
+            # Fallback: Use legacy role column from users table
+            query = f"""
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
+                       u.company_id, u.is_active, u.is_root, u.created_at, 
+                       c.name as company_name,
+                       u.role as role_name, u.role as role_display_name, u.role as legacy_role
+                FROM {self.table_name} u
+                LEFT JOIN companies c ON u.company_id::text = c.id::text
+                ORDER BY u.first_name, u.last_name
+            """
+        else:
+            # No role info available at all
+            query = f"""
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
+                       u.company_id, u.is_active, u.is_root, u.created_at, 
+                       c.name as company_name,
+                       NULL as role_name, NULL as role_display_name
+                FROM {self.table_name} u
+                LEFT JOIN companies c ON u.company_id::text = c.id::text
+                ORDER BY u.first_name, u.last_name
+            """
+        
+        print(f"[DEBUG get_users] Executing query...")
         rows = await db_manager.execute_query(query)
+        print(f"[DEBUG get_users] Got {len(rows)} rows")
+        
         users = []
-        for row in rows:
+        for i, row in enumerate(rows):
             user_data = dict(row)
+            
+            # Debug: Print first 3 users' raw data
+            if i < 3:
+                print(f"[DEBUG get_users] Raw user {i+1}: email={user_data.get('email')}, role_id={user_data.get('role_id')}, role_name={user_data.get('role_name')}, company_id={user_data.get('company_id')}, company_name={user_data.get('company_name')}")
+            
             # Convert company_id to companyId for frontend compatibility
             if 'company_id' in user_data:
                 user_data['companyId'] = user_data['company_id']
+            # Preserve company_name in both formats for frontend compatibility
+            if 'company_name' in user_data and user_data['company_name']:
+                user_data['companyName'] = user_data['company_name']
             # Convert is_active to isActive for frontend compatibility
             if 'is_active' in user_data:
                 user_data['isActive'] = user_data['is_active']
             # Convert is_root to isRoot for frontend compatibility
             if 'is_root' in user_data:
                 user_data['isRoot'] = user_data['is_root']
-            # Use role from roles table (primary source)
-            if user_data.get('role_name'):
-                user_data['role'] = user_data['role_name']
-                user_data['role_name'] = user_data.get('role_display_name') or user_data['role_name']
+            
+            # Use role from roles table (primary source), fallback to legacy_role
+            role_from_join = user_data.get('role_name')
+            legacy_role = user_data.get('legacy_role')
+            
+            if role_from_join:
+                user_data['role'] = role_from_join
+                user_data['role_name'] = user_data.get('role_display_name') or role_from_join
+            elif legacy_role:
+                # Fallback to legacy role column from users table
+                user_data['role'] = legacy_role
+                user_data['role_name'] = legacy_role
+                if i < 3:
+                    print(f"[DEBUG get_users] Using legacy_role for user {user_data.get('email')}: {legacy_role}")
+            else:
+                # No role info at all
+                if i < 3:
+                    print(f"[DEBUG get_users] WARNING: No role_name or legacy_role for user {user_data.get('email')}")
+            
             # Add roleId for frontend (primary identifier)
             if 'role_id' in user_data:
                 user_data['roleId'] = user_data['role_id']
-            users.append(self._convert_to_camel_case(user_data))
+            
+            # Clean up temporary fields
+            if 'legacy_role' in user_data:
+                del user_data['legacy_role']
+            
+            final_user = self._convert_to_camel_case(user_data)
+            
+            # Debug: Print converted data for first 3 users
+            if i < 3:
+                print(f"[DEBUG get_users] Converted user {i+1}: role={final_user.get('role')}, roleName={final_user.get('roleName')}")
+            
+            users.append(final_user)
         return users
     
     async def get_company_users(self, company_id: str) -> List[Dict[str, Any]]:
         """Get all users for a specific company."""
-        # Use role_name column (from migration fix_roles_table.py)
-        query = f"""
-            SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
-                   u.company_id, u.is_active, u.is_root, u.created_at, 
-                   c.name as company_name,
-                   r.role_name, r.display_name as role_display_name
-            FROM {self.table_name} u
-            LEFT JOIN companies c ON u.company_id = c.id
-            LEFT JOIN roles r ON u.role_id = r.id
-            WHERE u.company_id = $1 
-            ORDER BY u.first_name, u.last_name
+        # Dynamically detect roles table schema to handle both 'role_name' and 'name' columns
+        has_role_name, has_name, has_display_name, role_name_col = await self._get_roles_column_info()
+        
+        print(f"[DEBUG get_company_users] company_id={company_id}, role_name_col={role_name_col}")
+        
+        # Also check if users table has a legacy 'role' text column
+        users_columns_query = """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'users'
         """
+        users_columns_result = await db_manager.execute_query(users_columns_query)
+        users_column_names = [col['column_name'] for col in users_columns_result] if users_columns_result else []
+        has_legacy_role = 'role' in users_column_names
+        
+        # Build the role selection part of the query
+        if role_name_col:
+            role_select = f"r.{role_name_col} as role_name"
+            if has_display_name:
+                role_select += ", r.display_name as role_display_name"
+            else:
+                role_select += f", r.{role_name_col} as role_display_name"
+            
+            if has_legacy_role:
+                role_select += ", u.role as legacy_role"
+            
+            query = f"""
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
+                       u.company_id, u.is_active, u.is_root, u.created_at, 
+                       c.name as company_name,
+                       {role_select}
+                FROM {self.table_name} u
+                LEFT JOIN companies c ON u.company_id::text = c.id::text
+                LEFT JOIN roles r ON u.role_id::text = r.id::text
+                WHERE u.company_id::text = $1::text 
+                ORDER BY u.first_name, u.last_name
+            """
+        elif has_legacy_role:
+            query = f"""
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
+                       u.company_id, u.is_active, u.is_root, u.created_at, 
+                       c.name as company_name,
+                       u.role as role_name, u.role as role_display_name, u.role as legacy_role
+                FROM {self.table_name} u
+                LEFT JOIN companies c ON u.company_id::text = c.id::text
+                WHERE u.company_id::text = $1::text 
+                ORDER BY u.first_name, u.last_name
+            """
+        else:
+            query = f"""
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
+                       u.company_id, u.is_active, u.is_root, u.created_at, 
+                       c.name as company_name,
+                       NULL as role_name, NULL as role_display_name
+                FROM {self.table_name} u
+                LEFT JOIN companies c ON u.company_id::text = c.id::text
+                WHERE u.company_id::text = $1::text 
+                ORDER BY u.first_name, u.last_name
+            """
+        
         rows = await db_manager.execute_query(query, company_id)
+        print(f"[DEBUG get_company_users] Got {len(rows)} rows")
+        
         users = []
-        for row in rows:
+        for i, row in enumerate(rows):
             user_data = dict(row)
+            
+            # Debug first 3 users
+            if i < 3:
+                print(f"[DEBUG get_company_users] Raw user {i+1}: email={user_data.get('email')}, company_id={user_data.get('company_id')}, company_name={user_data.get('company_name')}")
+            
             # Convert company_id to companyId for frontend compatibility
             if 'company_id' in user_data:
                 user_data['companyId'] = user_data['company_id']
+            # Preserve company_name in both formats for frontend compatibility
+            if 'company_name' in user_data and user_data['company_name']:
+                user_data['companyName'] = user_data['company_name']
             # Convert is_active to isActive for frontend compatibility
             if 'is_active' in user_data:
                 user_data['isActive'] = user_data['is_active']
             # Convert is_root to isRoot for frontend compatibility
             if 'is_root' in user_data:
                 user_data['isRoot'] = user_data['is_root']
-            # Use role from roles table (primary source)
-            if user_data.get('role_name'):
-                user_data['role'] = user_data['role_name']
-                user_data['role_name'] = user_data.get('role_display_name') or user_data['role_name']
+            
+            # Use role from roles table (primary source), fallback to legacy_role
+            role_from_join = user_data.get('role_name')
+            legacy_role = user_data.get('legacy_role')
+            
+            if role_from_join:
+                user_data['role'] = role_from_join
+                user_data['role_name'] = user_data.get('role_display_name') or role_from_join
+            elif legacy_role:
+                user_data['role'] = legacy_role
+                user_data['role_name'] = legacy_role
+            
             # Add roleId for frontend (primary identifier)
             if 'role_id' in user_data:
                 user_data['roleId'] = user_data['role_id']
+            
+            # Clean up temporary fields
+            if 'legacy_role' in user_data:
+                del user_data['legacy_role']
+            
             users.append(self._convert_to_camel_case(user_data))
         return users
     
@@ -151,13 +353,21 @@ class AuthRepository:
         if not role_id:
             raise ValueError("role_id is required for user creation")
         
-        # Validate role_id exists in database
+        # Ensure role_id is an integer
+        try:
+            role_id = int(role_id)
+        except (ValueError, TypeError):
+            raise ValueError(f"role_id must be a valid integer, got: {role_id}")
+        
+        print(f"[DEBUG create_rbac_user] role_id={role_id}, type={type(role_id)}")
+        
+        # Validate role_id exists in database (cast to text for comparison)
         role_exists = await db_manager.execute_one(
-            "SELECT id FROM roles WHERE id = $1",
-            role_id
+            "SELECT id FROM roles WHERE id::text = $1::text",
+            str(role_id)
         )
         if not role_exists:
-            raise ValueError(f"Invalid role_id: {role_id} does not exist")
+            raise ValueError(f"Invalid role_id: {role_id} does not exist in roles table")
         
         # Ensure company_id is a string (database column is varchar)
         company_id = data.get('company_id')
@@ -176,6 +386,10 @@ class AuthRepository:
         # Get first_name and last_name
         first_name = data.get('first_name') or ''
         last_name = data.get('last_name') or ''
+        email = data.get('email')
+        is_active = data.get('is_active', True)
+        
+        print(f"[DEBUG create_rbac_user] Inserting user: id={user_id}, email={email}, role_id={role_id}, company_id={company_id}")
         
         query = f"""
             INSERT INTO {self.table_name} 
@@ -187,11 +401,12 @@ class AuthRepository:
         try:
             row = await db_manager.execute_one(
                 query, user_id, first_name, last_name,
-                data.get('email'), password_hash, role_id,
-                company_id, data.get('is_active', True)
+                email, password_hash, role_id,
+                company_id, is_active
             )
+            print(f"[DEBUG create_rbac_user] User created successfully: {dict(row) if row else 'No row returned'}")
         except Exception as e:
-            print(f"Error inserting user into database: {e}")
+            print(f"[ERROR create_rbac_user] Error inserting user into database: {e}")
             import traceback
             traceback.print_exc()
             raise

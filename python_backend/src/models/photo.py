@@ -24,8 +24,7 @@ class PhotoCreate(BaseModel):
     description: str = ""
     tags: List[str] = Field(default_factory=list)
     
-    class Config:
-        populate_by_name = True
+    model_config = {"populate_by_name": True}
 
 
 class Photo(BaseEntity, PhotoBase):
@@ -39,5 +38,4 @@ class PhotoStats(BaseModel):
     photos_this_week: int = Field(alias="photosThisWeek")
     total_storage_mb: float = Field(alias="totalStorageMb")
     
-    class Config:
-        populate_by_name = True
+    model_config = {"populate_by_name": True}

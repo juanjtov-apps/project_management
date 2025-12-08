@@ -272,11 +272,12 @@ fi
 # Start Python backend independently
 log_info "Starting Python backend on port $PYTHON_PORT..."
 cd python_backend
-python3 main.py > /tmp/python-backend.log 2>&1 &
+# Use tee to display logs in terminal AND save to file
+python3 main.py 2>&1 | tee /tmp/python-backend.log &
 PYTHON_PID=$!
 cd ..
 log_info "Python backend started (PID: $PYTHON_PID)"
-log_info "Logs: tail -f /tmp/python-backend.log"
+log_info "Logs also saved to: /tmp/python-backend.log"
 
 # Wait for Python backend to be ready
 if ! wait_for_health check_python_health "Python backend" $MAX_STARTUP_WAIT; then
@@ -307,11 +308,12 @@ fi
 
 # Start Node.js server (frontend only - no backend spawning)
 log_info "Starting Node.js server on port $NODE_PORT..."
-NODE_ENV=development npx tsx server/index.ts > /tmp/node-server.log 2>&1 &
+# Use tee to display logs in terminal AND save to file
+NODE_ENV=development npx tsx server/index.ts 2>&1 | tee /tmp/node-server.log &
 NODE_PID=$!
 
 log_info "Node.js server started (PID: $NODE_PID)"
-log_info "Logs: tail -f /tmp/node-server.log"
+log_info "Logs also saved to: /tmp/node-server.log"
 
 # Wait for Node.js server to be ready
 if ! wait_for_health check_node_health "Node.js server" $MAX_STARTUP_WAIT; then
@@ -375,9 +377,9 @@ echo "   🌐 Frontend: http://localhost:$NODE_PORT"
 echo "   🐍 Python API: http://localhost:$PYTHON_PORT"
 echo "   📚 API Docs: http://localhost:$PYTHON_PORT/docs"
 echo ""
-echo "📝 Logs:"
-echo "   Node.js: tail -f /tmp/node-server.log"
-echo "   Python: tail -f /tmp/python-backend.log"
+echo "📝 Logs (displayed above and saved to files):"
+echo "   Node.js: /tmp/node-server.log"
+echo "   Python: /tmp/python-backend.log"
 echo ""
 echo "🛑 To stop servers: Press Ctrl+C or run:"
 echo "   kill $NODE_PID $PYTHON_PID"

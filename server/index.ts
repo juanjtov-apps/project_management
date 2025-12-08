@@ -209,7 +209,17 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
         targetPath = targetPath.replace('/api/', '/api/v1/');
       }
       const backendUrl = `http://127.0.0.1:8000${targetPath}`;
-      console.log(`📡 Forwarding ${req.method} ${req.originalUrl} → ${backendUrl}`);
+      
+      // Log cookie forwarding for auth endpoints (debugging)
+      if (targetPath.includes('/auth/')) {
+        const hasCookie = !!(req.headers.cookie);
+        const cookiePreview = req.headers.cookie ? 
+          (req.headers.cookie.includes('session_id') ? 'session_id present' : 'no session_id') : 
+          'no cookies';
+        console.log(`📡 Forwarding ${req.method} ${req.originalUrl} → ${backendUrl} [Cookies: ${cookiePreview}]`);
+      } else {
+        console.log(`📡 Forwarding ${req.method} ${req.originalUrl} → ${backendUrl}`);
+      }
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
@@ -235,13 +245,23 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
         // Set status code
         res.status(response.status);
         
-        // Forward all headers from backend response
+        // Forward all headers from backend response (including Set-Cookie for session management)
         response.headers.forEach((value, key) => {
           // Skip transfer-encoding as it can cause issues
           if (key.toLowerCase() !== 'transfer-encoding') {
-            res.set(key, value);
+            // For Set-Cookie headers, use append to preserve multiple cookies
+            if (key.toLowerCase() === 'set-cookie') {
+              res.append(key, value);
+            } else {
+              res.set(key, value);
+            }
           }
         });
+        
+        // Log Set-Cookie forwarding for auth endpoints (debugging)
+        if (targetPath.includes('/auth/') && response.headers.get('set-cookie')) {
+          console.log(`🍪 Forwarding Set-Cookie header to browser`);
+        }
         
         // Handle redirect responses (3xx) - pass them through to the browser
         if (response.status >= 300 && response.status < 400) {

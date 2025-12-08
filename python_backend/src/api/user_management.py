@@ -5,10 +5,20 @@ Replaces Node.js backend user management functionality.
 
 from fastapi import APIRouter, HTTPException, status, Depends, Request
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
 from ..database.auth_repositories import auth_repo, company_repo, role_repo
 from .auth import get_current_user_dependency, is_user_admin, is_root_admin
+from ..validators import (
+    validate_name,
+    validate_password_strength,
+    validate_email_format,
+    validate_company_name,
+    validate_phone,
+    sanitize_string,
+)
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 class UserCreateRequest(BaseModel):
@@ -19,6 +29,26 @@ class UserCreateRequest(BaseModel):
     role_id: int  # Changed from role: str - must be a valid role ID
     company_id: str
     is_active: bool = True
+    
+    @field_validator('first_name', 'last_name')
+    @classmethod
+    def validate_names(cls, v):
+        """Validate name fields"""
+        if v is None:
+            return v
+        return validate_name(v, "name")
+    
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        """Validate email format"""
+        return validate_email_format(v)
+    
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v):
+        """Validate password strength"""
+        return validate_password_strength(v)
 
 class UserUpdateRequest(BaseModel):
     first_name: Optional[str] = None
@@ -30,8 +60,31 @@ class UserUpdateRequest(BaseModel):
     company_id: Optional[str] = None  # Add this
     is_active: Optional[bool] = None
     
-    class Config:
-        extra = "forbid"  # Explicitly forbid extra fields like "name"
+    model_config = ConfigDict(extra="forbid")  # Explicitly forbid extra fields like "name"
+    
+    @field_validator('first_name', 'last_name')
+    @classmethod
+    def validate_names(cls, v):
+        """Validate name fields"""
+        if v is None:
+            return v
+        return validate_name(v, "name")
+    
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        """Validate email format"""
+        if v is None:
+            return v
+        return validate_email_format(v)
+    
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v):
+        """Validate password strength when updating"""
+        if v is None:
+            return v
+        return validate_password_strength(v)
 
 class CompanyCreateRequest(BaseModel):
     name: str
@@ -40,6 +93,39 @@ class CompanyCreateRequest(BaseModel):
     address: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
+    
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        """Validate company name"""
+        return validate_company_name(v)
+    
+    @field_validator('phone')
+    @classmethod
+    def validate_phone_field(cls, v):
+        """Validate phone number"""
+        if v is None:
+            return v
+        return validate_phone(v)
+    
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        """Validate email format"""
+        if v is None:
+            return v
+        return validate_email_format(v)
+    
+    @field_validator('domain', 'industry', 'address')
+    @classmethod
+    def validate_text_fields(cls, v):
+        """Validate text fields"""
+        if v is None:
+            return v
+        v = sanitize_string(v)
+        if len(v) > 500:
+            raise ValueError("Field must be 500 characters or less")
+        return v.strip()
 
 class CompanyUpdateRequest(BaseModel):
     name: Optional[str] = None
@@ -48,17 +134,94 @@ class CompanyUpdateRequest(BaseModel):
     address: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
+    
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        """Validate company name"""
+        if v is None:
+            return v
+        return validate_company_name(v)
+    
+    @field_validator('phone')
+    @classmethod
+    def validate_phone_field(cls, v):
+        """Validate phone number"""
+        if v is None:
+            return v
+        return validate_phone(v)
+    
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        """Validate email format"""
+        if v is None:
+            return v
+        return validate_email_format(v)
+    
+    @field_validator('domain', 'industry', 'address')
+    @classmethod
+    def validate_text_fields(cls, v):
+        """Validate text fields"""
+        if v is None:
+            return v
+        v = sanitize_string(v)
+        if len(v) > 500:
+            raise ValueError("Field must be 500 characters or less")
+        return v.strip()
 
 class RoleCreateRequest(BaseModel):
     name: str
     description: Optional[str] = None
     permissions: List[str] = []
     company_id: Optional[str] = None
+    
+    @field_validator('name')
+    @classmethod
+    def validate_role_name(cls, v):
+        """Validate role name"""
+        v = sanitize_string(v)
+        if len(v) < 1 or len(v) > 100:
+            raise ValueError("Role name must be between 1 and 100 characters")
+        return v.strip()
+    
+    @field_validator('description')
+    @classmethod
+    def validate_description(cls, v):
+        """Validate role description"""
+        if v is None:
+            return v
+        v = sanitize_string(v)
+        if len(v) > 500:
+            raise ValueError("Description must be 500 characters or less")
+        return v.strip()
 
 class RoleUpdateRequest(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     permissions: Optional[List[str]] = None
+    
+    @field_validator('name')
+    @classmethod
+    def validate_role_name(cls, v):
+        """Validate role name"""
+        if v is None:
+            return v
+        v = sanitize_string(v)
+        if len(v) < 1 or len(v) > 100:
+            raise ValueError("Role name must be between 1 and 100 characters")
+        return v.strip()
+    
+    @field_validator('description')
+    @classmethod
+    def validate_description(cls, v):
+        """Validate role description"""
+        if v is None:
+            return v
+        v = sanitize_string(v)
+        if len(v) > 500:
+            raise ValueError("Description must be 500 characters or less")
+        return v.strip()
 
 # User Management Endpoints
 
@@ -66,7 +229,7 @@ class RoleUpdateRequest(BaseModel):
 async def get_managers(current_user: Dict[str, Any] = Depends(get_current_user_dependency)):
     """Get users/managers for task assignment with company filtering."""
     try:
-        print(f"Fetching managers for task assignment - user: {current_user.get('email')}")
+        logger.debug(f"Fetching managers for task assignment - user: {current_user.get('email')}")
         
         # Get all users
         users = await auth_repo.get_users()
@@ -77,11 +240,11 @@ async def get_managers(current_user: Dict[str, Any] = Depends(get_current_user_d
             if user_company_id:
                 users = [user for user in users if user.get('companyId') == user_company_id]
         
-        print(f"Retrieved {len(users)} managers for task assignment")
+        logger.debug(f"Retrieved {len(users)} managers for task assignment")
         return users
-        
+    
     except Exception as e:
-        print(f"Error fetching managers: {e}")
+        logger.error(f"Error fetching managers: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch managers"
@@ -93,12 +256,12 @@ async def get_managers(current_user: Dict[str, Any] = Depends(get_current_user_d
 async def get_companies(current_user: Dict[str, Any] = Depends(get_current_user_dependency)):
     """Get companies with proper authorization."""
     try:
-        print(f"Fetching companies - user: {current_user.get('email')}, is_root: {is_root_admin(current_user)}")
+        logger.debug(f"Fetching companies - user: {current_user.get('email')}, is_root: {is_root_admin(current_user)}")
         
         if is_root_admin(current_user):
             # Root admin sees all companies
             companies = await company_repo.get_companies()
-            print(f"Root admin retrieved {len(companies)} companies")
+            logger.debug(f"Root admin retrieved {len(companies)} companies")
             return companies
         elif is_user_admin(current_user):
             # Company admin sees only their company
@@ -106,7 +269,7 @@ async def get_companies(current_user: Dict[str, Any] = Depends(get_current_user_
             if user_company_id:
                 company = await company_repo.get_company(user_company_id)
                 companies = [company] if company else []
-                print(f"Company admin retrieved {len(companies)} companies (filtered)")
+                logger.debug(f"Company admin retrieved {len(companies)} companies (filtered)")
                 return companies
         
         raise HTTPException(
@@ -117,7 +280,7 @@ async def get_companies(current_user: Dict[str, Any] = Depends(get_current_user_
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error fetching companies: {e}")
+        logger.error(f"Error fetching companies: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch companies"
@@ -136,15 +299,15 @@ async def create_company(
                 detail="Admin privileges required"
             )
         
-        print(f"Creating company - user: {current_user.get('email')}")
+        logger.info(f"Creating company - user: {current_user.get('email')}")
         company = await company_repo.create_company(company_data.dict())
-        print(f"Company created: {company}")
+        logger.info(f"Company created successfully")
         return company
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error creating company: {e}")
+        logger.error(f"Error creating company: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create company"
@@ -184,7 +347,7 @@ async def update_company(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error updating company: {e}")
+        logger.error(f"Error updating company: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update company"
@@ -214,7 +377,7 @@ async def delete_company(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error deleting company: {e}")
+        logger.error(f"Error deleting company: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete company"
@@ -237,13 +400,13 @@ async def get_company_users(
                 )
         
         users = await auth_repo.get_company_users(company_id)
-        print(f"Retrieved {len(users)} users for company {company_id}")
+        logger.debug(f"Retrieved {len(users)} users for company {company_id}")
         return users
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error fetching company users: {e}")
+        logger.error(f"Error fetching company users: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch company users"
@@ -262,7 +425,7 @@ async def get_users(current_user: Dict[str, Any] = Depends(get_current_user_depe
         if is_root_admin(current_user):
             # Root admin sees all users
             users = await auth_repo.get_users()
-            print(f"Root admin retrieved {len(users)} users")
+            logger.debug(f"Root admin retrieved {len(users)} users")
             return users
         else:
             # Company admin sees only their company users
@@ -271,20 +434,20 @@ async def get_users(current_user: Dict[str, Any] = Depends(get_current_user_depe
             if user_company_id:
                 # Ensure it's a string
                 user_company_id = str(user_company_id)
-                print(f"Company admin fetching users for company_id: {user_company_id}")
+                logger.debug(f"Company admin fetching users for company_id: {user_company_id}")
                 users = await auth_repo.get_company_users(user_company_id)
-                print(f"Company admin retrieved {len(users)} users for company {user_company_id}")
+                logger.debug(f"Company admin retrieved {len(users)} users for company {user_company_id}")
                 if len(users) == 0:
-                    print(f"WARNING: No users found for company_id {user_company_id}")
+                    logger.warning(f"No users found for company_id {user_company_id}")
                 return users
         
-        print(f"WARNING: No company_id found for user {current_user.get('email')}")
+        logger.warning(f"No company_id found for user {current_user.get('email')}")
         return []
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error fetching users: {e}")
+        logger.error(f"Error fetching users: {e}", exc_info=True)
         import traceback
         traceback.print_exc()
         raise HTTPException(
@@ -299,6 +462,9 @@ async def create_user(
 ):
     """Create a new user with company restrictions."""
     try:
+        logger.info(f"[Create User] Received data: {user_data.dict()}")
+        logger.info(f"[Create User] Current user: {current_user.get('email')}")
+        
         if not is_user_admin(current_user):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -307,21 +473,22 @@ async def create_user(
         
         # Company admin can only create users in their own company
         if not is_root_admin(current_user):
-            user_company_id = current_user.get('companyId')
-            if user_data.company_id != user_company_id:
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id') or '')
+            logger.info(f"[Create User] Company check: user_data.company_id={user_data.company_id}, user_company_id={user_company_id}")
+            if str(user_data.company_id) != user_company_id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Company admins can only create users within their own company"
                 )
         
         user = await auth_repo.create_rbac_user(user_data.dict())
-        print(f"User created with company restrictions enforced: {user}")
+        logger.info(f"User created with company restrictions enforced")
         return user
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error creating user: {e}")
+        logger.error(f"Error creating user: {e}", exc_info=True)
         import traceback
         traceback.print_exc()
         raise HTTPException(
@@ -380,7 +547,7 @@ async def update_user(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error updating user: {e}")
+        logger.error(f"Error updating user: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update user"
@@ -433,13 +600,13 @@ async def delete_user(
             )
         
         admin_type = "root admin" if is_root_admin(current_user) else "company admin"
-        print(f"User deleted by {current_user.get('email')} ({admin_type})")
+        logger.info(f"User deleted by {current_user.get('email')} ({admin_type})")
         return {"message": "User deleted successfully"}
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error deleting user: {e}")
+        logger.error(f"Error deleting user: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete user"
@@ -452,11 +619,11 @@ async def get_roles(current_user: Dict[str, Any] = Depends(get_current_user_depe
     """Get all roles."""
     try:
         roles = await role_repo.get_roles()
-        print(f"Retrieved {len(roles)} roles")
+        logger.debug(f"Retrieved {len(roles)} roles")
         return roles
         
     except Exception as e:
-        print(f"Error fetching roles: {e}")
+        logger.error(f"Error fetching roles: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch roles"
@@ -477,21 +644,21 @@ async def create_role(
         
         # Pass current_user to create_role so it can get company_id if needed
         role = await role_repo.create_role(role_data.dict(), current_user=current_user)
-        print(f"Role created: {role}")
+        logger.info(f"Role created successfully")
         return role
         
     except HTTPException:
         raise
     except ValueError as e:
         # ValueError from create_role contains detailed error message
-        print(f"Error creating role: {e}")
+        logger.warning(f"Validation error creating role: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except Exception as e:
         error_msg = str(e)
-        print(f"Error creating role: {error_msg}")
+        logger.error(f"Error creating role: {error_msg}", exc_info=True)
         import traceback
         traceback.print_exc()
         raise HTTPException(
@@ -525,14 +692,14 @@ async def update_role(
         raise
     except ValueError as e:
         # ValueError from update_role contains detailed error message
-        print(f"Error updating role: {e}")
+        logger.warning(f"Validation error updating role: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except Exception as e:
         error_msg = str(e)
-        print(f"Error updating role: {error_msg}")
+        logger.error(f"Error updating role: {error_msg}", exc_info=True)
         import traceback
         traceback.print_exc()
         raise HTTPException(
@@ -564,7 +731,7 @@ async def delete_role(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error deleting role: {e}")
+        logger.error(f"Error deleting role: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete role"
@@ -575,11 +742,11 @@ async def get_permissions(current_user: Dict[str, Any] = Depends(get_current_use
     """Get all available permissions."""
     try:
         permissions = await role_repo.get_permissions()
-        print(f"Retrieved {len(permissions)} permissions")
+        logger.debug(f"Retrieved {len(permissions)} permissions")
         return permissions
         
     except Exception as e:
-        print(f"Error fetching permissions: {e}")
+        logger.error(f"Error fetching permissions: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch permissions"

@@ -2,7 +2,39 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
+    let errorMessage = res.statusText;
+    
+    try {
+      const text = await res.text();
+      if (text) {
+        // Try to parse as JSON first (FastAPI returns JSON errors)
+        try {
+          const json = JSON.parse(text);
+          // Handle FastAPI validation errors (422)
+          if (json.detail) {
+            if (Array.isArray(json.detail)) {
+              // Pydantic validation errors are arrays
+              errorMessage = json.detail.map((err: any) => {
+                const field = err.loc?.slice(1).join('.') || 'field';
+                return `${field}: ${err.msg}`;
+              }).join('; ');
+            } else {
+              errorMessage = json.detail;
+            }
+          } else if (json.message) {
+            errorMessage = json.message;
+          } else {
+            errorMessage = text;
+          }
+        } catch {
+          // Not JSON, use raw text
+          errorMessage = text;
+        }
+      }
+    } catch {
+      // Couldn't read text, use status text
+    }
+    
     // Handle authentication errors gracefully - don't throw for expected 401s on auth endpoints
     // This is normal when checking if user is logged in
     if (res.status === 401 && (res.url.includes('/api/auth/') || res.url.includes('/api/v1/auth/'))) {
@@ -11,7 +43,7 @@ async function throwIfResNotOk(res: Response) {
       (error as any).isAuthCheck = true; // Mark as expected auth check
       throw error;
     }
-    throw new Error(`${res.status}: ${text}`);
+    throw new Error(errorMessage);
   }
 }
 

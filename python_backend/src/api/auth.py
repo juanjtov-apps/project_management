@@ -10,10 +10,13 @@ import bcrypt
 import uuid
 from datetime import datetime, timedelta
 import asyncpg
+import logging
 from ..database.connection import get_db_pool
 from ..models.user import User
 from ..core.config import settings
 import os
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -89,6 +92,38 @@ class LogoutResponse(BaseModel):
 
 # In-memory session store (replace with Redis in production)
 session_store: Dict[str, Dict[str, Any]] = {}
+
+# Cache for roles table column info to avoid repeated schema queries
+_roles_column_cache: Dict[str, Any] = {}
+
+async def get_role_column_name(conn) -> str:
+    """Get the correct column name for role name in the roles table.
+    
+    Handles schema variations between 'role_name' and 'name' columns.
+    Returns the column name to use in queries, or None if roles table doesn't exist.
+    """
+    if 'role_col' in _roles_column_cache:
+        return _roles_column_cache['role_col']
+    
+    try:
+        columns = await conn.fetch("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'roles'
+        """)
+        column_names = [col['column_name'] for col in columns] if columns else []
+        
+        if 'role_name' in column_names:
+            _roles_column_cache['role_col'] = 'role_name'
+        elif 'name' in column_names:
+            _roles_column_cache['role_col'] = 'name'
+        else:
+            _roles_column_cache['role_col'] = None
+        
+        return _roles_column_cache['role_col']
+    except Exception as e:
+        logger.warning(f"Error detecting role column: {e}")
+        return None
 
 def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool]:
     """Get navigation permissions for the user matching frontend sidebar expectations."""
@@ -240,14 +275,19 @@ async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
             if isinstance(data, dict):
                 user_id = data.get("userId") or data.get("id")
                 if user_id:
-                    # Use role_name column (from migration fix_roles_table.py)
-                    user_row = await conn.fetchrow(
-                        """SELECT u.*, r.role_name
+                    # Dynamically detect role column name (handles both 'role_name' and 'name')
+                    role_col = await get_role_column_name(conn)
+                    if role_col:
+                        query = f"""SELECT u.*, r.{role_col} as role_name
                            FROM users u
                            LEFT JOIN roles r ON u.role_id = r.id
-                           WHERE u.id = $1""",
-                        user_id,
-                    )
+                           WHERE u.id = $1"""
+                    else:
+                        query = """SELECT u.*, NULL as role_name
+                           FROM users u
+                           WHERE u.id = $1"""
+                    
+                    user_row = await conn.fetchrow(query, user_id)
                     if user_row:
                         user_data = dict(user_row)
                         # Initialize current_organization_id if not in session
@@ -287,13 +327,21 @@ async def login(request: LoginRequest, response: Response):
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             # Get user by email with role information
-            # Use role_name column (from migration fix_roles_table.py)
-            user_row = await conn.fetchrow("""
-                SELECT u.*, r.role_name
-                FROM users u
-                LEFT JOIN roles r ON u.role_id = r.id
-                WHERE u.email = $1
-            """, request.email)
+            # Dynamically detect role column name (handles both 'role_name' and 'name')
+            role_col = await get_role_column_name(conn)
+            if role_col:
+                user_row = await conn.fetchrow(f"""
+                    SELECT u.*, r.{role_col} as role_name
+                    FROM users u
+                    LEFT JOIN roles r ON u.role_id = r.id
+                    WHERE u.email = $1
+                """, request.email)
+            else:
+                user_row = await conn.fetchrow("""
+                    SELECT u.*, NULL as role_name
+                    FROM users u
+                    WHERE u.email = $1
+                """, request.email)
             
             if not user_row:
                 raise HTTPException(
@@ -369,7 +417,7 @@ async def login(request: LoginRequest, response: Response):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Login error: {e}")
+        logger.error(f"Login error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
@@ -446,14 +494,14 @@ async def get_current_user(request: Request):
                             "name": company_row["name"]
                         }
             except Exception as e:
-                print(f"Error fetching company name: {e}")
+                logger.warning(f"Error fetching company name: {e}")
         
         return user_data
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Get user error: {e}")
+        logger.error(f"Get user error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
@@ -475,7 +523,7 @@ async def logout(request: Request, response: Response):
         return LogoutResponse(success=True, message="Logged out successfully")
         
     except Exception as e:
-        print(f"Logout error: {e}")
+        logger.error(f"Logout error: {e}", exc_info=True)
         return LogoutResponse(success=False, message="Could not log out")
 
 # Dependency for protected routes
@@ -619,7 +667,7 @@ async def set_organization_context(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Set organization context error: {e}")
+        logger.error(f"Set organization context error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to set organization context"

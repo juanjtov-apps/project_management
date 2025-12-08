@@ -6,7 +6,9 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from ...models import Project, ProjectCreate, ProjectUpdate
 from ...database.repositories import ProjectRepository
 from ...api.auth import get_current_user_dependency, is_root_admin
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/projects", tags=["projects"])
 project_repo = ProjectRepository()
 
@@ -18,24 +20,22 @@ async def get_projects(current_user: Dict[str, Any] = Depends(get_current_user_d
         # Apply company filtering unless root admin
         if is_root_admin(current_user):
             projects = await project_repo.get_all()
-            print(f"Root admin retrieved {len(projects)} projects")
+            logger.debug(f"Root admin retrieved {len(projects)} projects")
         else:
             # Try both camelCase and snake_case for compatibility
             user_company_id = current_user.get('companyId') or current_user.get('company_id')
-            print(f"User {current_user.get('email')} - companyId: {user_company_id}, current_user keys: {list(current_user.keys())}")
+            logger.debug(f"User {current_user.get('email')} - companyId: {user_company_id}")
             
             if user_company_id:
                 projects = await project_repo.get_by_company(str(user_company_id))
-                print(f"User {current_user.get('email')} (company {user_company_id}) retrieved {len(projects)} projects")
+                logger.debug(f"User {current_user.get('email')} (company {user_company_id}) retrieved {len(projects)} projects")
             else:
                 projects = []
-                print(f"User {current_user.get('email')} has no company assigned, returning empty project list")
+                logger.warning(f"User {current_user.get('email')} has no company assigned, returning empty project list")
         
         return projects
     except Exception as e:
-        print(f"Error fetching projects: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error fetching projects: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch projects"
@@ -70,7 +70,7 @@ async def get_project(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error fetching project {project_id}: {e}")
+        logger.error(f"Error fetching project {project_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch project"
@@ -94,14 +94,14 @@ async def create_project(
         
         # Assign project to user's company
         # Create the project model first, then set company_id directly in the repository
-        print(f"Creating project for user {current_user.get('email')} (company {user_company_id}): {project}")
+        logger.info(f"Creating project for user {current_user.get('email')} (company {user_company_id})")
         # Pass company_id as a separate parameter to ensure it's set
         created_project = await project_repo.create(project, company_id=str(user_company_id))
         return created_project
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error creating project: {e}")
+        logger.error(f"Error creating project: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create project"
@@ -137,7 +137,7 @@ async def update_project(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error updating project {project_id}: {e}")
+        logger.error(f"Error updating project {project_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update project"
@@ -183,9 +183,7 @@ async def delete_project(
         raise
     except Exception as e:
         error_msg = str(e)
-        import traceback
-        print(f"Error deleting project {project_id}: {error_msg}")
-        traceback.print_exc()
+        logger.error(f"Error deleting project {project_id}: {error_msg}", exc_info=True)
         
         if "foreign key constraint" in error_msg.lower():
             raise HTTPException(

@@ -76,6 +76,7 @@ interface UserProfile {
   last_login_at?: string; // Alias for compatibility
   role_name?: string;
   company_name?: string;
+  companyName?: string; // camelCase alias for company_name
   username?: string;
   password?: string; // For edit form only
 }
@@ -167,13 +168,14 @@ export default function RBACAdmin() {
   }
 
   // Filter data based on admin level with field name compatibility
-  const currentUserCompanyId = currentUser?.company_id || currentUser?.companyId;
-  const filteredCompanies = isRootAdmin ? companies : companies.filter(c => c.id === currentUserCompanyId);
+  // Use string comparison to handle type mismatches between string and number IDs
+  const currentUserCompanyId = String(currentUser?.company_id || currentUser?.companyId || '');
+  const filteredCompanies = isRootAdmin ? companies : companies.filter(c => String(c.id) === currentUserCompanyId);
   const filteredUsers = isRootAdmin ? users : users.filter(u => {
-    const userCompanyId = u.company_id || u.companyId;
+    const userCompanyId = String(u.company_id || u.companyId || '');
     return userCompanyId === currentUserCompanyId;
   });
-  const filteredRoles = isRootAdmin ? roles : roles.filter(r => !r.company_id || r.company_id === currentUserCompanyId);
+  const filteredRoles = isRootAdmin ? roles : roles.filter(r => !r.company_id || String(r.company_id) === currentUserCompanyId);
 
   // Mutations
   const createUserMutation = useMutation({
@@ -330,6 +332,28 @@ export default function RBACAdmin() {
       password: ''
     });
 
+    // Password validation helper
+    const validatePassword = (password: string) => {
+      return {
+        minLength: password.length >= 8,
+        hasUppercase: /[A-Z]/.test(password),
+        hasLowercase: /[a-z]/.test(password),
+        hasDigit: /\d/.test(password),
+      };
+    };
+    
+    const passwordChecks = validatePassword(newUser.password);
+    const isPasswordValid = Object.values(passwordChecks).every(Boolean);
+    
+    // Form validation - use currentUserCompanyId from outer scope
+    const isFormValid = 
+      newUser.email && 
+      newUser.first_name && 
+      newUser.last_name && 
+      newUser.role_id && 
+      currentUserCompanyId &&
+      isPasswordValid;
+
     // Toggle user active status
     const toggleUserStatus = useMutation({
       mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
@@ -366,9 +390,11 @@ export default function RBACAdmin() {
       
       // Then add users to their respective companies with proper company name mapping
       filteredUsers.forEach((user: UserProfile) => {
-        const userCompanyId = user.company_id || user.companyId;
-        const company = companies.find(c => c.id === userCompanyId || c.id.toString() === userCompanyId?.toString());
-        const companyKey = company?.name || user.company_name || 'Unassigned';
+        const userCompanyId = String(user.company_id || user.companyId || '');
+        const company = companies.find(c => String(c.id) === userCompanyId);
+        // Check both snake_case and camelCase variants for company_name
+        const userCompanyName = user.company_name || user.companyName;
+        const companyKey = company?.name || userCompanyName || 'Unassigned';
         
         if (!grouped[companyKey]) {
           grouped[companyKey] = [];
@@ -456,6 +482,20 @@ export default function RBACAdmin() {
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                     placeholder="Enter password"
                   />
+                  <div className="mt-2 text-xs space-y-1">
+                    <p className={passwordChecks.minLength ? "text-green-600" : "text-gray-400"}>
+                      {passwordChecks.minLength ? "✓" : "○"} At least 8 characters
+                    </p>
+                    <p className={passwordChecks.hasUppercase ? "text-green-600" : "text-gray-400"}>
+                      {passwordChecks.hasUppercase ? "✓" : "○"} One uppercase letter
+                    </p>
+                    <p className={passwordChecks.hasLowercase ? "text-green-600" : "text-gray-400"}>
+                      {passwordChecks.hasLowercase ? "✓" : "○"} One lowercase letter
+                    </p>
+                    <p className={passwordChecks.hasDigit ? "text-green-600" : "text-gray-400"}>
+                      {passwordChecks.hasDigit ? "✓" : "○"} One digit
+                    </p>
+                  </div>
                 </div>
                 {/* Company is auto-assigned - no selection needed */}
                 <div>
@@ -534,46 +574,43 @@ export default function RBACAdmin() {
                   id="create-user-button"
                   onClick={() => {
                     // Auto-assign company - always use current user's company
-                    const userCompanyId = currentUser?.company_id || currentUser?.companyId;
-                    const effectiveCompanyId = userCompanyId?.toString();
+                    const companyId = currentUser?.company_id || currentUser?.companyId;
+                    const effectiveCompanyId = companyId?.toString() || '';
                     
-                    // Removed debug logging
+                    // Parse role_id safely - ensure it's a valid number
+                    const roleIdNum = parseInt(newUser.role_id, 10);
+                    if (isNaN(roleIdNum)) {
+                      toast({ title: 'Error', description: 'Please select a valid role', variant: 'destructive' });
+                      return;
+                    }
                     
-                    // Validate required fields (company_id is auto-assigned for non-root admins)
-                    if (!newUser.email || !newUser.first_name || !newUser.last_name || !effectiveCompanyId || !newUser.role_id) {
-                      const missingFields = [];
-                      if (!newUser.email) missingFields.push('Email');
-                      if (!newUser.first_name) missingFields.push('First Name');
-                      if (!newUser.last_name) missingFields.push('Last Name');
-                      if (!effectiveCompanyId) missingFields.push('Company');
-                      if (!newUser.role_id) missingFields.push('Role');
-                      
-                      toast({ 
-                        title: 'Error', 
-                        description: `Please fill in: ${missingFields.join(', ')}`, 
-                        variant: 'destructive' 
-                      });
+                    if (!effectiveCompanyId) {
+                      toast({ title: 'Error', description: 'Company ID not available', variant: 'destructive' });
                       return;
                     }
                     
                     // Map frontend fields to backend expected format
                     const userPayload = {
-                      email: newUser.email,
-                      username: newUser.email, // Use email as username
-                      name: `${newUser.first_name} ${newUser.last_name}`.trim(), // Combine first and last name
-                      first_name: newUser.first_name,
-                      last_name: newUser.last_name,
+                      email: newUser.email.trim(),
+                      first_name: newUser.first_name.trim(),
+                      last_name: newUser.last_name.trim(),
                       company_id: effectiveCompanyId,
-                      role_id: newUser.role_id,
-                      password: newUser.password || 'defaultpassword123' // Ensure password is included
+                      role_id: roleIdNum,
+                      password: newUser.password,
+                      is_active: true
                     };
                     
+                    console.log('[Create User] Sending payload:', userPayload);
+                    
                     // Creating user with validated data
-                    createUserMutation.mutate(userPayload);
-                    setIsCreateDialogOpen(false);
-                    setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '' });
+                    createUserMutation.mutate(userPayload, {
+                      onSuccess: () => {
+                        setIsCreateDialogOpen(false);
+                        setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '' });
+                      }
+                    });
                   }}
-                  disabled={createUserMutation.isPending}
+                  disabled={!isFormValid || createUserMutation.isPending}
                 >
                   {createUserMutation.isPending ? 'Creating...' : 'Create User'}
                 </Button>
@@ -889,7 +926,7 @@ export default function RBACAdmin() {
                                 <div className="text-sm text-muted-foreground">{user.email}</div>
                                 <div className="flex items-center space-x-2 mt-1">
                                   <Badge variant="outline" className="text-xs">
-                                    {user.role_name || user.role || 'No role'}
+                                    {user.role_name || user.roleName || user.role || 'No role'}
                                   </Badge>
                                   <Badge variant={user.is_active || user.isActive ? 'default' : 'destructive'} className="text-xs">
                                     {user.is_active || user.isActive ? 'Active' : 'Inactive'}
@@ -1078,7 +1115,7 @@ export default function RBACAdmin() {
                               <div className="text-sm text-muted-foreground">{user.email}</div>
                               <div className="flex items-center space-x-2 mt-1">
                                 <Badge variant="outline" className="text-xs">
-                                  {user.role_name || user.role || 'No role'}
+                                  {user.role_name || user.roleName || user.role || 'No role'}
                                 </Badge>
                                 <Badge variant={user.is_active || user.isActive ? 'default' : 'destructive'} className="text-xs">
                                   {user.is_active || user.isActive ? 'Active' : 'Inactive'}
@@ -1481,8 +1518,8 @@ export default function RBACAdmin() {
       if (users && Array.isArray(users)) {
         users.forEach((user: UserProfile) => {
           // Try multiple field variations for company identification
-          const companyName = user.company_name || user.company_name;
-          const companyId = user.company_id || user.company_id;
+          const companyName = user.company_name || user.companyName;
+          const companyId = user.company_id || user.companyId;
           
           if (companyName) {
             counts[companyName] = (counts[companyName] || 0) + 1;
@@ -1838,7 +1875,7 @@ export default function RBACAdmin() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline">{user.role_name || 'No role'}</Badge>
+                            <Badge variant="outline">{user.role_name || user.roleName || user.role || 'No role'}</Badge>
                             <Badge variant={user.is_active ? 'default' : 'secondary'}>
                               {user.is_active ? 'Active' : 'Inactive'}
                             </Badge>

@@ -73,8 +73,4 @@ class BaseEntity(BaseModel):
     id: str
     created_at: datetime = Field(alias="createdAt")
     
-    class Config:
-        populate_by_name = True
-        json_encoders = {
-            datetime: lambda dt: dt.isoformat()
-        }
+    model_config = {"populate_by_name": True}

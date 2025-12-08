@@ -18,14 +18,31 @@ export interface AuthorizedRequest extends Request {
   isCompanyAdmin?: boolean;
 }
 
+// Helper function to parse cookies from cookie header string
+function parseCookies(cookieHeader: string | undefined): Record<string, string> {
+  const cookies: Record<string, string> = {};
+  if (!cookieHeader) return cookies;
+  
+  cookieHeader.split(';').forEach(cookie => {
+    const [name, ...rest] = cookie.trim().split('=');
+    if (name && rest.length > 0) {
+      cookies[name.trim()] = decodeURIComponent(rest.join('='));
+    }
+  });
+  
+  return cookies;
+}
+
 // RBAC Authorization Middleware
 // NOTE: This middleware is used by legacy routes that directly query the database.
 // Ideally, all routes should be proxied to FastAPI which handles authentication.
 export const authorize = (allowedRoles: string[] = []) => {
   return async (req: AuthorizedRequest, res: Response, next: NextFunction) => {
     try {
-      // Get session_id from cookie (FastAPI session management)
-      const sessionId = req.cookies?.session_id;
+      // Parse cookies from header (cookie-parser not installed, parse manually)
+      const cookies = parseCookies(req.headers.cookie);
+      const sessionId = cookies.session_id;
+      
       if (!sessionId) {
         return res.status(401).json({ message: "Not authenticated - no session cookie" });
       }
