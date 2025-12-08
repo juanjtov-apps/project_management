@@ -64,17 +64,23 @@ interface UserProfile {
   name: string;
   email: string;
   first_name?: string;
+  firstName?: string; // camelCase alias
   last_name?: string;
+  lastName?: string; // camelCase alias
   company_id: string;
   companyId?: string; // Alias for compatibility
   role_id?: string;
+  roleId?: string; // camelCase alias
   role?: string; // Backend returns role as string (admin, manager, etc.)
   is_active: boolean;
   isActive?: boolean; // Alias for compatibility
   created_at: string;
+  createdAt?: string; // camelCase alias
   last_login: string;
   last_login_at?: string; // Alias for compatibility
+  lastLoginAt?: string; // camelCase alias
   role_name?: string;
+  roleName?: string; // camelCase alias
   company_name?: string;
   companyName?: string; // camelCase alias for company_name
   username?: string;
@@ -1043,18 +1049,20 @@ export default function RBACAdmin() {
                                 
                                 const mappedUser = {
                                   ...user,
-                                  first_name: user.first_name || nameParts[0] || '',
-                                  last_name: user.last_name || nameParts.slice(1).join(' ') || '',
+                                  // Handle both snake_case and camelCase from backend
+                                  first_name: user.first_name || user.firstName || nameParts[0] || '',
+                                  last_name: user.last_name || user.lastName || nameParts.slice(1).join(' ') || '',
                                   company_id: (user.company_id || user.companyId)?.toString() || '',
                                   role_id: roleId || '',
                                   role: user.role || '', // Ensure role is included
-                                  role_name: user.role_name || '', // Ensure role_name is included
+                                  role_name: user.role_name || user.roleName || '', // Ensure role_name is included
                                   is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
                                   email: user.email || '',
                                   password: '' // Don't pre-fill password
                                 };
                                   
                                   console.log('✅ Setting editing user and opening dialog');
+                                  console.log('📋 Mapped user data:', mappedUser);
                                   
                                   setEditingUser(mappedUser);
                                   setIsEditDialogOpen(true);
@@ -1232,18 +1240,20 @@ export default function RBACAdmin() {
                                 
                                 const mappedUser = {
                                   ...user,
-                                  first_name: user.first_name || nameParts[0] || '',
-                                  last_name: user.last_name || nameParts.slice(1).join(' ') || '',
+                                  // Handle both snake_case and camelCase from backend
+                                  first_name: user.first_name || user.firstName || nameParts[0] || '',
+                                  last_name: user.last_name || user.lastName || nameParts.slice(1).join(' ') || '',
                                   company_id: (user.company_id || user.companyId)?.toString() || '',
                                   role_id: roleId || '',
                                   role: user.role || '', // Ensure role is included
-                                  role_name: user.role_name || '', // Ensure role_name is included
+                                  role_name: user.role_name || user.roleName || '', // Ensure role_name is included
                                   is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
                                   email: user.email || '',
                                   password: '' // Don't pre-fill password
                                 };
                                 
                                 console.log('✅ Setting editing user and opening dialog');
+                                console.log('📋 Mapped user data:', mappedUser);
                                 
                                 setEditingUser(mappedUser);
                                 setIsEditDialogOpen(true);
