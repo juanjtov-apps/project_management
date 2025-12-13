@@ -38,7 +38,34 @@ async def logout_options():
 
 # Session configuration
 SESSION_TTL = 7 * 24 * 60 * 60  # 1 week in seconds
-SESSION_SECRET = os.getenv("SESSION_SECRET", "default-secret-key")
+
+def get_session_secret() -> str:
+    """Get session secret from environment variable.
+    
+    Raises ValueError in production if SESSION_SECRET is not set.
+    In development, falls back to a default (not recommended).
+    """
+    secret = os.getenv("SESSION_SECRET")
+    if secret:
+        return secret
+    
+    # Check if we're in production
+    node_env = os.getenv("NODE_ENV", "")
+    replit_deployment = os.getenv("REPLIT_DEPLOYMENT", "")
+    
+    is_prod = node_env == "production" or bool(replit_deployment)
+    
+    if is_prod:
+        raise ValueError(
+            "SESSION_SECRET environment variable is required in production. "
+            "Generate a secure secret with: openssl rand -hex 32"
+        )
+    
+    # Development fallback (with warning)
+    logger.warning("⚠️ SESSION_SECRET not set - using insecure default. Set SESSION_SECRET in production!")
+    return "dev-only-insecure-default-change-in-production"
+
+SESSION_SECRET = get_session_secret()
 
 def is_production() -> bool:
     """Check if running in production environment.
