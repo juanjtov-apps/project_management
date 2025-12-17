@@ -1221,7 +1221,16 @@ export default function Projects() {
       )}
 
       {/* Project Edit Dialog */}
-      <Dialog open={!!editingProject} onOpenChange={() => setEditingProject(null)}>
+      <Dialog
+        open={!!editingProject}
+        onOpenChange={(open) => {
+          // Only clear when the dialog is actually closing.
+          // This prevents "instant close" when Radix emits intermediate open events.
+          if (!open) {
+            setEditingProject(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Edit Project</DialogTitle>
@@ -1251,10 +1260,15 @@ export default function Projects() {
       </Dialog>
 
       {/* Add Task Dialog */}
-      <Dialog open={isAddTaskOpen} onOpenChange={() => {
-        setIsAddTaskOpen(false);
-        setAddingTaskProject(null);
-      }}>
+      <Dialog
+        open={isAddTaskOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsAddTaskOpen(false);
+            setAddingTaskProject(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Add Task to {addingTaskProject?.name}</DialogTitle>

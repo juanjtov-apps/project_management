@@ -11,8 +11,8 @@ class ProjectStatus(str, Enum):
     """Project status enumeration."""
     active = "active"
     completed = "completed"
-    on_hold = "on_hold"
-    cancelled = "cancelled"
+    on_hold = "on-hold"
+    delayed = "delayed"
 
 
 class TaskStatus(str, Enum):
@@ -40,15 +40,21 @@ class TaskCategory(str, Enum):
 
 
 class UserRole(str, Enum):
-    """User role enumeration."""
-    crew = "crew"
-    manager = "manager"
+    """User role enumeration - matches role names in roles table."""
     admin = "admin"
+    project_manager = "project_manager"
+    office_manager = "office_manager"
+    crew = "crew"
     subcontractor = "subcontractor"
+    client = "client"
 
 
 class NotificationType(str, Enum):
     """Notification type enumeration."""
+    info = "info"
+    warning = "warning"
+    error = "error"
+    success = "success"
     task_assigned = "task_assigned"
     project_updated = "project_updated"
     schedule_change = "schedule_change"
@@ -63,6 +69,13 @@ class ScheduleChangeStatus(str, Enum):
     rejected = "rejected"
 
 
+class PlanType(str, Enum):
+    """Company plan type enumeration."""
+    basic = "basic"
+    premium = "premium"
+    enterprise = "enterprise"
+
+
 class BaseResponse(BaseModel):
     """Base response model."""
     message: str = "Success"
@@ -71,6 +84,11 @@ class BaseResponse(BaseModel):
 class BaseEntity(BaseModel):
     """Base entity with common fields."""
     id: str
-    created_at: datetime = Field(alias="createdAt")
+    created_at: Optional[datetime] = Field(default=None, alias="createdAt")
     
-    model_config = {"populate_by_name": True}
+    model_config = {"populate_by_name": True, "from_attributes": True}
+
+
+class TimestampedEntity(BaseEntity):
+    """Entity with created_at and updated_at timestamps."""
+    updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")

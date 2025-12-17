@@ -138,10 +138,8 @@ export default function RBACAdmin() {
       console.log(`✅ Loaded ${roles.length} roles:`, roles.map(r => ({ 
         id: r.id, 
         name: getRoleName(r), 
-        company_id: r.company_id, 
-        companyId: r.companyId,
+        company_id: r.company_id,
         is_template: r.is_template,
-        isTemplate: r.isTemplate
       })));
     } else if (!rolesLoading && roles.length === 0) {
       console.warn('⚠️ No roles found - check backend endpoint /api/v1/rbac/roles');
@@ -195,11 +193,9 @@ export default function RBACAdmin() {
     }
   });
 
-  // Update user mutation - placed outside component to prevent re-creation on every render
+  // Update user mutation - at RBACAdmin level since Edit User Dialog is rendered here
   const updateUserMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => {
-      // Use the full user update endpoint at /api/rbac/users/{id}
-      // Send both role_id and role for backend compatibility
       const updateData: any = {
         first_name: data.first_name,
         last_name: data.last_name,
@@ -208,16 +204,13 @@ export default function RBACAdmin() {
         company_id: data.company_id,
       };
       
-      // Send role_id if available (preferred)
       if (data.role_id) {
         updateData.role_id = data.role_id;
       }
       
-      // Also send role string for backward compatibility
       if (data.role) {
         updateData.role = data.role;
       } else if (data.role_id) {
-        // Map role_id to role string as fallback
         const roleMap: Record<string, string> = {
           '1': 'admin',
           '2': 'project_manager',
@@ -229,7 +222,6 @@ export default function RBACAdmin() {
         updateData.role = roleMap[data.role_id] || 'crew';
       }
       
-      // Include password only if provided
       if (data.password && data.password.trim() !== '') {
         updateData.password = data.password;
       }
@@ -240,14 +232,10 @@ export default function RBACAdmin() {
       });
     },
     onSuccess: async () => {
-      console.log('✅ Mutation succeeded');
       toast({ title: 'Success', description: 'User updated successfully' });
-      // Invalidate users query to refetch updated data
-      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      // Refetch on error to revert optimistic update
       queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
     }
   });
@@ -314,19 +302,23 @@ export default function RBACAdmin() {
 
   // Move updateCompanyMutation to inside CompanyManagement component where state is defined
 
+  // ========================================================================
+  // EDIT USER DIALOG STATE - Lifted to RBACAdmin level to persist across
+  // UserManagement remounts (which happen when query data changes)
+  // ========================================================================
+  const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [editDialogKey, setEditDialogKey] = useState(0);
+  const editSessionRef = React.useRef(0);
+  const editCloseTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const editBlockCloseUntilRef = React.useRef(0);
+
   // Component functions
   const UserManagement = () => {
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
-    const [dialogKey, setDialogKey] = useState(0); // Key to prevent dialog from resetting
-    const shouldCloseDialogRef = React.useRef(false); // Ref to track intentional dialog close
-    
-    // SESSION GUARD SYSTEM - prevents stale close handlers from previous sessions
-    const sessionRef = React.useRef(0); // Increments on every open
-    const closeTimerRef = React.useRef<NodeJS.Timeout | null>(null); // Tracks pending setTimeout
-    const blockCloseUntilRef = React.useRef(0); // Timestamp until which close is blocked
+    // NOTE: Edit dialog state has been LIFTED to RBACAdmin level (above) to prevent
+    // state loss when UserManagement remounts due to query data changes
     // Initialize with all companies expanded - will be populated when usersByCompany is computed
     const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
     const [newUser, setNewUser] = useState({
@@ -388,6 +380,9 @@ export default function RBACAdmin() {
       }
     });
 
+    // NOTE: updateUserMutation moved back to RBACAdmin level since Edit User Dialog
+    // is now rendered at that level
+
     // Group filtered users by company, including companies with no users
     const usersByCompany = React.useMemo(() => {
       const grouped: { [key: string]: UserProfile[] } = {};
@@ -421,7 +416,6 @@ export default function RBACAdmin() {
         setExpandedCompanies(new Set(Object.keys(usersByCompany)));
       }
     }, [usersByCompany]);
-
 
     const toggleCompanyExpansion = (companyName: string) => {
       const newExpanded = new Set(expandedCompanies);
@@ -543,7 +537,7 @@ export default function RBACAdmin() {
                 <div>
                   <Label htmlFor="role">Role *</Label>
                   <Select value={newUser.role_id} onValueChange={(value) => setNewUser({ ...newUser, role_id: value })}>
-                    <SelectTrigger>
+                    <SelectTrigger id="role">
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
@@ -579,7 +573,7 @@ export default function RBACAdmin() {
                           })
                           .map((role: Role) => (
                             <SelectItem key={role.id} value={role.id.toString()}>
-                              {getRoleName(role) || role.displayName || role.display_name} {role.company_id === '0' || role.company_id === 0 ? '(Platform)' : '(Standard)'}
+                              {getRoleName(role) || role.displayName || role.display_name} {String(role.company_id) === '0' ? '(Platform)' : '(Standard)'}
                             </SelectItem>
                           ));
                       })()}
@@ -642,256 +636,8 @@ export default function RBACAdmin() {
             </DialogContent>
           </Dialog>
 
-          {/* Edit User Dialog */}
-          <Dialog 
-            key={dialogKey}
-            open={isEditDialogOpen}
-            onOpenChange={(open) => {
-              const now = Date.now();
-              const blockedUntil = blockCloseUntilRef.current;
-              
-              console.log('🔔 Dialog onOpenChange called:', { 
-                open, 
-                isPending: updateUserMutation.isPending,
-                now,
-                blockedUntil,
-                isBlocked: now < blockedUntil
-              });
-              
-              // BLOCK CLOSE if we're in the critical period
-              if (!open && now < blockedUntil) {
-                const remainingMs = blockedUntil - now;
-                console.log(`🚫 BLOCKING CLOSE - ${remainingMs}ms remaining in critical period`);
-                return; // Prevent close
-              }
-              
-              // Only allow closing manually (via cancel button or X)
-              if (!open && !updateUserMutation.isPending) {
-                console.log('✅ Allowing dialog to close');
-                setIsEditDialogOpen(false);
-                setEditingUser(null);
-                setDialogKey(prev => prev + 1); // Reset dialog on close
-              } else if (!open && updateUserMutation.isPending) {
-                console.log('❌ Preventing dialog close - mutation pending');
-              }
-            }}
-            modal={true}
-          >
-            <DialogContent className="max-w-md" aria-describedby={undefined} onInteractOutside={(e) => {
-              // Prevent closing by clicking outside during mutation
-              if (updateUserMutation.isPending) {
-                e.preventDefault();
-              }
-            }}>
-              <DialogHeader>
-                <DialogTitle>Edit User</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit_first_name">First Name</Label>
-                    <Input
-                      id="edit_first_name"
-                      value={editingUser?.first_name || ''}
-                      onChange={(e) => setEditingUser(editingUser ? {...editingUser, first_name: e.target.value} : null)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit_last_name">Last Name</Label>
-                    <Input
-                      id="edit_last_name"
-                      value={editingUser?.last_name || ''}
-                      onChange={(e) => setEditingUser(editingUser ? {...editingUser, last_name: e.target.value} : null)}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="edit_email">Email</Label>
-                  <Input
-                    id="edit_email"
-                    type="email"
-                    value={editingUser?.email || ''}
-                    onChange={(e) => setEditingUser(editingUser ? {...editingUser, email: e.target.value} : null)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit_company">Company</Label>
-                  <Select 
-                    value={editingUser?.company_id?.toString() || ''} 
-                    onValueChange={(value) => setEditingUser(editingUser ? {...editingUser, company_id: value} : null)}
-                    disabled={true}
-                  >
-                    <SelectTrigger className="opacity-60">
-                      <SelectValue placeholder="Company (read-only)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredCompanies.map((company: Company) => (
-                        <SelectItem key={company.id} value={company.id.toString()}>
-                          {company.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">Users cannot change companies</p>
-                </div>
-                <div>
-                  <Label htmlFor="edit_password">New Password (Optional)</Label>
-                  <Input
-                    id="edit_password"
-                    type="password"
-                    placeholder="Leave empty to keep current password"
-                    value={editingUser?.password || ''}
-                    onChange={(e) => setEditingUser(editingUser ? {...editingUser, password: e.target.value} : null)}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Only change if user needs a new password</p>
-                </div>
-                <div>
-                  <Label htmlFor="edit_role">Role</Label>
-                  <Select 
-                    value={editingUser?.role_id?.toString() || ''} 
-                    onValueChange={(value) => setEditingUser(editingUser ? {...editingUser, role_id: value} : null)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {rolesLoading ? (
-                        <SelectItem value="loading" disabled>Loading roles...</SelectItem>
-                      ) : roles && roles.length > 0 ? (
-                        (() => {
-                          // DEBUG: Log all roles and filter details
-                          console.log('🔍 Edit User - All roles:', roles);
-                          console.log('🔍 Edit User - Current company ID:', currentUserCompanyId);
-                          console.log('🔍 Edit User - Roles count:', roles.length);
-                          
-                          // Show ALL roles for now - we can filter later if needed
-                          // This ensures roles are visible while we debug
-                          const rolesToShow = roles;
-                          
-                          if (rolesToShow.length === 0) {
-                            return <SelectItem value="none" disabled>No roles available</SelectItem>;
-                          }
-                          
-                          return rolesToShow.map((role: Role) => (
-                            <SelectItem key={role.id} value={role.id.toString()}>
-                              {getRoleName(role) || role.displayName || role.display_name} {role.company_id === '0' || role.company_id === 0 ? '(Platform)' : '(Standard)'}
-                            </SelectItem>
-                          ));
-                        })()
-                      ) : (
-                        <SelectItem value="none" disabled>No roles available</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="edit_is_active"
-                    checked={editingUser?.is_active || false}
-                    onCheckedChange={(checked) => setEditingUser(editingUser ? {...editingUser, is_active: checked} : null)}
-                  />
-                  <Label htmlFor="edit_is_active">Active User</Label>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button 
-                  type="button"
-                  variant="outline" 
-                  onClick={() => {
-                    setIsEditDialogOpen(false);
-                    setEditingUser(null);
-                  }}
-                  data-testid="button-cancel-edit"
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="button"
-                  onClick={async () => {
-                    if (editingUser) {
-                      // SESSION GUARD: Capture current session ID at start of update
-                      const mySession = sessionRef.current;
-                      console.log(`🚀 Update button clicked - Session #${mySession}`);
-                      
-                      // Map fields properly for backend
-                      const updatePayload: any = {
-                        email: editingUser.email,
-                        username: editingUser.email,
-                        name: `${editingUser.first_name || ''} ${editingUser.last_name || ''}`.trim(),
-                        first_name: editingUser.first_name,
-                        last_name: editingUser.last_name,
-                        company_id: editingUser.company_id,
-                        role_id: editingUser.role_id, // Backend will convert this to role string
-                        is_active: editingUser.is_active,
-                      };
-                      // Only include password if it was changed
-                      if (editingUser.password && editingUser.password.trim() !== '') {
-                        updatePayload.password = editingUser.password;
-                      }
-                      
-                      try {
-                        // Wait for mutation to complete
-                        await updateUserMutation.mutateAsync({
-                          id: editingUser.id, 
-                          data: updatePayload
-                        });
-                        
-                        console.log(`✅ Mutation completed for Session #${mySession}`);
-                        
-                        // BLOCK DIALOG CLOSE for 300ms to allow user to click Edit immediately
-                        const blockDuration = 300;
-                        blockCloseUntilRef.current = Date.now() + blockDuration;
-                        console.log(`🔐 BLOCKING dialog close for ${blockDuration}ms - safe to click Edit!`);
-                        
-                        // IMMEDIATE CACHE UPDATE - No re-render, no refetch
-                        const roleId = editingUser.role_id;
-                        const roleName = roleId === '1' ? 'Admin' : 
-                                       roleId === '2' ? 'Project Manager' : 
-                                       roleId === '3' ? 'Office Manager' : 
-                                       roleId === '4' ? 'Subcontractor' : 
-                                       roleId === '5' ? 'Client' : 'Crew';
-                        const role = roleId === '1' ? 'admin' : 
-                                    roleId === '2' ? 'project_manager' : 
-                                    roleId === '3' ? 'office_manager' : 
-                                    roleId === '4' ? 'subcontractor' : 
-                                    roleId === '5' ? 'client' : 'crew';
-                        
-                        queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
-                          if (!old) return old;
-                          return old.map((user: any) => 
-                            user.id === editingUser.id 
-                              ? { ...user, role_id: roleId, role: role, role_name: roleName }
-                              : user
-                          );
-                        });
-                        
-                        // SESSION GUARD: Store timer ref so it can be cancelled by next open
-                        closeTimerRef.current = setTimeout(() => {
-                          // SESSION GUARD: Only close if this is still the active session
-                          if (sessionRef.current !== mySession) {
-                            console.log(`⚠️ Session mismatch! Skipping close. Current: ${sessionRef.current}, Mine: ${mySession}`);
-                            return;
-                          }
-                          
-                          console.log(`🔒 Closing dialog for Session #${mySession}`);
-                          setIsEditDialogOpen(false);
-                          setEditingUser(null);
-                          closeTimerRef.current = null;
-                        }, blockDuration);
-                        
-                      } catch (error) {
-                        console.error('❌ Mutation failed:', error);
-                      }
-                    }
-                  }}
-                  disabled={updateUserMutation.isPending || !editingUser?.email?.trim()}
-                  data-testid="button-update-user"
-                >
-                  {updateUserMutation.isPending ? 'Updating...' : 'Update User'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {/* NOTE: Edit User Dialog has been moved to RBACAdmin level to prevent 
+              flicker caused by UserManagement remounting */}
         </div>
 
         <div className="space-y-4">
@@ -990,25 +736,14 @@ export default function RBACAdmin() {
                                   e.preventDefault();
                                   e.stopPropagation();
                                   
-                                  // SESSION GUARD: Cancel any pending close timer from previous session
-                                  if (closeTimerRef.current) {
-                                    console.log('🛑 Canceling pending close timer from previous session');
-                                    clearTimeout(closeTimerRef.current);
-                                    closeTimerRef.current = null;
+                                  // Cancel any pending close timer from previous session
+                                  if (editCloseTimerRef.current) {
+                                    clearTimeout(editCloseTimerRef.current);
+                                    editCloseTimerRef.current = null;
                                   }
                                   
-                                  // SESSION GUARD: Increment session ID for this new open
-                                  sessionRef.current += 1;
-                                  const currentSession = sessionRef.current;
-                                  console.log(`🔓 Opening edit dialog - Session #${currentSession}`);
-                                  
-                                  // Debug logging
-                                  console.log('🔍 Edit button clicked for user:', {
-                                    id: user.id,
-                                    email: user.email,
-                                    role: user.role,
-                                    role_id: user.role_id
-                                  });
+                                  // Increment session ID for this new open
+                                  editSessionRef.current += 1;
                                   
                                   // Properly map user data for editing, parsing name into first/last
                                   const nameParts = (user.name || '').split(' ');
@@ -1024,12 +759,13 @@ export default function RBACAdmin() {
                                     'client': 'Client',
                                     'crew': 'Crew'
                                   };
-                                  const targetRoleName = roleNameMap[user.role] || user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                  const userRole = user.role ?? '';
+                                  const targetRoleName = roleNameMap[userRole] || userRole.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
                                   // Find role by name (case-insensitive) - handle both name and role_name
                                   const matchingRole = roles.find((r: Role) => {
                                     const roleName = getRoleName(r).toLowerCase();
                                     return roleName === targetRoleName.toLowerCase() ||
-                                           roleName === user.role.toLowerCase();
+                                           roleName === userRole.toLowerCase();
                                   });
                                   if (matchingRole) {
                                     roleId = matchingRole.id.toString();
@@ -1043,29 +779,25 @@ export default function RBACAdmin() {
                                       'client': '5',
                                       'crew': '6'
                                     };
-                                    roleId = roleMap[user.role] || '';
+                                    roleId = roleMap[userRole] || '';
                                   }
                                 }
                                 
                                 const mappedUser = {
                                   ...user,
-                                  // Handle both snake_case and camelCase from backend
                                   first_name: user.first_name || user.firstName || nameParts[0] || '',
                                   last_name: user.last_name || user.lastName || nameParts.slice(1).join(' ') || '',
                                   company_id: (user.company_id || user.companyId)?.toString() || '',
                                   role_id: roleId || '',
-                                  role: user.role || '', // Ensure role is included
-                                  role_name: user.role_name || user.roleName || '', // Ensure role_name is included
+                                  role: user.role || '',
+                                  role_name: user.role_name || user.roleName || '',
                                   is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
                                   email: user.email || '',
-                                  password: '' // Don't pre-fill password
+                                  password: ''
                                 };
                                   
-                                  console.log('✅ Setting editing user and opening dialog');
-                                  console.log('📋 Mapped user data:', mappedUser);
-                                  
                                   setEditingUser(mappedUser);
-                                  setIsEditDialogOpen(true);
+                                  setIsEditUserDialogOpen(true);
                                 }}
                               >
                                 <Edit className="w-4 h-4" />
@@ -1181,32 +913,19 @@ export default function RBACAdmin() {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 
-                                // SESSION GUARD: Cancel any pending close timer from previous session
-                                if (closeTimerRef.current) {
-                                  console.log('🛑 Canceling pending close timer from previous session');
-                                  clearTimeout(closeTimerRef.current);
-                                  closeTimerRef.current = null;
+                                // Cancel any pending close timer from previous session
+                                if (editCloseTimerRef.current) {
+                                  clearTimeout(editCloseTimerRef.current);
+                                  editCloseTimerRef.current = null;
                                 }
                                 
-                                // SESSION GUARD: Increment session ID for this new open
-                                sessionRef.current += 1;
-                                const currentSession = sessionRef.current;
-                                console.log(`🔓 Opening edit dialog - Session #${currentSession}`);
+                                // Increment session ID for this new open
+                                editSessionRef.current += 1;
                                 
-                                // Debug logging
-                                console.log('🔍 Edit button clicked for user:', {
-                                  id: user.id,
-                                  email: user.email,
-                                  role: user.role,
-                                  role_id: user.role_id
-                                });
-                                
-                                // Properly map user data for editing, parsing name into first/last
+                                // Map user data for editing
                                 const nameParts = (user.name || '').split(' ');
-                                // Map role string to role_id by finding matching role in roles list
                                 let roleId = user.role_id?.toString();
                                 if (!roleId && user.role && roles && roles.length > 0) {
-                                  // Try to find role by matching role name to user's role string
                                   const roleNameMap: Record<string, string> = {
                                     'admin': 'Admin',
                                     'project_manager': 'Project Manager',
@@ -1215,17 +934,16 @@ export default function RBACAdmin() {
                                     'client': 'Client',
                                     'crew': 'Crew'
                                   };
-                                  const targetRoleName = roleNameMap[user.role] || user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-                                  // Find role by name (case-insensitive) - handle both name and role_name
+                                  const userRole = user.role ?? '';
+                                  const targetRoleName = roleNameMap[userRole] || userRole.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
                                   const matchingRole = roles.find((r: Role) => {
                                     const roleName = getRoleName(r).toLowerCase();
                                     return roleName === targetRoleName.toLowerCase() ||
-                                           roleName === user.role.toLowerCase();
+                                           roleName === userRole.toLowerCase();
                                   });
                                   if (matchingRole) {
                                     roleId = matchingRole.id.toString();
                                   } else {
-                                    // Fallback to hardcoded mapping if role not found
                                     const roleMap: Record<string, string> = {
                                       'admin': '1',
                                       'project_manager': '2',
@@ -1234,29 +952,25 @@ export default function RBACAdmin() {
                                       'client': '5',
                                       'crew': '6'
                                     };
-                                    roleId = roleMap[user.role] || '';
+                                    roleId = roleMap[userRole] || '';
                                   }
                                 }
                                 
                                 const mappedUser = {
                                   ...user,
-                                  // Handle both snake_case and camelCase from backend
                                   first_name: user.first_name || user.firstName || nameParts[0] || '',
                                   last_name: user.last_name || user.lastName || nameParts.slice(1).join(' ') || '',
                                   company_id: (user.company_id || user.companyId)?.toString() || '',
                                   role_id: roleId || '',
-                                  role: user.role || '', // Ensure role is included
-                                  role_name: user.role_name || user.roleName || '', // Ensure role_name is included
+                                  role: user.role || '',
+                                  role_name: user.role_name || user.roleName || '',
                                   is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
                                   email: user.email || '',
-                                  password: '' // Don't pre-fill password
+                                  password: ''
                                 };
                                 
-                                console.log('✅ Setting editing user and opening dialog');
-                                console.log('📋 Mapped user data:', mappedUser);
-                                
                                 setEditingUser(mappedUser);
-                                setIsEditDialogOpen(true);
+                                setIsEditUserDialogOpen(true);
                               }}
                               data-testid={`button-edit-${user.id}`}
                             >
@@ -1315,7 +1029,7 @@ export default function RBACAdmin() {
   const RoleManagement = () => {
     const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | null>(null);
     const [newRole, setNewRole] = useState({
       name: '',
@@ -1363,7 +1077,7 @@ export default function RBACAdmin() {
                   <div>
                     <Label htmlFor="company">Company</Label>
                     <Select value={newRole.company_id} onValueChange={(value) => setNewRole({ ...newRole, company_id: value })}>
-                      <SelectTrigger>
+                      <SelectTrigger id="company">
                         <SelectValue placeholder="Select company" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1455,7 +1169,10 @@ export default function RBACAdmin() {
               </CardContent>
             </Card>
           ) : roles && Array.isArray(roles) && roles.length > 0 ? (
-            roles.map((role: Role) => (
+            roles.map((role: Role) => {
+              const rolePermissions = role.permissions ?? [];
+
+              return (
               <Card key={role.id}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -1472,7 +1189,7 @@ export default function RBACAdmin() {
                         variant="outline"
                         onClick={() => {
                           setEditingRole(role);
-                          setIsEditDialogOpen(true);
+                          setIsEditUserDialogOpen(true);
                         }}
                       >
                         <Edit className="w-4 h-4 mr-2" />
@@ -1491,10 +1208,10 @@ export default function RBACAdmin() {
                 <CardContent>
                   <div className="space-y-2">
                     <div className="text-sm text-muted-foreground">
-                      Permissions ({role.permissions?.length || 0})
+                      Permissions ({rolePermissions.length})
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {role.permissions?.slice(0, 5).map((permId: string) => {
+                      {rolePermissions.slice(0, 5).map((permId: string) => {
                         const perm = permissions.find((p: Permission) => p.id === permId);
                         return perm ? (
                           <Badge key={permId} variant="outline" className="text-xs">
@@ -1502,16 +1219,17 @@ export default function RBACAdmin() {
                           </Badge>
                         ) : null;
                       })}
-                      {role.permissions?.length > 5 && (
+                      {rolePermissions.length > 5 && (
                         <Badge variant="outline" className="text-xs">
-                          +{role.permissions.length - 5} more
+                          +{rolePermissions.length - 5} more
                         </Badge>
                       )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            ))
+              );
+            })
           ) : (
             <Card>
               <CardContent className="p-6">
@@ -1675,7 +1393,7 @@ export default function RBACAdmin() {
                     ...newCompany, 
                     settings: { ...newCompany.settings, type: value }
                   })}>
-                    <SelectTrigger>
+                    <SelectTrigger id="type">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1691,7 +1409,7 @@ export default function RBACAdmin() {
                     ...newCompany, 
                     settings: { ...newCompany.settings, subscription_tier: value }
                   })}>
-                    <SelectTrigger>
+                    <SelectTrigger id="subscription">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1704,7 +1422,7 @@ export default function RBACAdmin() {
                 <div>
                   <Label htmlFor="status">Status</Label>
                   <Select value={newCompany.status} onValueChange={(value) => setNewCompany({ ...newCompany, status: value })}>
-                    <SelectTrigger>
+                    <SelectTrigger id="status">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1785,7 +1503,7 @@ export default function RBACAdmin() {
                   value={editingCompany?.status || 'active'} 
                   onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, status: value as 'active' | 'suspended' | 'pending'} : null)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="edit_status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1804,7 +1522,7 @@ export default function RBACAdmin() {
                     settings: { ...prev.settings, type: value }
                   } : null)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="edit_type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1823,7 +1541,7 @@ export default function RBACAdmin() {
                     settings: { ...prev.settings, subscription_tier: value }
                   } : null)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="edit_subscription">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -2135,8 +1853,232 @@ export default function RBACAdmin() {
     );
   };
 
+  // ========================================================================
+  // EDIT USER DIALOG - Rendered at RBACAdmin level (NOT inside UserManagement)
+  // This prevents the dialog from unmounting/remounting when UserManagement
+  // re-renders, which was causing visual flickering.
+  // ========================================================================
+  const editUserDialog = (
+    <Dialog 
+      open={isEditUserDialogOpen}
+      onOpenChange={(open) => {
+        const now = Date.now();
+        const blockedUntil = editBlockCloseUntilRef.current;
+        
+        // Block close if we're in the critical period after update
+        if (!open && now < blockedUntil) {
+          return;
+        }
+        
+        // Allow closing manually (via cancel button or X)
+        if (!open && !updateUserMutation.isPending) {
+          setIsEditUserDialogOpen(false);
+          setEditingUser(null);
+        }
+      }}
+      modal={true}
+    >
+      <DialogContent className="max-w-md" aria-describedby={undefined} onInteractOutside={(e) => {
+        // Prevent closing by clicking outside during mutation
+        if (updateUserMutation.isPending) {
+          e.preventDefault();
+        }
+      }}>
+        <DialogHeader>
+          <DialogTitle>Edit User</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="edit_first_name">First Name</Label>
+              <Input
+                id="edit_first_name"
+                value={editingUser?.first_name || ''}
+                onChange={(e) => setEditingUser(editingUser ? {...editingUser, first_name: e.target.value} : null)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit_last_name">Last Name</Label>
+              <Input
+                id="edit_last_name"
+                value={editingUser?.last_name || ''}
+                onChange={(e) => setEditingUser(editingUser ? {...editingUser, last_name: e.target.value} : null)}
+              />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="edit_email">Email</Label>
+            <Input
+              id="edit_email"
+              type="email"
+              value={editingUser?.email || ''}
+              onChange={(e) => setEditingUser(editingUser ? {...editingUser, email: e.target.value} : null)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit_company">Company</Label>
+            <Select 
+              value={editingUser?.company_id?.toString() || ''} 
+              onValueChange={(value) => setEditingUser(editingUser ? {...editingUser, company_id: value} : null)}
+              disabled={true}
+            >
+              <SelectTrigger id="edit_company" className="opacity-60">
+                <SelectValue placeholder="Company (read-only)" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredCompanies.map((company: Company) => (
+                  <SelectItem key={company.id} value={company.id.toString()}>
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">Users cannot change companies</p>
+          </div>
+          <div>
+            <Label htmlFor="edit_password">New Password (Optional)</Label>
+            <Input
+              id="edit_password"
+              type="password"
+              placeholder="Leave empty to keep current password"
+              value={editingUser?.password || ''}
+              onChange={(e) => setEditingUser(editingUser ? {...editingUser, password: e.target.value} : null)}
+            />
+            <p className="text-xs text-muted-foreground mt-1">Only change if user needs a new password</p>
+          </div>
+          <div>
+            <Label htmlFor="edit_role">Role</Label>
+            <Select 
+              value={editingUser?.role_id?.toString() || ''} 
+              onValueChange={(value) => setEditingUser(editingUser ? {...editingUser, role_id: value} : null)}
+            >
+              <SelectTrigger id="edit_role">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                {rolesLoading ? (
+                  <SelectItem value="loading" disabled>Loading roles...</SelectItem>
+                ) : roles && roles.length > 0 ? (
+                  (() => {
+                    // DEBUG: Log all roles and filter details
+                    console.log('🔍 Edit User - All roles:', roles);
+                    console.log('🔍 Edit User - Current company ID:', currentUserCompanyId);
+                    console.log('🔍 Edit User - Roles count:', roles.length);
+                    
+                    // Show ALL roles for now - we can filter later if needed
+                    const rolesToShow = roles;
+                    
+                    if (rolesToShow.length === 0) {
+                      return <SelectItem value="none" disabled>No roles available</SelectItem>;
+                    }
+                    
+                    return rolesToShow.map((role: Role) => (
+                      <SelectItem key={role.id} value={role.id.toString()}>
+                        {getRoleName(role) || role.displayName || role.display_name} {String(role.company_id) === '0' ? '(Platform)' : '(Standard)'}
+                      </SelectItem>
+                    ));
+                  })()
+                ) : (
+                  <SelectItem value="none" disabled>No roles available</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="edit_is_active"
+              checked={editingUser?.is_active || false}
+              onCheckedChange={(checked) => setEditingUser(editingUser ? {...editingUser, is_active: checked} : null)}
+            />
+            <Label htmlFor="edit_is_active">Active User</Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button 
+            type="button"
+            variant="outline" 
+            onClick={() => {
+              setIsEditUserDialogOpen(false);
+              setEditingUser(null);
+            }}
+            data-testid="button-cancel-edit"
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="button"
+            onClick={async () => {
+              if (editingUser) {
+                const updatePayload: any = {
+                  email: editingUser.email,
+                  username: editingUser.email,
+                  name: `${editingUser.first_name || ''} ${editingUser.last_name || ''}`.trim(),
+                  first_name: editingUser.first_name,
+                  last_name: editingUser.last_name,
+                  company_id: editingUser.company_id,
+                  role_id: editingUser.role_id,
+                  is_active: editingUser.is_active,
+                };
+                if (editingUser.password && editingUser.password.trim() !== '') {
+                  updatePayload.password = editingUser.password;
+                }
+                
+                try {
+                  await updateUserMutation.mutateAsync({
+                    id: editingUser.id, 
+                    data: updatePayload
+                  });
+                  
+                  // Block trailing close events for a short period
+                  const blockDurationMs = 1200;
+                  editBlockCloseUntilRef.current = Date.now() + blockDurationMs;
+                  
+                  // Update cache immediately
+                  const roleId = editingUser.role_id;
+                  const roleName = roleId === '1' ? 'Admin' : 
+                                 roleId === '2' ? 'Project Manager' : 
+                                 roleId === '3' ? 'Office Manager' : 
+                                 roleId === '4' ? 'Subcontractor' : 
+                                 roleId === '5' ? 'Client' : 'Crew';
+                  const role = roleId === '1' ? 'admin' : 
+                              roleId === '2' ? 'project_manager' : 
+                              roleId === '3' ? 'office_manager' : 
+                              roleId === '4' ? 'subcontractor' : 
+                              roleId === '5' ? 'client' : 'crew';
+                  
+                  queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
+                    if (!old) return old;
+                    return old.map((user: any) => 
+                      user.id === editingUser.id 
+                        ? { ...user, role_id: roleId, role: role, role_name: roleName }
+                        : user
+                    );
+                  });
+                  
+                  setIsEditUserDialogOpen(false);
+                  setEditingUser(null);
+                  editCloseTimerRef.current = null;
+                  
+                } catch (error) {
+                  console.error('Update failed:', error);
+                }
+              }
+            }}
+            disabled={updateUserMutation.isPending || !editingUser?.email?.trim()}
+            data-testid="button-update-user"
+          >
+            {updateUserMutation.isPending ? 'Updating...' : 'Update User'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   return (
     <div className="container mx-auto p-6 bg-[var(--pro-bg)] min-h-screen">
+      {/* Edit User Dialog - rendered at RBACAdmin level to prevent flicker */}
+      {editUserDialog}
+      
       <div className="mb-8">
         <h1 className="text-3xl font-bold flex items-center gap-2 text-[var(--pro-text-primary)]">
           <Shield className="w-8 h-8 text-[var(--pro-mint)]" />

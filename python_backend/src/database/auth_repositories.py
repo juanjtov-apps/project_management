@@ -389,20 +389,30 @@ class AuthRepository:
         email = data.get('email')
         is_active = data.get('is_active', True)
         
-        print(f"[DEBUG create_rbac_user] Inserting user: id={user_id}, email={email}, role_id={role_id}, company_id={company_id}")
+        # Handle is_root flag (only ONE root user allowed)
+        is_root = data.get('is_root', False)
+        if is_root:
+            # Verify no other root user exists
+            existing_root = await db_manager.execute_one(
+                "SELECT id FROM users WHERE is_root = true LIMIT 1"
+            )
+            if existing_root:
+                raise ValueError("A root user already exists. Only ONE root user is allowed.")
+        
+        print(f"[DEBUG create_rbac_user] Inserting user: id={user_id}, email={email}, role_id={role_id}, company_id={company_id}, is_root={is_root}")
         
         query = f"""
             INSERT INTO {self.table_name} 
-            (id, first_name, last_name, email, password, role_id, company_id, is_active, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-            RETURNING id, first_name, last_name, email, role_id, company_id, is_active, created_at
+            (id, first_name, last_name, email, password, role_id, company_id, is_active, is_root, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+            RETURNING id, first_name, last_name, email, role_id, company_id, is_active, is_root, created_at
         """
         
         try:
             row = await db_manager.execute_one(
                 query, user_id, first_name, last_name,
                 email, password_hash, role_id,
-                company_id, is_active
+                company_id, is_active, is_root
             )
             print(f"[DEBUG create_rbac_user] User created successfully: {dict(row) if row else 'No row returned'}")
         except Exception as e:
@@ -1136,17 +1146,85 @@ class RoleRepository:
             return False
     
     async def get_permissions(self) -> List[Dict[str, Any]]:
-        """Get all available permissions."""
-        # For now, return a mock list of permissions
-        # In a real system, this would come from a permissions table
-        return [
-            {"id": 1, "name": "view_dashboard", "description": "View dashboard"},
-            {"id": 2, "name": "manage_users", "description": "Manage users"},
-            {"id": 3, "name": "manage_projects", "description": "Manage projects"},
-            {"id": 4, "name": "manage_tasks", "description": "Manage tasks"},
-            {"id": 5, "name": "view_reports", "description": "View reports"},
-            {"id": 6, "name": "admin_access", "description": "Administrative access"}
-        ]
+        """Get all available permissions from the database."""
+        try:
+            query = """
+                SELECT id, name, resource, action, description, category, created_at
+                FROM permissions
+                ORDER BY category, resource, action
+            """
+            rows = await db_manager.execute_query(query)
+            return [self._convert_to_camel_case(dict(row)) for row in rows]
+        except Exception as e:
+            print(f"Error getting permissions: {e}")
+            # Fallback to empty list if table doesn't exist yet
+            return []
+    
+    async def get_role_permissions(self, role_id: int) -> List[str]:
+        """Get permission names for a specific role."""
+        try:
+            query = """
+                SELECT p.name
+                FROM permissions p
+                JOIN role_permissions rp ON p.id = rp.permission_id
+                WHERE rp.role_id = $1
+            """
+            rows = await db_manager.execute_query(query, role_id)
+            return [row['name'] for row in rows]
+        except Exception as e:
+            print(f"Error getting role permissions for role {role_id}: {e}")
+            return []
+    
+    async def get_user_permissions(self, user_id: str) -> List[str]:
+        """Get all permission names for a user based on their role."""
+        try:
+            # Get user's role_id and is_root status
+            user_query = "SELECT role_id, is_root FROM users WHERE id = $1"
+            user = await db_manager.execute_one(user_query, user_id)
+            
+            if not user:
+                return []
+            
+            # Root user has all permissions
+            if user.get('is_root'):
+                all_permissions = await self.get_permissions()
+                return [p.get('name') for p in all_permissions if p.get('name')]
+            
+            role_id = user.get('role_id')
+            if not role_id:
+                return []
+            
+            return await self.get_role_permissions(role_id)
+        except Exception as e:
+            print(f"Error getting user permissions for user {user_id}: {e}")
+            return []
+    
+    async def assign_permission_to_role(self, role_id: int, permission_id: int) -> bool:
+        """Assign a permission to a role."""
+        try:
+            query = """
+                INSERT INTO role_permissions (role_id, permission_id)
+                VALUES ($1, $2)
+                ON CONFLICT (role_id, permission_id) DO NOTHING
+            """
+            await db_manager.execute(query, role_id, permission_id)
+            return True
+        except Exception as e:
+            print(f"Error assigning permission {permission_id} to role {role_id}: {e}")
+            return False
+    
+    async def remove_permission_from_role(self, role_id: int, permission_id: int) -> bool:
+        """Remove a permission from a role."""
+        try:
+            query = """
+                DELETE FROM role_permissions
+                WHERE role_id = $1 AND permission_id = $2
+            """
+            result = await db_manager.execute(query, role_id, permission_id)
+            return "DELETE 1" in result
+        except Exception as e:
+            print(f"Error removing permission {permission_id} from role {role_id}: {e}")
+            return False
 
 
 # Global repository instances
