@@ -252,18 +252,13 @@ export default function WorkPage() {
 
   const updateProjectMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<InsertProject> }) => {
+      console.log("[Project Update] Mutation executing with:", { id, data });
       const response = await apiRequest(`/api/projects/${id}`, { method: "PATCH", body: data });
-      
-      // Parse JSON response - critical for mutation to resolve properly
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-      
+      console.log("[Project Update] API response received:", response.status);
       return await response.json();
     },
-    onSuccess: () => {
-      console.log("[Project Edit] Update mutation succeeded");
+    onSuccess: (responseData) => {
+      console.log("[Project Update] Mutation succeeded with response:", responseData);
       // Simple synchronous cleanup - match working pattern from tasks.tsx
       isClosingFromMutation.current = true;
       setIsProjectEditDialogOpen(false);
@@ -272,6 +267,14 @@ export default function WorkPage() {
       isClosingFromMutation.current = false;
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       toast({ title: "Project updated successfully" });
+    },
+    onError: (error: any) => {
+      console.error("[Project Update] Mutation failed with error:", error);
+      toast({ 
+        title: "Failed to update project", 
+        description: error.message || "An error occurred",
+        variant: "destructive"
+      });
     },
   });
 
@@ -402,6 +405,7 @@ export default function WorkPage() {
       location: "",
       progress: 0,
       dueDate: undefined,
+      companyId: "", // Required by schema, will be set from project data on edit
     },
   });
 
@@ -532,30 +536,49 @@ export default function WorkPage() {
   };
 
   const handleEditProject = (project: Project) => {
-    console.log("[Project Edit] Opening edit dialog", { projectId: project.id, projectName: project.name });
+    console.log("[Project Edit] Opening edit dialog", { 
+      projectId: project.id, 
+      projectName: project.name,
+      projectDescription: project.description,
+      projectLocation: project.location,
+      projectStatus: project.status,
+      projectProgress: project.progress,
+      projectDueDate: project.dueDate,
+      fullProject: project
+    });
     // Match working pattern - synchronous reset
     setEditingProject(project);
-    projectEditForm.reset({
-      name: project.name,
+    const formValues = {
+      name: project.name || "",
       description: project.description || "",
-      status: project.status,
+      status: project.status || "active",
       location: project.location || "",
-      progress: project.progress || 0,
+      progress: project.progress ?? 0,
       dueDate: project.dueDate ? new Date(project.dueDate) : undefined,
       coverPhotoId: project.coverPhotoId || undefined,
-    });
+      // Include companyId to satisfy schema validation (required field)
+      companyId: project.companyId,
+    };
+    console.log("[Project Edit] Resetting form with values:", formValues);
+    projectEditForm.reset(formValues);
     setIsProjectEditDialogOpen(true);
-    console.log("[Project Edit] Form populated and dialog opened");
+    console.log("[Project Edit] Form populated and dialog opened, form values:", projectEditForm.getValues());
   };
 
   const handleUpdateProject = (data: InsertProject) => {
-    if (!editingProject) return;
+    console.log("[Project Update] handleUpdateProject called with data:", data);
+    console.log("[Project Update] editingProject:", editingProject);
+    if (!editingProject) {
+      console.error("[Project Update] No editingProject found!");
+      return;
+    }
     const projectData = {
       ...data,
       description: data.description?.trim() || null,
       dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
       coverPhotoId: data.coverPhotoId || null,
     } as any;
+    console.log("[Project Update] Calling mutation with:", { id: editingProject.id, data: projectData });
     updateProjectMutation.mutate({ id: editingProject.id, data: projectData });
   };
 
@@ -801,7 +824,7 @@ export default function WorkPage() {
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="on_hold">On Hold</SelectItem>
+                    <SelectItem value="on-hold">On Hold</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
@@ -898,10 +921,7 @@ export default function WorkPage() {
                     thumbnailUrl={projectThumbnails[project.id]}
                     photoUrls={projectPhotoUrls[project.id] || []}
                     onClick={() => setQuickViewProject(project)}
-                    onEdit={() => {
-                      setEditingProject(project);
-                      setIsProjectEditDialogOpen(true);
-                    }}
+                    onEdit={() => handleEditProject(project)}
                     onDelete={() => {
                       setProjectToDelete(project);
                       setIsProjectDeleteDialogOpen(true);
@@ -1252,7 +1272,7 @@ export default function WorkPage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="on_hold">On Hold</SelectItem>
+                          <SelectItem value="on-hold">On Hold</SelectItem>
                           <SelectItem value="completed">Completed</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1376,7 +1396,12 @@ export default function WorkPage() {
                   <FormItem>
                     <FormLabel>Project Name</FormLabel>
                     <FormControl>
-                      <Input {...field} data-testid="input-edit-name" placeholder="Enter project name" />
+                      <Input 
+                        {...field} 
+                        value={field.value || ""} 
+                        data-testid="input-edit-name" 
+                        placeholder="Enter project name" 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1507,7 +1532,7 @@ export default function WorkPage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="on_hold">On Hold</SelectItem>
+                          <SelectItem value="on-hold">On Hold</SelectItem>
                           <SelectItem value="completed">Completed</SelectItem>
                         </SelectContent>
                       </Select>

@@ -23,6 +23,8 @@ class ProjectBase(BaseModel):
     company_id: Optional[str] = Field(default=None, alias="companyId")
     cover_photo_id: Optional[str] = Field(default=None, alias="coverPhotoId")
     
+    model_config = {"populate_by_name": True}
+    
     @field_validator('name')
     @classmethod
     def validate_name(cls, v):
@@ -69,6 +71,8 @@ class ProjectUpdate(BaseModel):
     due_date: Optional[datetime] = Field(default=None, alias="dueDate")
     company_id: Optional[str] = Field(default=None, alias="companyId")
     cover_photo_id: Optional[str] = Field(default=None, alias="coverPhotoId")
+    
+    model_config = {"populate_by_name": True}
     
     @field_validator('name')
     @classmethod

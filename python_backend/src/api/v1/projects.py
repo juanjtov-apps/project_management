@@ -126,7 +126,8 @@ async def update_project(
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
             user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
-            project_company_id = str(existing_project.get('company_id'))
+            # existing_project is a Pydantic model, access attribute directly
+            project_company_id = str(existing_project.company_id) if hasattr(existing_project, 'company_id') else ""
             if project_company_id != user_company_id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
