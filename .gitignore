@@ -7,3 +7,15 @@ vite.config.ts.*
 /uploads/
 python_backend/venv/
 python_backend/.env
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Mac
+.DS_Store
