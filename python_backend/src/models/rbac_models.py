@@ -1,393 +1,561 @@
 """
-RBAC Pydantic Models
-Defines all data models for the Role-Based Access Control system.
+RBAC Pydantic Models - Simplified
+Each user belongs to ONE company and has ONE role.
 """
 
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field
 from enum import Enum
 
+
+# ============================================================================
 # ENUMS
-class UserRole(str, Enum):
-    PLATFORM_ADMIN = "platform_admin"
-    COMPANY_ADMIN = "company_admin"
+# ============================================================================
+
+class UserRoleEnum(str, Enum):
+    """Default role names"""
+    ADMIN = "admin"
     PROJECT_MANAGER = "project_manager"
+    OFFICE_MANAGER = "office_manager"
+    CREW = "crew"
     SUBCONTRACTOR = "subcontractor"
     CLIENT = "client"
-    VIEWER = "viewer"
+
 
 class CompanyStatus(str, Enum):
+    """Company status"""
     ACTIVE = "active"
-    SUSPENDED = "suspended"
-    PENDING = "pending"
+    INACTIVE = "inactive"
 
-class PermissionCategory(str, Enum):
-    PLATFORM = "platform"
-    COMPANY = "company"
-    PROJECT = "project"
+
+class PlanType(str, Enum):
+    """Company plan types"""
+    BASIC = "basic"
+    PREMIUM = "premium"
+    ENTERPRISE = "enterprise"
+
 
 class AuditAction(str, Enum):
+    """Audit log action types"""
+    # User Management
     USER_CREATED = "user_created"
     USER_UPDATED = "user_updated"
     USER_DEACTIVATED = "user_deactivated"
     USER_LOGIN = "user_login"
     USER_LOGOUT = "user_logout"
+    USER_PASSWORD_CHANGED = "user_password_changed"
+    
+    # Role Management
     ROLE_ASSIGNED = "role_assigned"
-    ROLE_REVOKED = "role_revoked"
     ROLE_CREATED = "role_created"
     ROLE_UPDATED = "role_updated"
+    ROLE_DELETED = "role_deleted"
+    
+    # Permission Management
     PERMISSION_GRANTED = "permission_granted"
     PERMISSION_REVOKED = "permission_revoked"
+    
+    # Data Access
     DATA_VIEWED = "data_viewed"
     DATA_EXPORTED = "data_exported"
-    DATA_MODIFIED = "data_modified"
-    MFA_ENABLED = "mfa_enabled"
-    MFA_DISABLED = "mfa_disabled"
-    SUSPICIOUS_LOGIN = "suspicious_login"
+    DATA_CREATED = "data_created"
+    DATA_UPDATED = "data_updated"
+    DATA_DELETED = "data_deleted"
+    
+    # Security Events
     PERMISSION_DENIED = "permission_denied"
+    INVALID_LOGIN_ATTEMPT = "invalid_login_attempt"
 
+
+# ============================================================================
 # PERMISSION CONSTANTS
-class Permissions:
-    # Platform Admin (1-9)
-    SYSTEM_ADMIN = 1
-    IMPERSONATE_USER = 2
-    MANAGE_COMPANIES = 3
-    PLATFORM_ANALYTICS = 4
-    
-    # Company Admin (10-19)
-    MANAGE_USERS = 10
-    VIEW_FINANCIALS = 11
-    EDIT_FINANCIALS = 12
-    CLONE_ROLES = 13
-    COMPANY_SETTINGS = 14
-    EXPORT_DATA = 15
-    
-    # Project Manager (20-29)
-    VIEW_ALL_PROJECTS = 20
-    MANAGE_TASKS = 21
-    ASSIGN_SUBCONTRACTORS = 22
-    APPROVE_BUDGETS = 23
-    PROJECT_REPORTS = 24
-    SCHEDULE_MANAGEMENT = 25
-    
-    # Subcontractor (30-39)
-    VIEW_ASSIGNED_PROJECTS = 30
-    UPDATE_TASK_STATUS = 31
-    UPLOAD_PHOTOS = 32
-    VIEW_PROJECT_DOCS = 33
-    SUBMIT_REPORTS = 34
-    
-    # Client (40-49)
-    VIEW_PROJECT_PROGRESS = 40
-    VIEW_PHOTOS = 41
-    COMMENT_ON_UPDATES = 42
-    REQUEST_CHANGES = 43
-    DOWNLOAD_REPORTS = 44
+# ============================================================================
 
+class Permissions:
+    """String-based permission constants"""
+    # User Management
+    USERS_VIEW = "users.view"
+    USERS_CREATE = "users.create"
+    USERS_EDIT = "users.edit"
+    USERS_DELETE = "users.delete"
+    
+    # Project Management
+    PROJECTS_VIEW = "projects.view"
+    PROJECTS_CREATE = "projects.create"
+    PROJECTS_EDIT = "projects.edit"
+    PROJECTS_DELETE = "projects.delete"
+    
+    # Task Management
+    TASKS_VIEW = "tasks.view"
+    TASKS_CREATE = "tasks.create"
+    TASKS_EDIT = "tasks.edit"
+    TASKS_DELETE = "tasks.delete"
+    TASKS_ASSIGN = "tasks.assign"
+    
+    # Financial
+    FINANCIALS_VIEW = "financials.view"
+    FINANCIALS_EDIT = "financials.edit"
+    INVOICES_CREATE = "invoices.create"
+    INVOICES_APPROVE = "invoices.approve"
+    
+    # Photos & Documents
+    PHOTOS_VIEW = "photos.view"
+    PHOTOS_UPLOAD = "photos.upload"
+    PHOTOS_DELETE = "photos.delete"
+    
+    # Reports
+    REPORTS_VIEW = "reports.view"
+    REPORTS_EXPORT = "reports.export"
+    
+    # Company Settings
+    COMPANY_SETTINGS = "company.settings"
+    ROLES_MANAGE = "roles.manage"
+    
+    # Client Portal
+    CLIENT_PORTAL_VIEW = "client_portal.view"
+    CLIENT_ISSUES_CREATE = "client_portal.issues.create"
+    
+    # System Admin (Root only)
+    SYSTEM_ADMIN = "system.admin"
+    COMPANIES_MANAGE = "companies.manage"
+
+
+# ============================================================================
 # BASE MODELS
+# ============================================================================
+
 class BaseRBACModel(BaseModel):
+    """Base model with timestamps"""
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+        populate_by_name = True
 
+
+# ============================================================================
 # COMPANY MODELS
+# ============================================================================
+
 class Company(BaseRBACModel):
-    id: int
+    """Company model"""
+    id: str
     name: str
+    industry: Optional[str] = "construction"
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    logo: Optional[str] = None
     domain: Optional[str] = None
-    status: CompanyStatus = CompanyStatus.ACTIVE
-    settings: Dict[str, Any] = Field(default_factory=dict)
+    settings: Optional[Dict[str, Any]] = None
+    plan_type: str = "basic"
+    is_active: bool = True
+
 
 class CompanyCreate(BaseModel):
+    """Company creation model"""
     name: str
+    industry: Optional[str] = "construction"
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    logo: Optional[str] = None
     domain: Optional[str] = None
-    status: CompanyStatus = CompanyStatus.ACTIVE
-    settings: Dict[str, Any] = Field(default_factory=dict)
+    settings: Optional[Dict[str, Any]] = None
+    plan_type: str = "basic"
+
 
 class CompanyUpdate(BaseModel):
+    """Company update model"""
     name: Optional[str] = None
+    industry: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    logo: Optional[str] = None
     domain: Optional[str] = None
-    status: Optional[CompanyStatus] = None
     settings: Optional[Dict[str, Any]] = None
-
-# USER MODELS
-class UserRBAC(BaseRBACModel):
-    id: str
-    email: Optional[str] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    profile_image_url: Optional[str] = None
-    is_active: bool = True
-    last_login_at: Optional[datetime] = None
-    mfa_enabled: bool = False
-
-class UserCreate(BaseModel):
-    id: Optional[str] = None
-    email: Optional[str] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    profile_image_url: Optional[str] = None
-    is_active: bool = True
-    mfa_enabled: bool = False
-
-class UserUpdate(BaseModel):
-    email: Optional[str] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    profile_image_url: Optional[str] = None
+    plan_type: Optional[str] = None
     is_active: Optional[bool] = None
-    mfa_enabled: Optional[bool] = None
 
-# PERMISSION MODELS
-class Permission(BaseRBACModel):
-    id: int
-    name: str
-    resource: str
-    action: str
-    description: Optional[str] = None
-    category: PermissionCategory
-    requires_elevation: bool = False
 
-class PermissionCreate(BaseModel):
-    id: int
-    name: str
-    resource: str
-    action: str
-    description: Optional[str] = None
-    category: PermissionCategory
-    requires_elevation: bool = False
-
-# ROLE TEMPLATE MODELS
-class RoleTemplate(BaseRBACModel):
-    id: int
-    name: str
-    description: Optional[str] = None
-    category: PermissionCategory
-    permission_set: List[int]
-    is_system_template: bool = False
-
-class RoleTemplateCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    category: PermissionCategory
-    permission_set: List[int]
-    is_system_template: bool = False
-
+# ============================================================================
 # ROLE MODELS
+# ============================================================================
+
 class Role(BaseRBACModel):
+    """Role model"""
     id: int
-    company_id: int
+    company_id: Optional[str] = None  # null for system roles
     name: str
+    display_name: str
     description: Optional[str] = None
-    template_id: Optional[int] = None
-    custom_permissions: List[int] = Field(default_factory=list)
-    is_template: bool = False
+    is_system_role: bool = False
     is_active: bool = True
+
 
 class RoleCreate(BaseModel):
-    company_id: int
+    """Role creation model"""
+    company_id: Optional[str] = None
     name: str
+    display_name: str
     description: Optional[str] = None
-    template_id: Optional[int] = None
-    custom_permissions: List[int] = Field(default_factory=list)
-    is_template: bool = False
+    is_system_role: bool = False
+
 
 class RoleUpdate(BaseModel):
+    """Role update model"""
     name: Optional[str] = None
+    display_name: Optional[str] = None
     description: Optional[str] = None
-    template_id: Optional[int] = None
-    custom_permissions: Optional[List[int]] = None
     is_active: Optional[bool] = None
 
-# COMPANY USER MODELS
-class CompanyUser(BaseRBACModel):
-    id: int
-    company_id: int
-    user_id: str
-    role_id: int
-    granted_by_user_id: Optional[str] = None
-    granted_at: Optional[datetime] = None
-    expires_at: Optional[datetime] = None
-    is_active: bool = True
 
-class CompanyUserCreate(BaseModel):
-    company_id: int
-    user_id: str
-    role_id: int
-    granted_by_user_id: Optional[str] = None
-    expires_at: Optional[datetime] = None
+class RoleWithPermissions(Role):
+    """Role with its permissions"""
+    permissions: List[str] = Field(default_factory=list)
 
-class CompanyUserWithDetails(CompanyUser):
-    user: UserRBAC
-    role: Role
 
-# ROLE PERMISSION MODELS
-class ABACRule(BaseModel):
-    condition: str
-    attributes: Dict[str, Any]
-    description: Optional[str] = None
+# ============================================================================
+# PERMISSION MODELS
+# ============================================================================
 
-class RolePermission(BaseRBACModel):
-    id: int
-    company_id: int
-    role_id: int
-    permission_id: int
-    abac_rule: Optional[ABACRule] = None
-    granted_by_user_id: Optional[str] = None
-    granted_at: Optional[datetime] = None
-    expires_at: Optional[datetime] = None
-    is_active: bool = True
-
-class RolePermissionCreate(BaseModel):
-    company_id: int
-    role_id: int
-    permission_id: int
-    abac_rule: Optional[ABACRule] = None
-    granted_by_user_id: Optional[str] = None
-    expires_at: Optional[datetime] = None
-
-# PROJECT ASSIGNMENT MODELS
-class ProjectAssignment(BaseRBACModel):
-    id: int
-    company_id: int
-    project_id: int
-    user_id: str
-    role_id: int
-    permissions: List[int] = Field(default_factory=list)
-    granted_by_user_id: Optional[str] = None
-    granted_at: Optional[datetime] = None
-    expires_at: Optional[datetime] = None
-    is_active: bool = True
-
-class ProjectAssignmentCreate(BaseModel):
-    company_id: int
-    project_id: int
-    user_id: str
-    role_id: int
-    permissions: List[int] = Field(default_factory=list)
-    granted_by_user_id: Optional[str] = None
-    expires_at: Optional[datetime] = None
-
-# EFFECTIVE PERMISSIONS MODELS
-class EffectiveRole(BaseModel):
+class Permission(BaseRBACModel):
+    """Permission model"""
     id: int
     name: str
-    company_id: int
-    scope: str  # 'company' or 'project'
-    project_id: Optional[int] = None
+    resource: str
+    action: str
+    description: Optional[str] = None
+    category: str
 
-class EffectivePermissions(BaseModel):
-    user_id: str
-    company_id: int
-    permissions: List[int]
-    roles: List[EffectiveRole]
-    computed_at: datetime
-    expires_at: datetime
 
-class UserEffectivePermission(BaseRBACModel):
+class PermissionCreate(BaseModel):
+    """Permission creation model"""
+    name: str
+    resource: str
+    action: str
+    description: Optional[str] = None
+    category: str
+
+
+# ============================================================================
+# ROLE-PERMISSION MODELS
+# ============================================================================
+
+class RolePermission(BaseRBACModel):
+    """Role-Permission mapping"""
     id: int
-    company_id: int
-    user_id: str
-    permissions: List[int]
-    role_ids: List[int]
-    computed_at: Optional[datetime] = None
-    expires_at: datetime
+    role_id: int
+    permission_id: int
 
-# USER CONTEXT MODELS
-class UserContext(BaseModel):
+
+class RolePermissionCreate(BaseModel):
+    """Role-Permission creation"""
+    role_id: int
+    permission_id: int
+
+
+# ============================================================================
+# USER MODELS
+# ============================================================================
+
+class UserRBAC(BaseRBACModel):
+    """User model with RBAC fields"""
     id: str
-    email: str
+    email: Optional[str] = None
+    username: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    current_company_id: int
-    effective_permissions: List[int]
-    roles: List[EffectiveRole]
+    name: Optional[str] = None
+    profile_image_url: Optional[str] = None
+    company_id: str
+    role_id: int
+    is_root: bool = False
+    is_active: bool = True
     last_login_at: Optional[datetime] = None
-    mfa_enabled: bool = False
 
-# AUDIT LOG MODELS
-class AuditLog(BaseRBACModel):
-    id: int
-    company_id: int
+
+class UserCreate(BaseModel):
+    """User creation model"""
+    email: str
+    username: Optional[str] = None
+    password: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    name: Optional[str] = None
+    profile_image_url: Optional[str] = None
+    company_id: str
+    role_id: int
+    is_root: bool = False
+    is_active: bool = True
+
+
+class UserUpdate(BaseModel):
+    """User update model"""
+    email: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    name: Optional[str] = None
+    profile_image_url: Optional[str] = None
+    role_id: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class UserWithRole(UserRBAC):
+    """User with role details"""
+    role_name: Optional[str] = None
+    role_display_name: Optional[str] = None
+    permissions: List[str] = Field(default_factory=list)
+
+
+# ============================================================================
+# PERMISSION CONTEXT
+# ============================================================================
+
+class PermissionContext(BaseModel):
+    """Context for permission checks"""
     user_id: str
-    action: AuditAction
+    company_id: str
+    is_root: bool
+    permissions: List[str]
+    role_id: int
+    role_name: str
+
+
+class UserContext(BaseModel):
+    """Full user context for session"""
+    id: str
+    email: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    company_id: str
+    role_id: int
+    role_name: str
+    role_display_name: str
+    permissions: List[str]
+    is_root: bool
+    is_active: bool
+    last_login_at: Optional[datetime] = None
+
+
+# ============================================================================
+# AUDIT LOG MODELS
+# ============================================================================
+
+class AuditLog(BaseRBACModel):
+    """Audit log model"""
+    id: str
+    company_id: str
+    user_id: str
+    action: str
     resource: str
     resource_id: Optional[str] = None
     old_values: Optional[Dict[str, Any]] = None
     new_values: Optional[Dict[str, Any]] = None
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
-    session_id: Optional[str] = None
+
 
 class AuditLogCreate(BaseModel):
-    company_id: int
+    """Audit log creation"""
+    company_id: str
     user_id: str
-    action: AuditAction
+    action: str
     resource: str
     resource_id: Optional[str] = None
     old_values: Optional[Dict[str, Any]] = None
     new_values: Optional[Dict[str, Any]] = None
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
-    session_id: Optional[str] = None
 
-# PERMISSION CONTEXT MODELS
-class PermissionContext(BaseModel):
-    company_id: int
-    user_id: str
-    project_id: Optional[int] = None
-    resource_id: Optional[str] = None
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
 
-# ROLE ASSIGNMENT REQUEST MODELS
-class RoleAssignmentRequest(BaseModel):
+# ============================================================================
+# COMPOUND MODELS (for complex queries)
+# ============================================================================
+
+class CompanyUserWithDetails(BaseModel):
+    """Company user with full user and role details"""
+    id: Optional[int] = None
+    company_id: Optional[int] = None
+    user_id: Optional[str] = None
+    role_id: Optional[int] = None
+    granted_by_user_id: Optional[str] = None
+    granted_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    is_active: bool = True
+    # User details
+    email: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    profile_image_url: Optional[str] = None
+    user_active: bool = True
+    last_login_at: Optional[datetime] = None
+    mfa_enabled: bool = False
+    # Role details
+    role_name: Optional[str] = None
+    role_description: Optional[str] = None
+    
+    model_config = {"from_attributes": True, "populate_by_name": True}
+
+
+class CompanyUserCreate(BaseModel):
+    """Create a company user assignment"""
     user_id: str
     role_id: int
-    company_id: int
-    project_id: Optional[int] = None
     expires_at: Optional[datetime] = None
-    permissions: Optional[List[int]] = None
+    
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
-# RBAC OPTIONS
-class RBACOptions(BaseModel):
-    required_permissions: List[int]
-    require_all: bool = True  # AND vs OR logic
+
+class EffectivePermissions(BaseModel):
+    """User's effective permissions in a company context"""
+    user_id: str
     company_id: Optional[int] = None
-    project_id: Optional[int] = None
-    allow_super_admin: bool = True
-    abac_rules: Optional[List[ABACRule]] = None
+    role_id: Optional[int] = None
+    role_name: Optional[str] = None
+    permissions: List[str] = []
+    is_root: bool = False
+    is_admin: bool = False
+    
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
-# COMPANY SETTINGS
-class CompanySettings(BaseModel):
-    mfa_required: bool = False
-    session_timeout: int = 60  # minutes
-    password_policy: Dict[str, Union[int, bool]] = Field(default_factory=lambda: {
-        "min_length": 8,
-        "require_uppercase": True,
-        "require_numbers": True,
-        "require_symbols": True
-    })
-    audit_retention: int = 365  # days
-    allow_cross_company_access: bool = False
-    financial_data_elevation: bool = True
 
+class RoleTemplate(BaseModel):
+    """Role template for pre-defined permission sets"""
+    id: Optional[int] = None
+    name: str
+    display_name: str
+    description: Optional[str] = None
+    permission_set: List[str] = []
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    
+    model_config = {"from_attributes": True, "populate_by_name": True}
+
+
+class PermissionCategory(BaseModel):
+    """Permission category for grouping permissions"""
+    name: str
+    display_name: str
+    description: Optional[str] = None
+    permissions: List[str] = []
+    
+    model_config = {"from_attributes": True, "populate_by_name": True}
+
+
+# ============================================================================
 # RESPONSE MODELS
+# ============================================================================
+
 class PermissionCheckResponse(BaseModel):
+    """Response for permission check"""
     has_permission: bool
-    user_permissions: List[int]
-    required_permissions: List[int]
-    context: Optional[Dict[str, Any]] = None
+    user_permissions: List[str]
+    required_permissions: List[str]
+    is_root: bool = False
+
 
 class RoleAssignmentResponse(BaseModel):
+    """Response for role assignment"""
     success: bool
     message: str
-    assignment_id: Optional[int] = None
+    user_id: Optional[str] = None
+    role_id: Optional[int] = None
 
-class UserPermissionSummary(BaseModel):
-    user_id: str
-    company_id: int
-    total_permissions: int
-    roles: List[str]
-    last_computed: datetime
-    expires_at: datetime
+
+# ============================================================================
+# DEFAULT ROLE DEFINITIONS
+# ============================================================================
+
+DEFAULT_ROLES = {
+    "ADMIN": {
+        "name": "admin",
+        "display_name": "Administrator",
+        "description": "Full access to all company features",
+        "is_system_role": True,
+    },
+    "PROJECT_MANAGER": {
+        "name": "project_manager",
+        "display_name": "Project Manager",
+        "description": "Can manage projects, tasks, and team members",
+        "is_system_role": True,
+    },
+    "OFFICE_MANAGER": {
+        "name": "office_manager",
+        "display_name": "Office Manager",
+        "description": "Can manage administrative tasks and reports",
+        "is_system_role": True,
+    },
+    "CREW": {
+        "name": "crew",
+        "display_name": "Crew Member",
+        "description": "Can view and update assigned tasks",
+        "is_system_role": True,
+    },
+    "SUBCONTRACTOR": {
+        "name": "subcontractor",
+        "display_name": "Subcontractor",
+        "description": "External contractor with limited access",
+        "is_system_role": True,
+    },
+    "CLIENT": {
+        "name": "client",
+        "display_name": "Client",
+        "description": "Project stakeholder with read-only access",
+        "is_system_role": True,
+    },
+}
+
+DEFAULT_ROLE_PERMISSIONS = {
+    "ADMIN": [
+        Permissions.USERS_VIEW, Permissions.USERS_CREATE, Permissions.USERS_EDIT, Permissions.USERS_DELETE,
+        Permissions.PROJECTS_VIEW, Permissions.PROJECTS_CREATE, Permissions.PROJECTS_EDIT, Permissions.PROJECTS_DELETE,
+        Permissions.TASKS_VIEW, Permissions.TASKS_CREATE, Permissions.TASKS_EDIT, Permissions.TASKS_DELETE, Permissions.TASKS_ASSIGN,
+        Permissions.FINANCIALS_VIEW, Permissions.FINANCIALS_EDIT, Permissions.INVOICES_CREATE, Permissions.INVOICES_APPROVE,
+        Permissions.PHOTOS_VIEW, Permissions.PHOTOS_UPLOAD, Permissions.PHOTOS_DELETE,
+        Permissions.REPORTS_VIEW, Permissions.REPORTS_EXPORT,
+        Permissions.COMPANY_SETTINGS, Permissions.ROLES_MANAGE,
+        Permissions.CLIENT_PORTAL_VIEW, Permissions.CLIENT_ISSUES_CREATE,
+    ],
+    "PROJECT_MANAGER": [
+        Permissions.USERS_VIEW,
+        Permissions.PROJECTS_VIEW, Permissions.PROJECTS_CREATE, Permissions.PROJECTS_EDIT,
+        Permissions.TASKS_VIEW, Permissions.TASKS_CREATE, Permissions.TASKS_EDIT, Permissions.TASKS_DELETE, Permissions.TASKS_ASSIGN,
+        Permissions.FINANCIALS_VIEW,
+        Permissions.PHOTOS_VIEW, Permissions.PHOTOS_UPLOAD,
+        Permissions.REPORTS_VIEW, Permissions.REPORTS_EXPORT,
+        Permissions.CLIENT_PORTAL_VIEW, Permissions.CLIENT_ISSUES_CREATE,
+    ],
+    "OFFICE_MANAGER": [
+        Permissions.USERS_VIEW,
+        Permissions.PROJECTS_VIEW,
+        Permissions.TASKS_VIEW, Permissions.TASKS_CREATE, Permissions.TASKS_EDIT,
+        Permissions.FINANCIALS_VIEW, Permissions.FINANCIALS_EDIT, Permissions.INVOICES_CREATE,
+        Permissions.PHOTOS_VIEW,
+        Permissions.REPORTS_VIEW, Permissions.REPORTS_EXPORT,
+    ],
+    "CREW": [
+        Permissions.PROJECTS_VIEW,
+        Permissions.TASKS_VIEW, Permissions.TASKS_EDIT,
+        Permissions.PHOTOS_VIEW, Permissions.PHOTOS_UPLOAD,
+    ],
+    "SUBCONTRACTOR": [
+        Permissions.PROJECTS_VIEW,
+        Permissions.TASKS_VIEW, Permissions.TASKS_EDIT,
+        Permissions.PHOTOS_VIEW, Permissions.PHOTOS_UPLOAD,
+    ],
+    "CLIENT": [
+        Permissions.PROJECTS_VIEW,
+        Permissions.PHOTOS_VIEW,
+        Permissions.CLIENT_PORTAL_VIEW, Permissions.CLIENT_ISSUES_CREATE,
+    ],
+}

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -85,30 +85,58 @@ function ProjectEditForm({ project, onClose }: { project: Project; onClose: () =
   
   const form = useForm({
     defaultValues: {
-      name: project?.name || "",
-      description: project?.description || "",
-      status: project?.status || "active",
-      location: project?.location || "",
-      progress: project?.progress || 0,
-      dueDate: project?.dueDate ? new Date(project.dueDate) : undefined,
+      name: "",
+      description: "",
+      status: "active",
+      location: "",
+      progress: 0,
+      dueDate: undefined as Date | undefined,
     },
   });
 
+  // Reset form when project changes - this ensures form is populated with project data
+  useEffect(() => {
+    if (project) {
+      console.log("[ProjectEditForm] Resetting form with project data:", project);
+      form.reset({
+        name: project.name || "",
+        description: project.description || "",
+        status: project.status || "active",
+        location: project.location || "",
+        progress: project.progress || 0,
+        dueDate: project.dueDate ? new Date(project.dueDate) : undefined,
+      });
+    }
+  }, [project, form]);
+
   const updateProjectMutation = useMutation({
     mutationFn: async (values: any) => {
+      console.log("[ProjectEditForm] Submitting update with values:", values);
+      // Format the data for API (convert Date to ISO string)
+      const formattedData = {
+        ...values,
+        dueDate: values.dueDate ? values.dueDate.toISOString() : null,
+      };
+      console.log("[ProjectEditForm] Formatted data for API:", formattedData);
       const response = await apiRequest(`/api/projects/${project.id}`, {
         method: "PATCH",
-        body: values,
+        body: formattedData,
       });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("[ProjectEditForm] Update successful:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       onClose();
+    },
+    onError: (error: any) => {
+      console.error("[ProjectEditForm] Error updating project:", error);
+      alert(`Failed to update project: ${error.message}`);
     },
   });
 
   const onSubmit = (values: any) => {
+    console.log("[ProjectEditForm] Form submitted with values:", values);
     updateProjectMutation.mutate(values);
   };
 
@@ -1221,12 +1249,21 @@ export default function Projects() {
       )}
 
       {/* Project Edit Dialog */}
-      <Dialog open={!!editingProject} onOpenChange={() => setEditingProject(null)}>
+      <Dialog
+        open={!!editingProject}
+        onOpenChange={(open) => {
+          // Only clear when the dialog is actually closing.
+          // This prevents "instant close" when Radix emits intermediate open events.
+          if (!open) {
+            setEditingProject(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Edit Project</DialogTitle>
           </DialogHeader>
-          {editingProject && <ProjectEditForm project={editingProject} onClose={() => setEditingProject(null)} />}
+          {editingProject && <ProjectEditForm key={editingProject.id} project={editingProject} onClose={() => setEditingProject(null)} />}
         </DialogContent>
       </Dialog>
 
@@ -1251,10 +1288,15 @@ export default function Projects() {
       </Dialog>
 
       {/* Add Task Dialog */}
-      <Dialog open={isAddTaskOpen} onOpenChange={() => {
-        setIsAddTaskOpen(false);
-        setAddingTaskProject(null);
-      }}>
+      <Dialog
+        open={isAddTaskOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsAddTaskOpen(false);
+            setAddingTaskProject(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Add Task to {addingTaskProject?.name}</DialogTitle>

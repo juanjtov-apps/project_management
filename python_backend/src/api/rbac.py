@@ -405,7 +405,8 @@ async def check_user_permission(
 
 @router.get("/role-templates", response_model=List[RoleTemplate])
 async def list_role_templates(
-    category: Optional[PermissionCategory] = Query(None, description="Filter by category"),
+    # NOTE: FastAPI query params must be scalar types; BaseModel in Query causes router import failure.
+    category: Optional[str] = Query(None, description="Filter by category"),
     pool: asyncpg.Pool = Depends(get_db_pool)
 ):
     """List available role templates"""
@@ -423,7 +424,8 @@ async def list_role_templates(
 
 @router.get("/permissions", response_model=List[Permission])
 async def list_permissions(
-    category: Optional[PermissionCategory] = Query(None, description="Filter by category"),
+    # NOTE: FastAPI query params must be scalar types; BaseModel in Query causes router import failure.
+    category: Optional[str] = Query(None, description="Filter by category"),
     pool: asyncpg.Pool = Depends(get_db_pool)
 ):
     """List all available permissions"""

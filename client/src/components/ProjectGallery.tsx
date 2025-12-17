@@ -483,7 +483,14 @@ export function ProjectGallery({ projectId, projectName }: ProjectGalleryProps) 
 
         {/* Photo viewer modal */}
         {selectedPhoto && (
-          <Dialog open={!!selectedPhoto} onOpenChange={() => setSelectedPhoto(null)}>
+          <Dialog
+            open={!!selectedPhoto}
+            onOpenChange={(open) => {
+              if (!open) {
+                setSelectedPhoto(null);
+              }
+            }}
+          >
             <DialogContent className="max-w-3xl" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>Photo Details</DialogTitle>

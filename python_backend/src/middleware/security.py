@@ -7,13 +7,20 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
 import time
 import re
-from typing import Dict, Any
+import secrets
+import hmac
+import hashlib
+from typing import Dict, Any, Optional
 from collections import defaultdict
 import ipaddress
 import logging
+import os
 
 # Rate limiting storage
 rate_limit_storage: Dict[str, Dict[str, Any]] = defaultdict(dict)
+
+# CSRF token storage (in-memory, should use Redis in production)
+csrf_tokens: Dict[str, Dict[str, Any]] = defaultdict(dict)
 
 class SecurityMiddleware(BaseHTTPMiddleware):
     """Security middleware for FastAPI"""
@@ -167,13 +174,149 @@ def validate_input_data(data: Any) -> Any:
     
     return data
 
-async def validate_origin(request: Request):
-    """Validate request origin for CSRF protection - DISABLED FOR DEVELOPMENT"""
-    # Temporarily disable origin validation for development debugging
+def generate_csrf_token() -> str:
+    """Generate a secure CSRF token."""
+    return secrets.token_urlsafe(32)
+
+def verify_csrf_token(token: str, session_id: str) -> bool:
+    """Verify CSRF token is valid for the given session."""
+    if not token or not session_id:
+        return False
+    
+    # Check if token exists for this session
+    session_tokens = csrf_tokens.get(session_id, {})
+    if token not in session_tokens:
+        return False
+    
+    token_data = session_tokens[token]
+    current_time = time.time()
+    
+    # Check if token has expired (15 minutes)
+    if current_time - token_data["created_at"] > 900:
+        del session_tokens[token]
+        return False
+    
     return True
+
+def store_csrf_token(session_id: str, token: str):
+    """Store CSRF token for a session."""
+    if session_id not in csrf_tokens:
+        csrf_tokens[session_id] = {}
+    
+    current_time = time.time()
+    csrf_tokens[session_id][token] = {
+        "created_at": current_time,
+        "token": token
+    }
+    
+    # Clean old tokens (keep only last 10 per session)
+    tokens = list(csrf_tokens[session_id].items())
+    if len(tokens) > 10:
+        tokens.sort(key=lambda x: x[1]["created_at"])
+        for old_token, _ in tokens[:-10]:
+            del csrf_tokens[session_id][old_token]
+
+async def validate_origin(request: Request) -> bool:
+    """Validate request origin for CSRF protection."""
+    # Skip validation for safe methods
+    if request.method in ["GET", "HEAD", "OPTIONS"]:
+        return True
+    
+    # Skip validation for public endpoints
+    public_paths = ["/api/v1/auth/login", "/api/v1/auth/logout", "/api/waitlist", "/health", "/docs", "/redoc", "/openapi.json"]
+    if any(request.url.path.startswith(path) for path in public_paths):
+        return True
+    
+    # Get origin and referer
+    origin = request.headers.get("origin")
+    referer = request.headers.get("referer")
+    host = request.headers.get("host")
+    
+    # In development, allow localhost origins
+    is_production = os.getenv("NODE_ENV") == "production" or os.getenv("REPLIT_DEPLOYMENT")
+    
+    if not is_production:
+        # Development: allow localhost and 127.0.0.1
+        allowed_origins = [
+            "http://localhost:5000",
+            "http://localhost:8000",
+            "http://127.0.0.1:5000",
+            "http://127.0.0.1:8000",
+        ]
+        if origin in allowed_origins:
+            return True
+        if referer and any(allowed in referer for allowed in allowed_origins):
+            return True
+    else:
+        # Production: validate origin matches host
+        if origin:
+            # Extract host from origin
+            try:
+                from urllib.parse import urlparse
+                origin_host = urlparse(origin).netloc
+                if origin_host == host or origin_host.endswith(f".{host}"):
+                    return True
+            except Exception:
+                pass
+        
+        if referer:
+            try:
+                from urllib.parse import urlparse
+                referer_host = urlparse(referer).netloc
+                if referer_host == host or referer_host.endswith(f".{host}"):
+                    return True
+            except Exception:
+                pass
+    
+    # CSRF token validation (preferred method)
+    csrf_token = request.headers.get("X-CSRF-Token") or request.headers.get("X-CSRFToken")
+    session_id = request.cookies.get("session_id")
+    
+    if csrf_token and session_id:
+        if verify_csrf_token(csrf_token, session_id):
+            return True
+    
+    # If no valid origin/referer and no valid CSRF token, reject
+    return False
+
+class CSRFProtectionMiddleware(BaseHTTPMiddleware):
+    """CSRF protection middleware"""
+    
+    async def dispatch(self, request: Request, call_next):
+        # Skip CSRF for safe methods and public endpoints
+        if request.method in ["GET", "HEAD", "OPTIONS"]:
+            return await call_next(request)
+        
+        # Public endpoints that don't need CSRF protection
+        public_paths = [
+            "/api/v1/auth/login",
+            "/api/v1/auth/logout", 
+            "/api/auth/login",
+            "/api/auth/logout",
+            "/api/waitlist", 
+            "/health", 
+            "/docs", 
+            "/redoc", 
+            "/openapi.json"
+        ]
+        if any(request.url.path.startswith(path) for path in public_paths):
+            return await call_next(request)
+        
+        # Validate origin/CSRF token
+        is_valid = await validate_origin(request)
+        if not is_valid:
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"detail": "CSRF validation failed. Invalid origin or missing CSRF token."}
+            )
+        
+        return await call_next(request)
 
 def setup_security_middleware(app):
     """Setup all security middleware for the FastAPI app"""
+    # Add CSRF protection middleware first (before other middleware)
+    app.add_middleware(CSRFProtectionMiddleware)
+    
     # Add security headers middleware
     app.add_middleware(SecurityMiddleware)
     

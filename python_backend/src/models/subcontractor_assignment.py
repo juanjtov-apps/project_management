@@ -15,9 +15,7 @@ class SubcontractorAssignment(BaseModel):
     status: str = "active"
     created_at: datetime = Field(alias="createdAt")
 
-    class Config:
-        populate_by_name = True
-        from_attributes = True
+    model_config = {"populate_by_name": True, "from_attributes": True}
 
 
 class SubcontractorAssignmentCreate(BaseModel):
@@ -30,8 +28,7 @@ class SubcontractorAssignmentCreate(BaseModel):
     specialization: Optional[str] = None
     status: str = "active"
 
-    class Config:
-        populate_by_name = True
+    model_config = {"populate_by_name": True}
 
 
 class SubcontractorAssignmentUpdate(BaseModel):
@@ -44,5 +41,4 @@ class SubcontractorAssignmentUpdate(BaseModel):
     specialization: Optional[str] = None
     status: Optional[str] = None
 
-    class Config:
-        populate_by_name = True
+    model_config = {"populate_by_name": True}

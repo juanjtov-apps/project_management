@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from .base import BaseEntity
 
 
@@ -18,7 +18,8 @@ class IssueBase(BaseModel):
     description: str = ""
     photos: List[str] = []
 
-    @validator("photos")
+    @field_validator("photos")
+    @classmethod
     def limit_photos(cls, v: List[str]) -> List[str]:
         if len(v) > 3:
             raise ValueError("A maximum of three photos is allowed")

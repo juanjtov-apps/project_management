@@ -159,8 +159,9 @@ export function csrfProtection(req: express.Request, res: express.Response, next
     return next();
   }
 
-  // Skip CSRF for API endpoints using session-based auth
-  if (req.path.startsWith("/api/") && req.isAuthenticated?.()) {
+  // Skip CSRF for API endpoints - FastAPI handles authentication
+  // All /api/* requests are proxied to FastAPI which has its own CSRF protection
+  if (req.path.startsWith("/api/")) {
     return next();
   }
 
