@@ -88,7 +88,7 @@ export default function WorkPage() {
   if (renderCount.current % 10 === 0) {
     console.log("[WorkPage] Render count:", renderCount.current);
   }
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -113,7 +113,7 @@ export default function WorkPage() {
   const [isProjectDeleteDialogOpen, setIsProjectDeleteDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
-  
+
   // Quick View state
   const [quickViewProject, setQuickViewProject] = useState<Project | null>(null);
 
@@ -189,14 +189,14 @@ export default function WorkPage() {
   // Create a map of project ID to cover photo or first photo for thumbnails
   const projectThumbnails = useMemo(() => {
     const thumbnailMap: Record<string, string> = {};
-    
+
     // First, set thumbnails from coverPhotoId if available
     projects.forEach((project) => {
       if (project.coverPhotoId) {
         thumbnailMap[project.id] = `/api/photos/${project.coverPhotoId}/file`;
       }
     });
-    
+
     // Then, for projects without cover photos, use the first photo
     allPhotos.forEach((photo) => {
       if (photo.projectId && !thumbnailMap[photo.projectId]) {
@@ -230,20 +230,20 @@ export default function WorkPage() {
   const createProjectMutation = useMutation({
     mutationFn: async (data: InsertProject) => {
       const response = await apiRequest("/api/projects", { method: "POST", body: data });
-      
+
       // Parse JSON response - critical for mutation to resolve properly
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-      
+
       return await response.json();
     },
     onSuccess: () => {
       // Close dialog and reset form first
       setIsProjectCreateDialogOpen(false);
       projectForm.reset();
-      
+
       // Then invalidate and show toast
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       toast({ title: "Project created successfully" });
@@ -270,8 +270,8 @@ export default function WorkPage() {
     },
     onError: (error: any) => {
       console.error("[Project Update] Mutation failed with error:", error);
-      toast({ 
-        title: "Failed to update project", 
+      toast({
+        title: "Failed to update project",
         description: error.message || "An error occurred",
         variant: "destructive"
       });
@@ -283,16 +283,16 @@ export default function WorkPage() {
     onSuccess: (_data, deletedId) => {
       // Clear all related state BEFORE closing dialog to prevent stale references
       const wasQuickViewProject = quickViewProject?.id === deletedId;
-      
+
       // Clear project references first
       setProjectToDelete(null);
       if (wasQuickViewProject) {
         setQuickViewProject(null);
       }
-      
+
       // Then close dialog
       setIsProjectDeleteDialogOpen(false);
-      
+
       // Finally invalidate queries and show toast
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
@@ -304,20 +304,20 @@ export default function WorkPage() {
   const createTaskMutation = useMutation({
     mutationFn: async (data: InsertTask) => {
       const response = await apiRequest("/api/tasks", { method: "POST", body: data });
-      
+
       // Parse JSON response - critical for mutation to resolve properly
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-      
+
       return await response.json();
     },
     onSuccess: () => {
       // Close dialog and reset form first
       setIsTaskCreateDialogOpen(false);
       taskForm.reset();
-      
+
       // Then invalidate and show toast
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
@@ -330,13 +330,13 @@ export default function WorkPage() {
       console.log("[Task Edit] Starting update mutation", { id, data });
       const response = await apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data });
       console.log("[Task Edit] Response status:", response.status);
-      
+
       // Parse JSON response - critical for mutation to resolve properly
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-      
+
       const result = await response.json();
       console.log("[Task Edit] Parsed response:", result);
       return result;
@@ -536,8 +536,8 @@ export default function WorkPage() {
   };
 
   const handleEditProject = (project: Project) => {
-    console.log("[Project Edit] Opening edit dialog", { 
-      projectId: project.id, 
+    console.log("[Project Edit] Opening edit dialog", {
+      projectId: project.id,
       projectName: project.name,
       projectDescription: project.description,
       projectLocation: project.location,
@@ -635,28 +635,28 @@ export default function WorkPage() {
   };
 
   const handleUpdateTask = (data: InsertTask) => {
-    console.log("[Task Edit] handleUpdateTask called", { 
+    console.log("[Task Edit] handleUpdateTask called", {
       editingTaskId: editingTask?.id,
       formData: data,
       timestamp: new Date().toISOString()
     });
-    
+
     try {
       if (!editingTask) {
         console.warn("[Task Edit] handleUpdateTask called but no editingTask");
         return;
       }
-      
+
       console.log("[Task Edit] Processing task data");
       const taskData = {
         ...data,
         description: data.description?.trim() || null,
         dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
       };
-      
-      console.log("[Task Edit] Calling mutation with processed data", { 
-        id: editingTask.id, 
-        taskData 
+
+      console.log("[Task Edit] Calling mutation with processed data", {
+        id: editingTask.id,
+        taskData
       });
       updateTaskMutation.mutate({ id: editingTask.id, data: taskData });
       console.log("[Task Edit] Mutation call completed (async)");
@@ -751,12 +751,12 @@ export default function WorkPage() {
 
   return (
     <div className="min-h-screen bg-[var(--pro-bg)]">
-      {/* Sticky Header with Segmented Control */}
-      <div className="sticky top-0 z-20 bg-[var(--pro-bg)] border-b border-[var(--pro-border)]">
+      {/* Header with Segmented Control */}
+      <div className="bg-[var(--pro-bg)] border-b border-[var(--pro-border)]">
         <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-0">
             {/* Left: Breadcrumb */}
-            <div>
+            <div className="w-full md:w-auto text-center md:text-left">
               <h1 className="text-2xl font-bold text-[var(--pro-text-primary)]">Work</h1>
               <p className="text-sm text-[var(--pro-text-secondary)] mt-1">
                 Manage your projects and tasks
@@ -764,7 +764,7 @@ export default function WorkPage() {
             </div>
 
             {/* Center: Segmented Control */}
-            <div className="absolute left-1/2 -translate-x-1/2">
+            <div className="w-full md:w-auto md:absolute md:left-1/2 md:-translate-x-1/2 flex justify-center">
               <SegmentedControl
                 options={[
                   { value: "projects", label: "Projects", icon: <Briefcase className="w-4 h-4" /> },
@@ -772,7 +772,7 @@ export default function WorkPage() {
                 ]}
                 value={activeSegment}
                 onChange={(value) => setActiveSegment(value as WorkSegment)}
-                className="min-w-[400px]"
+                className="w-fit"
                 data-testid="work-segment-control"
               />
             </div>
@@ -813,7 +813,7 @@ export default function WorkPage() {
             searchPlaceholder="Search projects..."
             filters={projectActiveFilters}
             onClearAll={projectActiveFilters.length > 0 ? handleClearProjectFilters : undefined}
-            sticky
+            sticky={false}
             data-testid="filter-bar-projects"
             rightActions={
               <>
@@ -895,9 +895,9 @@ export default function WorkPage() {
                   projectSearchTerm || projectActiveFilters.length > 0
                     ? undefined
                     : {
-                        label: "Create Project",
-                        onClick: () => setIsProjectCreateDialogOpen(true),
-                      }
+                      label: "Create Project",
+                      onClick: () => setIsProjectCreateDialogOpen(true),
+                    }
                 }
                 data-testid="empty-state-projects"
               />
@@ -944,8 +944,8 @@ export default function WorkPage() {
       {/* Tasks Segment */}
       {activeSegment === "tasks" && (
         <>
-          {/* Task Stats Row - Sticky */}
-          <div className="sticky-top bg-[var(--pro-bg)] border-b border-[var(--pro-border)] px-6 py-4 z-10">
+          {/* Task Stats Row */}
+          <div className="bg-[var(--pro-bg)] border-b border-[var(--pro-border)] px-6 py-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatCard
                 icon={ListTodo}
@@ -991,7 +991,7 @@ export default function WorkPage() {
             searchPlaceholder="Search tasks..."
             filters={taskActiveFilters}
             onClearAll={taskActiveFilters.length > 0 ? handleClearTaskFilters : undefined}
-            sticky
+            sticky={false}
             data-testid="filter-bar-tasks"
             rightActions={
               <>
@@ -1191,8 +1191,8 @@ export default function WorkPage() {
 
       {/* === PROJECT DIALOGS === */}
       {/* Create Project Dialog */}
-      <Dialog 
-        open={isProjectCreateDialogOpen} 
+      <Dialog
+        open={isProjectCreateDialogOpen}
         onOpenChange={(open) => {
           if (open) window.dispatchEvent(new CustomEvent('dialog:open'));
           else window.dispatchEvent(new CustomEvent('dialog:close'));
@@ -1362,8 +1362,8 @@ export default function WorkPage() {
       </Dialog>
 
       {/* Edit Project Dialog - Similar structure */}
-      <Dialog 
-        open={isProjectEditDialogOpen} 
+      <Dialog
+        open={isProjectEditDialogOpen}
         onOpenChange={(open) => {
           // Emit custom event for header to pause polling
           if (open) {
@@ -1373,10 +1373,10 @@ export default function WorkPage() {
             (window as any).__lastDialogCloseTime = Date.now();
             window.dispatchEvent(new CustomEvent('dialog:close'));
           }
-          
+
           // Direct setter - match working pattern from tasks.tsx exactly
           setIsProjectEditDialogOpen(open);
-          
+
           // Cleanup when closing manually (not from mutation)
           if (!open && !isClosingFromMutation.current) {
             setEditingProject(null);
@@ -1396,11 +1396,11 @@ export default function WorkPage() {
                   <FormItem>
                     <FormLabel>Project Name</FormLabel>
                     <FormControl>
-                      <Input 
-                        {...field} 
-                        value={field.value || ""} 
-                        data-testid="input-edit-name" 
-                        placeholder="Enter project name" 
+                      <Input
+                        {...field}
+                        value={field.value || ""}
+                        data-testid="input-edit-name"
+                        placeholder="Enter project name"
                       />
                     </FormControl>
                     <FormMessage />
@@ -1634,8 +1634,8 @@ export default function WorkPage() {
       </Dialog>
 
       {/* Delete Project Dialog */}
-      <AlertDialog 
-        open={isProjectDeleteDialogOpen} 
+      <AlertDialog
+        open={isProjectDeleteDialogOpen}
         onOpenChange={(open) => {
           // Only handle user-initiated close (not programmatic close from mutation success)
           if (!deleteProjectMutation.isPending && open !== isProjectDeleteDialogOpen) {
@@ -1672,8 +1672,8 @@ export default function WorkPage() {
 
       {/* === TASK DIALOGS === */}
       {/* Create Task Dialog */}
-      <Dialog 
-        open={isTaskCreateDialogOpen} 
+      <Dialog
+        open={isTaskCreateDialogOpen}
         onOpenChange={(open) => {
           if (open) window.dispatchEvent(new CustomEvent('dialog:open'));
           else window.dispatchEvent(new CustomEvent('dialog:close'));
@@ -1870,8 +1870,8 @@ export default function WorkPage() {
       </Dialog>
 
       {/* Edit Task Dialog */}
-      <Dialog 
-        open={isTaskEditDialogOpen} 
+      <Dialog
+        open={isTaskEditDialogOpen}
         onOpenChange={(open) => {
           // Emit custom event for header to pause polling
           if (open) {
@@ -1881,10 +1881,10 @@ export default function WorkPage() {
             (window as any).__lastDialogCloseTime = Date.now();
             window.dispatchEvent(new CustomEvent('dialog:close'));
           }
-          
+
           // Direct setter - match working pattern from tasks.tsx exactly
           setIsTaskEditDialogOpen(open);
-          
+
           // Cleanup when closing manually (not from mutation)
           if (!open && !isClosingFromMutation.current) {
             setEditingTask(null);
@@ -1896,11 +1896,11 @@ export default function WorkPage() {
             <DialogTitle>Edit Task</DialogTitle>
           </DialogHeader>
           <Form {...taskEditForm}>
-            <form 
+            <form
               onSubmit={taskEditForm.handleSubmit((data) => {
                 console.log("[Task Edit Form] Form submitted with data", data);
                 handleUpdateTask(data);
-              })} 
+              })}
               className="space-y-4"
             >
               <FormField
@@ -2104,8 +2104,8 @@ export default function WorkPage() {
       </Dialog>
 
       {/* Delete Task Dialog */}
-      <AlertDialog 
-        open={isTaskDeleteDialogOpen} 
+      <AlertDialog
+        open={isTaskDeleteDialogOpen}
         onOpenChange={(open) => {
           if (!deleteTaskMutation.isPending) {
             setIsTaskDeleteDialogOpen(open);

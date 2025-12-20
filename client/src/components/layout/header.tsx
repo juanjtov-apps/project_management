@@ -22,33 +22,33 @@ interface HeaderProps {
 
 export default function Header({ onToggleMobileMenu, onToggleNotifications, pageTitle = "Dashboard" }: HeaderProps) {
   const { user } = useAuth() as { user: User | undefined };
-  
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  
+
   useEffect(() => {
     const handleDialogOpen = () => setIsDialogOpen(true);
     const handleDialogClose = () => setIsDialogOpen(false);
-    
+
     window.addEventListener('dialog:open', handleDialogOpen);
     window.addEventListener('dialog:close', handleDialogClose);
-    
+
     const checkDialogs = () => {
       const hasOpenDialog = document.querySelector('[role="dialog"][data-state="open"]') !== null;
       setIsDialogOpen(hasOpenDialog);
     };
-    
+
     const observer = new MutationObserver(checkDialogs);
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-state'] });
-    
+
     checkDialogs();
-    
+
     return () => {
       window.removeEventListener('dialog:open', handleDialogOpen);
       window.removeEventListener('dialog:close', handleDialogClose);
       observer.disconnect();
     };
   }, []);
-  
+
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: ["/api/pm-notifications/unread-count"],
     refetchInterval: isDialogOpen ? false : 15000,
@@ -61,7 +61,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
   });
 
   const unreadCount = unreadData?.count || 0;
-  
+
   const getUserInitials = (user: User | undefined) => {
     if (!user) return "U";
     const name = user.firstName || user.name || user.email || "User";
@@ -86,8 +86,8 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
   };
 
   return (
-    <header 
-      className="sticky top-0 z-40 border-b"
+    <header
+      className="relative z-40 border-b"
       style={{
         height: '56px',
         backgroundColor: '#0F1115',
@@ -118,14 +118,14 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
             )}
           </div>
         </div>
-          
+
         <div className="flex items-center gap-2 flex-shrink-0">
           {currentUser && (currentUser.isRootAdmin || currentUser.isRoot) && (
             <div className="hidden md:block">
               <OrganizationSelector currentUser={currentUser} />
             </div>
           )}
-          
+
           <Button
             variant="ghost"
             size="icon"
@@ -148,7 +148,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
           >
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
-              <span 
+              <span
                 className="absolute top-1 right-1 text-white text-xs rounded-full min-w-5 h-5 flex items-center justify-center px-1"
                 style={{ backgroundColor: '#EF4444' }}
               >
@@ -167,7 +167,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
                 data-testid="button-user-menu"
               >
                 <div className="flex items-center gap-2">
-                  <div 
+                  <div
                     className="h-8 w-8 rounded-full text-sm font-medium flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: '#4ADE80', color: '#0F1115' }}
                   >
@@ -184,10 +184,10 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
                 </div>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              align="end" 
+            <DropdownMenuContent
+              align="end"
               className="w-56 border"
-              style={{ 
+              style={{
                 backgroundColor: '#161B22',
                 borderColor: '#2D333B',
                 color: '#FFFFFF'
@@ -204,23 +204,23 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator style={{ backgroundColor: '#2D333B' }} />
-              <DropdownMenuItem 
-                disabled 
+              <DropdownMenuItem
+                disabled
                 className="text-[#9CA3AF] focus:bg-[#1F242C] focus:text-white"
               >
                 <UserIcon className="mr-2 h-4 w-4" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem 
-                disabled 
+              <DropdownMenuItem
+                disabled
                 className="text-[#9CA3AF] focus:bg-[#1F242C] focus:text-white"
               >
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator style={{ backgroundColor: '#2D333B' }} />
-              <DropdownMenuItem 
-                onClick={handleLogout} 
+              <DropdownMenuItem
+                onClick={handleLogout}
                 className="focus:bg-[#1F242C]"
                 style={{ color: '#EF4444' }}
               >

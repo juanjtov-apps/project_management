@@ -381,7 +381,7 @@ export default function Landing() {
                 </Button>
                 <Button 
                   onClick={handleJoinWaitlist}
-                  className="font-semibold px-5 py-2 rounded-full transition-all duration-200 border-2"
+                  className="hidden sm:block font-semibold px-5 py-2 rounded-full transition-all duration-200 border-2"
                   style={{
                     backgroundColor: 'transparent',
                     borderColor: '#4ADE80',
@@ -405,9 +405,9 @@ export default function Landing() {
         </header>
 
         {/* Hero Content */}
-        <div className="relative z-10 container mx-auto px-6 pt-20 pb-16 text-center">
+        <div className="relative z-10 container mx-auto px-6 pt-12 md:pt-20 pb-16 text-center">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
+            <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-white mb-6 leading-tight">
               Build Better.
               <br />
               <span className="text-white">Manage Smarter.</span>
