@@ -1,15 +1,20 @@
 """
 Photo API endpoints.
+
+Supports multi-environment operation:
+- Development: Uses GCP SDK directly → dev bucket
+- Production (Replit): Uses sidecar → prod bucket
 """
 import os
 import uuid
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form, Query, Request, Depends
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from src.models import Photo, PhotoCreate
 from pydantic import ValidationError
 from src.database.repositories import PhotoRepository, ProjectRepository
 from src.core.config import settings
+from src.core.storage import get_storage_config, generate_signed_url, get_object_path
 from src.api.auth import get_current_user_dependency, is_root_admin
 
 router = APIRouter(prefix="/photos", tags=["photos"])
@@ -299,7 +304,7 @@ async def get_photo_file(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Photo not found"
             )
-        
+
         # Verify company access (unless root admin)
         if not is_root_admin(current_user):
             user_company_id = str(current_user.get('companyId') or current_user.get('company_id') or '')
@@ -311,13 +316,8 @@ async def get_photo_file(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail="Access denied: Photo belongs to different company"
                     )
-        
-        from fastapi.responses import RedirectResponse
-        import httpx
-        from datetime import datetime, timedelta
-        
-        # Priority 1: For UUID filenames, always generate fresh signed URL from object storage
-        # This handles photos uploaded via Replit Object Storage (most common case)
+
+        # Priority 1: For UUID filenames, generate signed URL from object storage
         if photo.filename:
             # Check if filename is a UUID (36 chars with dashes, or UUID pattern)
             is_uuid_filename = (
@@ -325,52 +325,28 @@ async def get_photo_file(
                 (len(photo.filename) > 36 and photo.filename.count('-') >= 4 and '.' not in photo.filename[:36])
             )
             if is_uuid_filename:
-                # This is a UUID stored in Replit Object Storage (GCP bucket)
-                # Generate signed URL directly to avoid double redirect
-                bucket_id = os.getenv("DEFAULT_OBJECT_STORAGE_BUCKET_ID")
-                private_dir = os.getenv("PRIVATE_OBJECT_DIR", "")
-                sidecar_endpoint = "http://127.0.0.1:1106"
-                
-                # Extract just the UUID from filename (remove any query params)
-                clean_uuid = photo.filename.split('?')[0]
-                
-                # Construct clean object path
-                if private_dir:
-                    clean_private_dir = private_dir
-                    if bucket_id and private_dir.startswith(f"/{bucket_id}"):
-                        clean_private_dir = private_dir[len(f"/{bucket_id}"):]
-                    elif bucket_id and private_dir.startswith(bucket_id):
-                        clean_private_dir = private_dir[len(bucket_id):]
-                    clean_private_dir = clean_private_dir.lstrip('/')
-                    object_path = f"{clean_private_dir}/uploads/{clean_uuid}"
-                else:
-                    object_path = f".private/uploads/{clean_uuid}"
-                
-                print(f"🔄 [GCS] Generating signed URL directly for: {object_path}")
-                
-                # Generate signed URL directly
-                expires_at = (datetime.utcnow() + timedelta(hours=1)).isoformat() + "Z"
-                request_data = {
-                    "bucket_name": bucket_id,
-                    "object_name": object_path,
-                    "method": "GET",
-                    "expires_at": expires_at
-                }
-                
-                async with httpx.AsyncClient(timeout=30.0) as client:
-                    response = await client.post(
-                        f"{sidecar_endpoint}/object-storage/signed-object-url",
-                        headers={"Content-Type": "application/json"},
-                        json=request_data
-                    )
-                    
-                    if response.status_code == 200:
-                        result = response.json()
-                        signed_url = result.get("signed_url")
-                        if signed_url:
-                            print(f"✅ [GCS] Direct signed URL generated: {signed_url[:80]}...")
-                            return RedirectResponse(url=signed_url, status_code=302)
-        
+                try:
+                    # Get storage config (environment-aware)
+                    config = get_storage_config()
+                    bucket_id = config["bucket_id"]
+                    clean_private_dir = config["clean_private_dir"]
+
+                    # Extract just the UUID from filename (remove any query params)
+                    clean_uuid = photo.filename.split('?')[0]
+                    object_path = get_object_path(clean_uuid, clean_private_dir)
+
+                    print(f"🔄 [GCS] Generating signed URL for: {object_path} in bucket: {bucket_id}")
+
+                    # Generate signed URL (uses GCP SDK in dev, sidecar in prod)
+                    signed_url = await generate_signed_url(bucket_id, object_path, method="GET", expires_minutes=60)
+
+                    if signed_url:
+                        print(f"✅ [GCS] Signed URL generated successfully")
+                        return RedirectResponse(url=signed_url, status_code=302)
+
+                except Exception as e:
+                    print(f"⚠️ [GCS] Failed to generate signed URL: {e}, falling back to local")
+
         # Priority 2: Legacy local file serving (for backward compatibility)
         if photo.filename:
             file_path = os.path.join(settings.upload_dir, photo.filename)
@@ -383,21 +359,20 @@ async def get_photo_file(
                     media_type=media_type,
                     filename=photo.original_name
                 )
-        
-        # Priority 3: If filename looks like a regular file but doesn't exist locally,
-        # try object storage as a fallback
+
+        # Priority 3: Fallback to object storage API
         if photo.filename:
             object_url = f"/api/v1/objects/image/{photo.filename}"
-            print(f"🔄 [GCS] Fallback - trying object storage: {object_url}")
+            print(f"🔄 [GCS] Fallback - redirecting to: {object_url}")
             return RedirectResponse(url=object_url, status_code=302)
-        
+
         # Photo not found
         print(f"❌ Photo file not found: filename={photo.filename}, original_name={photo.original_name}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Photo file not found in any storage location"
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
