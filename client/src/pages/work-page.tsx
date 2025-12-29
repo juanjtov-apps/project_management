@@ -72,6 +72,7 @@ import type { Project, InsertProject, Task, InsertTask, User, Photo } from "@sha
 // Helper functions
 const isTaskOverdue = (task: Task): boolean => {
   if (!task.dueDate) return false;
+  if (task.status === 'completed') return false;
   return new Date(task.dueDate) < new Date();
 };
 
@@ -306,19 +307,11 @@ export default function WorkPage() {
   // === TASK MUTATIONS ===
   const createTaskMutation = useMutation({
     mutationFn: async (data: InsertTask) => {
-      // #region agent log
-      console.log('🟡 DEBUG [work-page]: mutationFn called', { data });
-      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:mutationFn',message:'Mutation function called',data:{mutationData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       const response = await apiRequest("/api/tasks", { method: "POST", body: data });
       // apiRequest already throws on non-ok responses
       return await response.json();
     },
     onSuccess: () => {
-      // #region agent log
-      console.log('🟢 DEBUG [work-page]: mutation onSuccess');
-      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:onSuccess',message:'Mutation succeeded',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       // Close dialog and reset form first
       setIsTaskCreateDialogOpen(false);
       taskForm.reset();
@@ -329,10 +322,6 @@ export default function WorkPage() {
       toast({ title: "Task created successfully" });
     },
     onError: (error: any) => {
-      // #region agent log
-      console.log('🔴 DEBUG [work-page]: mutation onError', { error: error?.message || String(error) });
-      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:onError',message:'Mutation failed',data:{error:error?.message||String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       console.error("[Task Create] Error:", error);
       toast({ title: "Failed to create task", description: error?.message, variant: "destructive" });
     },
@@ -617,19 +606,11 @@ export default function WorkPage() {
   };
 
   const handleCreateTask = (data: InsertTask) => {
-    // #region agent log
-    console.log('🟢 DEBUG [work-page]: handleCreateTask called', { data });
-    fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:handleCreateTask',message:'handleCreateTask called',data:{formData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
-    // #endregion
     const taskData = {
       ...data,
       description: data.description?.trim() || null,
       dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
     };
-    // #region agent log
-    console.log('🟡 DEBUG [work-page]: Prepared taskData', { taskData });
-    fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:handleCreateTask:prepared',message:'Prepared taskData for mutation',data:{taskData},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     createTaskMutation.mutate(taskData);
   };
 
@@ -1814,21 +1795,7 @@ export default function WorkPage() {
             <DialogTitle>Create New Task</DialogTitle>
           </DialogHeader>
           <Form {...taskForm}>
-            <form onSubmit={taskForm.handleSubmit(
-              (data) => {
-                // #region agent log
-                console.log('🟢 DEBUG [work-page]: Form validation PASSED', { data, formState: taskForm.formState });
-                fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:formSubmit:success',message:'Form validation passed',data:{formData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,E'})}).catch(()=>{});
-                // #endregion
-                handleCreateTask(data);
-              },
-              (errors) => {
-                // #region agent log
-                console.log('🔴 DEBUG [work-page]: Form validation FAILED', { errors, formValues: taskForm.getValues() });
-                fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:formSubmit:error',message:'Form validation failed',data:{errors,formValues:taskForm.getValues()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,E'})}).catch(()=>{});
-                // #endregion
-              }
-            )} className="space-y-4">
+            <form onSubmit={taskForm.handleSubmit(handleCreateTask)} className="space-y-4">
               <FormField
                 control={taskForm.control}
                 name="title"
@@ -2003,16 +1970,10 @@ export default function WorkPage() {
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
-                  data-testid="button-submit-task" 
+                <Button
+                  type="submit"
+                  data-testid="button-submit-task"
                   disabled={createTaskMutation.isPending}
-                  onClick={() => {
-                    // #region agent log
-                    console.log('🔴 DEBUG [work-page]: Create Task button clicked!', { isPending: createTaskMutation.isPending, formState: { isValid: taskForm.formState.isValid, errors: taskForm.formState.errors } });
-                    fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:submitButton:click',message:'Submit button clicked',data:{isPending:createTaskMutation.isPending,formState:{isValid:taskForm.formState.isValid,errors:Object.keys(taskForm.formState.errors)}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
-                    // #endregion
-                  }}
                 >
                   {createTaskMutation.isPending ? "Creating..." : "Create Task"}
                 </Button>

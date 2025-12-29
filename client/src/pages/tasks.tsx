@@ -57,6 +57,7 @@ const getStatusColor = (status: string) => {
 // Helper functions for task management improvements
 const isTaskOverdue = (task: Task): boolean => {
   if (!task.dueDate) return false;
+  if (task.status === 'completed') return false;
   return new Date(task.dueDate) < new Date();
 };
 
@@ -707,24 +708,15 @@ export default function Tasks() {
 
   const createTaskMutation = useMutation({
     mutationFn: (data: InsertTask) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:mutationFn',message:'Mutation function called',data:{mutationData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       return apiRequest("/api/tasks", { method: "POST", body: data });
     },
     onSuccess: () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:onSuccess',message:'Mutation succeeded',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       setIsCreateDialogOpen(false);
       form.reset();
     },
     onError: (error: any) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:onError',message:'Mutation failed',data:{error:error?.message||String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       console.error("Task creation failed:", error);
     },
   });
@@ -783,22 +775,12 @@ export default function Tasks() {
   });
 
   const onSubmit = (data: InsertTask) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:onSubmit',message:'onSubmit called with form data',data:{formData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
-    // #endregion
-    console.log("Tasks page form data:", data);
-    
     // Prepare data for API - send dates as ISO strings
     const taskData = {
       ...data,
       description: data.description?.trim() || null,
       dueDate: data.dueDate ? (typeof data.dueDate === 'string' ? data.dueDate : data.dueDate.toISOString()) : null,
     };
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:onSubmit',message:'Prepared taskData for mutation',data:{taskData},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
-    // #endregion
-    console.log("Tasks page data being sent to API:", taskData);
     createTaskMutation.mutate(taskData);
   };
 
@@ -1750,24 +1732,10 @@ interface TaskFormProps {
 function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormProps) {
   const watchedCategory = form.watch("category");
   const isProjectRequired = watchedCategory === "project";
-  
-  // #region agent log
-  const handleFormSubmit = form.handleSubmit(
-    (data) => {
-      console.log('🟢 DEBUG: Form validation PASSED!', { data });
-      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskForm:handleSubmit:success',message:'Form validation passed',data:{formData:data,formState:{isValid:form.formState.isValid,errors:form.formState.errors}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,E'})}).catch(()=>{});
-      onSubmit(data);
-    },
-    (errors) => {
-      console.log('🔴 DEBUG: Form validation FAILED!', { errors, formValues: form.getValues() });
-      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskForm:handleSubmit:error',message:'Form validation failed',data:{errors,formValues:form.getValues()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,E'})}).catch(()=>{});
-    }
-  );
-  // #endregion
-  
+
   return (
     <Form {...form}>
-      <form onSubmit={handleFormSubmit} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="title"
@@ -1958,16 +1926,10 @@ function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormP
         />
         
         <div className="flex justify-end space-x-2">
-          <Button 
-            type="submit" 
-            disabled={isLoading} 
+          <Button
+            type="submit"
+            disabled={isLoading}
             className="construction-primary text-white"
-            onClick={(e) => {
-              // #region agent log
-              console.log('🔴 DEBUG: Submit button clicked!', { isLoading, isValid: form.formState.isValid, errors: form.formState.errors });
-              fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskForm:submitButton:click',message:'Submit button clicked',data:{isLoading,formState:{isValid:form.formState.isValid,isSubmitting:form.formState.isSubmitting,errors:Object.keys(form.formState.errors)}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
-              // #endregion
-            }}
           >
             {isLoading ? "Saving..." : submitText}
           </Button>

@@ -65,13 +65,13 @@ export function TaskCard({
   const statusOptions = [
     { value: "pending", label: "Pending" },
     { value: "in-progress", label: "In Progress" },
-    { value: "done", label: "Done" },
+    { value: "completed", label: "Completed" },
   ];
 
   const statusLabels: Record<string, string> = {
     "pending": "Pending",
     "in-progress": "In Progress",
-    "done": "Done",
+    "completed": "Completed",
   };
 
   // Canvas variant - vertical card layout for grid displays
