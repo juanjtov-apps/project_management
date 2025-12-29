@@ -1,27 +1,35 @@
 import { Storage, File } from "@google-cloud/storage";
 import { Response } from "express";
 import { randomUUID } from "crypto";
+import {
+  getStorageConfig,
+  getStorageClient,
+  createReplitStorageClient,
+  StorageConfig,
+} from "./storageConfig";
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
-// The object storage client is used to interact with the object storage service.
-export const objectStorageClient = new Storage({
-  credentials: {
-    audience: "replit",
-    subject_token_type: "access_token",
-    token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
-    type: "external_account",
-    credential_source: {
-      url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
-      format: {
-        type: "json",
-        subject_token_field_name: "access_token",
-      },
-    },
-    universe_domain: "googleapis.com",
-  },
-  projectId: "",
-});
+// Lazy-initialized storage client and config
+let _storageClient: Storage | null = null;
+let _storageConfig: StorageConfig | null = null;
+
+function getClient(): Storage {
+  if (!_storageClient) {
+    _storageClient = getStorageClient();
+  }
+  return _storageClient;
+}
+
+function getConfig(): StorageConfig {
+  if (!_storageConfig) {
+    _storageConfig = getStorageConfig();
+  }
+  return _storageConfig;
+}
+
+// Re-export the Replit storage client for backward compatibility
+export const objectStorageClient = createReplitStorageClient();
 
 export class ObjectNotFoundError extends Error {
   constructor() {
@@ -55,16 +63,16 @@ export class ObjectStorageService {
     return paths;
   }
 
-  // Gets the private object directory.
+  // Gets the private object directory from centralized config.
   getPrivateObjectDir(): string {
-    const dir = process.env.PRIVATE_OBJECT_DIR || "";
-    if (!dir) {
-      throw new Error(
-        "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var."
-      );
-    }
-    return dir;
+    const config = getConfig();
+    return config.privateDir;
+  }
+
+  // Gets the bucket ID from centralized config.
+  getBucketId(): string {
+    const config = getConfig();
+    return config.bucketId;
   }
 
   // Downloads an object to the response.
@@ -103,14 +111,15 @@ export class ObjectStorageService {
   async getObjectFile(objectPath: string): Promise<File | null> {
     try {
       const { bucketName, objectName } = parseObjectPath(objectPath);
-      const bucket = objectStorageClient.bucket(bucketName);
+      const client = getClient();
+      const bucket = client.bucket(bucketName);
       const file = bucket.file(objectName);
-      
+
       const [exists] = await file.exists();
       if (!exists) {
         return null;
       }
-      
+
       return file;
     } catch (error) {
       console.error("Error getting object file:", error);
