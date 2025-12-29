@@ -86,7 +86,7 @@ export function FilterBar({
 
         {/* Right Actions */}
         {rightActions && (
-          <div className="flex items-center gap-2">{rightActions}</div>
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">{rightActions}</div>
         )}
       </div>
 

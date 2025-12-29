@@ -124,7 +124,6 @@ export default function WorkPage() {
   // Projects - Filter states
   const [projectSearchTerm, setProjectSearchTerm] = useState("");
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>("all");
-  const [projectLocationFilter, setProjectLocationFilter] = useState<string>("all");
   const [projectSortBy, setProjectSortBy] = useState<"recent" | "name">("recent");
   const [projectSortOrder, setProjectSortOrder] = useState<"asc" | "desc">("desc");
   const [projectViewMode, setProjectViewMode] = useLocalStorage<"list" | "grid">(
@@ -459,10 +458,8 @@ export default function WorkPage() {
         project.description?.toLowerCase().includes(debouncedProjectSearch.toLowerCase());
       const matchesStatus =
         projectStatusFilter === "all" || project.status === projectStatusFilter;
-      const matchesLocation =
-        projectLocationFilter === "all" || project.location === projectLocationFilter;
 
-      return matchesSearch && matchesStatus && matchesLocation;
+      return matchesSearch && matchesStatus;
     });
 
     // Sort
@@ -484,15 +481,9 @@ export default function WorkPage() {
     projects,
     debouncedProjectSearch,
     projectStatusFilter,
-    projectLocationFilter,
     projectSortBy,
     projectSortOrder,
   ]);
-
-  const uniqueLocations = useMemo(() => {
-    const locations = new Set(projects.map((p) => p.location).filter(Boolean) as string[]);
-    return Array.from(locations);
-  }, [projects]);
 
   // === TASK FILTERING ===
   const filteredTasks = useMemo(() => {
@@ -721,13 +712,6 @@ export default function WorkPage() {
       onClick: () => setProjectStatusFilter("all"),
     });
   }
-  if (projectLocationFilter !== "all") {
-    projectActiveFilters.push({
-      id: "location",
-      label: `Location: ${projectLocationFilter}`,
-      onClick: () => setProjectLocationFilter("all"),
-    });
-  }
 
   const taskActiveFilters = [];
   if (taskStatusFilter !== "all") {
@@ -754,7 +738,6 @@ export default function WorkPage() {
 
   const handleClearProjectFilters = () => {
     setProjectStatusFilter("all");
-    setProjectLocationFilter("all");
     setProjectSearchTerm("");
   };
 
@@ -844,7 +827,7 @@ export default function WorkPage() {
             rightActions={
               <>
                 <Select value={projectStatusFilter} onValueChange={setProjectStatusFilter}>
-                  <SelectTrigger className="w-[140px] tap-target" data-testid="filter-status">
+                  <SelectTrigger className="flex-1 sm:flex-none sm:w-[140px] tap-target" data-testid="filter-status">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -854,22 +837,6 @@ export default function WorkPage() {
                     <SelectItem value="completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
-
-                {uniqueLocations.length > 0 && (
-                  <Select value={projectLocationFilter} onValueChange={setProjectLocationFilter}>
-                    <SelectTrigger className="w-[140px] tap-target" data-testid="filter-location">
-                      <SelectValue placeholder="Location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Locations</SelectItem>
-                      {uniqueLocations.map((location) => (
-                        <SelectItem key={location} value={location}>
-                          {location}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
 
                 <Select
                   value={`${projectSortBy}-${projectSortOrder}`}
@@ -882,7 +849,7 @@ export default function WorkPage() {
                     setProjectSortOrder(newSortOrder);
                   }}
                 >
-                  <SelectTrigger className="w-[140px] tap-target" data-testid="sort-select">
+                  <SelectTrigger className="flex-1 sm:flex-none sm:w-[140px] tap-target" data-testid="sort-select">
                     <SelectValue placeholder="Sort" />
                   </SelectTrigger>
                   <SelectContent>
@@ -900,6 +867,7 @@ export default function WorkPage() {
                   ]}
                   value={projectViewMode}
                   onChange={(value) => setProjectViewMode(value as "list" | "grid")}
+                  className="flex-1 sm:flex-none"
                   data-testid="view-mode-toggle"
                 />
               </>
@@ -1190,6 +1158,7 @@ export default function WorkPage() {
                       dueDate={task.dueDate ? new Date(task.dueDate) : undefined}
                       isOverdue={isTaskOverdue(task)}
                       assignees={assignees}
+                      variant="canvas"
                       onStatusChange={(newStatus) =>
                         updateTaskMutation.mutate({
                           id: task.id,
