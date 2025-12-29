@@ -60,6 +60,14 @@ const isTaskOverdue = (task: Task): boolean => {
   return new Date(task.dueDate) < new Date();
 };
 
+const isTaskDueThisWeek = (task: Task): boolean => {
+  if (!task.dueDate) return false;
+  const dueDate = new Date(task.dueDate);
+  const now = new Date();
+  const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  return dueDate >= now && dueDate <= weekFromNow;
+};
+
 const getTaskStats = (tasks: Task[]) => {
   const total = tasks.length;
   const completed = tasks.filter(t => t.status === 'completed').length;
@@ -698,12 +706,26 @@ export default function Tasks() {
   });
 
   const createTaskMutation = useMutation({
-    mutationFn: (data: InsertTask) => apiRequest("/api/tasks", { method: "POST", body: data }),
+    mutationFn: (data: InsertTask) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:mutationFn',message:'Mutation function called',data:{mutationData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      return apiRequest("/api/tasks", { method: "POST", body: data });
+    },
     onSuccess: () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:onSuccess',message:'Mutation succeeded',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       setIsCreateDialogOpen(false);
       form.reset();
+    },
+    onError: (error: any) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:onError',message:'Mutation failed',data:{error:error?.message||String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      console.error("Task creation failed:", error);
     },
   });
 
@@ -761,6 +783,9 @@ export default function Tasks() {
   });
 
   const onSubmit = (data: InsertTask) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:onSubmit',message:'onSubmit called with form data',data:{formData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
+    // #endregion
     console.log("Tasks page form data:", data);
     
     // Prepare data for API - send dates as ISO strings
@@ -770,6 +795,9 @@ export default function Tasks() {
       dueDate: data.dueDate ? (typeof data.dueDate === 'string' ? data.dueDate : data.dueDate.toISOString()) : null,
     };
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:onSubmit',message:'Prepared taskData for mutation',data:{taskData},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
+    // #endregion
     console.log("Tasks page data being sent to API:", taskData);
     createTaskMutation.mutate(taskData);
   };
@@ -849,7 +877,11 @@ export default function Tasks() {
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || task.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "overdue" && isTaskOverdue(task)) ||
+      (statusFilter === "dueThisWeek" && isTaskDueThisWeek(task)) ||
+      task.status === statusFilter;
     const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
     const matchesAssignee = assigneeFilter === "all" || 
                            (assigneeFilter === "unassigned" && !task.assigneeId) ||
@@ -1124,30 +1156,42 @@ export default function Tasks() {
 
       {/* Horizontal Stats Strip - compact single row */}
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-[var(--pro-surface)] rounded-lg border border-[var(--pro-border)]">
+        <button
+          onClick={() => setStatusFilter("all")}
+          className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-[var(--pro-surface)] rounded-lg border border-[var(--pro-border)] active:scale-95 transition-transform"
+        >
           <span className="text-lg font-bold text-[var(--pro-text-primary)]">{taskStats.total}</span>
           <span className="text-xs text-[var(--pro-text-secondary)]">Total</span>
-        </div>
-        <div className={cn(
-          "flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg border",
-          taskStats.overdue > 0
-            ? "bg-[var(--pro-red)]/10 border-[var(--pro-red)]/30"
-            : "bg-[var(--pro-surface)] border-[var(--pro-border)]"
-        )}>
+        </button>
+        <button
+          onClick={() => setStatusFilter("overdue")}
+          className={cn(
+            "flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg border active:scale-95 transition-transform",
+            taskStats.overdue > 0
+              ? "bg-[var(--pro-red)]/10 border-[var(--pro-red)]/30"
+              : "bg-[var(--pro-surface)] border-[var(--pro-border)]"
+          )}
+        >
           <span className={cn(
             "text-lg font-bold",
             taskStats.overdue > 0 ? "text-[var(--pro-red)]" : "text-[var(--pro-text-primary)]"
           )}>{taskStats.overdue}</span>
           <span className="text-xs text-[var(--pro-text-secondary)]">Overdue</span>
-        </div>
-        <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-[var(--pro-orange)]/10 rounded-lg border border-[var(--pro-orange)]/30">
+        </button>
+        <button
+          onClick={() => setStatusFilter("dueThisWeek")}
+          className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-[var(--pro-orange)]/10 rounded-lg border border-[var(--pro-orange)]/30 active:scale-95 transition-transform"
+        >
           <span className="text-lg font-bold text-[var(--pro-orange)]">{taskStats.dueThisWeek}</span>
           <span className="text-xs text-[var(--pro-text-secondary)]">This Week</span>
-        </div>
-        <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-[var(--pro-mint)]/10 rounded-lg border border-[var(--pro-mint)]/30">
+        </button>
+        <button
+          onClick={() => setStatusFilter("completed")}
+          className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-[var(--pro-mint)]/10 rounded-lg border border-[var(--pro-mint)]/30 active:scale-95 transition-transform"
+        >
           <span className="text-lg font-bold text-[var(--pro-mint)]">{taskStats.completed}</span>
           <span className="text-xs text-[var(--pro-text-secondary)]">Done</span>
-        </div>
+        </button>
       </div>
 
       {/* iOS-Style Segmented Control for Projects/Tasks */}
@@ -1177,8 +1221,8 @@ export default function Tasks() {
             />
           </div>
 
-          {/* View toggle - desktop only */}
-          <div className="hidden md:flex items-center bg-[var(--pro-surface-highlight)] rounded-lg p-0.5">
+          {/* View toggle - all screen sizes */}
+          <div className="flex items-center bg-[var(--pro-surface-highlight)] rounded-lg p-0.5">
             <Button
               variant="ghost"
               size="sm"
@@ -1291,49 +1335,27 @@ export default function Tasks() {
         </div>
       )}
 
-      {/* Main Content Area - Based on activeTab */}
+      {/* Main Content Area - Based on activeTab and viewMode */}
       {activeTab === "projects" ? (
-        // Projects View - grouped by project
-        <div className="space-y-2">
-          {Object.values(tasksByProject).length > 0 ? (
-            Object.values(tasksByProject).map(({ project, tasks }) => {
-              const projectProgress = getProjectProgress(tasks);
-              const upcomingTasks = tasks.filter(t => t.status !== 'completed').slice(0, 2);
-
-              return (
-                <div key={project.id} className="bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)] overflow-hidden">
-                  {/* Project Header Row - Enhanced with task preview */}
-                  <button
-                    onClick={() => toggleSection(`project-${project.id}`)}
-                    className="w-full p-3 flex items-center gap-3 hover:bg-[var(--pro-surface-highlight)] transition-colors"
-                  >
-                    {/* Chevron */}
-                    <div className="flex-shrink-0">
-                      {collapsedSections[`project-${project.id}`] ?
-                        <ChevronRight size={16} className="text-[var(--pro-text-secondary)]" /> :
-                        <ChevronDown size={16} className="text-[var(--pro-text-secondary)]" />
-                      }
-                    </div>
-
-                    {/* Project Info */}
-                    <div className="flex-1 min-w-0 text-left">
+        // Projects View - Canvas or List based on viewMode
+        viewMode === "canvas" ? (
+          // Canvas View - Grid of cards grouped by project
+          <div className="space-y-6">
+            {Object.values(tasksByProject).length > 0 ? (
+              Object.values(tasksByProject).map(({ project, tasks }) => {
+                const projectProgress = getProjectProgress(tasks);
+                return (
+                  <div key={project.id} className="space-y-3">
+                    {/* Project Header */}
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Building size={14} className="text-[var(--pro-mint)] flex-shrink-0" />
-                        <span className="font-medium text-sm text-[var(--pro-text-primary)] truncate">{project.name}</span>
+                        <Building size={16} className="text-[var(--pro-mint)]" />
+                        <span className="font-medium text-[var(--pro-text-primary)]">{project.name}</span>
+                        <span className="text-xs text-[var(--pro-text-secondary)]">
+                          ({projectProgress.completed}/{projectProgress.total})
+                        </span>
                       </div>
-
-                      {/* Task preview on collapsed state */}
-                      {collapsedSections[`project-${project.id}`] && upcomingTasks.length > 0 && (
-                        <p className="text-xs text-[var(--pro-text-muted)] mt-0.5 truncate">
-                          {upcomingTasks[0].title}
-                          {upcomingTasks.length > 1 && ` +${tasks.length - 1} more`}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Progress bar + count */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <div className="w-12 h-1.5 bg-[var(--pro-surface-highlight)] rounded-full overflow-hidden">
+                      <div className="w-20 h-1.5 bg-[var(--pro-surface-highlight)] rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-300"
                           style={{
@@ -1342,193 +1364,360 @@ export default function Tasks() {
                           }}
                         />
                       </div>
-                      <span className="text-xs font-medium text-[var(--pro-text-secondary)] w-8 text-right">
-                        {projectProgress.completed}/{projectProgress.total}
-                      </span>
                     </div>
-                  </button>
-
-                  {/* Expanded Task List */}
-                  {!collapsedSections[`project-${project.id}`] && (
-                    <div className="border-t border-[var(--pro-border)] divide-y divide-[var(--pro-border)]">
+                    {/* Task Cards Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {tasks.map((task) => (
-                        <TaskListItem
+                        <TaskCard
                           key={task.id}
                           task={task}
-                          projectName={project.name}
+                          project={project}
                           onEdit={handleEditTask}
                           onDelete={handleDeleteTask}
                           onStatusChange={handleStatusChange}
                           onScheduleChange={handleScheduleChange}
-                          isSelected={selectedTasks.has(task.id)}
-                          onToggleSelect={(taskId) => {
-                            const newSelected = new Set(selectedTasks);
-                            if (newSelected.has(taskId)) {
-                              newSelected.delete(taskId);
-                            } else {
-                              newSelected.add(taskId);
-                            }
-                            setSelectedTasks(newSelected);
-                          }}
-                          showBulkSelect={bulkActionMode}
                           getUserDisplayName={getUserDisplayName}
                         />
                       ))}
                     </div>
-                  )}
-                </div>
-              );
-            })
-          ) : (
-            <div className="text-center py-12 bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)]">
-              <FolderOpen size={32} className="mx-auto text-[var(--pro-text-muted)] mb-2" />
-              <p className="text-sm text-[var(--pro-text-secondary)]">No project tasks yet</p>
-            </div>
-          )}
-
-          {/* Administrative Tasks - Compact Card */}
-          {adminTasks.length > 0 && (
-            <div className="bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)] overflow-hidden">
-              <button
-                onClick={() => toggleSection('administrative')}
-                className="w-full p-3 flex items-center gap-3 hover:bg-[var(--pro-surface-highlight)] transition-colors"
-              >
-                <div className="flex-shrink-0">
-                  {collapsedSections['administrative'] ?
-                    <ChevronRight size={16} className="text-[var(--pro-text-secondary)]" /> :
-                    <ChevronDown size={16} className="text-[var(--pro-text-secondary)]" />
-                  }
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="flex items-center gap-2">
-                    <Settings size={14} className="text-[var(--pro-purple)] flex-shrink-0" />
-                    <span className="font-medium text-sm text-[var(--pro-text-primary)]">Administrative</span>
                   </div>
-                </div>
-                <span className="text-xs font-medium text-[var(--pro-text-secondary)]">{adminTasks.length}</span>
-              </button>
+                );
+              })
+            ) : (
+              <div className="text-center py-12 bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)]">
+                <FolderOpen size={32} className="mx-auto text-[var(--pro-text-muted)] mb-2" />
+                <p className="text-sm text-[var(--pro-text-secondary)]">No project tasks yet</p>
+              </div>
+            )}
 
-              {!collapsedSections['administrative'] && (
-                <div className="border-t border-[var(--pro-border)] divide-y divide-[var(--pro-border)]">
+            {/* Administrative Tasks - Canvas */}
+            {adminTasks.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Settings size={16} className="text-[var(--pro-purple)]" />
+                  <span className="font-medium text-[var(--pro-text-primary)]">Administrative</span>
+                  <span className="text-xs text-[var(--pro-text-secondary)]">({adminTasks.length})</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {adminTasks.map((task) => (
-                    <TaskListItem
+                    <TaskCard
                       key={task.id}
                       task={task}
                       onEdit={handleEditTask}
                       onDelete={handleDeleteTask}
                       onStatusChange={handleStatusChange}
                       onScheduleChange={handleScheduleChange}
-                      isSelected={selectedTasks.has(task.id)}
-                      onToggleSelect={(taskId) => {
-                        const newSelected = new Set(selectedTasks);
-                        if (newSelected.has(taskId)) newSelected.delete(taskId);
-                        else newSelected.add(taskId);
-                        setSelectedTasks(newSelected);
-                      }}
-                      showBulkSelect={bulkActionMode}
                       getUserDisplayName={getUserDisplayName}
                     />
                   ))}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
 
-          {/* General Tasks - Compact Card */}
-          {generalTasks.length > 0 && (
-            <div className="bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)] overflow-hidden">
-              <button
-                onClick={() => toggleSection('general')}
-                className="w-full p-3 flex items-center gap-3 hover:bg-[var(--pro-surface-highlight)] transition-colors"
-              >
-                <div className="flex-shrink-0">
-                  {collapsedSections['general'] ?
-                    <ChevronRight size={16} className="text-[var(--pro-text-secondary)]" /> :
-                    <ChevronDown size={16} className="text-[var(--pro-text-secondary)]" />
-                  }
+            {/* General Tasks - Canvas */}
+            {generalTasks.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle size={16} className="text-[var(--pro-mint)]" />
+                  <span className="font-medium text-[var(--pro-text-primary)]">General</span>
+                  <span className="text-xs text-[var(--pro-text-secondary)]">({generalTasks.length})</span>
                 </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle size={14} className="text-[var(--pro-mint)] flex-shrink-0" />
-                    <span className="font-medium text-sm text-[var(--pro-text-primary)]">General</span>
-                  </div>
-                </div>
-                <span className="text-xs font-medium text-[var(--pro-text-secondary)]">{generalTasks.length}</span>
-              </button>
-
-              {!collapsedSections['general'] && (
-                <div className="border-t border-[var(--pro-border)] divide-y divide-[var(--pro-border)]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {generalTasks.map((task) => (
-                    <TaskListItem
+                    <TaskCard
                       key={task.id}
                       task={task}
                       onEdit={handleEditTask}
                       onDelete={handleDeleteTask}
                       onStatusChange={handleStatusChange}
                       onScheduleChange={handleScheduleChange}
-                      isSelected={selectedTasks.has(task.id)}
-                      onToggleSelect={(taskId) => {
-                        const newSelected = new Set(selectedTasks);
-                        if (newSelected.has(taskId)) newSelected.delete(taskId);
-                        else newSelected.add(taskId);
-                        setSelectedTasks(newSelected);
-                      }}
-                      showBulkSelect={bulkActionMode}
                       getUserDisplayName={getUserDisplayName}
                     />
                   ))}
                 </div>
-              )}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          // List View - grouped by project
+          <div className="space-y-2">
+            {Object.values(tasksByProject).length > 0 ? (
+              Object.values(tasksByProject).map(({ project, tasks }) => {
+                const projectProgress = getProjectProgress(tasks);
+                const upcomingTasks = tasks.filter(t => t.status !== 'completed').slice(0, 2);
+
+                return (
+                  <div key={project.id} className="bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)] overflow-hidden">
+                    {/* Project Header Row - Enhanced with task preview */}
+                    <button
+                      onClick={() => toggleSection(`project-${project.id}`)}
+                      className="w-full p-3 flex items-center gap-3 hover:bg-[var(--pro-surface-highlight)] transition-colors"
+                    >
+                      {/* Chevron */}
+                      <div className="flex-shrink-0">
+                        {collapsedSections[`project-${project.id}`] ?
+                          <ChevronRight size={16} className="text-[var(--pro-text-secondary)]" /> :
+                          <ChevronDown size={16} className="text-[var(--pro-text-secondary)]" />
+                        }
+                      </div>
+
+                      {/* Project Info */}
+                      <div className="flex-1 min-w-0 text-left">
+                        <div className="flex items-center gap-2">
+                          <Building size={14} className="text-[var(--pro-mint)] flex-shrink-0" />
+                          <span className="font-medium text-sm text-[var(--pro-text-primary)] truncate">{project.name}</span>
+                        </div>
+
+                        {/* Task preview on collapsed state */}
+                        {collapsedSections[`project-${project.id}`] && upcomingTasks.length > 0 && (
+                          <p className="text-xs text-[var(--pro-text-muted)] mt-0.5 truncate">
+                            {upcomingTasks[0].title}
+                            {upcomingTasks.length > 1 && ` +${tasks.length - 1} more`}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Progress bar + count */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="w-12 h-1.5 bg-[var(--pro-surface-highlight)] rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{
+                              width: `${projectProgress.percentage}%`,
+                              backgroundColor: projectProgress.progressColor
+                            }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium text-[var(--pro-text-secondary)] w-8 text-right">
+                          {projectProgress.completed}/{projectProgress.total}
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Expanded Task List */}
+                    {!collapsedSections[`project-${project.id}`] && (
+                      <div className="border-t border-[var(--pro-border)] divide-y divide-[var(--pro-border)]">
+                        {tasks.map((task) => (
+                          <TaskListItem
+                            key={task.id}
+                            task={task}
+                            projectName={project.name}
+                            onEdit={handleEditTask}
+                            onDelete={handleDeleteTask}
+                            onStatusChange={handleStatusChange}
+                            onScheduleChange={handleScheduleChange}
+                            isSelected={selectedTasks.has(task.id)}
+                            onToggleSelect={(taskId) => {
+                              const newSelected = new Set(selectedTasks);
+                              if (newSelected.has(taskId)) {
+                                newSelected.delete(taskId);
+                              } else {
+                                newSelected.add(taskId);
+                              }
+                              setSelectedTasks(newSelected);
+                            }}
+                            showBulkSelect={bulkActionMode}
+                            getUserDisplayName={getUserDisplayName}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-12 bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)]">
+                <FolderOpen size={32} className="mx-auto text-[var(--pro-text-muted)] mb-2" />
+                <p className="text-sm text-[var(--pro-text-secondary)]">No project tasks yet</p>
+              </div>
+            )}
+
+            {/* Administrative Tasks - Compact Card */}
+            {adminTasks.length > 0 && (
+              <div className="bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)] overflow-hidden">
+                <button
+                  onClick={() => toggleSection('administrative')}
+                  className="w-full p-3 flex items-center gap-3 hover:bg-[var(--pro-surface-highlight)] transition-colors"
+                >
+                  <div className="flex-shrink-0">
+                    {collapsedSections['administrative'] ?
+                      <ChevronRight size={16} className="text-[var(--pro-text-secondary)]" /> :
+                      <ChevronDown size={16} className="text-[var(--pro-text-secondary)]" />
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="flex items-center gap-2">
+                      <Settings size={14} className="text-[var(--pro-purple)] flex-shrink-0" />
+                      <span className="font-medium text-sm text-[var(--pro-text-primary)]">Administrative</span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-medium text-[var(--pro-text-secondary)]">{adminTasks.length}</span>
+                </button>
+
+                {!collapsedSections['administrative'] && (
+                  <div className="border-t border-[var(--pro-border)] divide-y divide-[var(--pro-border)]">
+                    {adminTasks.map((task) => (
+                      <TaskListItem
+                        key={task.id}
+                        task={task}
+                        onEdit={handleEditTask}
+                        onDelete={handleDeleteTask}
+                        onStatusChange={handleStatusChange}
+                        onScheduleChange={handleScheduleChange}
+                        isSelected={selectedTasks.has(task.id)}
+                        onToggleSelect={(taskId) => {
+                          const newSelected = new Set(selectedTasks);
+                          if (newSelected.has(taskId)) newSelected.delete(taskId);
+                          else newSelected.add(taskId);
+                          setSelectedTasks(newSelected);
+                        }}
+                        showBulkSelect={bulkActionMode}
+                        getUserDisplayName={getUserDisplayName}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* General Tasks - Compact Card */}
+            {generalTasks.length > 0 && (
+              <div className="bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)] overflow-hidden">
+                <button
+                  onClick={() => toggleSection('general')}
+                  className="w-full p-3 flex items-center gap-3 hover:bg-[var(--pro-surface-highlight)] transition-colors"
+                >
+                  <div className="flex-shrink-0">
+                    {collapsedSections['general'] ?
+                      <ChevronRight size={16} className="text-[var(--pro-text-secondary)]" /> :
+                      <ChevronDown size={16} className="text-[var(--pro-text-secondary)]" />
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle size={14} className="text-[var(--pro-mint)] flex-shrink-0" />
+                      <span className="font-medium text-sm text-[var(--pro-text-primary)]">General</span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-medium text-[var(--pro-text-secondary)]">{generalTasks.length}</span>
+                </button>
+
+                {!collapsedSections['general'] && (
+                  <div className="border-t border-[var(--pro-border)] divide-y divide-[var(--pro-border)]">
+                    {generalTasks.map((task) => (
+                      <TaskListItem
+                        key={task.id}
+                        task={task}
+                        onEdit={handleEditTask}
+                        onDelete={handleDeleteTask}
+                        onStatusChange={handleStatusChange}
+                        onScheduleChange={handleScheduleChange}
+                        isSelected={selectedTasks.has(task.id)}
+                        onToggleSelect={(taskId) => {
+                          const newSelected = new Set(selectedTasks);
+                          if (newSelected.has(taskId)) newSelected.delete(taskId);
+                          else newSelected.add(taskId);
+                          setSelectedTasks(newSelected);
+                        }}
+                        showBulkSelect={bulkActionMode}
+                        getUserDisplayName={getUserDisplayName}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
       ) : (
-        // All Tasks View - Flat list
-        <div className="space-y-2">
-          {filteredTasks.length > 0 ? (
-            filteredTasks.map((task) => {
-              const project = projects.find(p => p.id === task.projectId);
-              return (
-                <TaskListItem
-                  key={task.id}
-                  task={task}
-                  projectName={project?.name}
-                  onEdit={handleEditTask}
-                  onDelete={handleDeleteTask}
-                  onStatusChange={handleStatusChange}
-                  onScheduleChange={handleScheduleChange}
-                  isSelected={selectedTasks.has(task.id)}
-                  onToggleSelect={(taskId) => {
-                    const newSelected = new Set(selectedTasks);
-                    if (newSelected.has(taskId)) newSelected.delete(taskId);
-                    else newSelected.add(taskId);
-                    setSelectedTasks(newSelected);
-                  }}
-                  showBulkSelect={bulkActionMode}
-                  getUserDisplayName={getUserDisplayName}
-                />
-              );
-            })
-          ) : (
-            <div className="text-center py-12 bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)]">
-              <List size={32} className="mx-auto text-[var(--pro-text-muted)] mb-2" />
-              <p className="text-sm text-[var(--pro-text-secondary)] mb-3">
-                {(searchTerm || statusFilter !== "all" || priorityFilter !== "all" || assigneeFilter !== "all")
-                  ? "No tasks match your filters"
-                  : "No tasks yet"
-                }
-              </p>
-              <Button
-                size="sm"
-                onClick={() => setIsCreateDialogOpen(true)}
-                className="bg-[var(--pro-mint)] text-[var(--pro-bg-deep)] hover:bg-[var(--pro-mint-dim)]"
-              >
-                <Plus size={14} className="mr-1" />
-                Create Task
-              </Button>
-            </div>
-          )}
-        </div>
+        // All Tasks View - Canvas or List based on viewMode
+        viewMode === "canvas" ? (
+          // Canvas View - Grid of cards
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredTasks.length > 0 ? (
+              filteredTasks.map((task) => {
+                const project = projects.find(p => p.id === task.projectId);
+                return (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    project={project}
+                    onEdit={handleEditTask}
+                    onDelete={handleDeleteTask}
+                    onStatusChange={handleStatusChange}
+                    onScheduleChange={handleScheduleChange}
+                    getUserDisplayName={getUserDisplayName}
+                  />
+                );
+              })
+            ) : (
+              <div className="col-span-full text-center py-12 bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)]">
+                <Grid3X3 size={32} className="mx-auto text-[var(--pro-text-muted)] mb-2" />
+                <p className="text-sm text-[var(--pro-text-secondary)] mb-3">
+                  {(searchTerm || statusFilter !== "all" || priorityFilter !== "all" || assigneeFilter !== "all")
+                    ? "No tasks match your filters"
+                    : "No tasks yet"
+                  }
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  className="bg-[var(--pro-mint)] text-[var(--pro-bg-deep)] hover:bg-[var(--pro-mint-dim)]"
+                >
+                  <Plus size={14} className="mr-1" />
+                  Create Task
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : (
+          // List View - Flat list
+          <div className="space-y-2">
+            {filteredTasks.length > 0 ? (
+              filteredTasks.map((task) => {
+                const project = projects.find(p => p.id === task.projectId);
+                return (
+                  <TaskListItem
+                    key={task.id}
+                    task={task}
+                    projectName={project?.name}
+                    onEdit={handleEditTask}
+                    onDelete={handleDeleteTask}
+                    onStatusChange={handleStatusChange}
+                    onScheduleChange={handleScheduleChange}
+                    isSelected={selectedTasks.has(task.id)}
+                    onToggleSelect={(taskId) => {
+                      const newSelected = new Set(selectedTasks);
+                      if (newSelected.has(taskId)) newSelected.delete(taskId);
+                      else newSelected.add(taskId);
+                      setSelectedTasks(newSelected);
+                    }}
+                    showBulkSelect={bulkActionMode}
+                    getUserDisplayName={getUserDisplayName}
+                  />
+                );
+              })
+            ) : (
+              <div className="text-center py-12 bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)]">
+                <List size={32} className="mx-auto text-[var(--pro-text-muted)] mb-2" />
+                <p className="text-sm text-[var(--pro-text-secondary)] mb-3">
+                  {(searchTerm || statusFilter !== "all" || priorityFilter !== "all" || assigneeFilter !== "all")
+                    ? "No tasks match your filters"
+                    : "No tasks yet"
+                  }
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  className="bg-[var(--pro-mint)] text-[var(--pro-bg-deep)] hover:bg-[var(--pro-mint-dim)]"
+                >
+                  <Plus size={14} className="mr-1" />
+                  Create Task
+                </Button>
+              </div>
+            )}
+          </div>
+        )
       )}
 
       {/* Mobile Bottom Navigation */}
@@ -1562,9 +1751,23 @@ function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormP
   const watchedCategory = form.watch("category");
   const isProjectRequired = watchedCategory === "project";
   
+  // #region agent log
+  const handleFormSubmit = form.handleSubmit(
+    (data) => {
+      console.log('🟢 DEBUG: Form validation PASSED!', { data });
+      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskForm:handleSubmit:success',message:'Form validation passed',data:{formData:data,formState:{isValid:form.formState.isValid,errors:form.formState.errors}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,E'})}).catch(()=>{});
+      onSubmit(data);
+    },
+    (errors) => {
+      console.log('🔴 DEBUG: Form validation FAILED!', { errors, formValues: form.getValues() });
+      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskForm:handleSubmit:error',message:'Form validation failed',data:{errors,formValues:form.getValues()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,E'})}).catch(()=>{});
+    }
+  );
+  // #endregion
+  
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleFormSubmit} className="space-y-4">
         <FormField
           control={form.control}
           name="title"
@@ -1755,7 +1958,17 @@ function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormP
         />
         
         <div className="flex justify-end space-x-2">
-          <Button type="submit" disabled={isLoading} className="construction-primary text-white">
+          <Button 
+            type="submit" 
+            disabled={isLoading} 
+            className="construction-primary text-white"
+            onClick={(e) => {
+              // #region agent log
+              console.log('🔴 DEBUG: Submit button clicked!', { isLoading, isValid: form.formState.isValid, errors: form.formState.errors });
+              fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskForm:submitButton:click',message:'Submit button clicked',data:{isLoading,formState:{isValid:form.formState.isValid,isSubmitting:form.formState.isSubmitting,errors:Object.keys(form.formState.errors)}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
+              // #endregion
+            }}
+          >
             {isLoading ? "Saving..." : submitText}
           </Button>
         </div>

@@ -307,17 +307,19 @@ export default function WorkPage() {
   // === TASK MUTATIONS ===
   const createTaskMutation = useMutation({
     mutationFn: async (data: InsertTask) => {
+      // #region agent log
+      console.log('🟡 DEBUG [work-page]: mutationFn called', { data });
+      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:mutationFn',message:'Mutation function called',data:{mutationData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       const response = await apiRequest("/api/tasks", { method: "POST", body: data });
-
-      // Parse JSON response - critical for mutation to resolve properly
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
+      // apiRequest already throws on non-ok responses
       return await response.json();
     },
     onSuccess: () => {
+      // #region agent log
+      console.log('🟢 DEBUG [work-page]: mutation onSuccess');
+      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:onSuccess',message:'Mutation succeeded',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       // Close dialog and reset form first
       setIsTaskCreateDialogOpen(false);
       taskForm.reset();
@@ -326,6 +328,14 @@ export default function WorkPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({ title: "Task created successfully" });
+    },
+    onError: (error: any) => {
+      // #region agent log
+      console.log('🔴 DEBUG [work-page]: mutation onError', { error: error?.message || String(error) });
+      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:onError',message:'Mutation failed',data:{error:error?.message||String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      console.error("[Task Create] Error:", error);
+      toast({ title: "Failed to create task", description: error?.message, variant: "destructive" });
     },
   });
 
@@ -490,7 +500,11 @@ export default function WorkPage() {
       const matchesSearch =
         task.title.toLowerCase().includes(debouncedTaskSearch.toLowerCase()) ||
         task.description?.toLowerCase().includes(debouncedTaskSearch.toLowerCase());
-      const matchesStatus = taskStatusFilter === "all" || task.status === taskStatusFilter;
+      const matchesStatus =
+        taskStatusFilter === "all" ||
+        (taskStatusFilter === "overdue" && isTaskOverdue(task)) ||
+        (taskStatusFilter === "dueThisWeek" && isTaskDueThisWeek(task)) ||
+        task.status === taskStatusFilter;
       const matchesPriority = taskPriorityFilter === "all" || task.priority === taskPriorityFilter;
       const matchesAssignee =
         taskAssigneeFilter === "all" ||
@@ -612,11 +626,19 @@ export default function WorkPage() {
   };
 
   const handleCreateTask = (data: InsertTask) => {
+    // #region agent log
+    console.log('🟢 DEBUG [work-page]: handleCreateTask called', { data });
+    fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:handleCreateTask',message:'handleCreateTask called',data:{formData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
+    // #endregion
     const taskData = {
       ...data,
       description: data.description?.trim() || null,
       dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
     };
+    // #region agent log
+    console.log('🟡 DEBUG [work-page]: Prepared taskData', { taskData });
+    fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:handleCreateTask:prepared',message:'Prepared taskData for mutation',data:{taskData},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     createTaskMutation.mutate(taskData);
   };
 
@@ -977,6 +999,7 @@ export default function WorkPage() {
                 <span className="text-[10px] text-[var(--pro-text-secondary)]">Overdue</span>
               </button>
               <button
+                onClick={() => setTaskStatusFilter("dueThisWeek")}
                 className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--pro-blue)]/10 rounded-lg border border-[var(--pro-blue)]/30 active:scale-95 transition-transform"
                 data-testid="stat-due-this-week"
               >
@@ -1018,6 +1041,7 @@ export default function WorkPage() {
                 value={taskStats.dueThisWeek}
                 sublabel="Due within 7 days"
                 tone="blue"
+                onClick={() => setTaskStatusFilter("dueThisWeek")}
                 data-testid="stat-due-this-week-desktop"
               />
               <StatCard
@@ -1063,7 +1087,7 @@ export default function WorkPage() {
                 <SelectContent position="popper" side="bottom" align="start" sideOffset={4} className="z-50">
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="blocked">Blocked</SelectItem>
                 </SelectContent>
@@ -1145,7 +1169,50 @@ export default function WorkPage() {
                 }
                 data-testid="empty-state-tasks"
               />
+            ) : taskViewMode === "canvas" ? (
+              /* Canvas View - Grid of cards */
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredTasks.map((task) => {
+                  const project = projects.find(p => p.id === task.projectId);
+                  const assignees = task.assigneeId
+                    ? [{ id: task.assigneeId, name: getUserName(task.assigneeId) || "Unknown" }]
+                    : [];
+
+                  return (
+                    <TabletTaskCard
+                      key={task.id}
+                      id={task.id}
+                      title={task.title}
+                      projectName={project?.name}
+                      location={project?.location || undefined}
+                      priority={task.priority as any}
+                      status={task.status}
+                      dueDate={task.dueDate ? new Date(task.dueDate) : undefined}
+                      isOverdue={isTaskOverdue(task)}
+                      assignees={assignees}
+                      onStatusChange={(newStatus) =>
+                        updateTaskMutation.mutate({
+                          id: task.id,
+                          data: { status: newStatus },
+                        })
+                      }
+                      menuItems={[
+                        { label: "Edit", icon: Edit, onClick: () => handleEditTask(task) },
+                        {
+                          label: "Delete",
+                          icon: Trash2,
+                          onClick: () => handleDeleteTask(task),
+                          variant: "danger",
+                          separator: true,
+                        },
+                      ]}
+                      data-testid={`task-card-${task.id}`}
+                    />
+                  );
+                })}
+              </div>
             ) : (
+              /* List View - Grouped by Project */
               <div className="space-y-6">
                 {/* Grouped by Project */}
                 {Object.entries(tasksByProject).map(([projectId, { project, tasks: projectTasks }]) => (
@@ -1778,7 +1845,21 @@ export default function WorkPage() {
             <DialogTitle>Create New Task</DialogTitle>
           </DialogHeader>
           <Form {...taskForm}>
-            <form onSubmit={taskForm.handleSubmit(handleCreateTask)} className="space-y-4">
+            <form onSubmit={taskForm.handleSubmit(
+              (data) => {
+                // #region agent log
+                console.log('🟢 DEBUG [work-page]: Form validation PASSED', { data, formState: taskForm.formState });
+                fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:formSubmit:success',message:'Form validation passed',data:{formData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,E'})}).catch(()=>{});
+                // #endregion
+                handleCreateTask(data);
+              },
+              (errors) => {
+                // #region agent log
+                console.log('🔴 DEBUG [work-page]: Form validation FAILED', { errors, formValues: taskForm.getValues() });
+                fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:formSubmit:error',message:'Form validation failed',data:{errors,formValues:taskForm.getValues()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,E'})}).catch(()=>{});
+                // #endregion
+              }
+            )} className="space-y-4">
               <FormField
                 control={taskForm.control}
                 name="title"
@@ -1898,7 +1979,7 @@ export default function WorkPage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="in-progress">In Progress</SelectItem>
                           <SelectItem value="completed">Completed</SelectItem>
                           <SelectItem value="blocked">Blocked</SelectItem>
                         </SelectContent>
@@ -1953,7 +2034,17 @@ export default function WorkPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" data-testid="button-submit-task" disabled={createTaskMutation.isPending}>
+                <Button 
+                  type="submit" 
+                  data-testid="button-submit-task" 
+                  disabled={createTaskMutation.isPending}
+                  onClick={() => {
+                    // #region agent log
+                    console.log('🔴 DEBUG [work-page]: Create Task button clicked!', { isPending: createTaskMutation.isPending, formState: { isValid: taskForm.formState.isValid, errors: taskForm.formState.errors } });
+                    fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'work-page.tsx:submitButton:click',message:'Submit button clicked',data:{isPending:createTaskMutation.isPending,formState:{isValid:taskForm.formState.isValid,errors:Object.keys(taskForm.formState.errors)}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
+                    // #endregion
+                  }}
+                >
                   {createTaskMutation.isPending ? "Creating..." : "Create Task"}
                 </Button>
               </div>
@@ -2115,7 +2206,7 @@ export default function WorkPage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="in-progress">In Progress</SelectItem>
                           <SelectItem value="completed">Completed</SelectItem>
                           <SelectItem value="blocked">Blocked</SelectItem>
                         </SelectContent>
