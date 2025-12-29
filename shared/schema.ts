@@ -560,8 +560,8 @@ export const upsertUserSchema = createInsertSchema(users).omit({ createdAt: true
 // Project schemas
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true, updatedAt: true });
 
-// Task schemas
-export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, updatedAt: true, completedAt: true }).extend({
+// Task schemas - companyId is omitted because backend adds it from authenticated user
+export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, companyId: true, createdAt: true, updatedAt: true, completedAt: true }).extend({
   dueDate: z.union([z.date(), z.string(), z.null()]).optional().nullable(),
 }).refine((data) => {
   if (data.category === "project" && (!data.projectId || data.projectId === null)) {

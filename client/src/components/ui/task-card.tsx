@@ -1,4 +1,4 @@
-import { GripVertical, Clock } from "lucide-react";
+import { GripVertical, Clock, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AvatarGroup } from "@/components/ui/avatar-group";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -6,6 +6,13 @@ import { OverflowMenu, OverflowMenuItem } from "@/components/ui/overflow-menu";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { highlightText } from "@/lib/highlightText";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface TaskCardProps {
   id: string;
@@ -24,6 +31,7 @@ interface TaskCardProps {
   isDraggable?: boolean;
   searchTerm?: string;
   className?: string;
+  variant?: "row" | "canvas";
   "data-testid"?: string;
 }
 
@@ -51,14 +59,125 @@ export function TaskCard({
   isDraggable,
   searchTerm = "",
   className,
+  variant = "row",
   "data-testid": testId,
 }: TaskCardProps) {
   const statusOptions = [
     { value: "pending", label: "Pending" },
-    { value: "in_progress", label: "In Progress" },
+    { value: "in-progress", label: "In Progress" },
     { value: "done", label: "Done" },
   ];
 
+  const statusLabels: Record<string, string> = {
+    "pending": "Pending",
+    "in-progress": "In Progress",
+    "done": "Done",
+  };
+
+  // Canvas variant - vertical card layout for grid displays
+  if (variant === "canvas") {
+    return (
+      <div
+        data-testid={testId}
+        className={cn(
+          "flex flex-col p-4 bg-[#161B22] border border-[#2D333B] rounded-lg h-full",
+          "hover:border-[#4ADE80]/50 hover:shadow-lg transition-all",
+          isSelected && "ring-2 ring-[#4ADE80] border-[#4ADE80]",
+          className
+        )}
+      >
+        {/* Header: Checkbox + Menu */}
+        <div className="flex items-center justify-between mb-3">
+          {onSelect ? (
+            <label className="tap-target cursor-pointer" aria-label={`Select ${title}`}>
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={onSelect}
+                data-testid={`task-checkbox-${id}`}
+                className="w-5 h-5 rounded border-[#2D333B] bg-[#1F242C] text-[#4ADE80] focus:ring-[#4ADE80] cursor-pointer"
+              />
+            </label>
+          ) : (
+            <div />
+          )}
+          {menuItems && menuItems.length > 0 && (
+            <OverflowMenu items={menuItems} data-testid={`task-menu-${id}`} />
+          )}
+        </div>
+
+        {/* Title - allow wrapping, max 2 lines */}
+        <h4 className="font-semibold text-[var(--text-primary)] mb-1 line-clamp-2 leading-tight">
+          {searchTerm ? highlightText(title, searchTerm) : title}
+        </h4>
+
+        {/* Project & Location */}
+        {(projectName || location) && (
+          <p className="text-sm text-[var(--text-secondary)] line-clamp-1 mb-3">
+            {[projectName, location].filter(Boolean).join(" • ")}
+          </p>
+        )}
+
+        {/* Meta: Priority + Due Date */}
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          {priority && (
+            <Badge
+              variant="outline"
+              className={cn("text-xs", priorityColors[priority])}
+            >
+              {priority.charAt(0).toUpperCase() + priority.slice(1)}
+            </Badge>
+          )}
+
+          {dueDate && (
+            <span
+              className={cn(
+                "flex items-center gap-1 text-xs",
+                isOverdue
+                  ? "text-[var(--color-danger-600)] font-medium"
+                  : "text-[var(--text-secondary)]"
+              )}
+            >
+              {isOverdue && <Clock className="w-3 h-3" />}
+              {format(dueDate, "MMM d")}
+            </span>
+          )}
+        </div>
+
+        {/* Assignees */}
+        {assignees.length > 0 && (
+          <div className="mb-3">
+            <AvatarGroup avatars={assignees} max={3} size="sm" />
+          </div>
+        )}
+
+        {/* Footer: Compact Status Dropdown */}
+        {onStatusChange && (
+          <div className="mt-auto pt-3 border-t border-[#2D333B]">
+            <Select value={status} onValueChange={onStatusChange}>
+              <SelectTrigger
+                className="w-full h-8 bg-[#1F242C] border-[#2D333B] text-sm"
+                data-testid={`task-status-select-${id}`}
+              >
+                <SelectValue placeholder="Status">
+                  {statusLabels[status] || status}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Default row variant
   return (
     <div
       data-testid={testId}

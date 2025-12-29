@@ -21,10 +21,10 @@ import FinancialHealthDashboard from "@/components/financial/financial-health-da
 
 export default function Dashboard() {
   const [isMobileFABOpen, setIsMobileFABOpen] = useState(false);
-  
+
   return (
-    <div 
-      className="overflow-hidden h-full" 
+    <div
+      className="overflow-hidden h-full"
       data-testid="dashboard"
       style={{ backgroundColor: '#0F1115' }}
     >
@@ -33,43 +33,43 @@ export default function Dashboard() {
           <StatsCards />
 
           <Tabs defaultValue="overview" className="w-full">
-            <div 
-              className="sticky top-[56px] z-30 border-b px-2 py-2 -mx-6 md:-mx-8 mb-8"
-              style={{ 
+            <div
+              className="relative z-30 border-b px-2 py-2 -mx-6 md:-mx-8 mb-8"
+              style={{
                 backgroundColor: '#0F1115',
                 borderColor: '#2D333B'
               }}
             >
-              <TabsList 
+              <TabsList
                 className="w-full grid grid-cols-2 md:grid-cols-4 p-1 rounded-xl"
                 style={{ backgroundColor: '#161B22' }}
               >
-                <TabsTrigger 
-                  value="overview" 
+                <TabsTrigger
+                  value="overview"
                   className="min-h-[48px] text-[#9CA3AF] data-[state=active]:text-white data-[state=active]:bg-[#1F242C] rounded-lg transition-all"
                   aria-label="Project Overview"
                   data-testid="tab-overview"
                 >
                   Project Overview
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="tasks" 
+                <TabsTrigger
+                  value="tasks"
                   className="min-h-[48px] text-[#9CA3AF] data-[state=active]:text-white data-[state=active]:bg-[#1F242C] rounded-lg transition-all"
                   aria-label="Task Management"
                   data-testid="tab-tasks"
                 >
                   Task Management
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="communications" 
+                <TabsTrigger
+                  value="communications"
                   className="min-h-[48px] text-[#9CA3AF] data-[state=active]:text-white data-[state=active]:bg-[#1F242C] rounded-lg transition-all"
                   aria-label="Communications"
                   data-testid="tab-communications"
                 >
                   Communications
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="financial" 
+                <TabsTrigger
+                  value="financial"
                   className="min-h-[48px] text-[#9CA3AF] data-[state=active]:text-white data-[state=active]:bg-[#1F242C] rounded-lg transition-all"
                   aria-label="Financial Health"
                   data-testid="tab-financial"
@@ -122,10 +122,10 @@ export default function Dashboard() {
                 <Plus className="h-6 w-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent 
-              side="bottom" 
+            <SheetContent
+              side="bottom"
               className="h-auto max-h-[80vh] border-t"
-              style={{ 
+              style={{
                 backgroundColor: '#161B22',
                 borderColor: '#2D333B'
               }}

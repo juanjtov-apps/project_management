@@ -12,8 +12,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, CalendarIcon, Clock, User as UserIcon, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle, Grid3X3, List, FolderOpen, ChevronDown, ChevronRight, AlarmClock, Filter, RotateCcw, CheckSquare, Square, Eye, Search, Maximize2, Minimize2, SlidersHorizontal } from "lucide-react";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { BottomNavigation } from "@/components/ui/bottom-navigation";
+import { Plus, CalendarIcon, Clock, User as UserIcon, MoreHorizontal, Edit, Trash2, Building, Settings, CheckCircle, Grid3X3, List, FolderOpen, ChevronDown, ChevronRight, AlarmClock, RotateCcw, Search, Home, ClipboardList, FolderKanban } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertTaskSchema } from "@shared/schema";
@@ -57,6 +58,14 @@ const getStatusColor = (status: string) => {
 const isTaskOverdue = (task: Task): boolean => {
   if (!task.dueDate) return false;
   return new Date(task.dueDate) < new Date();
+};
+
+const isTaskDueThisWeek = (task: Task): boolean => {
+  if (!task.dueDate) return false;
+  const dueDate = new Date(task.dueDate);
+  const now = new Date();
+  const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  return dueDate >= now && dueDate <= weekFromNow;
 };
 
 const getTaskStats = (tasks: Task[]) => {
@@ -682,6 +691,8 @@ export default function Tasks() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
   const [bulkActionMode, setBulkActionMode] = useState(false);
+  const [activeTab, setActiveTab] = useState<"projects" | "tasks">("tasks");
+  const [mobileNav, setMobileNav] = useState<string>("tasks");
 
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -695,12 +706,26 @@ export default function Tasks() {
   });
 
   const createTaskMutation = useMutation({
-    mutationFn: (data: InsertTask) => apiRequest("/api/tasks", { method: "POST", body: data }),
+    mutationFn: (data: InsertTask) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:mutationFn',message:'Mutation function called',data:{mutationData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      return apiRequest("/api/tasks", { method: "POST", body: data });
+    },
     onSuccess: () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:onSuccess',message:'Mutation succeeded',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       setIsCreateDialogOpen(false);
       form.reset();
+    },
+    onError: (error: any) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:onError',message:'Mutation failed',data:{error:error?.message||String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      console.error("Task creation failed:", error);
     },
   });
 
@@ -758,6 +783,9 @@ export default function Tasks() {
   });
 
   const onSubmit = (data: InsertTask) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:onSubmit',message:'onSubmit called with form data',data:{formData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
+    // #endregion
     console.log("Tasks page form data:", data);
     
     // Prepare data for API - send dates as ISO strings
@@ -767,6 +795,9 @@ export default function Tasks() {
       dueDate: data.dueDate ? (typeof data.dueDate === 'string' ? data.dueDate : data.dueDate.toISOString()) : null,
     };
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tasks.tsx:onSubmit',message:'Prepared taskData for mutation',data:{taskData},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
+    // #endregion
     console.log("Tasks page data being sent to API:", taskData);
     createTaskMutation.mutate(taskData);
   };
@@ -846,7 +877,11 @@ export default function Tasks() {
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || task.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "overdue" && isTaskOverdue(task)) ||
+      (statusFilter === "dueThisWeek" && isTaskDueThisWeek(task)) ||
+      task.status === statusFilter;
     const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
     const matchesAssignee = assigneeFilter === "all" || 
                            (assigneeFilter === "unassigned" && !task.assigneeId) ||
@@ -899,24 +934,20 @@ export default function Tasks() {
 
   if (tasksLoading) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Task Management</h1>
+      <div className="space-y-4 pb-20">
+        {/* Compact loading skeleton */}
+        <div className="flex justify-between items-center px-1">
+          <div className="h-6 w-24 bg-[var(--pro-surface-highlight)] rounded animate-shimmer"></div>
+          <div className="h-9 w-9 bg-[var(--pro-surface-highlight)] rounded-lg animate-shimmer"></div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader>
-                <div className="h-4 bg-gray-200 rounded"></div>
-                <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="h-3 bg-gray-200 rounded"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              </CardContent>
-            </Card>
+        <div className="flex gap-2 overflow-hidden">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="flex-shrink-0 w-20 h-14 bg-[var(--pro-surface)] rounded-lg animate-shimmer" />
+          ))}
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-16 bg-[var(--pro-surface)] rounded-xl animate-shimmer" />
           ))}
         </div>
       </div>
@@ -924,14 +955,18 @@ export default function Tasks() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold construction-secondary">Task Management</h1>
+    <div className="space-y-3 pb-20 md:pb-6">
+      {/* Compact Header: title + add button inline */}
+      <div className="flex items-center justify-between gap-2 px-1">
+        <h1 className="text-lg font-semibold text-[var(--pro-text-primary)]">Tasks</h1>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="construction-primary text-white h-9 rounded-lg">
-              <Plus size={16} className="mr-2" />
-              New Task
+            <Button
+              size="sm"
+              className="h-9 w-9 md:w-auto md:px-3 rounded-lg bg-[var(--pro-mint)] text-[var(--pro-bg-deep)] hover:bg-[var(--pro-mint-dim)]"
+            >
+              <Plus size={18} className="md:mr-1" />
+              <span className="hidden md:inline text-sm font-medium">New Task</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
@@ -1119,374 +1154,175 @@ export default function Tasks() {
 
       </div>
 
-      {/* Task Statistics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-white border border-slate-200">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-slate-900">{taskStats.total}</div>
-            <div className="text-sm text-slate-600 mt-1">Total Tasks</div>
-          </CardContent>
-        </Card>
-        
-        <Card className={cn(
-          "border",
-          taskStats.overdue > 0 ? "bg-red-50 border-red-200" : "bg-white border-slate-200"
-        )}>
-          <CardContent className="p-4 text-center">
-            <div className={cn(
-              "text-2xl font-bold",
-              taskStats.overdue > 0 ? "text-red-600" : "text-slate-900"
-            )}>{taskStats.overdue}</div>
-            <div className="text-sm text-slate-600 mt-1">Overdue</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-orange-50 border border-orange-200">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-orange-600">{taskStats.dueThisWeek}</div>
-            <div className="text-sm text-slate-600 mt-1">Due This Week</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-green-50 border border-green-200">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{taskStats.completed}</div>
-            <div className="text-sm text-slate-600 mt-1">Completed</div>
-          </CardContent>
-        </Card>
+      {/* Horizontal Stats Strip - compact single row */}
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <button
+          onClick={() => setStatusFilter("all")}
+          className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-[var(--pro-surface)] rounded-lg border border-[var(--pro-border)] active:scale-95 transition-transform"
+        >
+          <span className="text-lg font-bold text-[var(--pro-text-primary)]">{taskStats.total}</span>
+          <span className="text-xs text-[var(--pro-text-secondary)]">Total</span>
+        </button>
+        <button
+          onClick={() => setStatusFilter("overdue")}
+          className={cn(
+            "flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg border active:scale-95 transition-transform",
+            taskStats.overdue > 0
+              ? "bg-[var(--pro-red)]/10 border-[var(--pro-red)]/30"
+              : "bg-[var(--pro-surface)] border-[var(--pro-border)]"
+          )}
+        >
+          <span className={cn(
+            "text-lg font-bold",
+            taskStats.overdue > 0 ? "text-[var(--pro-red)]" : "text-[var(--pro-text-primary)]"
+          )}>{taskStats.overdue}</span>
+          <span className="text-xs text-[var(--pro-text-secondary)]">Overdue</span>
+        </button>
+        <button
+          onClick={() => setStatusFilter("dueThisWeek")}
+          className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-[var(--pro-orange)]/10 rounded-lg border border-[var(--pro-orange)]/30 active:scale-95 transition-transform"
+        >
+          <span className="text-lg font-bold text-[var(--pro-orange)]">{taskStats.dueThisWeek}</span>
+          <span className="text-xs text-[var(--pro-text-secondary)]">This Week</span>
+        </button>
+        <button
+          onClick={() => setStatusFilter("completed")}
+          className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-[var(--pro-mint)]/10 rounded-lg border border-[var(--pro-mint)]/30 active:scale-95 transition-transform"
+        >
+          <span className="text-lg font-bold text-[var(--pro-mint)]">{taskStats.completed}</span>
+          <span className="text-xs text-[var(--pro-text-secondary)]">Done</span>
+        </button>
       </div>
 
-      {/* Mobile-Optimized Action Buttons Row */}
-      <div className="bg-white border border-slate-200 rounded-lg p-4 mb-6">
-        <div className="flex items-center justify-between">
-          {/* Desktop: Show buttons normally */}
-          <div className="hidden md:flex items-center space-x-2">
+      {/* iOS-Style Segmented Control for Projects/Tasks */}
+      <div className="flex justify-center">
+        <SegmentedControl
+          options={[
+            { value: "projects", label: "By Project", icon: <FolderKanban size={14} /> },
+            { value: "tasks", label: "All Tasks", icon: <ClipboardList size={14} /> },
+          ]}
+          value={activeTab}
+          onChange={(v) => setActiveTab(v as "projects" | "tasks")}
+          className="w-full max-w-xs"
+        />
+      </div>
+
+      {/* Compact Filter Bar */}
+      <div className="bg-[var(--pro-surface)] rounded-xl p-3 border border-[var(--pro-border)]">
+        {/* Search row */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center flex-1 gap-2 px-3 py-2 bg-[var(--pro-surface-highlight)] rounded-lg">
+            <Search size={14} className="text-[var(--pro-text-secondary)] flex-shrink-0" />
+            <Input
+              placeholder="Search tasks..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="border-0 bg-transparent h-6 p-0 text-sm text-[var(--pro-text-primary)] placeholder:text-[var(--pro-text-muted)] focus-visible:ring-0"
+            />
+          </div>
+
+          {/* View toggle - all screen sizes */}
+          <div className="flex items-center bg-[var(--pro-surface-highlight)] rounded-lg p-0.5">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={() => {
-                const allExpanded = Object.keys(collapsedSections).length === 0 || 
-                                   Object.values(collapsedSections).every(v => !v);
-                if (allExpanded) {
-                  const newCollapsed: Record<string, boolean> = { projects: true, administrative: true, general: true };
-                  Object.values(tasksByProject).forEach(({ project }) => {
-                    newCollapsed[`project-${project.id}`] = true;
-                  });
-                  setCollapsedSections(newCollapsed);
-                } else {
-                  setCollapsedSections({});
-                }
-              }}
-              className="text-sm h-9 rounded-lg"
-            >
-              {Object.keys(collapsedSections).length === 0 || Object.values(collapsedSections).every(v => !v) ? (
-                <>
-                  <Minimize2 size={14} className="mr-1" />
-                  Collapse All
-                </>
-              ) : (
-                <>
-                  <Maximize2 size={14} className="mr-1" />
-                  Expand All
-                </>
+              onClick={() => setViewMode("canvas")}
+              className={cn(
+                "h-8 w-8 p-0 rounded-md",
+                viewMode === "canvas" ? "bg-[var(--pro-mint)] text-[var(--pro-bg-deep)]" : "text-[var(--pro-text-secondary)]"
               )}
+            >
+              <Grid3X3 size={14} />
             </Button>
-            
             <Button
-              variant={bulkActionMode ? "default" : "outline"}
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className={cn(
+                "h-8 w-8 p-0 rounded-md",
+                viewMode === "list" ? "bg-[var(--pro-mint)] text-[var(--pro-bg-deep)]" : "text-[var(--pro-text-secondary)]"
+              )}
+            >
+              <List size={14} />
+            </Button>
+          </div>
+        </div>
+
+        {/* Filter chips - horizontal scroll with fixed positioning */}
+        <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-1 px-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="flex-shrink-0 h-8 min-w-[90px] w-auto px-2.5 text-xs bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] rounded-full">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent position="popper" side="bottom" align="start" sideOffset={4}>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="in-progress">In Progress</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="blocked">Blocked</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className="flex-shrink-0 h-8 min-w-[90px] w-auto px-2.5 text-xs bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] rounded-full">
+              <SelectValue placeholder="Priority" />
+            </SelectTrigger>
+            <SelectContent position="popper" side="bottom" align="start" sideOffset={4}>
+              <SelectItem value="all">All Priority</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="critical">Critical</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+            <SelectTrigger className="flex-shrink-0 h-8 min-w-[90px] w-auto px-2.5 text-xs bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] rounded-full">
+              <SelectValue placeholder="Person" />
+            </SelectTrigger>
+            <SelectContent position="popper" side="bottom" align="start" sideOffset={4}>
+              <SelectItem value="all">All People</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              <SelectItem value="me">Assigned to Me</SelectItem>
+              {managers.map((manager) => (
+                <SelectItem key={manager.id} value={manager.id}>
+                  {getUserDisplayName(manager.id)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Clear filters chip */}
+          {(statusFilter !== "all" || priorityFilter !== "all" || assigneeFilter !== "all") && (
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => {
-                setBulkActionMode(!bulkActionMode);
-                setSelectedTasks(new Set());
+                setStatusFilter("all");
+                setPriorityFilter("all");
+                setAssigneeFilter("all");
               }}
-              className="text-sm h-9 rounded-lg"
+              className="flex-shrink-0 h-8 px-2.5 text-xs text-[var(--pro-red)] hover:text-[var(--pro-red)] hover:bg-[var(--pro-red)]/10 rounded-full"
             >
-              <CheckSquare size={14} className="mr-1" />
-              Bulk Edit
+              <RotateCcw size={12} className="mr-1" />
+              Clear
             </Button>
-          </div>
-
-          {/* Mobile: Bulk actions in dropdown */}
-          <div className="md:hidden w-full">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-9 w-full justify-between"
-                >
-                  <span className="flex items-center">
-                    <Settings size={14} className="mr-2" />
-                    Actions
-                  </span>
-                  <ChevronDown size={14} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => {
-                  const allExpanded = Object.keys(collapsedSections).length === 0 || 
-                                     Object.values(collapsedSections).every(v => !v);
-                  if (allExpanded) {
-                    const newCollapsed: Record<string, boolean> = { projects: true, administrative: true, general: true };
-                    Object.values(tasksByProject).forEach(({ project }) => {
-                      newCollapsed[`project-${project.id}`] = true;
-                    });
-                    setCollapsedSections(newCollapsed);
-                  } else {
-                    setCollapsedSections({});
-                  }
-                }}>
-                  {Object.keys(collapsedSections).length === 0 || Object.values(collapsedSections).every(v => !v) ? (
-                    <>
-                      <Minimize2 size={14} className="mr-2" />
-                      Collapse All
-                    </>
-                  ) : (
-                    <>
-                      <Maximize2 size={14} className="mr-2" />
-                      Expand All
-                    </>
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {
-                  setBulkActionMode(!bulkActionMode);
-                  setSelectedTasks(new Set());
-                }}>
-                  <CheckSquare size={14} className="mr-2" />
-                  {bulkActionMode ? "Exit Bulk Edit" : "Bulk Edit"}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          )}
         </div>
-      </div>
-
-      {/* Mobile-Optimized Sticky Filter & View Bar */}
-      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 p-4 -mx-6" style={{ marginBottom: '16px' }}>
-        {/* Mobile: Stack search on top, filters below */}
-        <div className="space-y-3 md:space-y-0">
-          {/* Search and view toggles */}
-          <div className="flex gap-2 items-center justify-between">
-            <div className="flex items-center space-x-2 flex-1 max-w-sm">
-              <Search size={16} className="text-slate-400" />
-              <Input
-                placeholder="Search tasks..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="border-0 shadow-sm focus-visible:ring-0 pl-0 rounded-lg"
-              />
-            </div>
-            
-            <div className="flex items-center border rounded-lg">
-              <Button
-                variant={viewMode === "canvas" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("canvas")}
-                className="border-0 rounded-r-none h-9 px-3"
-              >
-                <Grid3X3 size={16} className="mr-1" />
-                <span className="hidden sm:inline">Canvas</span>
-              </Button>
-              <Button
-                variant={viewMode === "list" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("list")}
-                className="border-0 rounded-l-none h-9 px-3"
-              >
-                <List size={16} className="mr-1" />
-                <span className="hidden sm:inline">List</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* Mobile: Horizontally scrollable filters */}
-          <div className="flex gap-2 overflow-x-auto flex-nowrap pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="min-w-[110px] h-9 rounded-lg">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="blocked">Blocked</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="min-w-[110px] h-9 rounded-lg">
-                <SelectValue placeholder="Priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priority</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-              <SelectTrigger className="min-w-[120px] h-9 rounded-lg">
-                <SelectValue placeholder="Assignee" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All People</SelectItem>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                <SelectItem value="me">Assigned to Me</SelectItem>
-                {managers.map((manager) => (
-                  <SelectItem key={manager.id} value={manager.id}>
-                    {getUserDisplayName(manager.id)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            {/* Clear filters chip */}
-            {(statusFilter !== "all" || priorityFilter !== "all" || assigneeFilter !== "all") && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setStatusFilter("all");
-                  setPriorityFilter("all");
-                  setAssigneeFilter("all");
-                }}
-                className="h-9 px-3 rounded-lg whitespace-nowrap"
-              >
-                <RotateCcw size={14} className="mr-1" />
-                Clear
-              </Button>
-            )}
-            
-            {/* Advanced Filter Toggle */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className="h-9 px-3 rounded-lg whitespace-nowrap"
-            >
-              <SlidersHorizontal size={14} className="mr-1" />
-              Filters
-            </Button>
-          </div>
-        </div>
-        
-        {/* Advanced Filters Panel - Enhancement #9 */}
-        {showAdvancedFilters && (
-          <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="text-xs font-medium text-slate-600 mb-1 block">Project</label>
-                <Select value="all" onValueChange={() => {}}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue placeholder="All Projects" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Projects</SelectItem>
-                    {projects.map(project => (
-                      <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="text-xs font-medium text-slate-600 mb-1 block">Due Date</label>
-                <Select value="all" onValueChange={() => {}}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue placeholder="Any Date" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Any Date</SelectItem>
-                    <SelectItem value="overdue">Overdue</SelectItem>
-                    <SelectItem value="today">Due Today</SelectItem>
-                    <SelectItem value="week">This Week</SelectItem>
-                    <SelectItem value="month">This Month</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="text-xs font-medium text-slate-600 mb-1 block">Assignee</label>
-                <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue placeholder="Anyone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Anyone</SelectItem>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    <SelectItem value="me">Assigned to Me</SelectItem>
-                    {managers.map((manager) => (
-                      <SelectItem key={manager.id} value={manager.id}>
-                        {getUserDisplayName(manager.id)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex items-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setStatusFilter("all");
-                    setPriorityFilter("all");
-                    setAssigneeFilter("all");
-                    setShowAdvancedFilters(false);
-                  }}
-                  className="h-8 text-xs"
-                >
-                  <RotateCcw size={12} className="mr-1" />
-                  Reset
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
       
-      {/* Bulk Actions Toolbar - Enhancement #2 */}
+      {/* Bulk Actions Toolbar */}
       {bulkActionMode && selectedTasks.size > 0 && (
-        <div className="sticky top-20 z-10 bg-blue-50 border border-blue-200 rounded-lg p-3 -mx-6 mb-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-blue-700">
-              {selectedTasks.size} task{selectedTasks.size !== 1 ? 's' : ''} selected
+        <div className="bg-[var(--pro-mint)]/10 border border-[var(--pro-mint)]/30 rounded-xl p-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-sm font-medium text-[var(--pro-mint)]">
+              {selectedTasks.size} selected
             </span>
-            <div className="flex items-center space-x-2">
-              <Select value="" onValueChange={() => {}}>
-                <SelectTrigger className="h-8 w-32">
-                  <SelectValue placeholder="Change Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="blocked">Blocked</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value="" onValueChange={() => {}}>
-                <SelectTrigger className="h-8 w-32">
-                  <SelectValue placeholder="Assign To" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassign">Unassign</SelectItem>
-                  <SelectItem value="me">Assign to Me</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Button variant="outline" size="sm" className="h-8 text-red-600">
-                <Trash2 size={12} className="mr-1" />
-                Delete
-              </Button>
-              
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8"
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs text-[var(--pro-text-secondary)]"
                 onClick={() => {
                   setSelectedTasks(new Set());
                   setBulkActionMode(false);
@@ -1499,115 +1335,168 @@ export default function Tasks() {
         </div>
       )}
 
-      {viewMode === "list" ? (
-        // List View
-        <div className="space-y-3">
-          {/* Project Tasks Section */}
-          {Object.values(tasksByProject).length > 0 && (
-            <div className="space-y-4">
-              <Button
-                variant="ghost"
-                onClick={() => toggleSection('projects')}
-                className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
-              >
-                {collapsedSections['projects'] ? 
-                  <ChevronRight size={20} className="text-blue-600" /> : 
-                  <ChevronDown size={20} className="text-blue-600" />
-                }
-                <FolderOpen size={20} className="text-blue-600" />
-                <h2 className="text-lg font-semibold text-blue-600">Project Tasks</h2>
-                <Badge variant="outline" className="ml-2 text-xs">
-                  {Object.values(tasksByProject).reduce((total, { tasks }) => total + tasks.length, 0)} tasks
-                </Badge>
-              </Button>
-              
-              {!collapsedSections['projects'] && Object.values(tasksByProject).map(({ project, tasks }) => {
+      {/* Main Content Area - Based on activeTab and viewMode */}
+      {activeTab === "projects" ? (
+        // Projects View - Canvas or List based on viewMode
+        viewMode === "canvas" ? (
+          // Canvas View - Grid of cards grouped by project
+          <div className="space-y-6">
+            {Object.values(tasksByProject).length > 0 ? (
+              Object.values(tasksByProject).map(({ project, tasks }) => {
                 const projectProgress = getProjectProgress(tasks);
-                
                 return (
-                  <div key={project.id} className="space-y-2">
-                    {/* Mobile-Optimized Sticky Project Header */}
-                    <div className="sticky top-20 z-5 bg-white border-b border-slate-100 rounded-lg">
-                      <Button
-                        variant="ghost"
-                        onClick={() => toggleSection(`project-${project.id}`)}
-                        className="flex items-center w-full justify-start p-3 h-auto hover:bg-gray-50 ml-6"
-                      >
-                        <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center space-x-2 flex-1 min-w-0">
-                            {collapsedSections[`project-${project.id}`] ? 
-                              <ChevronRight size={16} className="text-gray-400 flex-shrink-0" /> : 
-                              <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
-                            }
-                            <Building size={16} className="text-brand-teal flex-shrink-0" />
-                            <span className="text-md font-medium text-gray-700 truncate">{project.name}</span>
-                            
-                            {/* Mobile: Compact task count pill */}
-                            <Badge 
-                              variant="outline" 
-                              className="h-6 px-2 text-xs bg-teal-50 text-teal-700 border-teal-200 rounded-full flex-shrink-0"
-                            >
-                              {tasks.length}
-                            </Badge>
-                          </div>
-                          
-                          {/* Desktop: Show detailed progress */}
-                          <div className="hidden md:flex items-center space-x-2 flex-shrink-0">
-                            <div className="w-4 h-4 relative">
-                              <svg className="w-4 h-4 transform -rotate-90" viewBox="0 0 24 24">
-                                <circle
-                                  cx="12"
-                                  cy="12"
-                                  r="8"
-                                  stroke="#E5E7EB"
-                                  strokeWidth="3"
-                                  fill="none"
-                                />
-                                <circle
-                                  cx="12"
-                                  cy="12"
-                                  r="8"
-                                  stroke={projectProgress.progressColor}
-                                  strokeWidth="3"
-                                  fill="none"
-                                  strokeDasharray={50.24}
-                                  strokeDashoffset={50.24 - (50.24 * projectProgress.percentage) / 100}
-                                  className="transition-all duration-300"
-                                />
-                              </svg>
-                            </div>
-                            
-                            <div className="w-8 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full transition-all duration-300 rounded-full"
-                                style={{ 
-                                  width: `${projectProgress.percentage}%`,
-                                  background: `linear-gradient(90deg, ${projectProgress.progressColor}30 0%, ${projectProgress.progressColor} 100%)`
-                                }}
-                              />
-                            </div>
-                          </div>
-                          
-                          {/* Mobile: Simple progress indicator */}
-                          <div className="md:hidden flex items-center space-x-1 flex-shrink-0">
-                            <div className="w-6 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full transition-all duration-300 rounded-full"
-                                style={{ 
-                                  width: `${projectProgress.percentage}%`,
-                                  background: projectProgress.progressColor
-                                }}
-                              />
-                            </div>
-                            <span className="text-xs text-gray-500 font-medium min-w-[30px]">
-                              {projectProgress.percentage}%
-                            </span>
-                          </div>
-                        </div>
-                      </Button>
+                  <div key={project.id} className="space-y-3">
+                    {/* Project Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Building size={16} className="text-[var(--pro-mint)]" />
+                        <span className="font-medium text-[var(--pro-text-primary)]">{project.name}</span>
+                        <span className="text-xs text-[var(--pro-text-secondary)]">
+                          ({projectProgress.completed}/{projectProgress.total})
+                        </span>
+                      </div>
+                      <div className="w-20 h-1.5 bg-[var(--pro-surface-highlight)] rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{
+                            width: `${projectProgress.percentage}%`,
+                            backgroundColor: projectProgress.progressColor
+                          }}
+                        />
+                      </div>
                     </div>
+                    {/* Task Cards Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {tasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          project={project}
+                          onEdit={handleEditTask}
+                          onDelete={handleDeleteTask}
+                          onStatusChange={handleStatusChange}
+                          onScheduleChange={handleScheduleChange}
+                          getUserDisplayName={getUserDisplayName}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-12 bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)]">
+                <FolderOpen size={32} className="mx-auto text-[var(--pro-text-muted)] mb-2" />
+                <p className="text-sm text-[var(--pro-text-secondary)]">No project tasks yet</p>
+              </div>
+            )}
+
+            {/* Administrative Tasks - Canvas */}
+            {adminTasks.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Settings size={16} className="text-[var(--pro-purple)]" />
+                  <span className="font-medium text-[var(--pro-text-primary)]">Administrative</span>
+                  <span className="text-xs text-[var(--pro-text-secondary)]">({adminTasks.length})</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {adminTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onEdit={handleEditTask}
+                      onDelete={handleDeleteTask}
+                      onStatusChange={handleStatusChange}
+                      onScheduleChange={handleScheduleChange}
+                      getUserDisplayName={getUserDisplayName}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* General Tasks - Canvas */}
+            {generalTasks.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle size={16} className="text-[var(--pro-mint)]" />
+                  <span className="font-medium text-[var(--pro-text-primary)]">General</span>
+                  <span className="text-xs text-[var(--pro-text-secondary)]">({generalTasks.length})</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {generalTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onEdit={handleEditTask}
+                      onDelete={handleDeleteTask}
+                      onStatusChange={handleStatusChange}
+                      onScheduleChange={handleScheduleChange}
+                      getUserDisplayName={getUserDisplayName}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          // List View - grouped by project
+          <div className="space-y-2">
+            {Object.values(tasksByProject).length > 0 ? (
+              Object.values(tasksByProject).map(({ project, tasks }) => {
+                const projectProgress = getProjectProgress(tasks);
+                const upcomingTasks = tasks.filter(t => t.status !== 'completed').slice(0, 2);
+
+                return (
+                  <div key={project.id} className="bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)] overflow-hidden">
+                    {/* Project Header Row - Enhanced with task preview */}
+                    <button
+                      onClick={() => toggleSection(`project-${project.id}`)}
+                      className="w-full p-3 flex items-center gap-3 hover:bg-[var(--pro-surface-highlight)] transition-colors"
+                    >
+                      {/* Chevron */}
+                      <div className="flex-shrink-0">
+                        {collapsedSections[`project-${project.id}`] ?
+                          <ChevronRight size={16} className="text-[var(--pro-text-secondary)]" /> :
+                          <ChevronDown size={16} className="text-[var(--pro-text-secondary)]" />
+                        }
+                      </div>
+
+                      {/* Project Info */}
+                      <div className="flex-1 min-w-0 text-left">
+                        <div className="flex items-center gap-2">
+                          <Building size={14} className="text-[var(--pro-mint)] flex-shrink-0" />
+                          <span className="font-medium text-sm text-[var(--pro-text-primary)] truncate">{project.name}</span>
+                        </div>
+
+                        {/* Task preview on collapsed state */}
+                        {collapsedSections[`project-${project.id}`] && upcomingTasks.length > 0 && (
+                          <p className="text-xs text-[var(--pro-text-muted)] mt-0.5 truncate">
+                            {upcomingTasks[0].title}
+                            {upcomingTasks.length > 1 && ` +${tasks.length - 1} more`}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Progress bar + count */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="w-12 h-1.5 bg-[var(--pro-surface-highlight)] rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{
+                              width: `${projectProgress.percentage}%`,
+                              backgroundColor: projectProgress.progressColor
+                            }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium text-[var(--pro-text-secondary)] w-8 text-right">
+                          {projectProgress.completed}/{projectProgress.total}
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Expanded Task List */}
                     {!collapsedSections[`project-${project.id}`] && (
-                      <div className="space-y-3 pl-6 md:pl-12">
+                      <div className="border-t border-[var(--pro-border)] divide-y divide-[var(--pro-border)]">
                         {tasks.map((task) => (
                           <TaskListItem
                             key={task.id}
@@ -1635,226 +1524,118 @@ export default function Tasks() {
                     )}
                   </div>
                 );
-              })}
-            </div>
-          )}
+              })
+            ) : (
+              <div className="text-center py-12 bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)]">
+                <FolderOpen size={32} className="mx-auto text-[var(--pro-text-muted)] mb-2" />
+                <p className="text-sm text-[var(--pro-text-secondary)]">No project tasks yet</p>
+              </div>
+            )}
 
-          {/* Administrative Tasks Section */}
-          <div className="space-y-4">
-            <Button
-              variant="ghost"
-              onClick={() => toggleSection('administrative')}
-              className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
-            >
-              {collapsedSections['administrative'] ? 
-                <ChevronRight size={20} className="text-purple-600" /> : 
-                <ChevronDown size={20} className="text-purple-600" />
-              }
-              <Settings size={20} className="text-purple-600" />
-              <h2 className="text-lg font-semibold text-purple-600">Administrative Tasks</h2>
-              <Badge variant="outline" className="ml-2 text-xs">
-                {adminTasks.length} task{adminTasks.length !== 1 ? 's' : ''}
-              </Badge>
-            </Button>
-            {!collapsedSections['administrative'] && (
-              <div className="space-y-2 pl-6">
-                {adminTasks.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <Settings size={32} className="mx-auto mb-2 text-gray-400" />
-                    <p className="text-sm">No administrative tasks match your filters.</p>
-                    <p className="text-xs text-gray-400 mt-1">Try adjusting filters or create a new administrative task.</p>
+            {/* Administrative Tasks - Compact Card */}
+            {adminTasks.length > 0 && (
+              <div className="bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)] overflow-hidden">
+                <button
+                  onClick={() => toggleSection('administrative')}
+                  className="w-full p-3 flex items-center gap-3 hover:bg-[var(--pro-surface-highlight)] transition-colors"
+                >
+                  <div className="flex-shrink-0">
+                    {collapsedSections['administrative'] ?
+                      <ChevronRight size={16} className="text-[var(--pro-text-secondary)]" /> :
+                      <ChevronDown size={16} className="text-[var(--pro-text-secondary)]" />
+                    }
                   </div>
-                ) : (
-                  adminTasks.map((task) => (
-                    <TaskListItem
-                      key={task.id}
-                      task={task}
-                      onEdit={handleEditTask}
-                      onDelete={handleDeleteTask}
-                      onStatusChange={handleStatusChange}
-                      onScheduleChange={handleScheduleChange}
-                      isSelected={selectedTasks.has(task.id)}
-                      onToggleSelect={(taskId) => {
-                        const newSelected = new Set(selectedTasks);
-                        if (newSelected.has(taskId)) {
-                          newSelected.delete(taskId);
-                        } else {
-                          newSelected.add(taskId);
-                        }
-                        setSelectedTasks(newSelected);
-                      }}
-                      showBulkSelect={bulkActionMode}
-                      getUserDisplayName={getUserDisplayName}
-                    />
-                  ))
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="flex items-center gap-2">
+                      <Settings size={14} className="text-[var(--pro-purple)] flex-shrink-0" />
+                      <span className="font-medium text-sm text-[var(--pro-text-primary)]">Administrative</span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-medium text-[var(--pro-text-secondary)]">{adminTasks.length}</span>
+                </button>
+
+                {!collapsedSections['administrative'] && (
+                  <div className="border-t border-[var(--pro-border)] divide-y divide-[var(--pro-border)]">
+                    {adminTasks.map((task) => (
+                      <TaskListItem
+                        key={task.id}
+                        task={task}
+                        onEdit={handleEditTask}
+                        onDelete={handleDeleteTask}
+                        onStatusChange={handleStatusChange}
+                        onScheduleChange={handleScheduleChange}
+                        isSelected={selectedTasks.has(task.id)}
+                        onToggleSelect={(taskId) => {
+                          const newSelected = new Set(selectedTasks);
+                          if (newSelected.has(taskId)) newSelected.delete(taskId);
+                          else newSelected.add(taskId);
+                          setSelectedTasks(newSelected);
+                        }}
+                        showBulkSelect={bulkActionMode}
+                        getUserDisplayName={getUserDisplayName}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* General Tasks - Compact Card */}
+            {generalTasks.length > 0 && (
+              <div className="bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)] overflow-hidden">
+                <button
+                  onClick={() => toggleSection('general')}
+                  className="w-full p-3 flex items-center gap-3 hover:bg-[var(--pro-surface-highlight)] transition-colors"
+                >
+                  <div className="flex-shrink-0">
+                    {collapsedSections['general'] ?
+                      <ChevronRight size={16} className="text-[var(--pro-text-secondary)]" /> :
+                      <ChevronDown size={16} className="text-[var(--pro-text-secondary)]" />
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle size={14} className="text-[var(--pro-mint)] flex-shrink-0" />
+                      <span className="font-medium text-sm text-[var(--pro-text-primary)]">General</span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-medium text-[var(--pro-text-secondary)]">{generalTasks.length}</span>
+                </button>
+
+                {!collapsedSections['general'] && (
+                  <div className="border-t border-[var(--pro-border)] divide-y divide-[var(--pro-border)]">
+                    {generalTasks.map((task) => (
+                      <TaskListItem
+                        key={task.id}
+                        task={task}
+                        onEdit={handleEditTask}
+                        onDelete={handleDeleteTask}
+                        onStatusChange={handleStatusChange}
+                        onScheduleChange={handleScheduleChange}
+                        isSelected={selectedTasks.has(task.id)}
+                        onToggleSelect={(taskId) => {
+                          const newSelected = new Set(selectedTasks);
+                          if (newSelected.has(taskId)) newSelected.delete(taskId);
+                          else newSelected.add(taskId);
+                          setSelectedTasks(newSelected);
+                        }}
+                        showBulkSelect={bulkActionMode}
+                        getUserDisplayName={getUserDisplayName}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
             )}
           </div>
-
-          {/* General Tasks Section */}
-          <div className="space-y-4">
-            <Button
-              variant="ghost"
-              onClick={() => toggleSection('general')}
-              className="flex items-center space-x-2 w-full justify-start p-2 h-auto hover:bg-gray-50"
-            >
-              {collapsedSections['general'] ? 
-                <ChevronRight size={20} className="text-green-600" /> : 
-                <ChevronDown size={20} className="text-green-600" />
-              }
-              <CheckCircle size={20} className="text-green-600" />
-              <h2 className="text-lg font-semibold text-green-600">General Tasks</h2>
-              <Badge variant="outline" className="ml-2 text-xs">
-                {generalTasks.length} task{generalTasks.length !== 1 ? 's' : ''}
-              </Badge>
-            </Button>
-            {!collapsedSections['general'] && (
-              <div className="space-y-2 pl-6">
-                {generalTasks.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <CheckCircle size={32} className="mx-auto mb-2 text-gray-400" />
-                    <p className="text-sm">No general tasks match your filters.</p>
-                    <p className="text-xs text-gray-400 mt-1">Try adjusting filters or create a new general task.</p>
-                  </div>
-                ) : (
-                  generalTasks.map((task) => (
-                    <TaskListItem
-                      key={task.id}
-                      task={task}
-                      onEdit={handleEditTask}
-                      onDelete={handleDeleteTask}
-                      onStatusChange={handleStatusChange}
-                      onScheduleChange={handleScheduleChange}
-                      isSelected={selectedTasks.has(task.id)}
-                      onToggleSelect={(taskId) => {
-                        const newSelected = new Set(selectedTasks);
-                        if (newSelected.has(taskId)) {
-                          newSelected.delete(taskId);
-                        } else {
-                          newSelected.add(taskId);
-                        }
-                        setSelectedTasks(newSelected);
-                      }}
-                      showBulkSelect={bulkActionMode}
-                      getUserDisplayName={getUserDisplayName}
-                    />
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Enhanced Empty State - Enhancement #12 */}
-          {filteredTasks.length === 0 && (
-            <Card className="text-center py-12">
-              <CardContent>
-                <List size={48} className="mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-600 mb-2">No tasks found</h3>
-                <p className="text-gray-500 mb-4">
-                  {(searchTerm || statusFilter !== "all" || priorityFilter !== "all" || assigneeFilter !== "all")
-                    ? "No tasks match your current filters. Try clearing some filters or adjusting your search."
-                    : "Create your first task to get started with project management"
-                  }
-                </p>
-                
-                <div className="flex justify-center space-x-3">
-                  {(searchTerm || statusFilter !== "all" || priorityFilter !== "all" || assigneeFilter !== "all") && (
-                    <Button 
-                      variant="outline"
-                      onClick={() => {
-                        setSearchTerm("");
-                        setStatusFilter("all");
-                        setPriorityFilter("all");
-                        setAssigneeFilter("all");
-                        setShowAdvancedFilters(false);
-                      }}
-                      className="text-sm"
-                    >
-                      <RotateCcw size={14} className="mr-2" />
-                      Clear All Filters
-                    </Button>
-                  )}
-                  
-                  <Button 
-                    onClick={() => setIsCreateDialogOpen(true)}
-                    className="construction-primary text-white"
-                  >
-                    <Plus size={16} className="mr-2" />
-                    Create Task
-                  </Button>
-                </div>
-                
-                {/* Keyboard Shortcuts Hint - Enhancement #3 */}
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <p className="text-xs text-gray-400 mb-2">Keyboard shortcuts:</p>
-                  <div className="flex justify-center space-x-4 text-xs text-gray-500">
-                    <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs">Ctrl+N</kbd> New task</span>
-                    <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs">E</kbd> Edit selected</span>
-                    <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs">S</kbd> Change status</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        )
       ) : (
-        // Canvas View (Tabs)
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="projects">By Projects</TabsTrigger>
-            <TabsTrigger value="administrative">Administrative</TabsTrigger>
-            <TabsTrigger value="general">General</TabsTrigger>
-          </TabsList>
-        
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center">
-                  <Building className="mr-2 text-blue-600" />
-                  Project Tasks
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold construction-secondary">{projectTasks.length}</div>
-                <p className="text-sm text-gray-600">Tasks linked to projects</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center">
-                  <Settings className="mr-2 text-purple-600" />
-                  Administrative
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold construction-secondary">{adminTasks.length}</div>
-                <p className="text-sm text-gray-600">Admin & management tasks</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center">
-                  <CheckCircle className="mr-2 text-green-600" />
-                  General Tasks
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold construction-secondary">{generalTasks.length}</div>
-                <p className="text-sm text-gray-600">General operational tasks</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Recent Tasks */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Recent Tasks</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredTasks.slice(0, 6).map((task) => {
+        // All Tasks View - Canvas or List based on viewMode
+        viewMode === "canvas" ? (
+          // Canvas View - Grid of cards
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredTasks.length > 0 ? (
+              filteredTasks.map((task) => {
                 const project = projects.find(p => p.id === task.projectId);
                 return (
                   <TaskCard
@@ -1868,109 +1649,92 @@ export default function Tasks() {
                     getUserDisplayName={getUserDisplayName}
                   />
                 );
-              })}
-            </div>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="projects" className="space-y-6">
-          {Object.values(tasksByProject).map(({ project, tasks }) => (
-            <div key={project.id}>
-              <Button
-                variant="ghost"
-                onClick={() => toggleSection(`canvas-project-${project.id}`)}
-                className="flex items-center w-full justify-start p-2 h-auto hover:bg-gray-50 mb-4"
-              >
-                {collapsedSections[`canvas-project-${project.id}`] ? 
-                  <ChevronRight size={16} className="mr-2" /> : 
-                  <ChevronDown size={16} className="mr-2" />
-                }
-                <Building className="mr-2 text-blue-600" />
-                <h3 className="text-lg font-semibold">{project.name}</h3>
-                <Badge variant="outline" className="ml-2">{tasks.length} tasks</Badge>
-              </Button>
-              {!collapsedSections[`canvas-project-${project.id}`] && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {tasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      project={project}
-                      onEdit={handleEditTask}
-                      onDelete={handleDeleteTask}
-                      onStatusChange={handleStatusChange}
-                      onScheduleChange={handleScheduleChange}
-                      getUserDisplayName={getUserDisplayName}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-          {Object.keys(tasksByProject).length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No project tasks found</p>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="administrative">
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold flex items-center">
-              <Settings className="mr-2 text-purple-600" />
-              Administrative Tasks
-              <Badge variant="outline" className="ml-2">{adminTasks.length} tasks</Badge>
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {adminTasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onEdit={handleEditTask}
-                  onDelete={handleDeleteTask}
-                  onStatusChange={handleStatusChange}
-                  onScheduleChange={handleScheduleChange}
-                  getUserDisplayName={getUserDisplayName}
-                />
-              ))}
-            </div>
-            {adminTasks.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-gray-500">No administrative tasks found</p>
+              })
+            ) : (
+              <div className="col-span-full text-center py-12 bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)]">
+                <Grid3X3 size={32} className="mx-auto text-[var(--pro-text-muted)] mb-2" />
+                <p className="text-sm text-[var(--pro-text-secondary)] mb-3">
+                  {(searchTerm || statusFilter !== "all" || priorityFilter !== "all" || assigneeFilter !== "all")
+                    ? "No tasks match your filters"
+                    : "No tasks yet"
+                  }
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  className="bg-[var(--pro-mint)] text-[var(--pro-bg-deep)] hover:bg-[var(--pro-mint-dim)]"
+                >
+                  <Plus size={14} className="mr-1" />
+                  Create Task
+                </Button>
               </div>
             )}
           </div>
-        </TabsContent>
-        
-        <TabsContent value="general">
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold flex items-center">
-              <CheckCircle className="mr-2 text-green-600" />
-              General Tasks
-              <Badge variant="outline" className="ml-2">{generalTasks.length} tasks</Badge>
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {generalTasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onEdit={handleEditTask}
-                  onDelete={handleDeleteTask}
-                  onStatusChange={handleStatusChange}
-                  onScheduleChange={handleScheduleChange}
-                  getUserDisplayName={getUserDisplayName}
-                />
-              ))}
-            </div>
-            {generalTasks.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-gray-500">No general tasks found</p>
+        ) : (
+          // List View - Flat list
+          <div className="space-y-2">
+            {filteredTasks.length > 0 ? (
+              filteredTasks.map((task) => {
+                const project = projects.find(p => p.id === task.projectId);
+                return (
+                  <TaskListItem
+                    key={task.id}
+                    task={task}
+                    projectName={project?.name}
+                    onEdit={handleEditTask}
+                    onDelete={handleDeleteTask}
+                    onStatusChange={handleStatusChange}
+                    onScheduleChange={handleScheduleChange}
+                    isSelected={selectedTasks.has(task.id)}
+                    onToggleSelect={(taskId) => {
+                      const newSelected = new Set(selectedTasks);
+                      if (newSelected.has(taskId)) newSelected.delete(taskId);
+                      else newSelected.add(taskId);
+                      setSelectedTasks(newSelected);
+                    }}
+                    showBulkSelect={bulkActionMode}
+                    getUserDisplayName={getUserDisplayName}
+                  />
+                );
+              })
+            ) : (
+              <div className="text-center py-12 bg-[var(--pro-surface)] rounded-xl border border-[var(--pro-border)]">
+                <List size={32} className="mx-auto text-[var(--pro-text-muted)] mb-2" />
+                <p className="text-sm text-[var(--pro-text-secondary)] mb-3">
+                  {(searchTerm || statusFilter !== "all" || priorityFilter !== "all" || assigneeFilter !== "all")
+                    ? "No tasks match your filters"
+                    : "No tasks yet"
+                  }
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  className="bg-[var(--pro-mint)] text-[var(--pro-bg-deep)] hover:bg-[var(--pro-mint-dim)]"
+                >
+                  <Plus size={14} className="mr-1" />
+                  Create Task
+                </Button>
               </div>
             )}
           </div>
-        </TabsContent>
-        </Tabs>
+        )
       )}
+
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden">
+        <BottomNavigation
+          items={[
+            { value: "home", label: "Home", icon: <Home size={20} /> },
+            { value: "projects", label: "Projects", icon: <FolderKanban size={20} /> },
+            { value: "tasks", label: "Tasks", icon: <ClipboardList size={20} />, badge: taskStats.overdue > 0 ? taskStats.overdue : undefined },
+          ]}
+          value={mobileNav}
+          onChange={(value) => {
+            setMobileNav(value);
+            // Note: actual navigation would be handled by the parent layout/router
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -1987,9 +1751,23 @@ function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormP
   const watchedCategory = form.watch("category");
   const isProjectRequired = watchedCategory === "project";
   
+  // #region agent log
+  const handleFormSubmit = form.handleSubmit(
+    (data) => {
+      console.log('🟢 DEBUG: Form validation PASSED!', { data });
+      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskForm:handleSubmit:success',message:'Form validation passed',data:{formData:data,formState:{isValid:form.formState.isValid,errors:form.formState.errors}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,E'})}).catch(()=>{});
+      onSubmit(data);
+    },
+    (errors) => {
+      console.log('🔴 DEBUG: Form validation FAILED!', { errors, formValues: form.getValues() });
+      fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskForm:handleSubmit:error',message:'Form validation failed',data:{errors,formValues:form.getValues()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,E'})}).catch(()=>{});
+    }
+  );
+  // #endregion
+  
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleFormSubmit} className="space-y-4">
         <FormField
           control={form.control}
           name="title"
@@ -2180,7 +1958,17 @@ function TaskForm({ form, onSubmit, projects, isLoading, submitText }: TaskFormP
         />
         
         <div className="flex justify-end space-x-2">
-          <Button type="submit" disabled={isLoading} className="construction-primary text-white">
+          <Button 
+            type="submit" 
+            disabled={isLoading} 
+            className="construction-primary text-white"
+            onClick={(e) => {
+              // #region agent log
+              console.log('🔴 DEBUG: Submit button clicked!', { isLoading, isValid: form.formState.isValid, errors: form.formState.errors });
+              fetch('http://127.0.0.1:7242/ingest/f2090437-30eb-45e2-91c9-7d1d76f81235',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaskForm:submitButton:click',message:'Submit button clicked',data:{isLoading,formState:{isValid:form.formState.isValid,isSubmitting:form.formState.isSubmitting,errors:Object.keys(form.formState.errors)}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
+              // #endregion
+            }}
+          >
             {isLoading ? "Saving..." : submitText}
           </Button>
         </div>
