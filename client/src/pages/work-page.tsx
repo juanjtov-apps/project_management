@@ -509,12 +509,12 @@ export default function WorkPage() {
 
   const taskStats = useMemo(() => {
     return {
-      total: filteredTasks.length,
-      overdue: filteredTasks.filter(isTaskOverdue).length,
-      dueThisWeek: filteredTasks.filter(isTaskDueThisWeek).length,
-      completed: filteredTasks.filter((t) => t.status === "completed").length,
+      total: tasks.length,
+      overdue: tasks.filter(isTaskOverdue).length,
+      dueThisWeek: tasks.filter(isTaskDueThisWeek).length,
+      completed: tasks.filter((t) => t.status === "completed").length,
     };
-  }, [filteredTasks]);
+  }, [tasks]);
 
   // Group tasks by project
   const tasksByProject = useMemo(() => {
