@@ -11,6 +11,9 @@ import {
   CheckCircle,
   Briefcase,
   Check,
+  Home,
+  FolderKanban,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -51,6 +54,7 @@ import { ProjectQuickView } from "@/components/ui/project-quick-view";
 import { TaskCard as TabletTaskCard } from "@/components/ui/task-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { BottomNavigation } from "@/components/ui/bottom-navigation";
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { useForm } from "react-hook-form";
@@ -750,7 +754,7 @@ export default function WorkPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--pro-bg)]">
+    <div className="min-h-screen bg-[var(--pro-bg)] pb-20 md:pb-0">
       {/* Header with Segmented Control */}
       <div className="bg-[var(--pro-bg)] border-b border-[var(--pro-border)]">
         <div className="px-6 py-4">
@@ -944,16 +948,60 @@ export default function WorkPage() {
       {/* Tasks Segment */}
       {activeSegment === "tasks" && (
         <>
-          {/* Task Stats Row */}
-          <div className="bg-[var(--pro-bg)] border-b border-[var(--pro-border)] px-6 py-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Task Stats Row - Mobile-optimized horizontal scroll */}
+          <div className="bg-[var(--pro-bg)] border-b border-[var(--pro-border)] px-4 py-3">
+            {/* Mobile: Horizontal scroll strip - centered */}
+            <div className="md:hidden flex gap-2 justify-center pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <button
+                onClick={() => handleClearTaskFilters()}
+                className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--pro-surface)] rounded-lg border border-[var(--pro-border)] active:scale-95 transition-transform"
+                data-testid="stat-total-tasks"
+              >
+                <span className="text-sm font-bold text-[var(--pro-text-primary)]">{taskStats.total}</span>
+                <span className="text-[10px] text-[var(--pro-text-secondary)]">Total</span>
+              </button>
+              <button
+                onClick={() => setTaskStatusFilter("overdue")}
+                className={cn(
+                  "flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border active:scale-95 transition-transform",
+                  taskStats.overdue > 0
+                    ? "bg-[var(--pro-red)]/10 border-[var(--pro-red)]/30"
+                    : "bg-[var(--pro-surface)] border-[var(--pro-border)]"
+                )}
+                data-testid="stat-overdue-tasks"
+              >
+                <span className={cn(
+                  "text-sm font-bold",
+                  taskStats.overdue > 0 ? "text-[var(--pro-red)]" : "text-[var(--pro-text-primary)]"
+                )}>{taskStats.overdue}</span>
+                <span className="text-[10px] text-[var(--pro-text-secondary)]">Overdue</span>
+              </button>
+              <button
+                className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--pro-blue)]/10 rounded-lg border border-[var(--pro-blue)]/30 active:scale-95 transition-transform"
+                data-testid="stat-due-this-week"
+              >
+                <span className="text-sm font-bold text-[var(--pro-blue)]">{taskStats.dueThisWeek}</span>
+                <span className="text-[10px] text-[var(--pro-text-secondary)]">Week</span>
+              </button>
+              <button
+                onClick={() => setTaskStatusFilter("completed")}
+                className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--pro-mint)]/10 rounded-lg border border-[var(--pro-mint)]/30 active:scale-95 transition-transform"
+                data-testid="stat-completed-tasks"
+              >
+                <span className="text-sm font-bold text-[var(--pro-mint)]">{taskStats.completed}</span>
+                <span className="text-[10px] text-[var(--pro-text-secondary)]">Done</span>
+              </button>
+            </div>
+
+            {/* Desktop: Original 4-column grid */}
+            <div className="hidden md:grid grid-cols-4 gap-4">
               <StatCard
                 icon={ListTodo}
                 label="Total Tasks"
                 value={taskStats.total}
                 sublabel="All tasks"
                 onClick={() => handleClearTaskFilters()}
-                data-testid="stat-total-tasks"
+                data-testid="stat-total-tasks-desktop"
               />
               <StatCard
                 icon={AlertCircle}
@@ -962,7 +1010,7 @@ export default function WorkPage() {
                 sublabel="Behind schedule"
                 tone="coral"
                 onClick={() => setTaskStatusFilter("overdue")}
-                data-testid="stat-overdue-tasks"
+                data-testid="stat-overdue-tasks-desktop"
               />
               <StatCard
                 icon={CalendarIcon}
@@ -970,7 +1018,7 @@ export default function WorkPage() {
                 value={taskStats.dueThisWeek}
                 sublabel="Due within 7 days"
                 tone="blue"
-                data-testid="stat-due-this-week"
+                data-testid="stat-due-this-week-desktop"
               />
               <StatCard
                 icon={CheckCircle}
@@ -979,60 +1027,105 @@ export default function WorkPage() {
                 sublabel="Finished tasks"
                 tone="teal"
                 onClick={() => setTaskStatusFilter("completed")}
-                data-testid="stat-completed-tasks"
+                data-testid="stat-completed-tasks-desktop"
               />
             </div>
           </div>
 
-          {/* Filter Bar - Sticky */}
-          <FilterBar
-            searchValue={taskSearchTerm}
-            onSearchChange={setTaskSearchTerm}
-            searchPlaceholder="Search tasks..."
-            filters={taskActiveFilters}
-            onClearAll={taskActiveFilters.length > 0 ? handleClearTaskFilters : undefined}
-            sticky={false}
-            data-testid="filter-bar-tasks"
-            rightActions={
-              <>
-                <Select value={taskStatusFilter} onValueChange={setTaskStatusFilter}>
-                  <SelectTrigger className="w-[140px] tap-target" data-testid="filter-status">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="blocked">Blocked</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={taskPriorityFilter} onValueChange={setTaskPriorityFilter}>
-                  <SelectTrigger className="w-[140px] tap-target" data-testid="filter-priority">
-                    <SelectValue placeholder="Priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Priority</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <SegmentedControl
-                  options={[
-                    { value: "list", label: "List" },
-                    { value: "canvas", label: "Canvas" },
-                  ]}
-                  value={taskViewMode}
-                  onChange={(value) => setTaskViewMode(value as "list" | "canvas")}
-                  data-testid="view-mode-toggle"
+          {/* Mobile-Optimized Filter Bar */}
+          <div className="bg-[var(--pro-bg)] border-b border-[var(--pro-border)] px-4 py-3">
+            {/* Search row */}
+            <div className="flex items-center gap-2 mb-3">
+              <div className="relative flex-1">
+                <Input
+                  type="text"
+                  value={taskSearchTerm}
+                  onChange={(e) => setTaskSearchTerm(e.target.value)}
+                  placeholder="Search tasks..."
+                  data-testid="filter-search-input"
+                  className="pl-9 h-10 bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-sm"
+                  aria-label="Search"
                 />
-              </>
-            }
-          />
+                <ListTodo className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--pro-text-secondary)]" />
+              </div>
+
+            </div>
+
+            {/* Filter chips - horizontal scroll with proper containment */}
+            <div className="flex gap-2 overflow-x-auto pb-0.5 pr-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <Select value={taskStatusFilter} onValueChange={setTaskStatusFilter}>
+                <SelectTrigger
+                  className="flex-shrink-0 h-8 w-auto min-w-[80px] px-2.5 text-xs bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] rounded-full"
+                  data-testid="filter-status"
+                >
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent position="popper" side="bottom" align="start" sideOffset={4} className="z-50">
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="blocked">Blocked</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={taskPriorityFilter} onValueChange={setTaskPriorityFilter}>
+                <SelectTrigger
+                  className="flex-shrink-0 h-8 w-auto min-w-[80px] px-2.5 text-xs bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] rounded-full"
+                  data-testid="filter-priority"
+                >
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent position="popper" side="bottom" align="start" sideOffset={4} className="z-50">
+                  <SelectItem value="all">All Priority</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* List/Canvas view toggle - pill style matching other filters */}
+              <div className="flex-shrink-0 flex gap-1">
+                <button
+                  onClick={() => setTaskViewMode("list")}
+                  className={cn(
+                    "h-8 px-3 text-xs rounded-full border transition-colors",
+                    taskViewMode === "list"
+                      ? "bg-[var(--pro-mint)] border-[var(--pro-mint)] text-[var(--pro-bg-deep)] font-medium"
+                      : "bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-secondary)]"
+                  )}
+                  data-testid="view-mode-list"
+                >
+                  List
+                </button>
+                <button
+                  onClick={() => setTaskViewMode("canvas")}
+                  className={cn(
+                    "h-8 px-3 text-xs rounded-full border transition-colors",
+                    taskViewMode === "canvas"
+                      ? "bg-[var(--pro-mint)] border-[var(--pro-mint)] text-[var(--pro-bg-deep)] font-medium"
+                      : "bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-secondary)]"
+                  )}
+                  data-testid="view-mode-canvas"
+                >
+                  Canvas
+                </button>
+              </div>
+
+              {/* Clear filters chip */}
+              {taskActiveFilters.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearTaskFilters}
+                  className="flex-shrink-0 h-8 px-2.5 text-xs text-[var(--pro-red)] hover:text-[var(--pro-red)] hover:bg-[var(--pro-red)]/10 rounded-full"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
 
           {/* Tasks Content */}
           <div className="px-6 py-6">
@@ -2145,6 +2238,18 @@ export default function WorkPage() {
         onClose={() => setQuickViewProject(null)}
         isOpen={quickViewProject !== null}
       />
+
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden">
+        <BottomNavigation
+          items={[
+            { value: "projects", label: "Projects", icon: <FolderKanban size={20} /> },
+            { value: "tasks", label: "Tasks", icon: <ClipboardList size={20} />, badge: taskStats.overdue > 0 ? taskStats.overdue : undefined },
+          ]}
+          value={activeSegment}
+          onChange={(value) => setActiveSegment(value as WorkSegment)}
+        />
+      </div>
     </div>
   );
 }
