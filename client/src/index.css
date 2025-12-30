@@ -341,7 +341,23 @@ input[type="file"] {
     min-height: 44px;
     min-width: 44px;
   }
-  
+
+  /* Button Color Reset - prevent global div/span color rules from affecting buttons */
+  button {
+    color: inherit;
+  }
+
+  /* Hero Primary CTA Button - explicit visibility and styling */
+  button.hero-primary-cta {
+    opacity: 1;
+    color: #0F1115;
+    background-color: #4ADE80;
+  }
+
+  button.hero-primary-cta:hover {
+    background-color: #22C55E;
+  }
+
   /* Icon Button Standard */
   .icon-button {
     @apply h-11 w-11 flex items-center justify-center rounded-lg focus-ring;
@@ -1074,5 +1090,65 @@ input[type="file"] {
   
   .construction-error {
     color: var(--pro-red);
+  }
+
+  /* =====================================================
+     LANDING PAGE SPECIFIC STYLES
+     ===================================================== */
+
+  /* Landing section spacing */
+  .landing-section {
+    @apply py-20 md:py-28 lg:py-32;
+  }
+
+  /* Timeline visual elements */
+  .timeline-line-animated {
+    width: 2px;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      var(--pro-mint) 10%,
+      var(--pro-mint) 90%,
+      transparent 100%
+    );
+  }
+
+  .timeline-node-glow {
+    @apply w-4 h-4 rounded-full;
+    background: var(--pro-mint);
+    box-shadow: 0 0 12px rgba(74, 222, 128, 0.4);
+  }
+
+  /* AI section glow effects */
+  .glow-orange {
+    box-shadow: 0 0 30px rgba(249, 115, 22, 0.3);
+  }
+
+  .glow-mint {
+    box-shadow: 0 0 30px rgba(74, 222, 128, 0.3);
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
+  }
+
+  /* GPU acceleration for smooth animations */
+  .will-animate {
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+  }
+
+  /* Gradient text utility */
+  .gradient-text-mint-purple {
+    background: linear-gradient(135deg, #4ADE80 0%, #8B5CF6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Section divider line */
+  .section-divider {
+    width: 1px;
+    background: linear-gradient(to bottom, #2D333B, transparent);
   }
 }
