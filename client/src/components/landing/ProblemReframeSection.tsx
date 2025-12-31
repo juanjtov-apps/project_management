@@ -63,7 +63,7 @@ export function ProblemReframeSection() {
                 aria-hidden="true"
               />
               <span className="relative">
-                <CountUp end={60} suffix="%" duration={2} />
+                <CountUp end={60} suffix="%" duration={2} className="text-xl md:text-2xl lg:text-[1.75rem]" />
               </span>
             </span>
             {' '}of your time goes.

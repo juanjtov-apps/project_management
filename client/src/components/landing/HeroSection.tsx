@@ -88,7 +88,7 @@ export function HeroSection({ onRequestDemo, onSeeHowItWorks, onSignIn }: HeroSe
     <>
       <section
         ref={sectionRef}
-        className="relative min-h-screen"
+        className="relative"
         style={{ backgroundColor: '#0F1115' }}
       >
         {/* Subtle gradient overlay */}
