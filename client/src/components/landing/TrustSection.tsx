@@ -1,4 +1,6 @@
+import { useRef } from 'react';
 import { Users, Rocket, Building2 } from 'lucide-react';
+import { useGSAP, usePrefersReducedMotion } from '@/hooks/useGSAP';
 import { CountUp, SectionHeader } from './shared';
 import type { LucideIcon } from 'lucide-react';
 
@@ -16,8 +18,32 @@ const stats: Stat[] = [
 ];
 
 export function TrustSection() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const prefersReducedMotion = usePrefersReducedMotion();
+
+  useGSAP((gsap) => {
+    if (prefersReducedMotion) {
+      gsap.set('.trust-card', { opacity: 1, y: 0 });
+      return;
+    }
+
+    gsap.from('.trust-card', {
+      y: 40,
+      opacity: 0,
+      stagger: 0.15,
+      duration: 0.8,
+      ease: 'power2.out',
+      scrollTrigger: {
+        trigger: '.trust-cards-grid',
+        start: 'top 80%',
+        toggleActions: 'play none none reverse'
+      }
+    });
+  }, { scope: sectionRef, dependencies: [prefersReducedMotion] });
+
   return (
     <section
+      ref={sectionRef}
       className="relative py-24 md:py-32"
       style={{ backgroundColor: '#0F1115' }}
     >
@@ -36,7 +62,7 @@ export function TrustSection() {
         />
 
         {/* Stats Grid */}
-        <div className="grid md:grid-cols-3 gap-6 lg:gap-8 max-w-4xl mx-auto">
+        <div className="trust-cards-grid grid md:grid-cols-3 gap-6 lg:gap-8 max-w-4xl mx-auto">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
