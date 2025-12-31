@@ -1,11 +1,105 @@
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 import { useGSAP, usePrefersReducedMotion, useIsMobile } from '@/hooks/useGSAP';
-import { Zap, Package, CheckCircle2, Sparkles, MessageSquare } from 'lucide-react';
+import { Zap, Package, CheckCircle2, Sparkles, MessageSquare, AlertTriangle } from 'lucide-react';
+
+// Scenario data for cycling demos
+const SCENARIOS = [
+  {
+    userPrompt: "What materials need to be ordered for the electrical phase?",
+    aiResponse: "I've analyzed the electrical phase schedule for Brookfield Estates. Here's what you need to order by Nov 28 to stay on track...",
+    panelTitle: "Materials Required",
+    panelSubtitle: "Electrical Phase — Rough-In",
+    panelIcon: "zap",
+    items: [
+      { name: "200A Service Panel", quantity: "1 unit" },
+      { name: "14/2 Romex Wire", quantity: "500 ft" },
+      { name: "Outlet Boxes", quantity: "24 units" },
+      { name: "LED Light Fixtures", quantity: "12 units" },
+      { name: "Smart Dimmer Switches", quantity: "8 units" }
+    ],
+    footerLabel: "Order by",
+    footerDate: "Nov 28",
+    deliveryDate: "Dec 2"
+  },
+  {
+    userPrompt: "What's the status on the kitchen remodel punch list?",
+    aiResponse: "I've reviewed the punch list for the Miller Kitchen Remodel. Here are the remaining items before final walkthrough...",
+    panelTitle: "Punch List Items",
+    panelSubtitle: "Miller Kitchen — Final Phase",
+    panelIcon: "alert",
+    items: [
+      { name: "Cabinet door alignment", quantity: "2 items" },
+      { name: "Backsplash grout touch-up", quantity: "1 area" },
+      { name: "Under-cabinet lighting", quantity: "3 fixtures" },
+      { name: "Drawer soft-close adjust", quantity: "4 drawers" },
+      { name: "Final paint touch-ups", quantity: "Complete" }
+    ],
+    footerLabel: "Walkthrough",
+    footerDate: "Dec 8",
+    deliveryDate: "Dec 10"
+  }
+];
 
 export function AgentChatDemo() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const scenarioIndexRef = useRef(0);
   const prefersReducedMotion = usePrefersReducedMotion();
   const isMobile = useIsMobile();
+
+  // Function to update DOM content with new scenario
+  const updateScenarioContent = useCallback((index: number) => {
+    const scenario = SCENARIOS[index];
+    if (!containerRef.current) return;
+
+    // Update user message
+    const userMsg = containerRef.current.querySelector('.user-message-text');
+    if (userMsg) userMsg.textContent = scenario.userPrompt;
+
+    // Update AI response
+    const aiMsg = containerRef.current.querySelector('.ai-message-text');
+    if (aiMsg) aiMsg.textContent = scenario.aiResponse;
+
+    // Update panel title and subtitle
+    const panelTitle = containerRef.current.querySelector('.panel-title');
+    if (panelTitle) panelTitle.textContent = scenario.panelTitle;
+
+    const panelSubtitle = containerRef.current.querySelector('.panel-subtitle');
+    if (panelSubtitle) panelSubtitle.textContent = scenario.panelSubtitle;
+
+    // Update panel icon
+    const zapIcon = containerRef.current.querySelector('.panel-icon-zap');
+    const alertIcon = containerRef.current.querySelector('.panel-icon-alert');
+    if (zapIcon && alertIcon) {
+      if (scenario.panelIcon === 'zap') {
+        (zapIcon as HTMLElement).style.display = 'block';
+        (alertIcon as HTMLElement).style.display = 'none';
+      } else {
+        (zapIcon as HTMLElement).style.display = 'none';
+        (alertIcon as HTMLElement).style.display = 'block';
+      }
+    }
+
+    // Update items
+    const items = containerRef.current.querySelectorAll('.outcome-item');
+    items.forEach((item, i) => {
+      if (scenario.items[i]) {
+        const nameEl = item.querySelector('.item-name');
+        const quantityEl = item.querySelector('.item-quantity');
+        if (nameEl) nameEl.textContent = scenario.items[i].name;
+        if (quantityEl) quantityEl.textContent = scenario.items[i].quantity;
+      }
+    });
+
+    // Update footer
+    const footerLabel = containerRef.current.querySelector('.footer-label');
+    if (footerLabel) footerLabel.textContent = scenario.footerLabel;
+
+    const footerDate = containerRef.current.querySelector('.footer-date');
+    if (footerDate) footerDate.textContent = scenario.footerDate;
+
+    const deliveryDate = containerRef.current.querySelector('.delivery-date');
+    if (deliveryDate) deliveryDate.textContent = scenario.deliveryDate;
+  }, []);
 
   useGSAP((gsap) => {
     if (prefersReducedMotion) {
@@ -28,9 +122,14 @@ export function AgentChatDemo() {
     // Chat animation timeline with loop
     const chatTL = gsap.timeline({
       repeat: -1,
-      repeatDelay: 4,
+      repeatDelay: 0.3,
       delay: 1.5,
-      defaults: { ease: 'power3.out' }
+      defaults: { ease: 'power3.out' },
+      onRepeat: () => {
+        // Cycle to next scenario
+        scenarioIndexRef.current = (scenarioIndexRef.current + 1) % SCENARIOS.length;
+        updateScenarioContent(scenarioIndexRef.current);
+      }
     });
 
     chatTL
@@ -86,16 +185,19 @@ export function AgentChatDemo() {
         duration: 0.6
       }, '-=0.3')
       // 8. Hold, then reset
-      .to({}, { duration: 3 })
+      .to({}, { duration: 4 })
       .to(['.chat-user-message', '.chat-ai-message', '.outcome-panel', '.outcome-item'], {
         opacity: 0,
-        duration: 0.5
+        duration: 0.3
       })
       .set(['.chat-user-message', '.chat-ai-message'], { y: 30 })
       .set('.outcome-panel', { scale: 0.95, boxShadow: '0 25px 60px rgba(0, 0, 0, 0.4)' })
       .set('.outcome-item', { x: -20 });
 
-  }, { scope: containerRef, dependencies: [prefersReducedMotion] });
+  }, { scope: containerRef, dependencies: [prefersReducedMotion, updateScenarioContent] });
+
+  // Get initial scenario data
+  const initialScenario = SCENARIOS[0];
 
   return (
     <div
@@ -144,8 +246,8 @@ export function AgentChatDemo() {
                 border: '1px solid rgba(74, 222, 128, 0.25)'
               }}
             >
-              <p className="text-sm leading-relaxed" style={{ color: '#FFFFFF' }}>
-                What materials need to be ordered for the electrical phase?
+              <p className="user-message-text text-sm leading-relaxed" style={{ color: '#FFFFFF' }}>
+                {initialScenario.userPrompt}
               </p>
             </div>
           </div>
@@ -186,8 +288,8 @@ export function AgentChatDemo() {
                   AI Analysis
                 </span>
               </div>
-              <p className="text-sm leading-relaxed" style={{ color: '#E5E7EB' }}>
-                I've analyzed the electrical phase schedule for Brookfield Estates. Here's what you need to order by Nov 28 to stay on track...
+              <p className="ai-message-text text-sm leading-relaxed" style={{ color: '#E5E7EB' }}>
+                {initialScenario.aiResponse}
               </p>
             </div>
           </div>
@@ -216,14 +318,15 @@ export function AgentChatDemo() {
               className="p-2 rounded-lg"
               style={{ backgroundColor: 'rgba(74, 222, 128, 0.15)' }}
             >
-              <Zap className="w-4 h-4" style={{ color: '#4ADE80' }} />
+              <Zap className="panel-icon-zap w-4 h-4" style={{ color: '#4ADE80' }} />
+              <AlertTriangle className="panel-icon-alert w-4 h-4" style={{ color: '#F97316', display: 'none' }} />
             </div>
             <div>
-              <h3 className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>
-                Materials Required
+              <h3 className="panel-title text-sm font-semibold" style={{ color: '#FFFFFF' }}>
+                {initialScenario.panelTitle}
               </h3>
-              <p className="text-xs" style={{ color: '#9CA3AF' }}>
-                Electrical Phase — Rough-In
+              <p className="panel-subtitle text-xs" style={{ color: '#9CA3AF' }}>
+                {initialScenario.panelSubtitle}
               </p>
             </div>
           </div>
@@ -238,33 +341,34 @@ export function AgentChatDemo() {
           </div>
         </div>
 
-        {/* Materials List */}
+        {/* Items List */}
         <div className="p-4 space-y-2">
-          <MaterialItem
-            name="200A Service Panel"
-            quantity="1 unit"
-            className="outcome-item"
-          />
-          <MaterialItem
-            name="14/2 Romex Wire"
-            quantity="500 ft"
-            className="outcome-item"
-          />
-          <MaterialItem
-            name="Outlet Boxes"
-            quantity="24 units"
-            className="outcome-item"
-          />
-          <MaterialItem
-            name="LED Light Fixtures"
-            quantity="12 units"
-            className="outcome-item"
-          />
-          <MaterialItem
-            name="Smart Dimmer Switches"
-            quantity="8 units"
-            className="outcome-item"
-          />
+          {initialScenario.items.map((item, index) => (
+            <div
+              key={index}
+              className="outcome-item flex items-center justify-between p-3 rounded-lg border transition-colors duration-200 hover:border-opacity-50"
+              style={{
+                backgroundColor: '#0F1115',
+                borderColor: '#2D333B'
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: '#4ADE80' }}
+                />
+                <span className="item-name text-sm" style={{ color: '#E5E7EB' }}>
+                  {item.name}
+                </span>
+              </div>
+              <span className="item-quantity text-xs font-medium px-2 py-1 rounded" style={{
+                backgroundColor: '#1F242C',
+                color: '#9CA3AF'
+              }}>
+                {item.quantity}
+              </span>
+            </div>
+          ))}
         </div>
 
         {/* Footer */}
@@ -279,7 +383,8 @@ export function AgentChatDemo() {
             <div className="flex items-center gap-2">
               <Package className="w-3.5 h-3.5" style={{ color: '#9CA3AF' }} />
               <span className="text-xs" style={{ color: '#9CA3AF' }}>
-                Order by <span style={{ color: '#FFFFFF' }}>Nov 28</span>
+                <span className="footer-label">{initialScenario.footerLabel}</span>{' '}
+                <span className="footer-date" style={{ color: '#FFFFFF' }}>{initialScenario.footerDate}</span>
               </span>
             </div>
             <div
@@ -287,45 +392,11 @@ export function AgentChatDemo() {
               style={{ backgroundColor: '#2D333B' }}
             />
             <span className="text-xs" style={{ color: '#9CA3AF' }}>
-              Delivery <span style={{ color: '#4ADE80' }}>Dec 2</span>
+              Delivery <span className="delivery-date" style={{ color: '#4ADE80' }}>{initialScenario.deliveryDate}</span>
             </span>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-interface MaterialItemProps {
-  name: string;
-  quantity: string;
-  className?: string;
-}
-
-function MaterialItem({ name, quantity, className }: MaterialItemProps) {
-  return (
-    <div
-      className={`flex items-center justify-between p-3 rounded-lg border transition-colors duration-200 hover:border-opacity-50 ${className || ''}`}
-      style={{
-        backgroundColor: '#0F1115',
-        borderColor: '#2D333B'
-      }}
-    >
-      <div className="flex items-center gap-3">
-        <div
-          className="w-2 h-2 rounded-full"
-          style={{ backgroundColor: '#4ADE80' }}
-        />
-        <span className="text-sm" style={{ color: '#E5E7EB' }}>
-          {name}
-        </span>
-      </div>
-      <span className="text-xs font-medium px-2 py-1 rounded" style={{
-        backgroundColor: '#1F242C',
-        color: '#9CA3AF'
-      }}>
-        {quantity}
-      </span>
     </div>
   );
 }
