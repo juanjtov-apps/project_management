@@ -242,7 +242,7 @@ export function HowItWorksSection() {
             {/* Content Grid */}
             <div className="grid md:grid-cols-2">
               {/* Left: Prompts */}
-              <div className="p-6 border-r" style={{ borderColor: '#2D333B' }}>
+              <div className="p-6 border-b md:border-b-0 md:border-r" style={{ borderColor: '#2D333B' }}>
                 <p
                   className="text-xs uppercase tracking-[0.15em] mb-4 font-medium"
                   style={{ color: '#6B7280' }}

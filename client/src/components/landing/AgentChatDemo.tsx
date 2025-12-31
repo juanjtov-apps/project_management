@@ -44,7 +44,7 @@ export function AgentChatDemo() {
   const containerRef = useRef<HTMLDivElement>(null);
   const scenarioIndexRef = useRef(0);
   const prefersReducedMotion = usePrefersReducedMotion();
-  const isMobile = useIsMobile();
+  const isMobile = useIsMobile(1024);
 
   // Function to update DOM content with new scenario
   const updateScenarioContent = useCallback((index: number) => {

@@ -35,7 +35,7 @@ const stages: TimelineStage[] = [
 export function IntelligenceEvolutionSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
-  const isMobile = useIsMobile();
+  const isMobile = useIsMobile(1024);
 
   useGSAP((gsap) => {
     if (prefersReducedMotion) {
