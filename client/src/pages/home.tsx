@@ -1,7 +1,8 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, LogOut, Calendar, CheckCircle, Users } from "lucide-react";
+import { Building2, Calendar, CheckCircle, Users } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 import QuickActions from "@/components/dashboard/quick-actions";
 import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
@@ -45,13 +46,8 @@ export default function Home() {
       <header className="bg-white dark:bg-tower-surface-dark shadow-sm border-b border-tower-navy/10">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-br from-tower-navy to-tower-navy-dark p-2 rounded-xl">
-                <Building2 className="h-8 w-8 text-white" />
-              </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-tower-navy to-tower-navy-light bg-clip-text text-transparent">
-                Tower Flow
-              </h1>
+            <div className="flex items-center">
+              <Logo variant="full" size="md" />
             </div>
             <div className="flex items-center space-x-4">
               {user?.profileImageUrl && (

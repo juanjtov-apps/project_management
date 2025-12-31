@@ -349,7 +349,7 @@ input[type="file"] {
 
   /* Hero Primary CTA Button - explicit visibility and styling */
   button.hero-primary-cta {
-    opacity: 1;
+    visibility: visible;
     color: #0F1115;
     background-color: #4ADE80;
   }
