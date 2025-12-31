@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Logo } from "@/components/ui/logo";
-import logoImage from "@assets/final logo_1764221763825.png";
+import logoImage from "../../assets/proesphere-hd-logo.png";
 import { 
   LayoutDashboard, 
   Briefcase,
