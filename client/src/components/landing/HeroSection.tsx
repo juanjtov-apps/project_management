@@ -88,7 +88,7 @@ export function HeroSection({ onRequestDemo, onSeeHowItWorks, onSignIn }: HeroSe
     <>
       <section
         ref={sectionRef}
-        className="relative min-h-screen flex flex-col"
+        className="relative min-h-screen"
         style={{ backgroundColor: '#0F1115' }}
       >
         {/* Subtle gradient overlay */}
@@ -137,7 +137,7 @@ export function HeroSection({ onRequestDemo, onSeeHowItWorks, onSignIn }: HeroSe
         </header>
 
         {/* Hero Content - Reduced top padding */}
-        <div className="hero-content relative z-10 flex-1 flex flex-col justify-center container mx-auto px-6 py-4 md:py-6">
+        <div className="hero-content relative z-10 container mx-auto px-6 pt-20 md:pt-24 lg:pt-28 pb-12">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-end lg:items-center">
             {/* Left: Copy */}
             <div className="max-w-2xl flex flex-col">
