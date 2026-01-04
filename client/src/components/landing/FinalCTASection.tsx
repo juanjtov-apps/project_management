@@ -1,10 +1,8 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Logo } from '@/components/ui/logo';
 import { useGSAP, usePrefersReducedMotion } from '@/hooks/useGSAP';
-import { ArrowRight, Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { ArrowRight } from 'lucide-react';
 
 interface FinalCTASectionProps {
   onRequestDemo: () => void;
@@ -13,42 +11,6 @@ interface FinalCTASectionProps {
 export function FinalCTASection({ onRequestDemo }: FinalCTASectionProps) {
   const sectionRef = useRef<HTMLElement>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
-  const [email, setEmail] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
-
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-
-    setIsSubmitting(true);
-    try {
-      const response = await fetch('/api/v1/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, firstName: '', lastName: '' })
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        toast({
-          title: 'You\'re on the list!',
-          description: 'We\'ll be in touch soon with early access.',
-        });
-        setEmail('');
-      } else {
-        throw new Error(result.detail || 'Failed to join waitlist');
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Something went wrong. Please try again.',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   useGSAP((gsap) => {
     if (prefersReducedMotion) {
@@ -115,27 +77,10 @@ export function FinalCTASection({ onRequestDemo }: FinalCTASectionProps) {
               understands construction.
             </p>
 
-            {/* Email Capture Form */}
-            <form
-              onSubmit={handleEmailSubmit}
-              className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto mb-6"
-            >
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="flex-1 h-14 px-5 rounded-full border text-base"
-                style={{
-                  backgroundColor: '#161B22',
-                  borderColor: '#2D333B',
-                  color: '#FFFFFF'
-                }}
-              />
+            {/* CTA Button */}
+            <div className="flex justify-center mb-6">
               <Button
-                type="submit"
-                disabled={isSubmitting}
+                onClick={onRequestDemo}
                 size="lg"
                 className="group font-semibold px-8 h-14 rounded-full text-base transition-all duration-300"
                 style={{
@@ -144,26 +89,18 @@ export function FinalCTASection({ onRequestDemo }: FinalCTASectionProps) {
                   boxShadow: '0 0 40px rgba(74, 222, 128, 0.25)'
                 }}
                 onMouseEnter={(e) => {
-                  if (!isSubmitting) {
-                    e.currentTarget.style.boxShadow = '0 0 60px rgba(74, 222, 128, 0.4)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }
+                  e.currentTarget.style.boxShadow = '0 0 60px rgba(74, 222, 128, 0.4)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.boxShadow = '0 0 40px rgba(74, 222, 128, 0.25)';
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
-                {isSubmitting ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    Get Early Access
-                    <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
-                  </>
-                )}
+                Get Early Access
+                <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
               </Button>
-            </form>
+            </div>
 
             <p className="text-sm" style={{ color: '#6B7280' }}>
               No credit card required. No commitment. Just early access.

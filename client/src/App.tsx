@@ -15,6 +15,7 @@ import Logs from "@/pages/logs";
 import ClientPortal from "@/pages/client-portal";
 import Subs from "@/pages/subs";
 import RBACAdmin from "@/pages/RBACAdmin";
+import WaitlistAdmin from "@/pages/waitlist-admin";
 import ProjectHealth from "@/pages/project-health";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/layout/sidebar";
@@ -69,6 +70,9 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
             <ProtectedRoute requiredPermission="rbacAdmin">
               <RBACAdmin />
             </ProtectedRoute>
+          </Route>
+          <Route path="/waitlist-admin">
+            <WaitlistAdmin />
           </Route>
         </>
       )}
