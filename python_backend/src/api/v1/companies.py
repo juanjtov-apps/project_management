@@ -146,12 +146,12 @@ async def create_company(
     company: CompanyCreate,
     current_user: Dict[str, Any] = Depends(get_current_user_dependency)
 ):
-    """Create a new company (admin only)."""
+    """Create a new company (root admin only)."""
     try:
-        if not is_root_admin(current_user) and current_user.get('role') != 'admin':
+        if not is_root_admin(current_user):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required"
+                detail="Root admin access required to create companies"
             )
         
         company_data = company.dict()
@@ -172,16 +172,26 @@ async def update_company(
     company_update: CompanyUpdate,
     current_user: Dict[str, Any] = Depends(get_current_user_dependency)
 ):
-    """Update a company (admin only)."""
+    """Update a company (root admin can update any, company admin can update their own)."""
     try:
-        if not is_root_admin(current_user) and current_user.get('role') != 'admin':
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required"
-            )
-        
+        # Root admin can update any company
+        if not is_root_admin(current_user):
+            # Company admins can only update their own company
+            if current_user.get('role') != 'admin':
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Admin access required"
+                )
+            # Verify admin is updating their own company
+            user_company_id = str(current_user.get('companyId', ''))
+            if user_company_id != str(company_id):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You can only update your own company"
+                )
+
         updated_company = await company_repo.update_company(
-            company_id, 
+            company_id,
             company_update.dict(exclude_unset=True)
         )
         if not updated_company:

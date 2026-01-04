@@ -290,13 +290,14 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         # Public endpoints that don't need CSRF protection
         public_paths = [
             "/api/v1/auth/login",
-            "/api/v1/auth/logout", 
+            "/api/v1/auth/logout",
             "/api/auth/login",
             "/api/auth/logout",
-            "/api/waitlist", 
-            "/health", 
-            "/docs", 
-            "/redoc", 
+            "/api/waitlist",
+            "/api/v1/waitlist",
+            "/health",
+            "/docs",
+            "/redoc",
             "/openapi.json"
         ]
         if any(request.url.path.startswith(path) for path in public_paths):
