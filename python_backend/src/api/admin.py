@@ -43,6 +43,17 @@ class ProjectSummary(BaseModel):
     photo_count: int
     created_at: str
 
+class WaitlistEntry(BaseModel):
+    id: str
+    firstName: str
+    lastName: str
+    email: str
+    company: Optional[str]
+    role: Optional[str]
+    phone: Optional[str]
+    message: Optional[str]
+    createdAt: str
+
 # Helper to verify root admin access
 async def verify_root_admin(current_user: dict):
     """Verify the current user is root admin."""
@@ -296,4 +307,60 @@ async def get_platform_stats(
             "total_projects": stats["total_projects"] or 0,
             "total_tasks": stats["total_tasks"] or 0,
             "total_photos": stats["total_photos"] or 0
+        }
+
+@router.get("/waitlist")
+async def get_waitlist_entries(
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of records to return"),
+    pool: asyncpg.Pool = Depends(get_db_pool),
+    current_user: dict = Depends(get_current_user_dependency)
+):
+    """
+    Get all waitlist entries from landing page signups (root admin only).
+    Returns: ID, name, email, company, role, phone, message, and signup date.
+    """
+    await verify_root_admin(current_user)
+
+    async with pool.acquire() as conn:
+        # Get total count
+        total = await conn.fetchval("SELECT COUNT(*) FROM waitlist")
+
+        # Get paginated entries
+        rows = await conn.fetch("""
+            SELECT
+                id,
+                first_name,
+                last_name,
+                email,
+                company,
+                role,
+                phone,
+                message,
+                created_at
+            FROM waitlist
+            ORDER BY created_at DESC
+            OFFSET $1 LIMIT $2
+        """, skip, limit)
+
+        entries = [
+            {
+                "id": str(row["id"]),
+                "firstName": row["first_name"] or "",
+                "lastName": row["last_name"] or "",
+                "email": row["email"] or "",
+                "company": row["company"],
+                "role": row["role"],
+                "phone": row["phone"],
+                "message": row["message"],
+                "createdAt": row["created_at"].isoformat() if row["created_at"] else None
+            }
+            for row in rows
+        ]
+
+        return {
+            "entries": entries,
+            "total": total,
+            "skip": skip,
+            "limit": limit
         }
