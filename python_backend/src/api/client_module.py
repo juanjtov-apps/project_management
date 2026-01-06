@@ -87,6 +87,7 @@ class MaterialItemCreate(BaseModel):
     quantity: Optional[str] = None
     unit_cost: Optional[float] = None
     status: Optional[str] = "pending"
+    stage_id: Optional[str] = None  # Link to project stage
 
 class MaterialItemUpdate(BaseModel):
     name: Optional[str] = None
@@ -96,6 +97,7 @@ class MaterialItemUpdate(BaseModel):
     quantity: Optional[str] = None
     unit_cost: Optional[float] = None
     status: Optional[str] = None
+    stage_id: Optional[str] = None  # Link to project stage
 
 class PaymentScheduleCreate(BaseModel):
     project_id: str
@@ -865,30 +867,48 @@ async def delete_material_area(
 async def get_material_items(
     project_id: Optional[str] = Query(None),
     area_id: Optional[str] = Query(None),
+    stage_id: Optional[str] = Query(None),
     current_user: Dict[str, Any] = Depends(get_current_user_dependency),
     pool: asyncpg.Pool = Depends(get_db_pool)
 ):
-    """Get material items, optionally filtered by project or area."""
+    """Get material items, optionally filtered by project, area, or stage."""
     if project_id:
         await verify_project_access(project_id, current_user, pool)
-    
+
     async with pool.acquire() as conn:
-        if area_id:
+        # Filter by stage_id if provided
+        if stage_id:
             rows = await conn.fetch(
-                """SELECT mi.*, u.name as added_by_name, ma.name as area_name
+                """SELECT mi.*, u.name as added_by_name, ma.name as area_name,
+                          ps.name as stage_name
                    FROM client_portal.material_items mi
                    LEFT JOIN public.users u ON mi.added_by = u.id
                    LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
+                   LEFT JOIN client_portal.project_stages ps ON mi.stage_id = ps.id
+                   WHERE mi.stage_id = $1
+                   ORDER BY mi.created_at DESC""",
+                stage_id
+            )
+        elif area_id:
+            rows = await conn.fetch(
+                """SELECT mi.*, u.name as added_by_name, ma.name as area_name,
+                          ps.name as stage_name
+                   FROM client_portal.material_items mi
+                   LEFT JOIN public.users u ON mi.added_by = u.id
+                   LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
+                   LEFT JOIN client_portal.project_stages ps ON mi.stage_id = ps.id
                    WHERE mi.area_id = $1
                    ORDER BY mi.created_at DESC""",
                 area_id
             )
         elif project_id:
             rows = await conn.fetch(
-                """SELECT mi.*, u.name as added_by_name, ma.name as area_name
+                """SELECT mi.*, u.name as added_by_name, ma.name as area_name,
+                          ps.name as stage_name
                    FROM client_portal.material_items mi
                    LEFT JOIN public.users u ON mi.added_by = u.id
                    LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
+                   LEFT JOIN client_portal.project_stages ps ON mi.stage_id = ps.id
                    WHERE mi.project_id = $1
                    ORDER BY ma.sort_order, mi.created_at DESC""",
                 project_id
@@ -896,10 +916,12 @@ async def get_material_items(
         else:
             accessible_projects = await get_user_accessible_projects(current_user, pool)
             rows = await conn.fetch(
-                """SELECT mi.*, u.name as added_by_name, ma.name as area_name
+                """SELECT mi.*, u.name as added_by_name, ma.name as area_name,
+                          ps.name as stage_name
                    FROM client_portal.material_items mi
                    LEFT JOIN public.users u ON mi.added_by = u.id
                    LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
+                   LEFT JOIN client_portal.project_stages ps ON mi.stage_id = ps.id
                    WHERE mi.project_id = ANY($1::varchar[])
                    ORDER BY mi.created_at DESC""",
                 accessible_projects
@@ -914,12 +936,12 @@ async def create_material_item(
 ):
     """Create a new material item."""
     await verify_project_access(item.project_id, current_user, pool)
-    
+
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
-            """INSERT INTO client_portal.material_items 
-               (area_id, project_id, name, spec, product_link, vendor, quantity, unit_cost, status, added_by)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            """INSERT INTO client_portal.material_items
+               (area_id, project_id, name, spec, product_link, vendor, quantity, unit_cost, status, added_by, stage_id)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                RETURNING *""",
             item.area_id,
             item.project_id,
@@ -930,7 +952,8 @@ async def create_material_item(
             item.quantity,
             item.unit_cost,
             item.status,
-            current_user['id']
+            current_user['id'],
+            item.stage_id
         )
         return dict(row)
 
@@ -975,7 +998,11 @@ async def update_material_item(
             updates.append(f"status = ${param_count}")
             values.append(update.status)
             param_count += 1
-        
+        if update.stage_id is not None:
+            updates.append(f"stage_id = ${param_count}")
+            values.append(update.stage_id if update.stage_id != "" else None)
+            param_count += 1
+
         if not updates:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
         

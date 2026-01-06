@@ -10,6 +10,18 @@ from .log import *
 from .notification import *
 from .schedule_change import *
 from .client_module import *
+from .stage import (
+    StageStatus,
+    TemplateCategory,
+    StageTemplateItem,
+    StageTemplate,
+    ProjectStageBase,
+    ProjectStageCreate,
+    ProjectStageUpdate,
+    ProjectStage,
+    ApplyTemplateRequest,
+    ReorderStagesRequest,
+)
 from .rbac_models import (
     Permissions,
     DEFAULT_ROLES,
@@ -90,7 +102,19 @@ __all__ = [
     "Installment",
     "FrequencyUnit",
     "NotificationSetting",
-    
+
+    # Stage models
+    "StageStatus",
+    "TemplateCategory",
+    "StageTemplateItem",
+    "StageTemplate",
+    "ProjectStageBase",
+    "ProjectStageCreate",
+    "ProjectStageUpdate",
+    "ProjectStage",
+    "ApplyTemplateRequest",
+    "ReorderStagesRequest",
+
     # RBAC models
     "Permissions",
     "DEFAULT_ROLES",

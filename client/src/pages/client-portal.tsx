@@ -3,12 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  AlertTriangle, 
-  MessageSquare, 
-  Package, 
+import {
+  AlertTriangle,
+  MessageSquare,
+  Package,
   CreditCard,
-  Building 
+  Building,
+  Layers
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,10 +19,11 @@ import { IssuesTab } from "@/components/client-portal/issues-tab.tsx";
 import { ForumTab } from "@/components/client-portal/forum-tab.tsx";
 import { MaterialsTab } from "@/components/client-portal/materials-tab.tsx";
 import PaymentsTab from "@/components/client-portal/payments-tab.tsx";
+import { StagesTab } from "@/components/client-portal/stages-tab.tsx";
 
 export default function ClientPortal() {
   const [selectedProject, setSelectedProject] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<string>("issues");
+  const [activeTab, setActiveTab] = useState<string>("stages");
   
   // Get current user for permissions
   const { data: currentUser } = useQuery<any>({
@@ -92,6 +94,14 @@ export default function ClientPortal() {
   // Define all possible tabs - using Proesphere dark theme colors
   const allTabItems = [
     {
+      value: "stages",
+      label: "Stages",
+      icon: Layers,
+      description: "Project timeline and milestones",
+      color: "text-amber-400",
+      requiresPermission: null // Always visible
+    },
+    {
       value: "issues",
       label: "Issues",
       icon: AlertTriangle,
@@ -132,8 +142,9 @@ export default function ClientPortal() {
   );
 
   // Calculate grid columns based on number of visible tabs
-  const gridCols = tabItems.length === 4 ? 'grid-cols-4' : 
-                   tabItems.length === 3 ? 'grid-cols-3' : 
+  const gridCols = tabItems.length === 5 ? 'grid-cols-5' :
+                   tabItems.length === 4 ? 'grid-cols-4' :
+                   tabItems.length === 3 ? 'grid-cols-3' :
                    tabItems.length === 2 ? 'grid-cols-2' : 'grid-cols-1';
 
   return (
@@ -202,6 +213,10 @@ export default function ClientPortal() {
               );
             })}
           </TabsList>
+
+          <TabsContent value="stages">
+            <StagesTab projectId={selectedProject} />
+          </TabsContent>
 
           <TabsContent value="issues">
             <IssuesTab projectId={selectedProject} />

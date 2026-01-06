@@ -1,8 +1,23 @@
-import { X, Sun, Cloud, CloudRain, Users, Building2, TrendingUp, Camera } from "lucide-react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { X, Sun, Cloud, CloudRain, Users, Building2, TrendingUp, Camera, Layers, ChevronRight, Clock, Sparkles, Check, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { AvatarGroup } from "@/components/ui/avatar-group";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { StagesTab } from "@/components/stages/stages-tab";
 import type { Project, Photo, User } from "@shared/schema";
+
+interface ProjectStage {
+  id: string;
+  projectId: string;
+  orderIndex: number;
+  name: string;
+  status: "NOT_STARTED" | "ACTIVE" | "COMPLETE";
+  finishMaterialsDueDate?: string;
+  clientVisible: boolean;
+}
 
 interface ProjectQuickViewProps {
   project: Project | null;
@@ -21,10 +36,30 @@ export function ProjectQuickView({
   isOpen,
   className,
 }: ProjectQuickViewProps) {
+  const [stagesOpen, setStagesOpen] = useState(false);
+
+  // Fetch stages for the project
+  const { data: stages = [] } = useQuery<ProjectStage[]>({
+    queryKey: [`/api/v1/stages?projectId=${project?.id}`],
+    enabled: isOpen && !!project?.id,
+  });
+
   // Early return if not open or no project - prevents null access errors
   if (!isOpen || !project) {
     return null;
   }
+
+  // Calculate stages summary
+  const completedStages = stages.filter((s) => s.status === "COMPLETE").length;
+  const activeStage = stages.find((s) => s.status === "ACTIVE");
+  const nextMaterialsDue = stages
+    .filter((s) => s.finishMaterialsDueDate && s.status !== "COMPLETE")
+    .sort((a, b) => new Date(a.finishMaterialsDueDate!).getTime() - new Date(b.finishMaterialsDueDate!).getTime())[0];
+
+  const formatDateShort = (dateStr?: string) => {
+    if (!dateStr) return null;
+    return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
 
   const thumbnailUrl = photos.length > 0 
     ? `/api/photos/${photos[0].id}/file`
@@ -202,6 +237,71 @@ export function ProjectQuickView({
             )}
           </div>
 
+          {/* Project Stages */}
+          <div className="bg-[#1F242C] rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-amber-500" />
+                <p className="text-xs text-[#9CA3AF]">Project Stages</p>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                onClick={() => setStagesOpen(true)}
+              >
+                Manage
+                <ChevronRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+
+            {stages.length > 0 ? (
+              <div className="space-y-3">
+                {/* Progress Summary */}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#9CA3AF]">Progress</span>
+                  <span className="text-white font-medium">
+                    {completedStages} of {stages.length} complete
+                  </span>
+                </div>
+
+                {/* Active Stage */}
+                {activeStage && (
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-amber-400">Currently Active</p>
+                      <p className="text-sm text-white truncate">{activeStage.name}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Next Materials Due */}
+                {nextMaterialsDue?.finishMaterialsDueDate && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Package className="w-4 h-4 text-rose-400" />
+                    <span className="text-[#9CA3AF]">Materials due:</span>
+                    <span className="text-rose-400">
+                      {formatDateShort(nextMaterialsDue.finishMaterialsDueDate)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-3">
+                <p className="text-sm text-[#9CA3AF]">No stages defined</p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="mt-2 text-xs text-amber-400 hover:text-amber-300"
+                  onClick={() => setStagesOpen(true)}
+                >
+                  Add Stages
+                </Button>
+              </div>
+            )}
+          </div>
+
           {/* Project Details */}
           <div className="bg-[#1F242C] rounded-xl p-4 space-y-3">
             <p className="text-xs text-[#9CA3AF]">Project Details</p>
@@ -227,6 +327,18 @@ export function ProjectQuickView({
           </div>
         </div>
       </div>
+
+      {/* Stages Management Dialog */}
+      <Dialog open={stagesOpen} onOpenChange={setStagesOpen}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto bg-zinc-900 border-zinc-700 p-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Manage Project Stages</DialogTitle>
+          </DialogHeader>
+          <div className="p-6">
+            <StagesTab projectId={project.id} />
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

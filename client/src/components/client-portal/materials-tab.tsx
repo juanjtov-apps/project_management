@@ -3,9 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { 
-  Plus, Package, ExternalLink, Trash2, ChevronDown, ChevronRight, 
-  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle
+import {
+  Plus, Package, ExternalLink, Trash2, ChevronDown, ChevronRight,
+  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle, Layers, Filter
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -75,6 +76,16 @@ interface MaterialItem {
   added_by_name?: string;
   created_at: string;
   updated_at: string;
+  stage_id?: string;
+  stage_name?: string;
+}
+
+interface ProjectStage {
+  id: string;
+  projectId: string;
+  orderIndex: number;
+  name: string;
+  status: string;
 }
 
 interface MaterialsTabProps {
@@ -84,6 +95,7 @@ interface MaterialsTabProps {
 export function MaterialsTab({ projectId }: MaterialsTabProps) {
   const [isCreateAreaOpen, setIsCreateAreaOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [stageFilter, setStageFilter] = useState<string>("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -104,6 +116,12 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
   // Get all material items for the project
   const { data: allItems = [], isLoading: itemsLoading } = useQuery<MaterialItem[]>({
     queryKey: [`/api/material-items?project_id=${projectId}`],
+    enabled: !!projectId,
+  });
+
+  // Get project stages for filtering
+  const { data: stages = [] } = useQuery<ProjectStage[]>({
+    queryKey: [`/api/v1/stages?projectId=${projectId}`],
     enabled: !!projectId,
   });
 
@@ -143,12 +161,20 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
     createAreaMutation.mutate(data);
   };
 
-  // Filter items based on search
-  const filteredItems = allItems.filter(item => 
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.spec?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.vendor?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter items based on search and stage filter
+  const filteredItems = allItems.filter(item => {
+    const matchesSearch =
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.spec?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.vendor?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStage =
+      stageFilter === "all" ||
+      (stageFilter === "unassigned" && !item.stage_id) ||
+      item.stage_id === stageFilter;
+
+    return matchesSearch && matchesStage;
+  });
 
   // Calculate totals
   const totalItems = allItems.length;
@@ -282,16 +308,39 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search materials by name, spec, or vendor..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-          data-testid="input-search-materials"
-        />
+      {/* Search and Stage Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search materials by name, spec, or vendor..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+            data-testid="input-search-materials"
+          />
+        </div>
+        {stages.length > 0 && (
+          <Select value={stageFilter} onValueChange={setStageFilter}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-amber-500" />
+                <SelectValue placeholder="Filter by stage" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Stages</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {stages
+                .sort((a, b) => a.orderIndex - b.orderIndex)
+                .map((stage) => (
+                  <SelectItem key={stage.id} value={stage.id}>
+                    {stage.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Areas List */}
