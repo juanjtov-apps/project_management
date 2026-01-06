@@ -95,21 +95,21 @@ export function ProjectQuickView({
         onClick={onClose}
       />
 
-      {/* Side Panel */}
+      {/* Side Panel - Full width on mobile, 400px on desktop */}
       <div
         className={cn(
-          "fixed top-0 right-0 h-full w-[400px] bg-[#161B22] border-l border-[#2D333B] z-50",
+          "fixed top-0 right-0 h-full w-full sm:w-[400px] bg-[#161B22] border-l border-[#2D333B] z-50",
           "transform transition-transform duration-300 ease-out overflow-y-auto",
           isOpen ? "translate-x-0" : "translate-x-full",
           className
         )}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-[#161B22] border-b border-[#2D333B] p-4 flex items-center justify-between z-10">
-          <h2 className="text-lg font-semibold text-white">Quick View</h2>
+        <div className="sticky top-0 bg-[#161B22] border-b border-[#2D333B] p-3 sm:p-4 flex items-center justify-between z-10">
+          <h2 className="text-base sm:text-lg font-semibold text-white">Quick View</h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-[#1F242C] transition-colors"
+            className="p-2.5 sm:p-2 rounded-lg hover:bg-[#1F242C] transition-colors touch-manipulation min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
             data-testid="close-quick-view"
           >
             <X className="w-5 h-5 text-[#9CA3AF]" />
@@ -140,7 +140,7 @@ export function ProjectQuickView({
             <p className="text-xs text-[#9CA3AF] mt-1 text-right">{project.progress || 0}%</p>
           </div>
 
-          {/* Two Column Cards */}
+          {/* Two Column Cards - Stack on very small screens */}
           <div className="grid grid-cols-2 gap-3">
             {/* Site Weather Card */}
             <div className="bg-[#1F242C] rounded-xl p-4">
@@ -215,7 +215,7 @@ export function ProjectQuickView({
           <div className="bg-[#1F242C] rounded-xl p-4">
             <p className="text-xs text-[#9CA3AF] mb-3">Recent Photos</p>
             {recentPhotos.length > 0 ? (
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 xs:grid-cols-4 gap-2">
                 {recentPhotos.map((photo) => (
                   <div
                     key={photo.id}

@@ -183,151 +183,166 @@ function SortableStageCard({
     daysUntilMaterials !== null && daysUntilMaterials >= 0 && daysUntilMaterials <= 7;
 
   return (
-    <div ref={setNodeRef} style={style} className="relative pl-14">
+    <div ref={setNodeRef} style={style} className="relative pl-6 sm:pl-12">
       {/* Timeline Dot */}
       <div
-        className={`absolute left-4 top-6 w-5 h-5 rounded-full border-4 border-zinc-900 ${config.dotColor} transition-all duration-300`}
+        className={`absolute left-1 sm:left-3 top-5 sm:top-6 w-4 h-4 sm:w-5 sm:h-5 rounded-full border-[3px] sm:border-4 border-zinc-900 ${config.dotColor} transition-all duration-300`}
       />
 
-      {/* Stage Card */}
+      {/* Stage Card - 16px padding on mobile */}
       <Card
         className={`bg-zinc-900/80 border-zinc-700/50 hover:border-zinc-600/50 transition-all duration-200 group ${isDragging ? "shadow-xl shadow-black/30 border-amber-500/50" : ""}`}
       >
-        <CardContent className="p-5">
-          <div className="flex items-start justify-between gap-4">
-            {/* Drag Handle */}
-            <div
-              {...attributes}
-              {...listeners}
-              className="flex items-center justify-center w-6 h-6 mt-1 cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-400 transition-colors"
-            >
-              <GripVertical className="h-5 w-5" />
-            </div>
+        <CardContent className="p-4 sm:p-5">
+          {/* Mobile: Stack layout, Desktop: Side by side */}
+          <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+            {/* Top row on mobile: Drag handle + Title + Status */}
+            <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
+              {/* Drag Handle - 44px touch target */}
+              <div
+                {...attributes}
+                {...listeners}
+                className="flex items-center justify-center w-11 h-11 -ml-1 -mt-1 cursor-grab active:cursor-grabbing text-zinc-500 hover:text-zinc-300 active:text-zinc-200 transition-colors touch-manipulation rounded-lg hover:bg-zinc-800/50"
+              >
+                <GripVertical className="h-5 w-5" />
+              </div>
 
-            {/* Main Content */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-xs font-mono text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded">
-                  #{index + 1}
-                </span>
-                <h3 className="font-semibold text-white truncate">{stage.name}</h3>
-                <Badge variant="outline" className={`${config.color} border shrink-0`}>
-                  <StatusIcon className="h-3 w-3 mr-1" />
-                  {config.label}
-                </Badge>
-                {!stage.clientVisible && (
-                  <Badge
-                    variant="outline"
-                    className="bg-zinc-800/50 text-zinc-400 border-zinc-700"
-                  >
-                    <EyeOff className="h-3 w-3 mr-1" />
-                    Hidden
+              {/* Main Content */}
+              <div className="flex-1 min-w-0 pt-1">
+                {/* Stage number + Title - 2 lines before truncate */}
+                <div className="flex items-start gap-2 mb-2">
+                  <span className="text-xs font-mono text-zinc-500 bg-zinc-800 px-2 py-1 rounded shrink-0 mt-0.5">
+                    #{index + 1}
+                  </span>
+                  <h3 className="font-semibold text-white text-base leading-snug line-clamp-2">
+                    {stage.name}
+                  </h3>
+                </div>
+
+                {/* Status and visibility badges */}
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <Badge variant="outline" className={`${config.color} border text-xs py-1 px-2`}>
+                    <StatusIcon className="h-3 w-3 mr-1.5" />
+                    {config.label}
                   </Badge>
+                  {!stage.clientVisible && (
+                    <Badge
+                      variant="outline"
+                      className="bg-zinc-800/50 text-zinc-400 border-zinc-700 text-xs py-1 px-2"
+                    >
+                      <EyeOff className="h-3 w-3 mr-1" />
+                      Hidden
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Dates Row - Better contrast and spacing */}
+                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-3 text-sm">
+                  {stage.plannedStartDate && (
+                    <div className="flex items-center gap-2 text-zinc-300">
+                      <Calendar className="h-4 w-4 text-zinc-500 shrink-0" />
+                      <span className="leading-relaxed">
+                        {formatDate(stage.plannedStartDate)}
+                        {stage.plannedEndDate && ` → ${formatDate(stage.plannedEndDate)}`}
+                      </span>
+                    </div>
+                  )}
+
+                  {stage.finishMaterialsDueDate && (
+                    <div
+                      className={`flex items-center gap-2 ${
+                        isMaterialsOverdue
+                          ? "text-red-400"
+                          : isMaterialsSoon
+                            ? "text-amber-400"
+                            : "text-zinc-300"
+                      }`}
+                    >
+                      <Package className="h-4 w-4 shrink-0 opacity-70" />
+                      <span className="leading-relaxed">
+                        Materials: {formatDate(stage.finishMaterialsDueDate)}
+                        {isMaterialsOverdue && (
+                          <span className="ml-1 font-medium">(overdue)</span>
+                        )}
+                        {isMaterialsSoon && !isMaterialsOverdue && (
+                          <span className="ml-1 font-medium">({daysUntilMaterials}d)</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  {stage.materialCount > 0 && (
+                    <div className="flex items-center gap-2 text-zinc-400">
+                      <Package className="h-4 w-4 shrink-0" />
+                      <span>
+                        {stage.materialCount} material{stage.materialCount !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Materials Note */}
+                {stage.finishMaterialsNote && (
+                  <p className="mt-3 text-sm text-zinc-500 leading-relaxed line-clamp-2">
+                    {stage.finishMaterialsNote}
+                  </p>
                 )}
               </div>
-
-              {/* Dates Row */}
-              <div className="flex flex-wrap items-center gap-4 text-sm">
-                {stage.plannedStartDate && (
-                  <div className="flex items-center gap-1.5 text-zinc-400">
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span>
-                      {formatDate(stage.plannedStartDate)}
-                      {stage.plannedEndDate && ` - ${formatDate(stage.plannedEndDate)}`}
-                    </span>
-                  </div>
-                )}
-
-                {stage.finishMaterialsDueDate && (
-                  <div
-                    className={`flex items-center gap-1.5 ${
-                      isMaterialsOverdue
-                        ? "text-red-400"
-                        : isMaterialsSoon
-                          ? "text-amber-400"
-                          : "text-zinc-400"
-                    }`}
-                  >
-                    <Package className="h-3.5 w-3.5" />
-                    <span>
-                      Materials due {formatDate(stage.finishMaterialsDueDate)}
-                      {isMaterialsOverdue && (
-                        <span className="ml-1 text-red-400">(overdue)</span>
-                      )}
-                      {isMaterialsSoon && !isMaterialsOverdue && (
-                        <span className="ml-1">({daysUntilMaterials}d left)</span>
-                      )}
-                    </span>
-                  </div>
-                )}
-
-                {stage.materialCount > 0 && (
-                  <div className="flex items-center gap-1.5 text-zinc-400">
-                    <Package className="h-3.5 w-3.5" />
-                    <span>
-                      {stage.materialCount} material
-                      {stage.materialCount !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Materials Note */}
-              {stage.finishMaterialsNote && (
-                <p className="mt-2 text-sm text-zinc-500 line-clamp-2">
-                  {stage.finishMaterialsNote}
-                </p>
-              )}
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              {/* Status Selector */}
+            {/* Actions - Always visible on mobile, stacked vertically on mobile */}
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-1 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-800 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+              {/* Status Selector - 44px height on mobile */}
               <Select
                 value={stage.status}
                 onValueChange={(v) => handleStatusChange(stage, v)}
               >
-                <SelectTrigger className="w-[130px] h-8 text-xs bg-zinc-800 border-zinc-700">
+                <SelectTrigger className="w-full sm:w-[130px] h-11 sm:h-9 text-sm sm:text-xs bg-zinc-800 border-zinc-700 touch-manipulation">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="NOT_STARTED">Not Started</SelectItem>
-                  <SelectItem value="ACTIVE">In Progress</SelectItem>
-                  <SelectItem value="COMPLETE">Complete</SelectItem>
+                  <SelectItem value="NOT_STARTED" className="py-3 sm:py-2">Not Started</SelectItem>
+                  <SelectItem value="ACTIVE" className="py-3 sm:py-2">In Progress</SelectItem>
+                  <SelectItem value="COMPLETE" className="py-3 sm:py-2">Complete</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-zinc-400 hover:text-white"
-                onClick={() => handleVisibilityToggle(stage)}
-                title={stage.clientVisible ? "Hide from client" : "Show to client"}
-              >
-                {stage.clientVisible ? (
-                  <Eye className="h-4 w-4" />
-                ) : (
-                  <EyeOff className="h-4 w-4" />
-                )}
-              </Button>
+              {/* Icon buttons - 44px touch targets */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-11 w-11 sm:h-9 sm:w-9 text-zinc-400 hover:text-white hover:bg-zinc-800 touch-manipulation rounded-lg"
+                  onClick={() => handleVisibilityToggle(stage)}
+                  title={stage.clientVisible ? "Hide from client" : "Show to client"}
+                >
+                  {stage.clientVisible ? (
+                    <Eye className="h-5 w-5 sm:h-4 sm:w-4" />
+                  ) : (
+                    <EyeOff className="h-5 w-5 sm:h-4 sm:w-4" />
+                  )}
+                </Button>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-zinc-400 hover:text-white"
-                onClick={() => openEditDialog(stage)}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-11 w-11 sm:h-9 sm:w-9 text-zinc-400 hover:text-white hover:bg-zinc-800 touch-manipulation rounded-lg"
+                  onClick={() => openEditDialog(stage)}
+                  title="Edit stage"
+                >
+                  <Pencil className="h-5 w-5 sm:h-4 sm:w-4" />
+                </Button>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-zinc-400 hover:text-red-400"
-                onClick={() => setDeleteStage(stage)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-11 w-11 sm:h-9 sm:w-9 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 touch-manipulation rounded-lg"
+                  onClick={() => setDeleteStage(stage)}
+                  title="Delete stage"
+                >
+                  <Trash2 className="h-5 w-5 sm:h-4 sm:w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -670,9 +685,9 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header with Progress */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border border-zinc-700/50 p-6">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header with Progress - Mobile optimized */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border border-zinc-700/50 p-4 sm:p-6">
         {/* Background Pattern */}
         <div
           className="absolute inset-0 opacity-5"
@@ -682,42 +697,45 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
         />
 
         <div className="relative">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              {/* Close button - only shown when onClose prop is provided */}
+          {/* Header row - stacks vertically on mobile */}
+          <div className="flex flex-col gap-4 mb-4 sm:mb-5">
+            {/* Title row with close button */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              {/* Close button - 44px touch target */}
               {onClose && (
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={onClose}
-                  className="h-8 w-8 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex-shrink-0"
+                  className="h-11 w-11 sm:h-9 sm:w-9 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex-shrink-0 touch-manipulation -ml-1"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5 sm:h-4 sm:w-4" />
                   <span className="sr-only">Close</span>
                 </Button>
               )}
-              <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <div className="p-2.5 sm:p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <Layers className="h-5 w-5 text-amber-500" />
               </div>
-              <div>
-                <h2 className="text-xl font-semibold text-white">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg sm:text-xl font-semibold text-white leading-tight">
                   Project Stages
                 </h2>
-                <p className="text-sm text-zinc-400">
-                  {stages.length} stages &middot; {completedStages} complete
+                <p className="text-sm text-zinc-400 leading-relaxed mt-0.5">
+                  {stages.length} stages · {completedStages} complete
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            {/* Action buttons row - full width on mobile */}
+            <div className="flex gap-3 w-full">
               {stages.length === 0 && (
                 <Button
                   variant="outline"
                   onClick={() => setIsTemplateOpen(true)}
-                  className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                  className="flex-1 sm:flex-none border-amber-500/30 text-amber-400 hover:bg-amber-500/10 h-11 sm:h-10 text-sm font-medium touch-manipulation"
                 >
                   <LayoutTemplate className="h-4 w-4 mr-2" />
-                  Use Template
+                  Template
                 </Button>
               )}
               <Button
@@ -726,7 +744,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
                   form.reset();
                   setIsCreateOpen(true);
                 }}
-                className="bg-amber-500 hover:bg-amber-600 text-black font-medium"
+                className="flex-1 sm:flex-none bg-amber-500 hover:bg-amber-600 text-black font-semibold h-11 sm:h-10 text-sm touch-manipulation"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Stage
@@ -734,25 +752,25 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
             </div>
           </div>
 
-          {/* Progress Bar */}
+          {/* Progress Bar - More vertical spacing */}
           {stages.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Overall Progress</span>
-                <span className="text-amber-400 font-medium">
+            <div className="space-y-2.5 pt-2 border-t border-zinc-700/30">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-zinc-400 font-medium">Overall Progress</span>
+                <span className="text-sm text-amber-400 font-semibold tabular-nums">
                   {Math.round(progressPercent)}%
                 </span>
               </div>
-              <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+              <div className="h-2.5 bg-zinc-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-amber-500 to-amber-400 transition-all duration-500 ease-out"
+                  className="h-full bg-gradient-to-r from-amber-500 to-amber-400 transition-all duration-500 ease-out rounded-full"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
               {activeStage && (
-                <p className="text-sm text-zinc-500">
+                <p className="text-sm text-zinc-500 leading-relaxed pt-1">
                   Currently active:{" "}
-                  <span className="text-amber-400">{activeStage.name}</span>
+                  <span className="text-amber-400 font-medium">{activeStage.name}</span>
                 </p>
               )}
             </div>
@@ -803,14 +821,15 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
           onDragEnd={handleDragEnd}
         >
           <div className="relative">
-            {/* Timeline Line */}
-            <div className="absolute left-6 top-0 bottom-0 w-px bg-gradient-to-b from-amber-500/50 via-zinc-700 to-zinc-800" />
+            {/* Timeline Line - Responsive positioning */}
+            <div className="absolute left-3 sm:left-5 top-0 bottom-0 w-px bg-gradient-to-b from-amber-500/50 via-zinc-700 to-zinc-800" />
 
             <SortableContext
               items={[...stages].sort((a, b) => a.orderIndex - b.orderIndex).map((s) => s.id)}
               strategy={verticalListSortingStrategy}
             >
-              <div className="space-y-4">
+              {/* Card spacing: 12px on mobile, 16px on desktop */}
+              <div className="space-y-3 sm:space-y-4">
                 {[...stages]
                   .sort((a, b) => a.orderIndex - b.orderIndex)
                   .map((stage, index) => (
@@ -843,7 +862,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
           }
         }}
       >
-        <DialogContent hideCloseButton className="bg-zinc-900 border-zinc-700 max-w-lg">
+        <DialogContent hideCloseButton className="bg-zinc-900 border-zinc-700 w-[calc(100vw-2rem)] sm:w-full max-w-lg mx-4 sm:mx-auto">
           {/* Apple HIG pattern: Close (left) → Title → Actions (right) */}
           <DialogHeader className="flex flex-row items-center gap-3">
             <DialogClose asChild>
@@ -888,7 +907,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="plannedStartDate"

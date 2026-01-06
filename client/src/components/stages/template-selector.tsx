@@ -152,26 +152,26 @@ export function TemplateSelector({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent hideCloseButton className="bg-zinc-900 border-zinc-700 max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent hideCloseButton className="bg-zinc-900 border-zinc-700 w-[calc(100vw-2rem)] sm:w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col mx-4 sm:mx-auto">
         {/* Apple HIG pattern: Close (left) → Icon → Title → Actions (right) */}
         <DialogHeader className="flex flex-row items-center gap-3">
           <DialogClose asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex-shrink-0"
+              className="h-10 w-10 sm:h-8 sm:w-8 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex-shrink-0 touch-manipulation"
             >
               <X className="h-4 w-4" />
               <span className="sr-only">Close</span>
             </Button>
           </DialogClose>
-          <div className="flex-1">
-            <DialogTitle className="text-xl text-white flex items-center gap-2">
-              <Layers className="h-5 w-5 text-amber-500" />
-              Choose a Template
+          <div className="flex-1 min-w-0">
+            <DialogTitle className="text-lg sm:text-xl text-white flex items-center gap-2">
+              <Layers className="h-5 w-5 text-amber-500 flex-shrink-0" />
+              <span className="truncate">Choose a Template</span>
             </DialogTitle>
-            <DialogDescription className="text-zinc-400">
-              Select a predefined template to quickly set up your project stages.
+            <DialogDescription className="text-zinc-400 text-sm">
+              Select a template to set up your project stages.
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -183,7 +183,7 @@ export function TemplateSelector({
         ) : !selectedTemplate ? (
           /* Template Grid */
           <div className="overflow-y-auto flex-1 pr-2 -mr-2">
-            <div className="grid grid-cols-2 gap-4 py-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 py-4">
               {templates
                 .filter((t) => t.name !== "Custom")
                 .map((template) => {
@@ -281,19 +281,21 @@ export function TemplateSelector({
               </div>
 
               {/* Start Date Picker */}
-              <div className="p-4 rounded-lg bg-zinc-800/30 border border-zinc-700/50">
-                <Label className="text-zinc-300 mb-2 block">
+              <div className="p-3 sm:p-4 rounded-lg bg-zinc-800/30 border border-zinc-700/50">
+                <Label className="text-zinc-300 mb-2 block text-sm">
                   Project Start Date
                 </Label>
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-zinc-500" />
-                  <Input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white max-w-[200px]"
-                  />
-                  <span className="text-sm text-zinc-500">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-zinc-500 flex-shrink-0" />
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="bg-zinc-800 border-zinc-700 text-white w-full sm:max-w-[200px]"
+                    />
+                  </div>
+                  <span className="text-xs sm:text-sm text-zinc-500">
                     Stage dates will be calculated from this date
                   </span>
                 </div>

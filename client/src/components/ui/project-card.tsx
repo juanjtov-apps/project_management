@@ -193,7 +193,7 @@ export function ProjectCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-full bg-black/40 hover:bg-black/60 text-white"
+                className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-black/40 hover:bg-black/60 text-white touch-manipulation"
                 onClick={handleTriggerClick}
                 data-testid={`button-menu-${id}`}
               >
@@ -289,12 +289,12 @@ export function ProjectCard({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Stages Button */}
             {onStages && (
               <button
                 onClick={(e) => { e.stopPropagation(); onStages(); }}
-                className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors"
+                className="flex items-center justify-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors p-2 -m-2 touch-manipulation min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:p-0 sm:m-0"
                 title="Manage Stages"
                 data-testid={`button-stages-${id}`}
               >
@@ -305,7 +305,7 @@ export function ProjectCard({
             {/* View Details Link */}
             <button
               onClick={onClick}
-              className="flex items-center gap-1 text-xs text-[#8B949E] hover:text-[#4ADE80] transition-colors"
+              className="flex items-center gap-1 text-xs text-[#8B949E] hover:text-[#4ADE80] transition-colors p-2 -m-2 touch-manipulation min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0"
               data-testid={`link-view-details-${id}`}
             >
               View Details
