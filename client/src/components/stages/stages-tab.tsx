@@ -487,6 +487,8 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
         queryKey: [`/api/v1/stages?projectId=${projectId}`],
       });
       setEditingStage(null);
+      setIsCreateOpen(false);
+      form.reset();
       toast({ title: "Stage updated successfully" });
     },
     onError: (error: any) => {
@@ -792,7 +794,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
               Create stages to track your project progress. Use a template to
               get started quickly, or add stages manually.
             </p>
-            <div className="flex gap-3 justify-center">
+            <div className="flex flex-wrap gap-3 justify-center">
               <Button
                 variant="outline"
                 onClick={() => setIsTemplateOpen(true)}
@@ -862,7 +864,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
           }
         }}
       >
-        <DialogContent hideCloseButton className="bg-zinc-900 border-zinc-700 w-[calc(100vw-2rem)] sm:w-full max-w-lg mx-4 sm:mx-auto">
+        <DialogContent hideCloseButton className="bg-zinc-900 border-zinc-700 w-[calc(100vw-2rem)] sm:w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col mx-4 sm:mx-auto">
           {/* Apple HIG pattern: Close (left) → Title → Actions (right) */}
           <DialogHeader className="flex flex-row items-center gap-3">
             <DialogClose asChild>
@@ -887,6 +889,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
             </div>
           </DialogHeader>
 
+          <div className="overflow-y-auto flex-1">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
@@ -1038,6 +1041,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
               </div>
             </form>
           </Form>
+          </div>
         </DialogContent>
       </Dialog>
 
