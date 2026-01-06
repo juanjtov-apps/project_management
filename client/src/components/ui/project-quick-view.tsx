@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { AvatarGroup } from "@/components/ui/avatar-group";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { StagesTab } from "@/components/stages/stages-tab";
 import type { Project, Photo, User } from "@shared/schema";
 
@@ -330,12 +330,16 @@ export function ProjectQuickView({
 
       {/* Stages Management Dialog */}
       <Dialog open={stagesOpen} onOpenChange={setStagesOpen}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto bg-zinc-900 border-zinc-700 p-0">
+        <DialogContent hideCloseButton className="max-w-4xl max-h-[85vh] overflow-y-auto bg-zinc-900 border-zinc-700 p-0">
+          {/* sr-only header for accessibility - close button is inside StagesTab */}
           <DialogHeader className="sr-only">
-            <DialogTitle>Manage Project Stages</DialogTitle>
+            <DialogTitle>Project Stages</DialogTitle>
           </DialogHeader>
           <div className="p-6">
-            <StagesTab projectId={project.id} />
+            <StagesTab
+              projectId={project.id}
+              onClose={() => setStagesOpen(false)}
+            />
           </div>
         </DialogContent>
       </Dialog>

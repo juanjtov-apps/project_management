@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { Building2, MapPin, MoreVertical, ArrowRight } from "lucide-react";
+import { Building2, MapPin, MoreVertical, ArrowRight, Layers } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import {
   DropdownMenu,
@@ -22,6 +22,7 @@ interface ProjectCardProps {
   onClick?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onStages?: () => void;
   isSelected?: boolean;
   className?: string;
   "data-testid"?: string;
@@ -75,6 +76,7 @@ export function ProjectCard({
   onClick,
   onEdit,
   onDelete,
+  onStages,
   isSelected,
   className,
   "data-testid": testId,
@@ -263,7 +265,7 @@ export function ProjectCard({
           <Progress value={progress} className="h-1.5 bg-[#2D333B]" />
         </div>
 
-        {/* Photo Thumbnails and View Details */}
+        {/* Photo Thumbnails and Actions */}
         <div className="flex items-center justify-between pt-1">
           {/* Photo Thumbnails */}
           <div className="flex -space-x-2">
@@ -286,15 +288,30 @@ export function ProjectCard({
             )}
           </div>
 
-          {/* View Details Link */}
-          <button
-            onClick={onClick}
-            className="flex items-center gap-1 text-xs text-[#8B949E] hover:text-[#4ADE80] transition-colors"
-            data-testid={`link-view-details-${id}`}
-          >
-            View Details
-            <ArrowRight className="w-3 h-3" />
-          </button>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3">
+            {/* Stages Button */}
+            {onStages && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onStages(); }}
+                className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors"
+                title="Manage Stages"
+                data-testid={`button-stages-${id}`}
+              >
+                <Layers className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* View Details Link */}
+            <button
+              onClick={onClick}
+              className="flex items-center gap-1 text-xs text-[#8B949E] hover:text-[#4ADE80] transition-colors"
+              data-testid={`link-view-details-${id}`}
+            >
+              View Details
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

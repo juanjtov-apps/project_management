@@ -12,6 +12,7 @@ import {
   Clock,
   FileText,
   Check,
+  X,
 } from "lucide-react";
 import {
   Dialog,
@@ -19,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -150,15 +152,28 @@ export function TemplateSelector({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-zinc-900 border-zinc-700 max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="text-xl text-white flex items-center gap-2">
-            <Layers className="h-5 w-5 text-amber-500" />
-            Choose a Template
-          </DialogTitle>
-          <DialogDescription className="text-zinc-400">
-            Select a predefined template to quickly set up your project stages.
-          </DialogDescription>
+      <DialogContent hideCloseButton className="bg-zinc-900 border-zinc-700 max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+        {/* Apple HIG pattern: Close (left) → Icon → Title → Actions (right) */}
+        <DialogHeader className="flex flex-row items-center gap-3">
+          <DialogClose asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex-shrink-0"
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </Button>
+          </DialogClose>
+          <div className="flex-1">
+            <DialogTitle className="text-xl text-white flex items-center gap-2">
+              <Layers className="h-5 w-5 text-amber-500" />
+              Choose a Template
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              Select a predefined template to quickly set up your project stages.
+            </DialogDescription>
+          </div>
         </DialogHeader>
 
         {isLoading ? (

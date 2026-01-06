@@ -46,6 +46,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogClose,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -112,6 +113,7 @@ interface ProjectStage {
 
 interface StagesTabProps {
   projectId: string;
+  onClose?: () => void;  // Optional close callback for dialog usage
 }
 
 const statusConfig = {
@@ -334,7 +336,7 @@ function SortableStageCard({
   );
 }
 
-export function StagesTab({ projectId }: StagesTabProps) {
+export function StagesTab({ projectId, onClose }: StagesTabProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
   const [editingStage, setEditingStage] = useState<ProjectStage | null>(null);
@@ -682,6 +684,18 @@ export function StagesTab({ projectId }: StagesTabProps) {
         <div className="relative">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
+              {/* Close button - only shown when onClose prop is provided */}
+              {onClose && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onClose}
+                  className="h-8 w-8 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex-shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Close</span>
+                </Button>
+              )}
               <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <Layers className="h-5 w-5 text-amber-500" />
               </div>
@@ -829,16 +843,29 @@ export function StagesTab({ projectId }: StagesTabProps) {
           }
         }}
       >
-        <DialogContent className="bg-zinc-900 border-zinc-700 max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-white">
-              {editingStage ? "Edit Stage" : "Add New Stage"}
-            </DialogTitle>
-            <DialogDescription className="text-zinc-400">
-              {editingStage
-                ? "Update the stage details below."
-                : "Define a new stage for your project timeline."}
-            </DialogDescription>
+        <DialogContent hideCloseButton className="bg-zinc-900 border-zinc-700 max-w-lg">
+          {/* Apple HIG pattern: Close (left) → Title → Actions (right) */}
+          <DialogHeader className="flex flex-row items-center gap-3">
+            <DialogClose asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex-shrink-0"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </DialogClose>
+            <div className="flex-1">
+              <DialogTitle className="text-white">
+                {editingStage ? "Edit Stage" : "Add New Stage"}
+              </DialogTitle>
+              <DialogDescription className="text-zinc-400">
+                {editingStage
+                  ? "Update the stage details below."
+                  : "Define a new stage for your project timeline."}
+              </DialogDescription>
+            </div>
           </DialogHeader>
 
           <Form {...form}>

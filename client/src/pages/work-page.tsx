@@ -14,9 +14,11 @@ import {
   Home,
   FolderKanban,
   ClipboardList,
+  X,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -51,6 +53,7 @@ import { FilterBar } from "@/components/ui/filter-bar";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ProjectCard, CreateProjectCard } from "@/components/ui/project-card";
 import { ProjectQuickView } from "@/components/ui/project-quick-view";
+import { StagesTab } from "@/components/stages/stages-tab";
 import { TaskCard as TabletTaskCard } from "@/components/ui/task-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
@@ -121,6 +124,9 @@ export default function WorkPage() {
 
   // Quick View state
   const [quickViewProject, setQuickViewProject] = useState<Project | null>(null);
+
+  // Stages dialog state
+  const [stagesProject, setStagesProject] = useState<Project | null>(null);
 
   // Projects - Filter states
   const [projectSearchTerm, setProjectSearchTerm] = useState("");
@@ -901,6 +907,7 @@ export default function WorkPage() {
                       setProjectToDelete(project);
                       setIsProjectDeleteDialogOpen(true);
                     }}
+                    onStages={() => setStagesProject(project)}
                     isSelected={quickViewProject?.id === project.id}
                     data-testid={`project-card-${project.id}`}
                   />
@@ -2259,6 +2266,24 @@ export default function WorkPage() {
         onClose={() => setQuickViewProject(null)}
         isOpen={quickViewProject !== null}
       />
+
+      {/* Direct Stages Dialog */}
+      <Dialog open={!!stagesProject} onOpenChange={(open) => !open && setStagesProject(null)}>
+        <DialogContent hideCloseButton className="max-w-4xl max-h-[85vh] overflow-y-auto bg-zinc-900 border-zinc-700 p-0">
+          {/* sr-only header for accessibility - close button is inside StagesTab */}
+          <DialogHeader className="sr-only">
+            <DialogTitle>Project Stages</DialogTitle>
+          </DialogHeader>
+          <div className="p-6">
+            {stagesProject && (
+              <StagesTab
+                projectId={stagesProject.id}
+                onClose={() => setStagesProject(null)}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden">
