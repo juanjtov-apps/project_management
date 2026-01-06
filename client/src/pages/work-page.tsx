@@ -11,6 +11,9 @@ import {
   CheckCircle,
   Briefcase,
   Check,
+  Home,
+  FolderKanban,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -51,6 +54,7 @@ import { ProjectQuickView } from "@/components/ui/project-quick-view";
 import { TaskCard as TabletTaskCard } from "@/components/ui/task-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { BottomNavigation } from "@/components/ui/bottom-navigation";
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { useForm } from "react-hook-form";
@@ -68,6 +72,7 @@ import type { Project, InsertProject, Task, InsertTask, User, Photo } from "@sha
 // Helper functions
 const isTaskOverdue = (task: Task): boolean => {
   if (!task.dueDate) return false;
+  if (task.status === 'completed') return false;
   return new Date(task.dueDate) < new Date();
 };
 
@@ -88,7 +93,7 @@ export default function WorkPage() {
   if (renderCount.current % 10 === 0) {
     console.log("[WorkPage] Render count:", renderCount.current);
   }
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -113,14 +118,13 @@ export default function WorkPage() {
   const [isProjectDeleteDialogOpen, setIsProjectDeleteDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
-  
+
   // Quick View state
   const [quickViewProject, setQuickViewProject] = useState<Project | null>(null);
 
   // Projects - Filter states
   const [projectSearchTerm, setProjectSearchTerm] = useState("");
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>("all");
-  const [projectLocationFilter, setProjectLocationFilter] = useState<string>("all");
   const [projectSortBy, setProjectSortBy] = useState<"recent" | "name">("recent");
   const [projectSortOrder, setProjectSortOrder] = useState<"asc" | "desc">("desc");
   const [projectViewMode, setProjectViewMode] = useLocalStorage<"list" | "grid">(
@@ -189,14 +193,14 @@ export default function WorkPage() {
   // Create a map of project ID to cover photo or first photo for thumbnails
   const projectThumbnails = useMemo(() => {
     const thumbnailMap: Record<string, string> = {};
-    
+
     // First, set thumbnails from coverPhotoId if available
     projects.forEach((project) => {
       if (project.coverPhotoId) {
         thumbnailMap[project.id] = `/api/photos/${project.coverPhotoId}/file`;
       }
     });
-    
+
     // Then, for projects without cover photos, use the first photo
     allPhotos.forEach((photo) => {
       if (photo.projectId && !thumbnailMap[photo.projectId]) {
@@ -230,20 +234,20 @@ export default function WorkPage() {
   const createProjectMutation = useMutation({
     mutationFn: async (data: InsertProject) => {
       const response = await apiRequest("/api/projects", { method: "POST", body: data });
-      
+
       // Parse JSON response - critical for mutation to resolve properly
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-      
+
       return await response.json();
     },
     onSuccess: () => {
       // Close dialog and reset form first
       setIsProjectCreateDialogOpen(false);
       projectForm.reset();
-      
+
       // Then invalidate and show toast
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       toast({ title: "Project created successfully" });
@@ -252,18 +256,13 @@ export default function WorkPage() {
 
   const updateProjectMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<InsertProject> }) => {
+      console.log("[Project Update] Mutation executing with:", { id, data });
       const response = await apiRequest(`/api/projects/${id}`, { method: "PATCH", body: data });
-      
-      // Parse JSON response - critical for mutation to resolve properly
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-      
+      console.log("[Project Update] API response received:", response.status);
       return await response.json();
     },
-    onSuccess: () => {
-      console.log("[Project Edit] Update mutation succeeded");
+    onSuccess: (responseData) => {
+      console.log("[Project Update] Mutation succeeded with response:", responseData);
       // Simple synchronous cleanup - match working pattern from tasks.tsx
       isClosingFromMutation.current = true;
       setIsProjectEditDialogOpen(false);
@@ -273,6 +272,14 @@ export default function WorkPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       toast({ title: "Project updated successfully" });
     },
+    onError: (error: any) => {
+      console.error("[Project Update] Mutation failed with error:", error);
+      toast({
+        title: "Failed to update project",
+        description: error.message || "An error occurred",
+        variant: "destructive"
+      });
+    },
   });
 
   const deleteProjectMutation = useMutation({
@@ -280,16 +287,16 @@ export default function WorkPage() {
     onSuccess: (_data, deletedId) => {
       // Clear all related state BEFORE closing dialog to prevent stale references
       const wasQuickViewProject = quickViewProject?.id === deletedId;
-      
+
       // Clear project references first
       setProjectToDelete(null);
       if (wasQuickViewProject) {
         setQuickViewProject(null);
       }
-      
+
       // Then close dialog
       setIsProjectDeleteDialogOpen(false);
-      
+
       // Finally invalidate queries and show toast
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
@@ -301,24 +308,22 @@ export default function WorkPage() {
   const createTaskMutation = useMutation({
     mutationFn: async (data: InsertTask) => {
       const response = await apiRequest("/api/tasks", { method: "POST", body: data });
-      
-      // Parse JSON response - critical for mutation to resolve properly
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-      
+      // apiRequest already throws on non-ok responses
       return await response.json();
     },
     onSuccess: () => {
       // Close dialog and reset form first
       setIsTaskCreateDialogOpen(false);
       taskForm.reset();
-      
+
       // Then invalidate and show toast
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({ title: "Task created successfully" });
+    },
+    onError: (error: any) => {
+      console.error("[Task Create] Error:", error);
+      toast({ title: "Failed to create task", description: error?.message, variant: "destructive" });
     },
   });
 
@@ -327,13 +332,13 @@ export default function WorkPage() {
       console.log("[Task Edit] Starting update mutation", { id, data });
       const response = await apiRequest(`/api/tasks/${id}`, { method: "PATCH", body: data });
       console.log("[Task Edit] Response status:", response.status);
-      
+
       // Parse JSON response - critical for mutation to resolve properly
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-      
+
       const result = await response.json();
       console.log("[Task Edit] Parsed response:", result);
       return result;
@@ -402,6 +407,7 @@ export default function WorkPage() {
       location: "",
       progress: 0,
       dueDate: undefined,
+      companyId: "", // Required by schema, will be set from project data on edit
     },
   });
 
@@ -441,10 +447,8 @@ export default function WorkPage() {
         project.description?.toLowerCase().includes(debouncedProjectSearch.toLowerCase());
       const matchesStatus =
         projectStatusFilter === "all" || project.status === projectStatusFilter;
-      const matchesLocation =
-        projectLocationFilter === "all" || project.location === projectLocationFilter;
 
-      return matchesSearch && matchesStatus && matchesLocation;
+      return matchesSearch && matchesStatus;
     });
 
     // Sort
@@ -466,15 +470,9 @@ export default function WorkPage() {
     projects,
     debouncedProjectSearch,
     projectStatusFilter,
-    projectLocationFilter,
     projectSortBy,
     projectSortOrder,
   ]);
-
-  const uniqueLocations = useMemo(() => {
-    const locations = new Set(projects.map((p) => p.location).filter(Boolean) as string[]);
-    return Array.from(locations);
-  }, [projects]);
 
   // === TASK FILTERING ===
   const filteredTasks = useMemo(() => {
@@ -482,7 +480,11 @@ export default function WorkPage() {
       const matchesSearch =
         task.title.toLowerCase().includes(debouncedTaskSearch.toLowerCase()) ||
         task.description?.toLowerCase().includes(debouncedTaskSearch.toLowerCase());
-      const matchesStatus = taskStatusFilter === "all" || task.status === taskStatusFilter;
+      const matchesStatus =
+        taskStatusFilter === "all" ||
+        (taskStatusFilter === "overdue" && isTaskOverdue(task)) ||
+        (taskStatusFilter === "dueThisWeek" && isTaskDueThisWeek(task)) ||
+        task.status === taskStatusFilter;
       const matchesPriority = taskPriorityFilter === "all" || task.priority === taskPriorityFilter;
       const matchesAssignee =
         taskAssigneeFilter === "all" ||
@@ -496,12 +498,12 @@ export default function WorkPage() {
 
   const taskStats = useMemo(() => {
     return {
-      total: filteredTasks.length,
-      overdue: filteredTasks.filter(isTaskOverdue).length,
-      dueThisWeek: filteredTasks.filter(isTaskDueThisWeek).length,
-      completed: filteredTasks.filter((t) => t.status === "completed").length,
+      total: tasks.length,
+      overdue: tasks.filter(isTaskOverdue).length,
+      dueThisWeek: tasks.filter(isTaskDueThisWeek).length,
+      completed: tasks.filter((t) => t.status === "completed").length,
     };
-  }, [filteredTasks]);
+  }, [tasks]);
 
   // Group tasks by project
   const tasksByProject = useMemo(() => {
@@ -532,30 +534,49 @@ export default function WorkPage() {
   };
 
   const handleEditProject = (project: Project) => {
-    console.log("[Project Edit] Opening edit dialog", { projectId: project.id, projectName: project.name });
+    console.log("[Project Edit] Opening edit dialog", {
+      projectId: project.id,
+      projectName: project.name,
+      projectDescription: project.description,
+      projectLocation: project.location,
+      projectStatus: project.status,
+      projectProgress: project.progress,
+      projectDueDate: project.dueDate,
+      fullProject: project
+    });
     // Match working pattern - synchronous reset
     setEditingProject(project);
-    projectEditForm.reset({
-      name: project.name,
+    const formValues = {
+      name: project.name || "",
       description: project.description || "",
-      status: project.status,
+      status: project.status || "active",
       location: project.location || "",
-      progress: project.progress || 0,
+      progress: project.progress ?? 0,
       dueDate: project.dueDate ? new Date(project.dueDate) : undefined,
       coverPhotoId: project.coverPhotoId || undefined,
-    });
+      // Include companyId to satisfy schema validation (required field)
+      companyId: project.companyId,
+    };
+    console.log("[Project Edit] Resetting form with values:", formValues);
+    projectEditForm.reset(formValues);
     setIsProjectEditDialogOpen(true);
-    console.log("[Project Edit] Form populated and dialog opened");
+    console.log("[Project Edit] Form populated and dialog opened, form values:", projectEditForm.getValues());
   };
 
   const handleUpdateProject = (data: InsertProject) => {
-    if (!editingProject) return;
+    console.log("[Project Update] handleUpdateProject called with data:", data);
+    console.log("[Project Update] editingProject:", editingProject);
+    if (!editingProject) {
+      console.error("[Project Update] No editingProject found!");
+      return;
+    }
     const projectData = {
       ...data,
       description: data.description?.trim() || null,
       dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
       coverPhotoId: data.coverPhotoId || null,
     } as any;
+    console.log("[Project Update] Calling mutation with:", { id: editingProject.id, data: projectData });
     updateProjectMutation.mutate({ id: editingProject.id, data: projectData });
   };
 
@@ -612,28 +633,28 @@ export default function WorkPage() {
   };
 
   const handleUpdateTask = (data: InsertTask) => {
-    console.log("[Task Edit] handleUpdateTask called", { 
+    console.log("[Task Edit] handleUpdateTask called", {
       editingTaskId: editingTask?.id,
       formData: data,
       timestamp: new Date().toISOString()
     });
-    
+
     try {
       if (!editingTask) {
         console.warn("[Task Edit] handleUpdateTask called but no editingTask");
         return;
       }
-      
+
       console.log("[Task Edit] Processing task data");
       const taskData = {
         ...data,
         description: data.description?.trim() || null,
         dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
       };
-      
-      console.log("[Task Edit] Calling mutation with processed data", { 
-        id: editingTask.id, 
-        taskData 
+
+      console.log("[Task Edit] Calling mutation with processed data", {
+        id: editingTask.id,
+        taskData
       });
       updateTaskMutation.mutate({ id: editingTask.id, data: taskData });
       console.log("[Task Edit] Mutation call completed (async)");
@@ -672,13 +693,6 @@ export default function WorkPage() {
       onClick: () => setProjectStatusFilter("all"),
     });
   }
-  if (projectLocationFilter !== "all") {
-    projectActiveFilters.push({
-      id: "location",
-      label: `Location: ${projectLocationFilter}`,
-      onClick: () => setProjectLocationFilter("all"),
-    });
-  }
 
   const taskActiveFilters = [];
   if (taskStatusFilter !== "all") {
@@ -705,7 +719,6 @@ export default function WorkPage() {
 
   const handleClearProjectFilters = () => {
     setProjectStatusFilter("all");
-    setProjectLocationFilter("all");
     setProjectSearchTerm("");
   };
 
@@ -727,13 +740,13 @@ export default function WorkPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--pro-bg)]">
-      {/* Sticky Header with Segmented Control */}
-      <div className="sticky top-0 z-20 bg-[var(--pro-bg)] border-b border-[var(--pro-border)]">
+    <div className="min-h-screen bg-[var(--pro-bg)] pb-20 md:pb-0">
+      {/* Header with Segmented Control */}
+      <div className="bg-[var(--pro-bg)] border-b border-[var(--pro-border)]">
         <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-0">
             {/* Left: Breadcrumb */}
-            <div>
+            <div className="w-full md:w-auto text-center md:text-left">
               <h1 className="text-2xl font-bold text-[var(--pro-text-primary)]">Work</h1>
               <p className="text-sm text-[var(--pro-text-secondary)] mt-1">
                 Manage your projects and tasks
@@ -741,7 +754,7 @@ export default function WorkPage() {
             </div>
 
             {/* Center: Segmented Control */}
-            <div className="absolute left-1/2 -translate-x-1/2">
+            <div className="w-full md:w-auto md:absolute md:left-1/2 md:-translate-x-1/2 flex justify-center">
               <SegmentedControl
                 options={[
                   { value: "projects", label: "Projects", icon: <Briefcase className="w-4 h-4" /> },
@@ -749,7 +762,7 @@ export default function WorkPage() {
                 ]}
                 value={activeSegment}
                 onChange={(value) => setActiveSegment(value as WorkSegment)}
-                className="min-w-[400px]"
+                className="w-fit"
                 data-testid="work-segment-control"
               />
             </div>
@@ -790,37 +803,21 @@ export default function WorkPage() {
             searchPlaceholder="Search projects..."
             filters={projectActiveFilters}
             onClearAll={projectActiveFilters.length > 0 ? handleClearProjectFilters : undefined}
-            sticky
+            sticky={false}
             data-testid="filter-bar-projects"
             rightActions={
               <>
                 <Select value={projectStatusFilter} onValueChange={setProjectStatusFilter}>
-                  <SelectTrigger className="w-[140px] tap-target" data-testid="filter-status">
+                  <SelectTrigger className="flex-1 sm:flex-none sm:w-[140px] tap-target" data-testid="filter-status">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="on_hold">On Hold</SelectItem>
+                    <SelectItem value="on-hold">On Hold</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
-
-                {uniqueLocations.length > 0 && (
-                  <Select value={projectLocationFilter} onValueChange={setProjectLocationFilter}>
-                    <SelectTrigger className="w-[140px] tap-target" data-testid="filter-location">
-                      <SelectValue placeholder="Location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Locations</SelectItem>
-                      {uniqueLocations.map((location) => (
-                        <SelectItem key={location} value={location}>
-                          {location}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
 
                 <Select
                   value={`${projectSortBy}-${projectSortOrder}`}
@@ -833,7 +830,7 @@ export default function WorkPage() {
                     setProjectSortOrder(newSortOrder);
                   }}
                 >
-                  <SelectTrigger className="w-[140px] tap-target" data-testid="sort-select">
+                  <SelectTrigger className="flex-1 sm:flex-none sm:w-[140px] tap-target" data-testid="sort-select">
                     <SelectValue placeholder="Sort" />
                   </SelectTrigger>
                   <SelectContent>
@@ -851,6 +848,7 @@ export default function WorkPage() {
                   ]}
                   value={projectViewMode}
                   onChange={(value) => setProjectViewMode(value as "list" | "grid")}
+                  className="flex-1 sm:flex-none"
                   data-testid="view-mode-toggle"
                 />
               </>
@@ -872,9 +870,9 @@ export default function WorkPage() {
                   projectSearchTerm || projectActiveFilters.length > 0
                     ? undefined
                     : {
-                        label: "Create Project",
-                        onClick: () => setIsProjectCreateDialogOpen(true),
-                      }
+                      label: "Create Project",
+                      onClick: () => setIsProjectCreateDialogOpen(true),
+                    }
                 }
                 data-testid="empty-state-projects"
               />
@@ -898,10 +896,7 @@ export default function WorkPage() {
                     thumbnailUrl={projectThumbnails[project.id]}
                     photoUrls={projectPhotoUrls[project.id] || []}
                     onClick={() => setQuickViewProject(project)}
-                    onEdit={() => {
-                      setEditingProject(project);
-                      setIsProjectEditDialogOpen(true);
-                    }}
+                    onEdit={() => handleEditProject(project)}
                     onDelete={() => {
                       setProjectToDelete(project);
                       setIsProjectDeleteDialogOpen(true);
@@ -924,16 +919,61 @@ export default function WorkPage() {
       {/* Tasks Segment */}
       {activeSegment === "tasks" && (
         <>
-          {/* Task Stats Row - Sticky */}
-          <div className="sticky-top bg-[var(--pro-bg)] border-b border-[var(--pro-border)] px-6 py-4 z-10">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Task Stats Row - Mobile-optimized horizontal scroll */}
+          <div className="bg-[var(--pro-bg)] border-b border-[var(--pro-border)] px-4 py-3">
+            {/* Mobile: Horizontal scroll strip - centered */}
+            <div className="md:hidden flex gap-2 justify-center pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <button
+                onClick={() => handleClearTaskFilters()}
+                className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--pro-surface)] rounded-lg border border-[var(--pro-border)] active:scale-95 transition-transform"
+                data-testid="stat-total-tasks"
+              >
+                <span className="text-sm font-bold text-[var(--pro-text-primary)]">{taskStats.total}</span>
+                <span className="text-[10px] text-[var(--pro-text-secondary)]">Total</span>
+              </button>
+              <button
+                onClick={() => setTaskStatusFilter("overdue")}
+                className={cn(
+                  "flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border active:scale-95 transition-transform",
+                  taskStats.overdue > 0
+                    ? "bg-[var(--pro-red)]/10 border-[var(--pro-red)]/30"
+                    : "bg-[var(--pro-surface)] border-[var(--pro-border)]"
+                )}
+                data-testid="stat-overdue-tasks"
+              >
+                <span className={cn(
+                  "text-sm font-bold",
+                  taskStats.overdue > 0 ? "text-[var(--pro-red)]" : "text-[var(--pro-text-primary)]"
+                )}>{taskStats.overdue}</span>
+                <span className="text-[10px] text-[var(--pro-text-secondary)]">Overdue</span>
+              </button>
+              <button
+                onClick={() => setTaskStatusFilter("dueThisWeek")}
+                className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--pro-blue)]/10 rounded-lg border border-[var(--pro-blue)]/30 active:scale-95 transition-transform"
+                data-testid="stat-due-this-week"
+              >
+                <span className="text-sm font-bold text-[var(--pro-blue)]">{taskStats.dueThisWeek}</span>
+                <span className="text-[10px] text-[var(--pro-text-secondary)]">Week</span>
+              </button>
+              <button
+                onClick={() => setTaskStatusFilter("completed")}
+                className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--pro-mint)]/10 rounded-lg border border-[var(--pro-mint)]/30 active:scale-95 transition-transform"
+                data-testid="stat-completed-tasks"
+              >
+                <span className="text-sm font-bold text-[var(--pro-mint)]">{taskStats.completed}</span>
+                <span className="text-[10px] text-[var(--pro-text-secondary)]">Done</span>
+              </button>
+            </div>
+
+            {/* Desktop: Original 4-column grid */}
+            <div className="hidden md:grid grid-cols-4 gap-4">
               <StatCard
                 icon={ListTodo}
                 label="Total Tasks"
                 value={taskStats.total}
                 sublabel="All tasks"
                 onClick={() => handleClearTaskFilters()}
-                data-testid="stat-total-tasks"
+                data-testid="stat-total-tasks-desktop"
               />
               <StatCard
                 icon={AlertCircle}
@@ -942,7 +982,7 @@ export default function WorkPage() {
                 sublabel="Behind schedule"
                 tone="coral"
                 onClick={() => setTaskStatusFilter("overdue")}
-                data-testid="stat-overdue-tasks"
+                data-testid="stat-overdue-tasks-desktop"
               />
               <StatCard
                 icon={CalendarIcon}
@@ -950,7 +990,8 @@ export default function WorkPage() {
                 value={taskStats.dueThisWeek}
                 sublabel="Due within 7 days"
                 tone="blue"
-                data-testid="stat-due-this-week"
+                onClick={() => setTaskStatusFilter("dueThisWeek")}
+                data-testid="stat-due-this-week-desktop"
               />
               <StatCard
                 icon={CheckCircle}
@@ -959,60 +1000,105 @@ export default function WorkPage() {
                 sublabel="Finished tasks"
                 tone="teal"
                 onClick={() => setTaskStatusFilter("completed")}
-                data-testid="stat-completed-tasks"
+                data-testid="stat-completed-tasks-desktop"
               />
             </div>
           </div>
 
-          {/* Filter Bar - Sticky */}
-          <FilterBar
-            searchValue={taskSearchTerm}
-            onSearchChange={setTaskSearchTerm}
-            searchPlaceholder="Search tasks..."
-            filters={taskActiveFilters}
-            onClearAll={taskActiveFilters.length > 0 ? handleClearTaskFilters : undefined}
-            sticky
-            data-testid="filter-bar-tasks"
-            rightActions={
-              <>
-                <Select value={taskStatusFilter} onValueChange={setTaskStatusFilter}>
-                  <SelectTrigger className="w-[140px] tap-target" data-testid="filter-status">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="blocked">Blocked</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={taskPriorityFilter} onValueChange={setTaskPriorityFilter}>
-                  <SelectTrigger className="w-[140px] tap-target" data-testid="filter-priority">
-                    <SelectValue placeholder="Priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Priority</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <SegmentedControl
-                  options={[
-                    { value: "list", label: "List" },
-                    { value: "canvas", label: "Canvas" },
-                  ]}
-                  value={taskViewMode}
-                  onChange={(value) => setTaskViewMode(value as "list" | "canvas")}
-                  data-testid="view-mode-toggle"
+          {/* Mobile-Optimized Filter Bar */}
+          <div className="bg-[var(--pro-bg)] border-b border-[var(--pro-border)] px-4 py-3">
+            {/* Search row */}
+            <div className="flex items-center gap-2 mb-3">
+              <div className="relative flex-1">
+                <Input
+                  type="text"
+                  value={taskSearchTerm}
+                  onChange={(e) => setTaskSearchTerm(e.target.value)}
+                  placeholder="Search tasks..."
+                  data-testid="filter-search-input"
+                  className="pl-9 h-10 bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-sm"
+                  aria-label="Search"
                 />
-              </>
-            }
-          />
+                <ListTodo className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--pro-text-secondary)]" />
+              </div>
+
+            </div>
+
+            {/* Filter chips - horizontal scroll with proper containment */}
+            <div className="flex gap-2 overflow-x-auto pb-0.5 pr-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <Select value={taskStatusFilter} onValueChange={setTaskStatusFilter}>
+                <SelectTrigger
+                  className="flex-shrink-0 h-8 w-auto min-w-[80px] px-2.5 text-xs bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] rounded-full"
+                  data-testid="filter-status"
+                >
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent position="popper" side="bottom" align="start" sideOffset={4} className="z-50">
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="blocked">Blocked</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={taskPriorityFilter} onValueChange={setTaskPriorityFilter}>
+                <SelectTrigger
+                  className="flex-shrink-0 h-8 w-auto min-w-[80px] px-2.5 text-xs bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] rounded-full"
+                  data-testid="filter-priority"
+                >
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent position="popper" side="bottom" align="start" sideOffset={4} className="z-50">
+                  <SelectItem value="all">All Priority</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* List/Canvas view toggle - pill style matching other filters */}
+              <div className="flex-shrink-0 flex gap-1">
+                <button
+                  onClick={() => setTaskViewMode("list")}
+                  className={cn(
+                    "h-8 px-3 text-xs rounded-full border transition-colors",
+                    taskViewMode === "list"
+                      ? "bg-[var(--pro-mint)] border-[var(--pro-mint)] text-[var(--pro-bg-deep)] font-medium"
+                      : "bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-secondary)]"
+                  )}
+                  data-testid="view-mode-list"
+                >
+                  List
+                </button>
+                <button
+                  onClick={() => setTaskViewMode("canvas")}
+                  className={cn(
+                    "h-8 px-3 text-xs rounded-full border transition-colors",
+                    taskViewMode === "canvas"
+                      ? "bg-[var(--pro-mint)] border-[var(--pro-mint)] text-[var(--pro-bg-deep)] font-medium"
+                      : "bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-secondary)]"
+                  )}
+                  data-testid="view-mode-canvas"
+                >
+                  Canvas
+                </button>
+              </div>
+
+              {/* Clear filters chip */}
+              {taskActiveFilters.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearTaskFilters}
+                  className="flex-shrink-0 h-8 px-2.5 text-xs text-[var(--pro-red)] hover:text-[var(--pro-red)] hover:bg-[var(--pro-red)]/10 rounded-full"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
 
           {/* Tasks Content */}
           <div className="px-6 py-6">
@@ -1032,7 +1118,51 @@ export default function WorkPage() {
                 }
                 data-testid="empty-state-tasks"
               />
+            ) : taskViewMode === "canvas" ? (
+              /* Canvas View - Grid of cards */
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredTasks.map((task) => {
+                  const project = projects.find(p => p.id === task.projectId);
+                  const assignees = task.assigneeId
+                    ? [{ id: task.assigneeId, name: getUserName(task.assigneeId) || "Unknown" }]
+                    : [];
+
+                  return (
+                    <TabletTaskCard
+                      key={task.id}
+                      id={task.id}
+                      title={task.title}
+                      projectName={project?.name}
+                      location={project?.location || undefined}
+                      priority={task.priority as any}
+                      status={task.status}
+                      dueDate={task.dueDate ? new Date(task.dueDate) : undefined}
+                      isOverdue={isTaskOverdue(task)}
+                      assignees={assignees}
+                      variant="canvas"
+                      onStatusChange={(newStatus) =>
+                        updateTaskMutation.mutate({
+                          id: task.id,
+                          data: { status: newStatus },
+                        })
+                      }
+                      menuItems={[
+                        { label: "Edit", icon: Edit, onClick: () => handleEditTask(task) },
+                        {
+                          label: "Delete",
+                          icon: Trash2,
+                          onClick: () => handleDeleteTask(task),
+                          variant: "danger",
+                          separator: true,
+                        },
+                      ]}
+                      data-testid={`task-card-${task.id}`}
+                    />
+                  );
+                })}
+              </div>
             ) : (
+              /* List View - Grouped by Project */
               <div className="space-y-6">
                 {/* Grouped by Project */}
                 {Object.entries(tasksByProject).map(([projectId, { project, tasks: projectTasks }]) => (
@@ -1171,8 +1301,8 @@ export default function WorkPage() {
 
       {/* === PROJECT DIALOGS === */}
       {/* Create Project Dialog */}
-      <Dialog 
-        open={isProjectCreateDialogOpen} 
+      <Dialog
+        open={isProjectCreateDialogOpen}
         onOpenChange={(open) => {
           if (open) window.dispatchEvent(new CustomEvent('dialog:open'));
           else window.dispatchEvent(new CustomEvent('dialog:close'));
@@ -1252,7 +1382,7 @@ export default function WorkPage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="on_hold">On Hold</SelectItem>
+                          <SelectItem value="on-hold">On Hold</SelectItem>
                           <SelectItem value="completed">Completed</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1342,8 +1472,8 @@ export default function WorkPage() {
       </Dialog>
 
       {/* Edit Project Dialog - Similar structure */}
-      <Dialog 
-        open={isProjectEditDialogOpen} 
+      <Dialog
+        open={isProjectEditDialogOpen}
         onOpenChange={(open) => {
           // Emit custom event for header to pause polling
           if (open) {
@@ -1353,10 +1483,10 @@ export default function WorkPage() {
             (window as any).__lastDialogCloseTime = Date.now();
             window.dispatchEvent(new CustomEvent('dialog:close'));
           }
-          
+
           // Direct setter - match working pattern from tasks.tsx exactly
           setIsProjectEditDialogOpen(open);
-          
+
           // Cleanup when closing manually (not from mutation)
           if (!open && !isClosingFromMutation.current) {
             setEditingProject(null);
@@ -1376,7 +1506,12 @@ export default function WorkPage() {
                   <FormItem>
                     <FormLabel>Project Name</FormLabel>
                     <FormControl>
-                      <Input {...field} data-testid="input-edit-name" placeholder="Enter project name" />
+                      <Input
+                        {...field}
+                        value={field.value || ""}
+                        data-testid="input-edit-name"
+                        placeholder="Enter project name"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1507,7 +1642,7 @@ export default function WorkPage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="on_hold">On Hold</SelectItem>
+                          <SelectItem value="on-hold">On Hold</SelectItem>
                           <SelectItem value="completed">Completed</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1609,8 +1744,8 @@ export default function WorkPage() {
       </Dialog>
 
       {/* Delete Project Dialog */}
-      <AlertDialog 
-        open={isProjectDeleteDialogOpen} 
+      <AlertDialog
+        open={isProjectDeleteDialogOpen}
         onOpenChange={(open) => {
           // Only handle user-initiated close (not programmatic close from mutation success)
           if (!deleteProjectMutation.isPending && open !== isProjectDeleteDialogOpen) {
@@ -1647,8 +1782,8 @@ export default function WorkPage() {
 
       {/* === TASK DIALOGS === */}
       {/* Create Task Dialog */}
-      <Dialog 
-        open={isTaskCreateDialogOpen} 
+      <Dialog
+        open={isTaskCreateDialogOpen}
         onOpenChange={(open) => {
           if (open) window.dispatchEvent(new CustomEvent('dialog:open'));
           else window.dispatchEvent(new CustomEvent('dialog:close'));
@@ -1780,7 +1915,7 @@ export default function WorkPage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="in-progress">In Progress</SelectItem>
                           <SelectItem value="completed">Completed</SelectItem>
                           <SelectItem value="blocked">Blocked</SelectItem>
                         </SelectContent>
@@ -1835,7 +1970,11 @@ export default function WorkPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" data-testid="button-submit-task" disabled={createTaskMutation.isPending}>
+                <Button
+                  type="submit"
+                  data-testid="button-submit-task"
+                  disabled={createTaskMutation.isPending}
+                >
                   {createTaskMutation.isPending ? "Creating..." : "Create Task"}
                 </Button>
               </div>
@@ -1845,8 +1984,8 @@ export default function WorkPage() {
       </Dialog>
 
       {/* Edit Task Dialog */}
-      <Dialog 
-        open={isTaskEditDialogOpen} 
+      <Dialog
+        open={isTaskEditDialogOpen}
         onOpenChange={(open) => {
           // Emit custom event for header to pause polling
           if (open) {
@@ -1856,10 +1995,10 @@ export default function WorkPage() {
             (window as any).__lastDialogCloseTime = Date.now();
             window.dispatchEvent(new CustomEvent('dialog:close'));
           }
-          
+
           // Direct setter - match working pattern from tasks.tsx exactly
           setIsTaskEditDialogOpen(open);
-          
+
           // Cleanup when closing manually (not from mutation)
           if (!open && !isClosingFromMutation.current) {
             setEditingTask(null);
@@ -1871,11 +2010,11 @@ export default function WorkPage() {
             <DialogTitle>Edit Task</DialogTitle>
           </DialogHeader>
           <Form {...taskEditForm}>
-            <form 
+            <form
               onSubmit={taskEditForm.handleSubmit((data) => {
                 console.log("[Task Edit Form] Form submitted with data", data);
                 handleUpdateTask(data);
-              })} 
+              })}
               className="space-y-4"
             >
               <FormField
@@ -1997,7 +2136,7 @@ export default function WorkPage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="in-progress">In Progress</SelectItem>
                           <SelectItem value="completed">Completed</SelectItem>
                           <SelectItem value="blocked">Blocked</SelectItem>
                         </SelectContent>
@@ -2079,8 +2218,8 @@ export default function WorkPage() {
       </Dialog>
 
       {/* Delete Task Dialog */}
-      <AlertDialog 
-        open={isTaskDeleteDialogOpen} 
+      <AlertDialog
+        open={isTaskDeleteDialogOpen}
         onOpenChange={(open) => {
           if (!deleteTaskMutation.isPending) {
             setIsTaskDeleteDialogOpen(open);
@@ -2120,6 +2259,18 @@ export default function WorkPage() {
         onClose={() => setQuickViewProject(null)}
         isOpen={quickViewProject !== null}
       />
+
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden">
+        <BottomNavigation
+          items={[
+            { value: "projects", label: "Projects", icon: <FolderKanban size={20} /> },
+            { value: "tasks", label: "Tasks", icon: <ClipboardList size={20} />, badge: taskStats.overdue > 0 ? taskStats.overdue : undefined },
+          ]}
+          value={activeSegment}
+          onChange={(value) => setActiveSegment(value as WorkSegment)}
+        />
+      </div>
     </div>
   );
 }

@@ -1,90 +1,96 @@
 import { z } from "zod";
 
-// USER ROLE TYPES
+// ============================================================================
+// ROLE TYPES
+// ============================================================================
+
+/**
+ * Default role names available in the system
+ */
 export const UserRole = {
-  PLATFORM_ADMIN: 'platform_admin',
-  COMPANY_ADMIN: 'company_admin', 
+  ADMIN: 'admin',
   PROJECT_MANAGER: 'project_manager',
+  OFFICE_MANAGER: 'office_manager',
+  CREW: 'crew',
   SUBCONTRACTOR: 'subcontractor',
   CLIENT: 'client',
-  VIEWER: 'viewer',
 } as const;
 
 export type UserRoleType = typeof UserRole[keyof typeof UserRole];
 
+// ============================================================================
 // COMPANY TYPES
+// ============================================================================
+
 export const CompanyStatus = {
   ACTIVE: 'active',
-  SUSPENDED: 'suspended',
-  PENDING: 'pending',
+  INACTIVE: 'inactive',
 } as const;
 
 export type CompanyStatusType = typeof CompanyStatus[keyof typeof CompanyStatus];
 
+export const PlanType = {
+  BASIC: 'basic',
+  PREMIUM: 'premium',
+  ENTERPRISE: 'enterprise',
+} as const;
+
+export type PlanTypeType = typeof PlanType[keyof typeof PlanType];
+
+// ============================================================================
 // PERMISSION CONTEXT
+// ============================================================================
+
+/**
+ * Context for permission checks
+ * Used by the RBAC middleware to determine access
+ */
 export interface PermissionContext {
-  companyId: number;
   userId: string;
-  projectId?: number;
-  resourceId?: string;
-  ipAddress?: string;
-  userAgent?: string;
+  companyId: string;
+  isRoot: boolean;
+  permissions: string[];
+  roleId: number;
+  roleName: string;
 }
 
-// ABAC RULE STRUCTURE
-export interface ABACRule {
-  condition: string; // JSON-logic expression
-  attributes: Record<string, any>;
-  description?: string;
+/**
+ * Simplified user context (one user, one company, one role)
+ */
+export interface UserContext {
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  companyId: string;
+  roleId: number;
+  roleName: string;
+  roleDisplayName: string;
+  permissions: string[];
+  isRoot: boolean;
+  isActive: boolean;
+  lastLoginAt: Date | null;
 }
 
-// EFFECTIVE PERMISSIONS STRUCTURE
-export interface EffectivePermissions {
-  userId: string;
-  companyId: number;
-  permissions: number[];
-  roles: Array<{
-    id: number;
-    name: string;
-    scope: 'company' | 'project';
-    projectId?: number;
-  }>;
-  computedAt: Date;
-  expiresAt: Date;
-}
+// ============================================================================
+// ROLE ASSIGNMENT
+// ============================================================================
 
-// ROLE ASSIGNMENT REQUEST
+/**
+ * Schema for assigning a role to a user
+ */
 export const RoleAssignmentSchema = z.object({
   userId: z.string(),
   roleId: z.number(),
-  companyId: z.number(),
-  projectId: z.number().optional(),
-  expiresAt: z.date().optional(),
-  permissions: z.array(z.number()).optional(),
+  companyId: z.string(),
 });
 
 export type RoleAssignmentRequest = z.infer<typeof RoleAssignmentSchema>;
 
-// USER CONTEXT (for session management)
-export interface UserContext {
-  id: string;
-  email: string;
-  firstName: string | null;
-  lastName: string | null;
-  currentCompanyId: number;
-  effectivePermissions: number[];
-  roles: Array<{
-    id: number;
-    name: string;
-    companyId: number;
-    scope: 'company' | 'project';
-    projectId?: number;
-  }>;
-  lastLoginAt: Date | null;
-  mfaEnabled: boolean;
-}
+// ============================================================================
+// AUDIT ACTIONS
+// ============================================================================
 
-// AUDIT ACTION TYPES
 export const AuditAction = {
   // User Management
   USER_CREATED: 'user_created',
@@ -92,12 +98,13 @@ export const AuditAction = {
   USER_DEACTIVATED: 'user_deactivated',
   USER_LOGIN: 'user_login',
   USER_LOGOUT: 'user_logout',
+  USER_PASSWORD_CHANGED: 'user_password_changed',
   
   // Role Management
   ROLE_ASSIGNED: 'role_assigned',
-  ROLE_REVOKED: 'role_revoked',
   ROLE_CREATED: 'role_created',
   ROLE_UPDATED: 'role_updated',
+  ROLE_DELETED: 'role_deleted',
   
   // Permission Management
   PERMISSION_GRANTED: 'permission_granted',
@@ -106,30 +113,36 @@ export const AuditAction = {
   // Data Access
   DATA_VIEWED: 'data_viewed',
   DATA_EXPORTED: 'data_exported',
-  DATA_MODIFIED: 'data_modified',
+  DATA_CREATED: 'data_created',
+  DATA_UPDATED: 'data_updated',
+  DATA_DELETED: 'data_deleted',
   
   // Security Events
-  MFA_ENABLED: 'mfa_enabled',
-  MFA_DISABLED: 'mfa_disabled',
-  SUSPICIOUS_LOGIN: 'suspicious_login',
   PERMISSION_DENIED: 'permission_denied',
+  INVALID_LOGIN_ATTEMPT: 'invalid_login_attempt',
+  SESSION_EXPIRED: 'session_expired',
 } as const;
 
 export type AuditActionType = typeof AuditAction[keyof typeof AuditAction];
 
+// ============================================================================
 // RBAC MIDDLEWARE OPTIONS
+// ============================================================================
+
+/**
+ * Options for RBAC permission checks
+ */
 export interface RBACOptions {
-  requiredPermissions: number[];
-  requireAll?: boolean; // AND vs OR logic
-  companyId?: number;
-  projectId?: number;
-  allowSuperAdmin?: boolean;
-  abacRules?: ABACRule[];
+  requiredPermissions: string[];
+  requireAll?: boolean; // true = AND logic, false = OR logic
+  allowRoot?: boolean; // Root user bypasses all checks
 }
 
+// ============================================================================
 // COMPANY SETTINGS
+// ============================================================================
+
 export interface CompanySettings {
-  mfaRequired: boolean;
   sessionTimeout: number; // minutes
   passwordPolicy: {
     minLength: number;
@@ -138,11 +151,25 @@ export interface CompanySettings {
     requireSymbols: boolean;
   };
   auditRetention: number; // days
-  allowCrossCompanyAccess: boolean;
-  financialDataElevation: boolean;
+  allowedDomains?: string[]; // restrict email domains
+  maxUsers?: number; // based on plan
 }
 
+export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
+  sessionTimeout: 480, // 8 hours
+  passwordPolicy: {
+    minLength: 8,
+    requireUppercase: true,
+    requireNumbers: true,
+    requireSymbols: false,
+  },
+  auditRetention: 365, // 1 year
+};
+
+// ============================================================================
 // ERROR TYPES
+// ============================================================================
+
 export class RBACError extends Error {
   constructor(
     message: string,
@@ -156,8 +183,8 @@ export class RBACError extends Error {
 
 export class PermissionDeniedError extends RBACError {
   constructor(
-    requiredPermissions: number[],
-    userPermissions: number[],
+    requiredPermissions: string[],
+    userPermissions: string[],
     context?: Record<string, any>
   ) {
     super(
@@ -168,22 +195,90 @@ export class PermissionDeniedError extends RBACError {
   }
 }
 
-export class InsufficientRoleError extends RBACError {
-  constructor(requiredRole: string, userRole: string, context?: Record<string, any>) {
-    super(
-      `Insufficient role. Required: ${requiredRole}, User has: ${userRole}`,
-      'INSUFFICIENT_ROLE',
-      { requiredRole, userRole, ...context }
-    );
-  }
-}
-
 export class CompanyAccessError extends RBACError {
-  constructor(companyId: number, userId: string, context?: Record<string, any>) {
+  constructor(companyId: string, userId: string, context?: Record<string, any>) {
     super(
       `User ${userId} does not have access to company ${companyId}`,
       'COMPANY_ACCESS_DENIED',
       { companyId, userId, ...context }
     );
+  }
+}
+
+export class UserNotFoundError extends RBACError {
+  constructor(userId: string, context?: Record<string, any>) {
+    super(
+      `User ${userId} not found`,
+      'USER_NOT_FOUND',
+      { userId, ...context }
+    );
+  }
+}
+
+export class RoleNotFoundError extends RBACError {
+  constructor(roleId: number, context?: Record<string, any>) {
+    super(
+      `Role ${roleId} not found`,
+      'ROLE_NOT_FOUND',
+      { roleId, ...context }
+    );
+  }
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Check if user has a specific permission
+ */
+export function hasPermission(
+  context: PermissionContext,
+  requiredPermission: string
+): boolean {
+  if (context.isRoot) return true;
+  return context.permissions.includes(requiredPermission);
+}
+
+/**
+ * Check if user has any of the specified permissions
+ */
+export function hasAnyPermission(
+  context: PermissionContext,
+  requiredPermissions: string[]
+): boolean {
+  if (context.isRoot) return true;
+  return requiredPermissions.some(p => context.permissions.includes(p));
+}
+
+/**
+ * Check if user has all of the specified permissions
+ */
+export function hasAllPermissions(
+  context: PermissionContext,
+  requiredPermissions: string[]
+): boolean {
+  if (context.isRoot) return true;
+  return requiredPermissions.every(p => context.permissions.includes(p));
+}
+
+/**
+ * Check RBAC options against user context
+ */
+export function checkPermissions(
+  context: PermissionContext,
+  options: RBACOptions
+): boolean {
+  // Root user bypasses all checks if allowed
+  if (options.allowRoot !== false && context.isRoot) {
+    return true;
+  }
+  
+  const { requiredPermissions, requireAll = true } = options;
+  
+  if (requireAll) {
+    return hasAllPermissions(context, requiredPermissions);
+  } else {
+    return hasAnyPermission(context, requiredPermissions);
   }
 }

@@ -3,8 +3,12 @@ Task-related models.
 """
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from .base import BaseEntity, TaskStatus, TaskPriority, TaskCategory
+from ..validators import (
+    sanitize_string,
+    validate_text_length,
+)
 
 
 class TaskBase(BaseModel):
@@ -19,10 +23,29 @@ class TaskBase(BaseModel):
     due_date: Optional[datetime] = Field(default=None, alias="dueDate")
     company_id: Optional[str] = Field(default=None, alias="companyId")
     
-    class Config:
-        populate_by_name = True
+    model_config = {"populate_by_name": True}
     
-    @validator('status', pre=True)
+    @field_validator('title')
+    @classmethod
+    def validate_title(cls, v):
+        """Validate task title"""
+        if not v:
+            raise ValueError("Task title cannot be empty")
+        v = sanitize_string(v)
+        if len(v) < 1 or len(v) > 200:
+            raise ValueError("Task title must be between 1 and 200 characters")
+        return v.strip()
+    
+    @field_validator('description')
+    @classmethod
+    def validate_description(cls, v):
+        """Validate task description"""
+        if v is None:
+            return v
+        return validate_text_length(v, max_length=5000, field_name="description")
+    
+    @field_validator('status', mode='before')
+    @classmethod
     def normalize_status(cls, v):
         """Normalize status values: 'done' -> 'completed', 'in_progress' -> 'in-progress'."""
         if v is None:
@@ -52,10 +75,29 @@ class TaskUpdate(BaseModel):
     assignee_id: Optional[str] = Field(default=None, alias="assigneeId")
     due_date: Optional[datetime] = Field(default=None, alias="dueDate")
     
-    class Config:
-        populate_by_name = True
+    model_config = {"populate_by_name": True}
     
-    @validator('status', pre=True)
+    @field_validator('title')
+    @classmethod
+    def validate_title(cls, v):
+        """Validate task title"""
+        if v is None:
+            return v
+        v = sanitize_string(v)
+        if len(v) < 1 or len(v) > 200:
+            raise ValueError("Task title must be between 1 and 200 characters")
+        return v.strip()
+    
+    @field_validator('description')
+    @classmethod
+    def validate_description(cls, v):
+        """Validate task description"""
+        if v is None:
+            return v
+        return validate_text_length(v, max_length=5000, field_name="description")
+    
+    @field_validator('status', mode='before')
+    @classmethod
     def normalize_status(cls, v):
         """Normalize status values: 'done' -> 'completed', 'in_progress' -> 'in-progress'."""
         if v is None:
@@ -72,10 +114,7 @@ class TaskUpdate(BaseModel):
 class Task(BaseEntity, TaskBase):
     """Complete task model."""
     
-    class Config:
-        populate_by_name = True
-        # Allow extra fields from database that aren't in the model
-        extra = "ignore"
+    model_config = {"populate_by_name": True, "extra": "ignore"}
 
 
 class TaskStats(BaseModel):
@@ -85,5 +124,4 @@ class TaskStats(BaseModel):
     pending_tasks: int = Field(alias="pendingTasks")
     overdue_tasks: int = Field(alias="overdueTasks")
     
-    class Config:
-        populate_by_name = True
+    model_config = {"populate_by_name": True}

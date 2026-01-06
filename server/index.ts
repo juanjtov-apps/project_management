@@ -134,10 +134,10 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-  // Register Node.js routes (session store configuration only - PURE PROXY MODE)
+  // Register Node.js routes (pure proxy mode - no session management)
   const { registerRoutes } = await import('./routes');
   await registerRoutes(app);
-  console.log("✅ Node.js session store configured (PURE PROXY MODE - no business logic)");
+  console.log("✅ Node.js proxy configured (PURE PROXY MODE - session management handled by FastAPI)");
   
   // ALL API routes are handled by Python FastAPI backend
   console.log("✅ All /api/* requests will be forwarded to Python FastAPI backend (/api/v1/*)");
@@ -209,7 +209,17 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
         targetPath = targetPath.replace('/api/', '/api/v1/');
       }
       const backendUrl = `http://127.0.0.1:8000${targetPath}`;
-      console.log(`📡 Forwarding ${req.method} ${req.originalUrl} → ${backendUrl}`);
+      
+      // Log cookie forwarding for auth endpoints (debugging)
+      if (targetPath.includes('/auth/')) {
+        const hasCookie = !!(req.headers.cookie);
+        const cookiePreview = req.headers.cookie ? 
+          (req.headers.cookie.includes('session_id') ? 'session_id present' : 'no session_id') : 
+          'no cookies';
+        console.log(`📡 Forwarding ${req.method} ${req.originalUrl} → ${backendUrl} [Cookies: ${cookiePreview}]`);
+      } else {
+        console.log(`📡 Forwarding ${req.method} ${req.originalUrl} → ${backendUrl}`);
+      }
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
@@ -235,13 +245,23 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
         // Set status code
         res.status(response.status);
         
-        // Forward all headers from backend response
+        // Forward all headers from backend response (including Set-Cookie for session management)
         response.headers.forEach((value, key) => {
           // Skip transfer-encoding as it can cause issues
           if (key.toLowerCase() !== 'transfer-encoding') {
-            res.set(key, value);
+            // For Set-Cookie headers, use append to preserve multiple cookies
+            if (key.toLowerCase() === 'set-cookie') {
+              res.append(key, value);
+            } else {
+              res.set(key, value);
+            }
           }
         });
+        
+        // Log Set-Cookie forwarding for auth endpoints (debugging)
+        if (targetPath.includes('/auth/') && response.headers.get('set-cookie')) {
+          console.log(`🍪 Forwarding Set-Cookie header to browser`);
+        }
         
         // Handle redirect responses (3xx) - pass them through to the browser
         if (response.status >= 300 && response.status < 400) {
@@ -425,13 +445,12 @@ app.use((req, res, next) => {
   const host = process.env.HOST || (isProduction ? '0.0.0.0' : '127.0.0.1');
   
   // Production guard: Verify critical environment variables
+  // NOTE: SESSION_SECRET is no longer required here - FastAPI handles all session management
   if (isProduction) {
     if (!process.env.DATABASE_URL) {
       throw new Error('DATABASE_URL environment variable is required in production');
     }
-    if (!process.env.SESSION_SECRET) {
-      throw new Error('SESSION_SECRET environment variable is required in production');
-    }
+    // SESSION_SECRET is handled by FastAPI backend, not Node.js
   }
   
   server.listen(port, host, () => {

@@ -1,4 +1,4 @@
-import logoFull from "@assets/final logo_1764221763825.png";
+import logoFull from "../../assets/proesphere-hd-logo.png";
 
 interface LogoProps {
   size?: "sm" | "md" | "lg";

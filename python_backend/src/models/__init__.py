@@ -10,10 +10,22 @@ from .log import *
 from .notification import *
 from .schedule_change import *
 from .client_module import *
+from .rbac_models import (
+    Permissions,
+    DEFAULT_ROLES,
+    DEFAULT_ROLE_PERMISSIONS,
+    AuditAction,
+    AuditLog,
+    AuditLogCreate,
+    PermissionContext,
+    UserContext,
+    PermissionCheckResponse,
+)
 
 __all__ = [
     # Base models
     "BaseEntity",
+    "TimestampedEntity",
     "BaseResponse",
     "ProjectStatus",
     "TaskStatus", 
@@ -22,6 +34,7 @@ __all__ = [
     "UserRole",
     "NotificationType",
     "ScheduleChangeStatus",
+    "PlanType",
     
     # Project models
     "Project",
@@ -39,6 +52,13 @@ __all__ = [
     "User",
     "UserCreate",
     "UserUpdate",
+    "UserWithRole",
+    "Role",
+    "RoleCreate",
+    "RoleUpdate",
+    "Company",
+    "Permission",
+    "RolePermission",
     
     # Photo models
     "Photo",
@@ -70,4 +90,15 @@ __all__ = [
     "Installment",
     "FrequencyUnit",
     "NotificationSetting",
+    
+    # RBAC models
+    "Permissions",
+    "DEFAULT_ROLES",
+    "DEFAULT_ROLE_PERMISSIONS",
+    "AuditAction",
+    "AuditLog",
+    "AuditLogCreate",
+    "PermissionContext",
+    "UserContext",
+    "PermissionCheckResponse",
 ]

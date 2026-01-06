@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Mail, Lock, AlertCircle, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, AlertCircle, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -109,16 +110,8 @@ export default function Login() {
       
       <Card className="w-full max-w-md border-[var(--pro-border)] bg-[var(--pro-surface)]/90 backdrop-blur-xl shadow-2xl relative z-10">
         <CardHeader className="text-center space-y-6 pb-8">
-          <div className="flex items-center justify-center space-x-3">
-            <div className="w-14 h-14 relative">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--pro-mint)] to-[var(--pro-mint-dim)] shadow-xl shadow-[var(--pro-mint)]/20 flex items-center justify-center">
-                <div className="w-3 h-3 rounded-full bg-white/30 absolute top-3 left-3"></div>
-                <div className="text-[var(--pro-bg-deep)] font-bold text-xl">P</div>
-              </div>
-            </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-[var(--pro-mint)] to-[var(--pro-mint-dim)] bg-clip-text text-transparent">
-              Proesphere
-            </h1>
+          <div className="flex items-center justify-center">
+            <Logo variant="full" size="lg" />
           </div>
           <CardTitle className="text-2xl text-[var(--pro-text-primary)] font-light">
             Welcome back

@@ -108,6 +108,10 @@ app = FastAPI(
 from debug_middleware import LogRequests
 app.add_middleware(LogRequests)
 
+# Add request tracking middleware (for request IDs)
+from src.middleware.request_tracking import RequestTrackingMiddleware
+app.add_middleware(RequestTrackingMiddleware)
+
 # Setup security middleware
 from src.middleware.security import setup_security_middleware
 setup_security_middleware(app)

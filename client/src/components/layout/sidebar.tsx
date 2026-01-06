@@ -3,18 +3,19 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Logo } from "@/components/ui/logo";
-import logoImage from "@assets/final logo_1764221763825.png";
-import { 
-  LayoutDashboard, 
+import logoImage from "../../assets/proesphere-hd-logo.png";
+import {
+  LayoutDashboard,
   Briefcase,
-  Building, 
-  CheckSquare, 
-  Calendar, 
-  Camera, 
-  ClipboardList, 
+  Building,
+  CheckSquare,
+  Calendar,
+  Camera,
+  ClipboardList,
   Shield,
   TrendingUp,
-  MessageSquare
+  MessageSquare,
+  Users
 } from "lucide-react";
 import {
   Sheet,
@@ -38,6 +39,7 @@ const navigation = [
   { name: "Project Logs", href: "/logs", icon: ClipboardList },
   { name: "Client Portal", href: "/client-portal", icon: MessageSquare },
   { name: "RBAC Admin", href: "/rbac", icon: Shield },
+  { name: "Waitlist", href: "/waitlist-admin", icon: Users, rootOnly: true },
 ];
 
 interface SidebarProps {
@@ -55,8 +57,9 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   });
   
   const permissions = currentUser?.permissions || {};
-  
-  const navigationPermissions = {
+  const isRootAdmin = currentUser?.isRoot === true || currentUser?.is_root === true;
+
+  const navigationPermissions: Record<string, string> = {
     'Dashboard': 'dashboard',
     'Work': 'projects',
     'Project Health': 'projectHealth',
@@ -66,9 +69,14 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
     'Client Portal': 'clientPortal',
     'RBAC Admin': 'rbacAdmin'
   };
-  
+
   const filteredNavigation = navigation.filter(item => {
-    const permissionKey = navigationPermissions[item.name as keyof typeof navigationPermissions];
+    // Root-only items require root admin access
+    if ((item as any).rootOnly) {
+      return isRootAdmin;
+    }
+    // Regular items check permissions
+    const permissionKey = navigationPermissions[item.name];
     return permissions[permissionKey] === true;
   });
 

@@ -16,9 +16,12 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import { BottomNavigation } from '@/components/ui/bottom-navigation';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Users, Shield, Building, UserCheck, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle, ChevronDown, ChevronRight, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Users, Shield, Building, UserCheck, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, MoreVertical, Home, FolderKanban, ListTodo } from 'lucide-react';
 
 interface Permission {
   id: string;
@@ -64,18 +67,25 @@ interface UserProfile {
   name: string;
   email: string;
   first_name?: string;
+  firstName?: string; // camelCase alias
   last_name?: string;
+  lastName?: string; // camelCase alias
   company_id: string;
   companyId?: string; // Alias for compatibility
   role_id?: string;
+  roleId?: string; // camelCase alias
   role?: string; // Backend returns role as string (admin, manager, etc.)
   is_active: boolean;
   isActive?: boolean; // Alias for compatibility
   created_at: string;
+  createdAt?: string; // camelCase alias
   last_login: string;
   last_login_at?: string; // Alias for compatibility
+  lastLoginAt?: string; // camelCase alias
   role_name?: string;
+  roleName?: string; // camelCase alias
   company_name?: string;
+  companyName?: string; // camelCase alias for company_name
   username?: string;
   password?: string; // For edit form only
 }
@@ -131,10 +141,8 @@ export default function RBACAdmin() {
       console.log(`✅ Loaded ${roles.length} roles:`, roles.map(r => ({ 
         id: r.id, 
         name: getRoleName(r), 
-        company_id: r.company_id, 
-        companyId: r.companyId,
+        company_id: r.company_id,
         is_template: r.is_template,
-        isTemplate: r.isTemplate
       })));
     } else if (!rolesLoading && roles.length === 0) {
       console.warn('⚠️ No roles found - check backend endpoint /api/v1/rbac/roles');
@@ -167,13 +175,14 @@ export default function RBACAdmin() {
   }
 
   // Filter data based on admin level with field name compatibility
-  const currentUserCompanyId = currentUser?.company_id || currentUser?.companyId;
-  const filteredCompanies = isRootAdmin ? companies : companies.filter(c => c.id === currentUserCompanyId);
+  // Use string comparison to handle type mismatches between string and number IDs
+  const currentUserCompanyId = String(currentUser?.company_id || currentUser?.companyId || '');
+  const filteredCompanies = isRootAdmin ? companies : companies.filter(c => String(c.id) === currentUserCompanyId);
   const filteredUsers = isRootAdmin ? users : users.filter(u => {
-    const userCompanyId = u.company_id || u.companyId;
+    const userCompanyId = String(u.company_id || u.companyId || '');
     return userCompanyId === currentUserCompanyId;
   });
-  const filteredRoles = isRootAdmin ? roles : roles.filter(r => !r.company_id || r.company_id === currentUserCompanyId);
+  const filteredRoles = isRootAdmin ? roles : roles.filter(r => !r.company_id || String(r.company_id) === currentUserCompanyId);
 
   // Mutations
   const createUserMutation = useMutation({
@@ -187,11 +196,9 @@ export default function RBACAdmin() {
     }
   });
 
-  // Update user mutation - placed outside component to prevent re-creation on every render
+  // Update user mutation - at RBACAdmin level since Edit User Dialog is rendered here
   const updateUserMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => {
-      // Use the full user update endpoint at /api/rbac/users/{id}
-      // Send both role_id and role for backend compatibility
       const updateData: any = {
         first_name: data.first_name,
         last_name: data.last_name,
@@ -200,16 +207,13 @@ export default function RBACAdmin() {
         company_id: data.company_id,
       };
       
-      // Send role_id if available (preferred)
       if (data.role_id) {
         updateData.role_id = data.role_id;
       }
       
-      // Also send role string for backward compatibility
       if (data.role) {
         updateData.role = data.role;
       } else if (data.role_id) {
-        // Map role_id to role string as fallback
         const roleMap: Record<string, string> = {
           '1': 'admin',
           '2': 'project_manager',
@@ -221,7 +225,6 @@ export default function RBACAdmin() {
         updateData.role = roleMap[data.role_id] || 'crew';
       }
       
-      // Include password only if provided
       if (data.password && data.password.trim() !== '') {
         updateData.password = data.password;
       }
@@ -232,14 +235,10 @@ export default function RBACAdmin() {
       });
     },
     onSuccess: async () => {
-      console.log('✅ Mutation succeeded');
       toast({ title: 'Success', description: 'User updated successfully' });
-      // Invalidate users query to refetch updated data
-      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      // Refetch on error to revert optimistic update
       queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
     }
   });
@@ -306,19 +305,23 @@ export default function RBACAdmin() {
 
   // Move updateCompanyMutation to inside CompanyManagement component where state is defined
 
+  // ========================================================================
+  // EDIT USER DIALOG STATE - Lifted to RBACAdmin level to persist across
+  // UserManagement remounts (which happen when query data changes)
+  // ========================================================================
+  const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [editDialogKey, setEditDialogKey] = useState(0);
+  const editSessionRef = React.useRef(0);
+  const editCloseTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const editBlockCloseUntilRef = React.useRef(0);
+
   // Component functions
   const UserManagement = () => {
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
-    const [dialogKey, setDialogKey] = useState(0); // Key to prevent dialog from resetting
-    const shouldCloseDialogRef = React.useRef(false); // Ref to track intentional dialog close
-    
-    // SESSION GUARD SYSTEM - prevents stale close handlers from previous sessions
-    const sessionRef = React.useRef(0); // Increments on every open
-    const closeTimerRef = React.useRef<NodeJS.Timeout | null>(null); // Tracks pending setTimeout
-    const blockCloseUntilRef = React.useRef(0); // Timestamp until which close is blocked
+    // NOTE: Edit dialog state has been LIFTED to RBACAdmin level (above) to prevent
+    // state loss when UserManagement remounts due to query data changes
     // Initialize with all companies expanded - will be populated when usersByCompany is computed
     const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
     const [newUser, setNewUser] = useState({
@@ -327,8 +330,33 @@ export default function RBACAdmin() {
       last_name: '',
       company_id: '',
       role_id: '',
-      password: ''
+      password: '',
+      confirm_password: ''
     });
+
+    // Password validation helper
+    const validatePassword = (password: string) => {
+      return {
+        minLength: password.length >= 8,
+        hasUppercase: /[A-Z]/.test(password),
+        hasLowercase: /[a-z]/.test(password),
+        hasDigit: /\d/.test(password),
+      };
+    };
+    
+    const passwordChecks = validatePassword(newUser.password);
+    const isPasswordValid = Object.values(passwordChecks).every(Boolean);
+    const passwordsMatch = newUser.password === newUser.confirm_password && newUser.confirm_password.length > 0;
+    
+    // Form validation - use currentUserCompanyId from outer scope
+    const isFormValid = 
+      newUser.email && 
+      newUser.first_name && 
+      newUser.last_name && 
+      newUser.role_id && 
+      currentUserCompanyId &&
+      isPasswordValid &&
+      passwordsMatch;
 
     // Toggle user active status
     const toggleUserStatus = useMutation({
@@ -355,6 +383,9 @@ export default function RBACAdmin() {
       }
     });
 
+    // NOTE: updateUserMutation moved back to RBACAdmin level since Edit User Dialog
+    // is now rendered at that level
+
     // Group filtered users by company, including companies with no users
     const usersByCompany = React.useMemo(() => {
       const grouped: { [key: string]: UserProfile[] } = {};
@@ -366,9 +397,11 @@ export default function RBACAdmin() {
       
       // Then add users to their respective companies with proper company name mapping
       filteredUsers.forEach((user: UserProfile) => {
-        const userCompanyId = user.company_id || user.companyId;
-        const company = companies.find(c => c.id === userCompanyId || c.id.toString() === userCompanyId?.toString());
-        const companyKey = company?.name || user.company_name || 'Unassigned';
+        const userCompanyId = String(user.company_id || user.companyId || '');
+        const company = companies.find(c => String(c.id) === userCompanyId);
+        // Check both snake_case and camelCase variants for company_name
+        const userCompanyName = user.company_name || user.companyName;
+        const companyKey = company?.name || userCompanyName || 'Unassigned';
         
         if (!grouped[companyKey]) {
           grouped[companyKey] = [];
@@ -386,7 +419,6 @@ export default function RBACAdmin() {
         setExpandedCompanies(new Set(Object.keys(usersByCompany)));
       }
     }, [usersByCompany]);
-
 
     const toggleCompanyExpansion = (companyName: string) => {
       const newExpanded = new Set(expandedCompanies);
@@ -456,6 +488,35 @@ export default function RBACAdmin() {
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                     placeholder="Enter password"
                   />
+                  <div className="mt-2 text-xs space-y-1">
+                    <p className={passwordChecks.minLength ? "text-green-600" : "text-gray-400"}>
+                      {passwordChecks.minLength ? "✓" : "○"} At least 8 characters
+                    </p>
+                    <p className={passwordChecks.hasUppercase ? "text-green-600" : "text-gray-400"}>
+                      {passwordChecks.hasUppercase ? "✓" : "○"} One uppercase letter
+                    </p>
+                    <p className={passwordChecks.hasLowercase ? "text-green-600" : "text-gray-400"}>
+                      {passwordChecks.hasLowercase ? "✓" : "○"} One lowercase letter
+                    </p>
+                    <p className={passwordChecks.hasDigit ? "text-green-600" : "text-gray-400"}>
+                      {passwordChecks.hasDigit ? "✓" : "○"} One digit
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="confirm_password">Confirm Password *</Label>
+                  <Input
+                    id="confirm_password"
+                    type="password"
+                    value={newUser.confirm_password}
+                    onChange={(e) => setNewUser({ ...newUser, confirm_password: e.target.value })}
+                    placeholder="Re-enter password"
+                  />
+                  {newUser.confirm_password && (
+                    <p className={`mt-1 text-xs ${passwordsMatch ? "text-green-600" : "text-red-500"}`}>
+                      {passwordsMatch ? "✓ Passwords match" : "✗ Passwords do not match"}
+                    </p>
+                  )}
                 </div>
                 {/* Company is auto-assigned - no selection needed */}
                 <div>
@@ -479,7 +540,7 @@ export default function RBACAdmin() {
                 <div>
                   <Label htmlFor="role">Role *</Label>
                   <Select value={newUser.role_id} onValueChange={(value) => setNewUser({ ...newUser, role_id: value })}>
-                    <SelectTrigger>
+                    <SelectTrigger id="role">
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
@@ -515,7 +576,7 @@ export default function RBACAdmin() {
                           })
                           .map((role: Role) => (
                             <SelectItem key={role.id} value={role.id.toString()}>
-                              {getRoleName(role) || role.displayName || role.display_name} {role.company_id === '0' || role.company_id === 0 ? '(Platform)' : '(Standard)'}
+                              {getRoleName(role) || role.displayName || role.display_name} {String(role.company_id) === '0' ? '(Platform)' : '(Standard)'}
                             </SelectItem>
                           ));
                       })()}
@@ -534,46 +595,43 @@ export default function RBACAdmin() {
                   id="create-user-button"
                   onClick={() => {
                     // Auto-assign company - always use current user's company
-                    const userCompanyId = currentUser?.company_id || currentUser?.companyId;
-                    const effectiveCompanyId = userCompanyId?.toString();
+                    const companyId = currentUser?.company_id || currentUser?.companyId;
+                    const effectiveCompanyId = companyId?.toString() || '';
                     
-                    // Removed debug logging
+                    // Parse role_id safely - ensure it's a valid number
+                    const roleIdNum = parseInt(newUser.role_id, 10);
+                    if (isNaN(roleIdNum)) {
+                      toast({ title: 'Error', description: 'Please select a valid role', variant: 'destructive' });
+                      return;
+                    }
                     
-                    // Validate required fields (company_id is auto-assigned for non-root admins)
-                    if (!newUser.email || !newUser.first_name || !newUser.last_name || !effectiveCompanyId || !newUser.role_id) {
-                      const missingFields = [];
-                      if (!newUser.email) missingFields.push('Email');
-                      if (!newUser.first_name) missingFields.push('First Name');
-                      if (!newUser.last_name) missingFields.push('Last Name');
-                      if (!effectiveCompanyId) missingFields.push('Company');
-                      if (!newUser.role_id) missingFields.push('Role');
-                      
-                      toast({ 
-                        title: 'Error', 
-                        description: `Please fill in: ${missingFields.join(', ')}`, 
-                        variant: 'destructive' 
-                      });
+                    if (!effectiveCompanyId) {
+                      toast({ title: 'Error', description: 'Company ID not available', variant: 'destructive' });
                       return;
                     }
                     
                     // Map frontend fields to backend expected format
                     const userPayload = {
-                      email: newUser.email,
-                      username: newUser.email, // Use email as username
-                      name: `${newUser.first_name} ${newUser.last_name}`.trim(), // Combine first and last name
-                      first_name: newUser.first_name,
-                      last_name: newUser.last_name,
+                      email: newUser.email.trim(),
+                      first_name: newUser.first_name.trim(),
+                      last_name: newUser.last_name.trim(),
                       company_id: effectiveCompanyId,
-                      role_id: newUser.role_id,
-                      password: newUser.password || 'defaultpassword123' // Ensure password is included
+                      role_id: roleIdNum,
+                      password: newUser.password,
+                      is_active: true
                     };
                     
+                    console.log('[Create User] Sending payload:', userPayload);
+                    
                     // Creating user with validated data
-                    createUserMutation.mutate(userPayload);
-                    setIsCreateDialogOpen(false);
-                    setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '' });
+                    createUserMutation.mutate(userPayload, {
+                      onSuccess: () => {
+                        setIsCreateDialogOpen(false);
+                        setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '', confirm_password: '' });
+                      }
+                    });
                   }}
-                  disabled={createUserMutation.isPending}
+                  disabled={!isFormValid || createUserMutation.isPending}
                 >
                   {createUserMutation.isPending ? 'Creating...' : 'Create User'}
                 </Button>
@@ -581,256 +639,8 @@ export default function RBACAdmin() {
             </DialogContent>
           </Dialog>
 
-          {/* Edit User Dialog */}
-          <Dialog 
-            key={dialogKey}
-            open={isEditDialogOpen}
-            onOpenChange={(open) => {
-              const now = Date.now();
-              const blockedUntil = blockCloseUntilRef.current;
-              
-              console.log('🔔 Dialog onOpenChange called:', { 
-                open, 
-                isPending: updateUserMutation.isPending,
-                now,
-                blockedUntil,
-                isBlocked: now < blockedUntil
-              });
-              
-              // BLOCK CLOSE if we're in the critical period
-              if (!open && now < blockedUntil) {
-                const remainingMs = blockedUntil - now;
-                console.log(`🚫 BLOCKING CLOSE - ${remainingMs}ms remaining in critical period`);
-                return; // Prevent close
-              }
-              
-              // Only allow closing manually (via cancel button or X)
-              if (!open && !updateUserMutation.isPending) {
-                console.log('✅ Allowing dialog to close');
-                setIsEditDialogOpen(false);
-                setEditingUser(null);
-                setDialogKey(prev => prev + 1); // Reset dialog on close
-              } else if (!open && updateUserMutation.isPending) {
-                console.log('❌ Preventing dialog close - mutation pending');
-              }
-            }}
-            modal={true}
-          >
-            <DialogContent className="max-w-md" aria-describedby={undefined} onInteractOutside={(e) => {
-              // Prevent closing by clicking outside during mutation
-              if (updateUserMutation.isPending) {
-                e.preventDefault();
-              }
-            }}>
-              <DialogHeader>
-                <DialogTitle>Edit User</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit_first_name">First Name</Label>
-                    <Input
-                      id="edit_first_name"
-                      value={editingUser?.first_name || ''}
-                      onChange={(e) => setEditingUser(editingUser ? {...editingUser, first_name: e.target.value} : null)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit_last_name">Last Name</Label>
-                    <Input
-                      id="edit_last_name"
-                      value={editingUser?.last_name || ''}
-                      onChange={(e) => setEditingUser(editingUser ? {...editingUser, last_name: e.target.value} : null)}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="edit_email">Email</Label>
-                  <Input
-                    id="edit_email"
-                    type="email"
-                    value={editingUser?.email || ''}
-                    onChange={(e) => setEditingUser(editingUser ? {...editingUser, email: e.target.value} : null)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit_company">Company</Label>
-                  <Select 
-                    value={editingUser?.company_id?.toString() || ''} 
-                    onValueChange={(value) => setEditingUser(editingUser ? {...editingUser, company_id: value} : null)}
-                    disabled={true}
-                  >
-                    <SelectTrigger className="opacity-60">
-                      <SelectValue placeholder="Company (read-only)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredCompanies.map((company: Company) => (
-                        <SelectItem key={company.id} value={company.id.toString()}>
-                          {company.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">Users cannot change companies</p>
-                </div>
-                <div>
-                  <Label htmlFor="edit_password">New Password (Optional)</Label>
-                  <Input
-                    id="edit_password"
-                    type="password"
-                    placeholder="Leave empty to keep current password"
-                    value={editingUser?.password || ''}
-                    onChange={(e) => setEditingUser(editingUser ? {...editingUser, password: e.target.value} : null)}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Only change if user needs a new password</p>
-                </div>
-                <div>
-                  <Label htmlFor="edit_role">Role</Label>
-                  <Select 
-                    value={editingUser?.role_id?.toString() || ''} 
-                    onValueChange={(value) => setEditingUser(editingUser ? {...editingUser, role_id: value} : null)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {rolesLoading ? (
-                        <SelectItem value="loading" disabled>Loading roles...</SelectItem>
-                      ) : roles && roles.length > 0 ? (
-                        (() => {
-                          // DEBUG: Log all roles and filter details
-                          console.log('🔍 Edit User - All roles:', roles);
-                          console.log('🔍 Edit User - Current company ID:', currentUserCompanyId);
-                          console.log('🔍 Edit User - Roles count:', roles.length);
-                          
-                          // Show ALL roles for now - we can filter later if needed
-                          // This ensures roles are visible while we debug
-                          const rolesToShow = roles;
-                          
-                          if (rolesToShow.length === 0) {
-                            return <SelectItem value="none" disabled>No roles available</SelectItem>;
-                          }
-                          
-                          return rolesToShow.map((role: Role) => (
-                            <SelectItem key={role.id} value={role.id.toString()}>
-                              {getRoleName(role) || role.displayName || role.display_name} {role.company_id === '0' || role.company_id === 0 ? '(Platform)' : '(Standard)'}
-                            </SelectItem>
-                          ));
-                        })()
-                      ) : (
-                        <SelectItem value="none" disabled>No roles available</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="edit_is_active"
-                    checked={editingUser?.is_active || false}
-                    onCheckedChange={(checked) => setEditingUser(editingUser ? {...editingUser, is_active: checked} : null)}
-                  />
-                  <Label htmlFor="edit_is_active">Active User</Label>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button 
-                  type="button"
-                  variant="outline" 
-                  onClick={() => {
-                    setIsEditDialogOpen(false);
-                    setEditingUser(null);
-                  }}
-                  data-testid="button-cancel-edit"
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="button"
-                  onClick={async () => {
-                    if (editingUser) {
-                      // SESSION GUARD: Capture current session ID at start of update
-                      const mySession = sessionRef.current;
-                      console.log(`🚀 Update button clicked - Session #${mySession}`);
-                      
-                      // Map fields properly for backend
-                      const updatePayload: any = {
-                        email: editingUser.email,
-                        username: editingUser.email,
-                        name: `${editingUser.first_name || ''} ${editingUser.last_name || ''}`.trim(),
-                        first_name: editingUser.first_name,
-                        last_name: editingUser.last_name,
-                        company_id: editingUser.company_id,
-                        role_id: editingUser.role_id, // Backend will convert this to role string
-                        is_active: editingUser.is_active,
-                      };
-                      // Only include password if it was changed
-                      if (editingUser.password && editingUser.password.trim() !== '') {
-                        updatePayload.password = editingUser.password;
-                      }
-                      
-                      try {
-                        // Wait for mutation to complete
-                        await updateUserMutation.mutateAsync({
-                          id: editingUser.id, 
-                          data: updatePayload
-                        });
-                        
-                        console.log(`✅ Mutation completed for Session #${mySession}`);
-                        
-                        // BLOCK DIALOG CLOSE for 300ms to allow user to click Edit immediately
-                        const blockDuration = 300;
-                        blockCloseUntilRef.current = Date.now() + blockDuration;
-                        console.log(`🔐 BLOCKING dialog close for ${blockDuration}ms - safe to click Edit!`);
-                        
-                        // IMMEDIATE CACHE UPDATE - No re-render, no refetch
-                        const roleId = editingUser.role_id;
-                        const roleName = roleId === '1' ? 'Admin' : 
-                                       roleId === '2' ? 'Project Manager' : 
-                                       roleId === '3' ? 'Office Manager' : 
-                                       roleId === '4' ? 'Subcontractor' : 
-                                       roleId === '5' ? 'Client' : 'Crew';
-                        const role = roleId === '1' ? 'admin' : 
-                                    roleId === '2' ? 'project_manager' : 
-                                    roleId === '3' ? 'office_manager' : 
-                                    roleId === '4' ? 'subcontractor' : 
-                                    roleId === '5' ? 'client' : 'crew';
-                        
-                        queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
-                          if (!old) return old;
-                          return old.map((user: any) => 
-                            user.id === editingUser.id 
-                              ? { ...user, role_id: roleId, role: role, role_name: roleName }
-                              : user
-                          );
-                        });
-                        
-                        // SESSION GUARD: Store timer ref so it can be cancelled by next open
-                        closeTimerRef.current = setTimeout(() => {
-                          // SESSION GUARD: Only close if this is still the active session
-                          if (sessionRef.current !== mySession) {
-                            console.log(`⚠️ Session mismatch! Skipping close. Current: ${sessionRef.current}, Mine: ${mySession}`);
-                            return;
-                          }
-                          
-                          console.log(`🔒 Closing dialog for Session #${mySession}`);
-                          setIsEditDialogOpen(false);
-                          setEditingUser(null);
-                          closeTimerRef.current = null;
-                        }, blockDuration);
-                        
-                      } catch (error) {
-                        console.error('❌ Mutation failed:', error);
-                      }
-                    }
-                  }}
-                  disabled={updateUserMutation.isPending || !editingUser?.email?.trim()}
-                  data-testid="button-update-user"
-                >
-                  {updateUserMutation.isPending ? 'Updating...' : 'Update User'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {/* NOTE: Edit User Dialog has been moved to RBACAdmin level to prevent 
+              flicker caused by UserManagement remounting */}
         </div>
 
         <div className="space-y-4">
@@ -843,64 +653,307 @@ export default function RBACAdmin() {
           ) : users && Array.isArray(users) && Object.keys(usersByCompany).length > 0 ? (
             // For company admins, show a flat list. For root admins, show collapsible by company
             isRootAdmin ? (
-              // Root admin view: collapsible companies
+              // Root admin view: collapsible companies with native mobile pattern
               Object.entries(usersByCompany).map(([companyName, companyUsers]) => (
-                <Card key={companyName} className="overflow-hidden">
+                <Card key={companyName} className="overflow-hidden rounded-2xl bg-[var(--pro-surface)] border-[var(--pro-border)]">
                   <Collapsible
                     open={expandedCompanies.has(companyName)}
                     onOpenChange={() => toggleCompanyExpansion(companyName)}
                   >
                     <CollapsibleTrigger asChild>
-                      <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="flex items-center">
-                              {expandedCompanies.has(companyName) ? (
-                                <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                              ) : (
-                                <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                              )}
-                            </div>
-                            <Building className="w-5 h-5 text-primary" />
-                            <div>
-                              <CardTitle className="text-lg">{companyName}</CardTitle>
-                              <CardDescription>
-                                {companyUsers.length} user{companyUsers.length !== 1 ? 's' : ''}
-                              </CardDescription>
-                            </div>
+                      <button className="w-full min-h-[56px] px-4 py-3 flex items-center justify-between hover:bg-[var(--pro-surface-highlight)] transition-colors">
+                        <div className="flex items-center gap-3">
+                          <Building className="w-5 h-5 text-[var(--pro-mint)]" />
+                          <div className="text-left">
+                            <h3 className="text-sm font-semibold text-[var(--pro-text-primary)]">{companyName}</h3>
+                            <p className="text-xs text-[var(--pro-text-secondary)]">
+                              {companyUsers.length} user{companyUsers.length !== 1 ? 's' : ''}
+                            </p>
                           </div>
-                          <Badge variant="outline">{companyUsers.length}</Badge>
                         </div>
-                      </CardHeader>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 text-xs font-medium bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)] rounded-full">
+                            {companyUsers.length}
+                          </span>
+                          <ChevronRight
+                            className={`w-5 h-5 text-[var(--pro-text-secondary)] transition-transform duration-200 ${
+                              expandedCompanies.has(companyName) ? 'rotate-90' : ''
+                            }`}
+                          />
+                        </div>
+                      </button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <CardContent className="p-0">
-                      <div className="divide-y">
-                        {companyUsers.map((user: UserProfile) => (
-                          <div key={user.id} className="p-4 flex items-center justify-between hover:bg-muted/30">
-                            <div className="flex items-center space-x-4">
-                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                <Users className="w-5 h-5 text-primary" />
-                              </div>
-                              <div>
-                                <div className="font-medium">
-                                  {user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username}
+                      <div className="divide-y divide-[var(--pro-border)]">
+                        {companyUsers.map((user: UserProfile) => {
+                          // Get user initials
+                          const displayName = user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
+                          const initials = displayName
+                            .split(' ')
+                            .map(n => n[0])
+                            .join('')
+                            .slice(0, 2)
+                            .toUpperCase();
+                          const isActive = user.is_active || user.isActive;
+
+                          return (
+                            <div
+                              key={user.id}
+                              className="min-h-[64px] px-4 py-3 flex items-center gap-3 hover:bg-[var(--pro-surface-highlight)] active:bg-[var(--pro-surface-highlight)] transition-colors"
+                            >
+                              {/* Initials Avatar with Status Dot */}
+                              <div className="relative flex-shrink-0">
+                                <div className="w-10 h-10 rounded-full bg-[var(--pro-mint)]/20 flex items-center justify-center">
+                                  <span className="text-sm font-semibold text-[var(--pro-mint)]">{initials}</span>
                                 </div>
-                                <div className="text-sm text-muted-foreground">{user.email}</div>
-                                <div className="flex items-center space-x-2 mt-1">
-                                  <Badge variant="outline" className="text-xs">
-                                    {user.role_name || user.role || 'No role'}
-                                  </Badge>
-                                  <Badge variant={user.is_active || user.isActive ? 'default' : 'destructive'} className="text-xs">
-                                    {user.is_active || user.isActive ? 'Active' : 'Inactive'}
+                                {/* Status Dot */}
+                                <span
+                                  className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[var(--pro-surface)] ${
+                                    isActive ? 'bg-[var(--pro-mint)]' : 'bg-[var(--pro-text-secondary)]'
+                                  }`}
+                                />
+                              </div>
+
+                              {/* User Info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-[var(--pro-text-primary)] truncate">
+                                    {displayName}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] h-5 px-1.5 bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-secondary)]"
+                                  >
+                                    {user.role_name || user.roleName || user.role || 'No role'}
                                   </Badge>
                                 </div>
                               </div>
+
+                              {/* Right Chevron (drill-down indicator) */}
+                              <ChevronRight className="w-5 h-5 text-[var(--pro-text-secondary)] flex-shrink-0" />
+
+                              {/* Kebab Menu */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[var(--pro-surface-highlight)] -mr-2"
+                                    aria-label="User actions"
+                                  >
+                                    <MoreVertical className="w-5 h-5 text-[var(--pro-text-secondary)]" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48 bg-[var(--pro-surface)] border-[var(--pro-border)]">
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      const currentStatus = user.is_active || user.isActive;
+                                      toggleUserStatus.mutate({
+                                        userId: user.id,
+                                        isActive: !currentStatus
+                                      });
+                                    }}
+                                    className="min-h-[44px] text-[var(--pro-text-primary)]"
+                                  >
+                                    {isActive ? (
+                                      <>
+                                        <ToggleLeft className="w-4 h-4 mr-2" />
+                                        Deactivate
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ToggleRight className="w-4 h-4 mr-2 text-[var(--pro-mint)]" />
+                                        Activate
+                                      </>
+                                    )}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+
+                                      if (editCloseTimerRef.current) {
+                                        clearTimeout(editCloseTimerRef.current);
+                                        editCloseTimerRef.current = null;
+                                      }
+                                      editSessionRef.current += 1;
+
+                                      const nameParts = (user.name || '').split(' ');
+                                      let roleId = user.role_id?.toString();
+                                      if (!roleId && user.role && roles && roles.length > 0) {
+                                        const roleNameMap: Record<string, string> = {
+                                          'admin': 'Admin',
+                                          'project_manager': 'Project Manager',
+                                          'office_manager': 'Office Manager',
+                                          'subcontractor': 'Subcontractor',
+                                          'client': 'Client',
+                                          'crew': 'Crew'
+                                        };
+                                        const userRole = user.role ?? '';
+                                        const targetRoleName = roleNameMap[userRole] || userRole.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                        const matchingRole = roles.find((r: Role) => {
+                                          const roleName = getRoleName(r).toLowerCase();
+                                          return roleName === targetRoleName.toLowerCase() ||
+                                                 roleName === userRole.toLowerCase();
+                                        });
+                                        if (matchingRole) {
+                                          roleId = matchingRole.id.toString();
+                                        } else {
+                                          const roleMap: Record<string, string> = {
+                                            'admin': '1',
+                                            'project_manager': '2',
+                                            'office_manager': '3',
+                                            'subcontractor': '4',
+                                            'client': '5',
+                                            'crew': '6'
+                                          };
+                                          roleId = roleMap[userRole] || '';
+                                        }
+                                      }
+
+                                      const mappedUser = {
+                                        ...user,
+                                        first_name: user.first_name || user.firstName || nameParts[0] || '',
+                                        last_name: user.last_name || user.lastName || nameParts.slice(1).join(' ') || '',
+                                        company_id: (user.company_id || user.companyId)?.toString() || '',
+                                        role_id: roleId || '',
+                                        role: user.role || '',
+                                        role_name: user.role_name || user.roleName || '',
+                                        is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
+                                        email: user.email || '',
+                                        password: ''
+                                      };
+
+                                      setEditingUser(mappedUser);
+                                      setIsEditUserDialogOpen(true);
+                                    }}
+                                    className="min-h-[44px] text-[var(--pro-blue)]"
+                                    data-testid={`button-edit-${user.id}`}
+                                  >
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Edit User
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <DropdownMenuItem
+                                        onSelect={(e) => e.preventDefault()}
+                                        className="min-h-[44px] text-[var(--pro-red)]"
+                                      >
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        Delete User
+                                      </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent className="bg-[var(--pro-surface)] border-[var(--pro-border)]" aria-describedby={undefined}>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle className="text-[var(--pro-text-primary)]">Delete User</AlertDialogTitle>
+                                        <AlertDialogDescription className="text-[var(--pro-text-secondary)]">
+                                          Are you sure you want to delete user "{displayName}"? This action cannot be undone.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel className="min-h-[44px]">Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => deleteUserMutation.mutate(user.id)}
+                                          className="min-h-[44px] bg-[var(--pro-red)] hover:bg-[var(--pro-red)]/90"
+                                          disabled={deleteUserMutation.isPending}
+                                        >
+                                          {deleteUserMutation.isPending ? 'Deleting...' : 'Delete'}
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <Button
-                                size="sm"
+                          );
+                        })}
+                      </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            ))
+            ) : (
+              // Company admin view: flat list with native mobile pattern
+              Object.entries(usersByCompany).map(([companyName, companyUsers]) => (
+                <Card key={companyName} className="overflow-hidden rounded-2xl bg-[var(--pro-surface)] border-[var(--pro-border)]">
+                  <div className="min-h-[56px] px-4 py-3 flex items-center justify-between border-b border-[var(--pro-border)]">
+                    <div className="flex items-center gap-3">
+                      <Building className="w-5 h-5 text-[var(--pro-mint)]" />
+                      <div>
+                        <h3 className="text-sm font-semibold text-[var(--pro-text-primary)]">{companyName}</h3>
+                        <p className="text-xs text-[var(--pro-text-secondary)]">
+                          {companyUsers.length} user{companyUsers.length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 text-xs font-medium bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)] rounded-full">
+                      {companyUsers.length}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-[var(--pro-border)]">
+                    {companyUsers.map((user: UserProfile) => {
+                      // Get user initials
+                      const displayName = user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
+                      const initials = displayName
+                        .split(' ')
+                        .map(n => n[0])
+                        .join('')
+                        .slice(0, 2)
+                        .toUpperCase();
+                      const isActive = user.is_active || user.isActive;
+
+                      return (
+                        <div
+                          key={user.id}
+                          className="min-h-[64px] px-4 py-3 flex items-center gap-3 hover:bg-[var(--pro-surface-highlight)] active:bg-[var(--pro-surface-highlight)] transition-colors"
+                        >
+                          {/* Initials Avatar with Status Dot */}
+                          <div className="relative flex-shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-[var(--pro-mint)]/20 flex items-center justify-center">
+                              <span className="text-sm font-semibold text-[var(--pro-mint)]">{initials}</span>
+                            </div>
+                            {/* Status Dot */}
+                            <span
+                              className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[var(--pro-surface)] ${
+                                isActive ? 'bg-[var(--pro-mint)]' : 'bg-[var(--pro-text-secondary)]'
+                              }`}
+                            />
+                          </div>
+
+                          {/* User Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-[var(--pro-text-primary)] truncate">
+                                {displayName}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <Badge
                                 variant="outline"
+                                className="text-[10px] h-5 px-1.5 bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-secondary)]"
+                              >
+                                {user.role_name || user.roleName || user.role || 'No role'}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          {/* Right Chevron (drill-down indicator) */}
+                          <ChevronRight className="w-5 h-5 text-[var(--pro-text-secondary)] flex-shrink-0" />
+
+                          {/* Kebab Menu */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[var(--pro-surface-highlight)] -mr-2"
+                                aria-label="User actions"
+                                data-testid={`button-menu-${user.id}`}
+                              >
+                                <MoreVertical className="w-5 h-5 text-[var(--pro-text-secondary)]" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48 bg-[var(--pro-surface)] border-[var(--pro-border)]">
+                              <DropdownMenuItem
                                 onClick={() => {
                                   const currentStatus = user.is_active || user.isActive;
                                   toggleUserStatus.mutate({
@@ -908,330 +961,124 @@ export default function RBACAdmin() {
                                     isActive: !currentStatus
                                   });
                                 }}
-                                disabled={toggleUserStatus.isPending}
-                                className="flex items-center space-x-1"
+                                className="min-h-[44px] text-[var(--pro-text-primary)]"
+                                data-testid={`button-toggle-status-${user.id}`}
                               >
-                                {user.is_active || user.isActive ? (
-                                  <ToggleRight className="w-4 h-4 text-green-600" />
+                                {isActive ? (
+                                  <>
+                                    <ToggleLeft className="w-4 h-4 mr-2" />
+                                    Deactivate
+                                  </>
                                 ) : (
-                                  <ToggleLeft className="w-4 h-4 text-muted-foreground" />
+                                  <>
+                                    <ToggleRight className="w-4 h-4 mr-2 text-[var(--pro-mint)]" />
+                                    Activate
+                                  </>
                                 )}
-                                <span className="text-xs">
-                                  {toggleUserStatus.isPending ? 'Updating...' : (user.is_active || user.isActive ? 'Deactivate' : 'Activate')}
-                                </span>
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                type="button"
-                                data-testid={`button-edit-${user.id}`}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  
-                                  // SESSION GUARD: Cancel any pending close timer from previous session
-                                  if (closeTimerRef.current) {
-                                    console.log('🛑 Canceling pending close timer from previous session');
-                                    clearTimeout(closeTimerRef.current);
-                                    closeTimerRef.current = null;
+
+                                  if (editCloseTimerRef.current) {
+                                    clearTimeout(editCloseTimerRef.current);
+                                    editCloseTimerRef.current = null;
                                   }
-                                  
-                                  // SESSION GUARD: Increment session ID for this new open
-                                  sessionRef.current += 1;
-                                  const currentSession = sessionRef.current;
-                                  console.log(`🔓 Opening edit dialog - Session #${currentSession}`);
-                                  
-                                  // Debug logging
-                                  console.log('🔍 Edit button clicked for user:', {
-                                    id: user.id,
-                                    email: user.email,
-                                    role: user.role,
-                                    role_id: user.role_id
-                                  });
-                                  
-                                  // Properly map user data for editing, parsing name into first/last
+                                  editSessionRef.current += 1;
+
                                   const nameParts = (user.name || '').split(' ');
-                                // Map role string to role_id by finding matching role in roles list
-                                let roleId = user.role_id?.toString();
-                                if (!roleId && user.role && roles && roles.length > 0) {
-                                  // Try to find role by matching role name to user's role string
-                                  const roleNameMap: Record<string, string> = {
-                                    'admin': 'Admin',
-                                    'project_manager': 'Project Manager',
-                                    'office_manager': 'Office Manager',
-                                    'subcontractor': 'Subcontractor',
-                                    'client': 'Client',
-                                    'crew': 'Crew'
-                                  };
-                                  const targetRoleName = roleNameMap[user.role] || user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-                                  // Find role by name (case-insensitive) - handle both name and role_name
-                                  const matchingRole = roles.find((r: Role) => {
-                                    const roleName = getRoleName(r).toLowerCase();
-                                    return roleName === targetRoleName.toLowerCase() ||
-                                           roleName === user.role.toLowerCase();
-                                  });
-                                  if (matchingRole) {
-                                    roleId = matchingRole.id.toString();
-                                  } else {
-                                    // Fallback to hardcoded mapping if role not found
-                                    const roleMap: Record<string, string> = {
-                                      'admin': '1',
-                                      'project_manager': '2',
-                                      'office_manager': '3',
-                                      'subcontractor': '4',
-                                      'client': '5',
-                                      'crew': '6'
+                                  let roleId = user.role_id?.toString();
+                                  if (!roleId && user.role && roles && roles.length > 0) {
+                                    const roleNameMap: Record<string, string> = {
+                                      'admin': 'Admin',
+                                      'project_manager': 'Project Manager',
+                                      'office_manager': 'Office Manager',
+                                      'subcontractor': 'Subcontractor',
+                                      'client': 'Client',
+                                      'crew': 'Crew'
                                     };
-                                    roleId = roleMap[user.role] || '';
+                                    const userRole = user.role ?? '';
+                                    const targetRoleName = roleNameMap[userRole] || userRole.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                    const matchingRole = roles.find((r: Role) => {
+                                      const roleName = getRoleName(r).toLowerCase();
+                                      return roleName === targetRoleName.toLowerCase() ||
+                                             roleName === userRole.toLowerCase();
+                                    });
+                                    if (matchingRole) {
+                                      roleId = matchingRole.id.toString();
+                                    } else {
+                                      const roleMap: Record<string, string> = {
+                                        'admin': '1',
+                                        'project_manager': '2',
+                                        'office_manager': '3',
+                                        'subcontractor': '4',
+                                        'client': '5',
+                                        'crew': '6'
+                                      };
+                                      roleId = roleMap[userRole] || '';
+                                    }
                                   }
-                                }
-                                
-                                const mappedUser = {
-                                  ...user,
-                                  first_name: user.first_name || nameParts[0] || '',
-                                  last_name: user.last_name || nameParts.slice(1).join(' ') || '',
-                                  company_id: (user.company_id || user.companyId)?.toString() || '',
-                                  role_id: roleId || '',
-                                  role: user.role || '', // Ensure role is included
-                                  role_name: user.role_name || '', // Ensure role_name is included
-                                  is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
-                                  email: user.email || '',
-                                  password: '' // Don't pre-fill password
-                                };
-                                  
-                                  console.log('✅ Setting editing user and opening dialog');
-                                  
+
+                                  const mappedUser = {
+                                    ...user,
+                                    first_name: user.first_name || user.firstName || nameParts[0] || '',
+                                    last_name: user.last_name || user.lastName || nameParts.slice(1).join(' ') || '',
+                                    company_id: (user.company_id || user.companyId)?.toString() || '',
+                                    role_id: roleId || '',
+                                    role: user.role || '',
+                                    role_name: user.role_name || user.roleName || '',
+                                    is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
+                                    email: user.email || '',
+                                    password: ''
+                                  };
+
                                   setEditingUser(mappedUser);
-                                  setIsEditDialogOpen(true);
+                                  setIsEditUserDialogOpen(true);
                                 }}
+                                className="min-h-[44px] text-[var(--pro-blue)]"
+                                data-testid={`button-edit-${user.id}`}
                               >
-                                <Edit className="w-4 h-4" />
-                              </Button>
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit User
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    className="text-red-600 hover:text-red-700"
+                                  <DropdownMenuItem
+                                    onSelect={(e) => e.preventDefault()}
+                                    className="min-h-[44px] text-[var(--pro-red)]"
+                                    data-testid={`button-delete-${user.id}`}
                                   >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete User
+                                  </DropdownMenuItem>
                                 </AlertDialogTrigger>
-                                <AlertDialogContent aria-describedby={undefined}>
+                                <AlertDialogContent className="bg-[var(--pro-surface)] border-[var(--pro-border)]" aria-describedby={undefined}>
                                   <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete User</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to delete user "{user.name || user.email}"? This action cannot be undone and will remove all associated data.
+                                    <AlertDialogTitle className="text-[var(--pro-text-primary)]">Delete User</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-[var(--pro-text-secondary)]">
+                                      Are you sure you want to delete user "{displayName}"? This action cannot be undone.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction 
+                                    <AlertDialogCancel className="min-h-[44px]">Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
                                       onClick={() => deleteUserMutation.mutate(user.id)}
-                                      className="bg-red-600 hover:bg-red-700"
+                                      className="min-h-[44px] bg-[var(--pro-red)] hover:bg-[var(--pro-red)]/90"
                                       disabled={deleteUserMutation.isPending}
                                     >
-                                      {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
+                                      {deleteUserMutation.isPending ? 'Deleting...' : 'Delete'}
                                     </AlertDialogAction>
                                   </AlertDialogFooter>
                                 </AlertDialogContent>
                               </AlertDialog>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Collapsible>
-              </Card>
-            ))
-            ) : (
-              // Company admin view: flat list without collapsible
-              Object.entries(usersByCompany).map(([companyName, companyUsers]) => (
-                <Card key={companyName} className="overflow-hidden">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Building className="w-5 h-5 text-primary" />
-                        <div>
-                          <CardTitle className="text-lg">{companyName}</CardTitle>
-                          <CardDescription>
-                            {companyUsers.length} user{companyUsers.length !== 1 ? 's' : ''}
-                          </CardDescription>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                      </div>
-                      <Badge variant="outline">{companyUsers.length}</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="divide-y">
-                      {companyUsers.map((user: UserProfile) => (
-                        <div key={user.id} className="p-4 flex items-center justify-between hover:bg-muted/30">
-                          <div className="flex items-center space-x-4">
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                              <Users className="w-5 h-5 text-primary" />
-                            </div>
-                            <div>
-                              <div className="font-medium">
-                                {user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username}
-                              </div>
-                              <div className="text-sm text-muted-foreground">{user.email}</div>
-                              <div className="flex items-center space-x-2 mt-1">
-                                <Badge variant="outline" className="text-xs">
-                                  {user.role_name || user.role || 'No role'}
-                                </Badge>
-                                <Badge variant={user.is_active || user.isActive ? 'default' : 'destructive'} className="text-xs">
-                                  {user.is_active || user.isActive ? 'Active' : 'Inactive'}
-                                </Badge>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                const currentStatus = user.is_active || user.isActive;
-                                toggleUserStatus.mutate({
-                                  userId: user.id,
-                                  isActive: !currentStatus
-                                });
-                              }}
-                              disabled={toggleUserStatus.isPending}
-                              className="flex items-center space-x-1"
-                              data-testid={`button-toggle-status-${user.id}`}
-                            >
-                              {user.is_active || user.isActive ? (
-                                <ToggleRight className="w-4 h-4 text-green-600" />
-                              ) : (
-                                <ToggleLeft className="w-4 h-4 text-muted-foreground" />
-                              )}
-                              <span className="text-xs">
-                                {toggleUserStatus.isPending ? 'Updating...' : (user.is_active || user.isActive ? 'Deactivate' : 'Activate')}
-                              </span>
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                
-                                // SESSION GUARD: Cancel any pending close timer from previous session
-                                if (closeTimerRef.current) {
-                                  console.log('🛑 Canceling pending close timer from previous session');
-                                  clearTimeout(closeTimerRef.current);
-                                  closeTimerRef.current = null;
-                                }
-                                
-                                // SESSION GUARD: Increment session ID for this new open
-                                sessionRef.current += 1;
-                                const currentSession = sessionRef.current;
-                                console.log(`🔓 Opening edit dialog - Session #${currentSession}`);
-                                
-                                // Debug logging
-                                console.log('🔍 Edit button clicked for user:', {
-                                  id: user.id,
-                                  email: user.email,
-                                  role: user.role,
-                                  role_id: user.role_id
-                                });
-                                
-                                // Properly map user data for editing, parsing name into first/last
-                                const nameParts = (user.name || '').split(' ');
-                                // Map role string to role_id by finding matching role in roles list
-                                let roleId = user.role_id?.toString();
-                                if (!roleId && user.role && roles && roles.length > 0) {
-                                  // Try to find role by matching role name to user's role string
-                                  const roleNameMap: Record<string, string> = {
-                                    'admin': 'Admin',
-                                    'project_manager': 'Project Manager',
-                                    'office_manager': 'Office Manager',
-                                    'subcontractor': 'Subcontractor',
-                                    'client': 'Client',
-                                    'crew': 'Crew'
-                                  };
-                                  const targetRoleName = roleNameMap[user.role] || user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-                                  // Find role by name (case-insensitive) - handle both name and role_name
-                                  const matchingRole = roles.find((r: Role) => {
-                                    const roleName = getRoleName(r).toLowerCase();
-                                    return roleName === targetRoleName.toLowerCase() ||
-                                           roleName === user.role.toLowerCase();
-                                  });
-                                  if (matchingRole) {
-                                    roleId = matchingRole.id.toString();
-                                  } else {
-                                    // Fallback to hardcoded mapping if role not found
-                                    const roleMap: Record<string, string> = {
-                                      'admin': '1',
-                                      'project_manager': '2',
-                                      'office_manager': '3',
-                                      'subcontractor': '4',
-                                      'client': '5',
-                                      'crew': '6'
-                                    };
-                                    roleId = roleMap[user.role] || '';
-                                  }
-                                }
-                                
-                                const mappedUser = {
-                                  ...user,
-                                  first_name: user.first_name || nameParts[0] || '',
-                                  last_name: user.last_name || nameParts.slice(1).join(' ') || '',
-                                  company_id: (user.company_id || user.companyId)?.toString() || '',
-                                  role_id: roleId || '',
-                                  role: user.role || '', // Ensure role is included
-                                  role_name: user.role_name || '', // Ensure role_name is included
-                                  is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
-                                  email: user.email || '',
-                                  password: '' // Don't pre-fill password
-                                };
-                                
-                                console.log('✅ Setting editing user and opening dialog');
-                                
-                                setEditingUser(mappedUser);
-                                setIsEditDialogOpen(true);
-                              }}
-                              data-testid={`button-edit-${user.id}`}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  className="text-red-600 hover:text-red-700"
-                                  data-testid={`button-delete-${user.id}`}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent aria-describedby={undefined}>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete User</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete user "{user.name || user.email}"? This action cannot be undone and will remove all associated data.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => deleteUserMutation.mutate(user.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                    disabled={deleteUserMutation.isPending}
-                                  >
-                                    {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
+                      );
+                    })}
+                  </div>
                 </Card>
               ))
             )
@@ -1250,7 +1097,7 @@ export default function RBACAdmin() {
   const RoleManagement = () => {
     const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | null>(null);
     const [newRole, setNewRole] = useState({
       name: '',
@@ -1298,7 +1145,7 @@ export default function RBACAdmin() {
                   <div>
                     <Label htmlFor="company">Company</Label>
                     <Select value={newRole.company_id} onValueChange={(value) => setNewRole({ ...newRole, company_id: value })}>
-                      <SelectTrigger>
+                      <SelectTrigger id="company">
                         <SelectValue placeholder="Select company" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1390,7 +1237,10 @@ export default function RBACAdmin() {
               </CardContent>
             </Card>
           ) : roles && Array.isArray(roles) && roles.length > 0 ? (
-            roles.map((role: Role) => (
+            roles.map((role: Role) => {
+              const rolePermissions = role.permissions ?? [];
+
+              return (
               <Card key={role.id}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -1407,7 +1257,7 @@ export default function RBACAdmin() {
                         variant="outline"
                         onClick={() => {
                           setEditingRole(role);
-                          setIsEditDialogOpen(true);
+                          setIsEditUserDialogOpen(true);
                         }}
                       >
                         <Edit className="w-4 h-4 mr-2" />
@@ -1426,10 +1276,10 @@ export default function RBACAdmin() {
                 <CardContent>
                   <div className="space-y-2">
                     <div className="text-sm text-muted-foreground">
-                      Permissions ({role.permissions?.length || 0})
+                      Permissions ({rolePermissions.length})
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {role.permissions?.slice(0, 5).map((permId: string) => {
+                      {rolePermissions.slice(0, 5).map((permId: string) => {
                         const perm = permissions.find((p: Permission) => p.id === permId);
                         return perm ? (
                           <Badge key={permId} variant="outline" className="text-xs">
@@ -1437,16 +1287,17 @@ export default function RBACAdmin() {
                           </Badge>
                         ) : null;
                       })}
-                      {role.permissions?.length > 5 && (
+                      {rolePermissions.length > 5 && (
                         <Badge variant="outline" className="text-xs">
-                          +{role.permissions.length - 5} more
+                          +{rolePermissions.length - 5} more
                         </Badge>
                       )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            ))
+              );
+            })
           ) : (
             <Card>
               <CardContent className="p-6">
@@ -1481,8 +1332,8 @@ export default function RBACAdmin() {
       if (users && Array.isArray(users)) {
         users.forEach((user: UserProfile) => {
           // Try multiple field variations for company identification
-          const companyName = user.company_name || user.company_name;
-          const companyId = user.company_id || user.company_id;
+          const companyName = user.company_name || user.companyName;
+          const companyId = user.company_id || user.companyId;
           
           if (companyName) {
             counts[companyName] = (counts[companyName] || 0) + 1;
@@ -1610,7 +1461,7 @@ export default function RBACAdmin() {
                     ...newCompany, 
                     settings: { ...newCompany.settings, type: value }
                   })}>
-                    <SelectTrigger>
+                    <SelectTrigger id="type">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1626,7 +1477,7 @@ export default function RBACAdmin() {
                     ...newCompany, 
                     settings: { ...newCompany.settings, subscription_tier: value }
                   })}>
-                    <SelectTrigger>
+                    <SelectTrigger id="subscription">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1639,7 +1490,7 @@ export default function RBACAdmin() {
                 <div>
                   <Label htmlFor="status">Status</Label>
                   <Select value={newCompany.status} onValueChange={(value) => setNewCompany({ ...newCompany, status: value })}>
-                    <SelectTrigger>
+                    <SelectTrigger id="status">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1720,7 +1571,7 @@ export default function RBACAdmin() {
                   value={editingCompany?.status || 'active'} 
                   onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, status: value as 'active' | 'suspended' | 'pending'} : null)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="edit_status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1739,7 +1590,7 @@ export default function RBACAdmin() {
                     settings: { ...prev.settings, type: value }
                   } : null)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="edit_type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1758,7 +1609,7 @@ export default function RBACAdmin() {
                     settings: { ...prev.settings, subscription_tier: value }
                   } : null)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="edit_subscription">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1838,7 +1689,7 @@ export default function RBACAdmin() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline">{user.role_name || 'No role'}</Badge>
+                            <Badge variant="outline">{user.role_name || user.roleName || user.role || 'No role'}</Badge>
                             <Badge variant={user.is_active ? 'default' : 'secondary'}>
                               {user.is_active ? 'Active' : 'Inactive'}
                             </Badge>
@@ -2070,20 +1921,292 @@ export default function RBACAdmin() {
     );
   };
 
-  return (
-    <div className="container mx-auto p-6 bg-[var(--pro-bg)] min-h-screen">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold flex items-center gap-2 text-[var(--pro-text-primary)]">
-          <Shield className="w-8 h-8 text-[var(--pro-mint)]" />
-          RBAC Administration
-        </h1>
-        <p className="text-[var(--pro-text-secondary)] mt-2">
-          Comprehensive role-based access control management system
-        </p>
-      </div>
+  // ========================================================================
+  // EDIT USER DIALOG - Rendered at RBACAdmin level (NOT inside UserManagement)
+  // This prevents the dialog from unmounting/remounting when UserManagement
+  // re-renders, which was causing visual flickering.
+  // ========================================================================
+  const editUserDialog = (
+    <Dialog 
+      open={isEditUserDialogOpen}
+      onOpenChange={(open) => {
+        const now = Date.now();
+        const blockedUntil = editBlockCloseUntilRef.current;
+        
+        // Block close if we're in the critical period after update
+        if (!open && now < blockedUntil) {
+          return;
+        }
+        
+        // Allow closing manually (via cancel button or X)
+        if (!open && !updateUserMutation.isPending) {
+          setIsEditUserDialogOpen(false);
+          setEditingUser(null);
+        }
+      }}
+      modal={true}
+    >
+      <DialogContent className="max-w-md" aria-describedby={undefined} onInteractOutside={(e) => {
+        // Prevent closing by clicking outside during mutation
+        if (updateUserMutation.isPending) {
+          e.preventDefault();
+        }
+      }}>
+        <DialogHeader>
+          <DialogTitle>Edit User</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="edit_first_name">First Name</Label>
+              <Input
+                id="edit_first_name"
+                value={editingUser?.first_name || ''}
+                onChange={(e) => setEditingUser(editingUser ? {...editingUser, first_name: e.target.value} : null)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit_last_name">Last Name</Label>
+              <Input
+                id="edit_last_name"
+                value={editingUser?.last_name || ''}
+                onChange={(e) => setEditingUser(editingUser ? {...editingUser, last_name: e.target.value} : null)}
+              />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="edit_email">Email</Label>
+            <Input
+              id="edit_email"
+              type="email"
+              value={editingUser?.email || ''}
+              onChange={(e) => setEditingUser(editingUser ? {...editingUser, email: e.target.value} : null)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit_company">Company</Label>
+            <Select 
+              value={editingUser?.company_id?.toString() || ''} 
+              onValueChange={(value) => setEditingUser(editingUser ? {...editingUser, company_id: value} : null)}
+              disabled={true}
+            >
+              <SelectTrigger id="edit_company" className="opacity-60">
+                <SelectValue placeholder="Company (read-only)" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredCompanies.map((company: Company) => (
+                  <SelectItem key={company.id} value={company.id.toString()}>
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">Users cannot change companies</p>
+          </div>
+          <div>
+            <Label htmlFor="edit_password">New Password (Optional)</Label>
+            <Input
+              id="edit_password"
+              type="password"
+              placeholder="Leave empty to keep current password"
+              value={editingUser?.password || ''}
+              onChange={(e) => setEditingUser(editingUser ? {...editingUser, password: e.target.value} : null)}
+            />
+            <p className="text-xs text-muted-foreground mt-1">Only change if user needs a new password</p>
+          </div>
+          <div>
+            <Label htmlFor="edit_role">Role</Label>
+            <Select 
+              value={editingUser?.role_id?.toString() || ''} 
+              onValueChange={(value) => setEditingUser(editingUser ? {...editingUser, role_id: value} : null)}
+            >
+              <SelectTrigger id="edit_role">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                {rolesLoading ? (
+                  <SelectItem value="loading" disabled>Loading roles...</SelectItem>
+                ) : roles && roles.length > 0 ? (
+                  (() => {
+                    // DEBUG: Log all roles and filter details
+                    console.log('🔍 Edit User - All roles:', roles);
+                    console.log('🔍 Edit User - Current company ID:', currentUserCompanyId);
+                    console.log('🔍 Edit User - Roles count:', roles.length);
+                    
+                    // Show ALL roles for now - we can filter later if needed
+                    const rolesToShow = roles;
+                    
+                    if (rolesToShow.length === 0) {
+                      return <SelectItem value="none" disabled>No roles available</SelectItem>;
+                    }
+                    
+                    return rolesToShow.map((role: Role) => (
+                      <SelectItem key={role.id} value={role.id.toString()}>
+                        {getRoleName(role) || role.displayName || role.display_name} {String(role.company_id) === '0' ? '(Platform)' : '(Standard)'}
+                      </SelectItem>
+                    ));
+                  })()
+                ) : (
+                  <SelectItem value="none" disabled>No roles available</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="edit_is_active"
+              checked={editingUser?.is_active || false}
+              onCheckedChange={(checked) => setEditingUser(editingUser ? {...editingUser, is_active: checked} : null)}
+            />
+            <Label htmlFor="edit_is_active">Active User</Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button 
+            type="button"
+            variant="outline" 
+            onClick={() => {
+              setIsEditUserDialogOpen(false);
+              setEditingUser(null);
+            }}
+            data-testid="button-cancel-edit"
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="button"
+            onClick={async () => {
+              if (editingUser) {
+                const updatePayload: any = {
+                  email: editingUser.email,
+                  username: editingUser.email,
+                  name: `${editingUser.first_name || ''} ${editingUser.last_name || ''}`.trim(),
+                  first_name: editingUser.first_name,
+                  last_name: editingUser.last_name,
+                  company_id: editingUser.company_id,
+                  role_id: editingUser.role_id,
+                  is_active: editingUser.is_active,
+                };
+                if (editingUser.password && editingUser.password.trim() !== '') {
+                  updatePayload.password = editingUser.password;
+                }
+                
+                try {
+                  await updateUserMutation.mutateAsync({
+                    id: editingUser.id, 
+                    data: updatePayload
+                  });
+                  
+                  // Block trailing close events for a short period
+                  const blockDurationMs = 1200;
+                  editBlockCloseUntilRef.current = Date.now() + blockDurationMs;
+                  
+                  // Update cache immediately
+                  const roleId = editingUser.role_id;
+                  const roleName = roleId === '1' ? 'Admin' : 
+                                 roleId === '2' ? 'Project Manager' : 
+                                 roleId === '3' ? 'Office Manager' : 
+                                 roleId === '4' ? 'Subcontractor' : 
+                                 roleId === '5' ? 'Client' : 'Crew';
+                  const role = roleId === '1' ? 'admin' : 
+                              roleId === '2' ? 'project_manager' : 
+                              roleId === '3' ? 'office_manager' : 
+                              roleId === '4' ? 'subcontractor' : 
+                              roleId === '5' ? 'client' : 'crew';
+                  
+                  queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
+                    if (!old) return old;
+                    return old.map((user: any) => 
+                      user.id === editingUser.id 
+                        ? { ...user, role_id: roleId, role: role, role_name: roleName }
+                        : user
+                    );
+                  });
+                  
+                  setIsEditUserDialogOpen(false);
+                  setEditingUser(null);
+                  editCloseTimerRef.current = null;
+                  
+                } catch (error) {
+                  console.error('Update failed:', error);
+                }
+              }
+            }}
+            disabled={updateUserMutation.isPending || !editingUser?.email?.trim()}
+            data-testid="button-update-user"
+          >
+            {updateUserMutation.isPending ? 'Updating...' : 'Update User'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
+  // Segmented control options for tabs
+  const tabOptions = isRootAdmin
+    ? [
+        { value: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
+        { value: 'roles', label: 'Roles', icon: <UserCheck className="w-4 h-4" /> },
+        { value: 'companies', label: 'Companies', icon: <Building className="w-4 h-4" /> },
+        { value: 'permissions', label: 'Permissions', icon: <Key className="w-4 h-4" /> },
+      ]
+    : [
+        { value: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
+      ];
+
+  // Bottom navigation items
+  const bottomNavItems = [
+    { value: 'home', label: 'Home', icon: <Home className="w-5 h-5" /> },
+    { value: 'projects', label: 'Projects', icon: <FolderKanban className="w-5 h-5" /> },
+    { value: 'tasks', label: 'Tasks', icon: <ListTodo className="w-5 h-5" /> },
+    { value: 'admin', label: 'Admin', icon: <Shield className="w-5 h-5" /> },
+  ];
+
+  const [activeNavItem, setActiveNavItem] = useState('admin');
+
+  const handleNavChange = (value: string) => {
+    if (value === 'home') {
+      window.location.href = '/';
+    } else if (value === 'projects') {
+      window.location.href = '/projects';
+    } else if (value === 'tasks') {
+      window.location.href = '/tasks';
+    } else {
+      setActiveNavItem(value);
+    }
+  };
+
+  return (
+    <div className="bg-[var(--pro-bg-deep)] min-h-screen pb-20">
+      {/* Edit User Dialog - rendered at RBACAdmin level to prevent flicker */}
+      {editUserDialog}
+
+      {/* Sticky Header - Compact single-row layout */}
+      <header className="sticky top-0 z-40 bg-[var(--pro-surface)] border-b border-[var(--pro-border)] pt-[env(safe-area-inset-top)]">
+        <div className="flex items-center justify-between h-14 px-4">
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-[var(--pro-mint)]" />
+            <h1 className="text-lg font-semibold text-[var(--pro-text-primary)]">
+              RBAC Admin
+            </h1>
+          </div>
+        </div>
+
+        {/* iOS-style Segmented Control */}
+        <div className="px-4 pb-3">
+          <SegmentedControl
+            options={tabOptions}
+            value={activeTab}
+            onChange={setActiveTab}
+            className="w-full"
+            data-testid="rbac-tabs"
+          />
+        </div>
+      </header>
+
+      {/* Loading Alert */}
       {(permissionsLoading || rolesLoading || companiesLoading || usersLoading) && (
-        <Alert className="mb-6 bg-[var(--pro-surface)] border-[var(--pro-border)]">
+        <Alert className="mx-4 mt-4 bg-[var(--pro-surface)] border-[var(--pro-border)]">
           <AlertCircle className="h-4 w-4 text-[var(--pro-blue)]" />
           <AlertDescription className="text-[var(--pro-text-primary)]">
             Loading RBAC data...
@@ -2091,54 +2214,21 @@ export default function RBACAdmin() {
         </Alert>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className={`grid w-full ${isRootAdmin ? 'grid-cols-4' : 'grid-cols-1'}`}>
-          <TabsTrigger value="users" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Users
-          </TabsTrigger>
-          {isRootAdmin && (
-            <TabsTrigger value="roles" className="flex items-center gap-2">
-              <UserCheck className="w-4 h-4" />
-              Roles
-            </TabsTrigger>
-          )}
-          {isRootAdmin && (
-            <TabsTrigger value="companies" className="flex items-center gap-2">
-              <Building className="w-4 h-4" />
-              Companies
-            </TabsTrigger>
-          )}
-          {isRootAdmin && (
-            <TabsTrigger value="permissions" className="flex items-center gap-2">
-              <Key className="w-4 h-4" />
-              Permissions
-            </TabsTrigger>
-          )}
-        </TabsList>
+      {/* Content Area */}
+      <main className="p-4">
+        {activeTab === 'users' && <UserManagement />}
+        {activeTab === 'roles' && isRootAdmin && <RoleManagement />}
+        {activeTab === 'companies' && isRootAdmin && <CompanyManagement />}
+        {activeTab === 'permissions' && isRootAdmin && <PermissionsOverview />}
+      </main>
 
-        <TabsContent value="users" className="mt-6">
-          <UserManagement />
-        </TabsContent>
-
-        {isRootAdmin && (
-          <TabsContent value="roles" className="mt-6">
-            <RoleManagement />
-          </TabsContent>
-        )}
-
-        {isRootAdmin && (
-          <TabsContent value="companies" className="mt-6">
-            <CompanyManagement />
-          </TabsContent>
-        )}
-
-        {isRootAdmin && (
-          <TabsContent value="permissions" className="mt-6">
-            <PermissionsOverview />
-          </TabsContent>
-        )}
-      </Tabs>
+      {/* Bottom Navigation */}
+      <BottomNavigation
+        items={bottomNavItems}
+        value={activeNavItem}
+        onChange={handleNavChange}
+        data-testid="bottom-nav"
+      />
     </div>
   );
 }

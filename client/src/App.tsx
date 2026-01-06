@@ -15,6 +15,7 @@ import Logs from "@/pages/logs";
 import ClientPortal from "@/pages/client-portal";
 import Subs from "@/pages/subs";
 import RBACAdmin from "@/pages/RBACAdmin";
+import WaitlistAdmin from "@/pages/waitlist-admin";
 import ProjectHealth from "@/pages/project-health";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/layout/sidebar";
@@ -70,6 +71,9 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
               <RBACAdmin />
             </ProtectedRoute>
           </Route>
+          <Route path="/waitlist-admin">
+            <WaitlistAdmin />
+          </Route>
         </>
       )}
       <Route component={NotFound} />
@@ -96,11 +100,11 @@ function App() {
   );
 }
 
-function AppWithAuth({ 
-  isMobileMenuOpen, 
-  setIsMobileMenuOpen, 
-  isNotificationModalOpen, 
-  setIsNotificationModalOpen 
+function AppWithAuth({
+  isMobileMenuOpen,
+  setIsMobileMenuOpen,
+  isNotificationModalOpen,
+  setIsNotificationModalOpen
 }: {
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (open: boolean) => void;
@@ -126,13 +130,13 @@ function AppWithAuth({
   );
 }
 
-function AuthenticatedLayout({ 
+function AuthenticatedLayout({
   isAuthenticated,
   isLoading,
-  isMobileMenuOpen, 
-  setIsMobileMenuOpen, 
-  isNotificationModalOpen, 
-  setIsNotificationModalOpen 
+  isMobileMenuOpen,
+  setIsMobileMenuOpen,
+  isNotificationModalOpen,
+  setIsNotificationModalOpen
 }: {
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -143,23 +147,23 @@ function AuthenticatedLayout({
 }) {
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar 
+      <Sidebar
         isMobileOpen={isMobileMenuOpen}
         onMobileClose={() => setIsMobileMenuOpen(false)}
       />
       <main className="flex-1 flex flex-col overflow-hidden">
-        <Header 
+        <Header
           onToggleMobileMenu={() => setIsMobileMenuOpen(true)}
           onToggleNotifications={() => setIsNotificationModalOpen(true)}
         />
-        <div className="flex-1 p-6 overflow-y-auto section-padding" style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
+        <div className="flex-1 p-4 md:p-6 overflow-y-auto section-padding" style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
           <Router isAuthenticated={isAuthenticated} isLoading={isLoading} />
         </div>
       </main>
-      
-      <NotificationModal 
-        isOpen={isNotificationModalOpen} 
-        onClose={() => setIsNotificationModalOpen(false)} 
+
+      <NotificationModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
       />
     </div>
   );

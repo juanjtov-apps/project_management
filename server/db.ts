@@ -4,14 +4,32 @@ import * as schema from "@shared/schema";
 import fs from 'fs';
 import path from 'path';
 
-if (!process.env.DATABASE_URL) {
+// Select database URL based on environment
+const nodeEnv = (process.env.NODE_ENV || '').toLowerCase();
+const databaseUrlDev = process.env.DATABASE_URL_DEV;
+const databaseUrlProd = process.env.DATABASE_URL_PROD;
+const databaseUrlFallback = process.env.DATABASE_URL;
+
+// Determine which database URL to use
+let databaseUrl: string;
+if (nodeEnv === 'development') {
+  databaseUrl = databaseUrlDev || databaseUrlFallback || '';
+} else if (nodeEnv === 'production') {
+  databaseUrl = databaseUrlProd || databaseUrlFallback || '';
+} else {
+  // Fallback: use DATABASE_URL if no environment-specific variable is set
+  databaseUrl = databaseUrlFallback || '';
+}
+
+if (!databaseUrl) {
   throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
+    "DATABASE_URL environment variable is required. " +
+    "Set DATABASE_URL, DATABASE_URL_DEV, or DATABASE_URL_PROD based on NODE_ENV."
   );
 }
 
-// Detect database type: Neon (production) or Cloud SQL (development)
-const dbUrl = process.env.DATABASE_URL.toLowerCase();
+// Detect database type: Neon (dev/prod) or Cloud SQL
+const dbUrl = databaseUrl.toLowerCase();
 const isNeon = dbUrl.includes('neon.tech');
 const isCloudSQL = 
   process.env.DB_SSL_DIR || 
@@ -24,13 +42,14 @@ const isCloudSQL =
 // Configure SSL based on database type
 let sslConfig: any = undefined;
 
-if (isNeon) {
-  // Neon (Production): Simple SSL with rejectUnauthorized: false
-  sslConfig = { rejectUnauthorized: false };
-  console.log('🔵 Connecting to Neon database (production)');
-} else if (isCloudSQL) {
-  // Cloud SQL (Development): Full SSL certificate configuration
-  console.log('🟢 Connecting to Cloud SQL database (development)');
+// Determine environment for Neon databases
+const isProduction = nodeEnv === 'production';
+const isDevelopment = nodeEnv === 'development';
+
+// Cloud SQL detection (highest priority)
+if (isCloudSQL) {
+  // Cloud SQL: Full SSL certificate configuration
+  console.log('🟢 Connecting to Cloud SQL database');
   sslConfig = {
     rejectUnauthorized: true,
     // Disable hostname verification (same as Python's check_hostname = False)
@@ -80,6 +99,11 @@ if (isNeon) {
   if (!sslConfig.ca) {
     console.warn('⚠️  Warning: No SSL root certificate found for Cloud SQL connection');
   }
+} else if (isNeon) {
+  // Neon: Simple SSL with rejectUnauthorized: false
+  sslConfig = { rejectUnauthorized: false };
+  const envLabel = isProduction ? 'PRODUCTION' : 'DEVELOPMENT';
+  console.log(`🔵 Connecting to Neon database (${envLabel})`);
 } else {
   // Other providers: Check connection string for SSL requirements
   if (dbUrl.includes('sslmode=require')) {
@@ -92,7 +116,7 @@ if (isNeon) {
 
 // Create connection pool
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: databaseUrl,
   ssl: sslConfig,
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000,
@@ -124,7 +148,7 @@ export function getDbSslConfig(): any {
  */
 export function createDbPool(): Pool {
   return new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: databaseUrl,
     ssl: sslConfig,
     max: 10,
     idleTimeoutMillis: 30000,

@@ -47,28 +47,35 @@ class BaseRepository:
 
 class ProjectRepository(BaseRepository):
     """Repository for project operations."""
-    
+
     def __init__(self):
         super().__init__("projects")
     
+    def _normalize_status(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize status field to use hyphens (on-hold) instead of underscores (on_hold)."""
+        if 'status' in data and data['status']:
+            # Convert underscore to hyphen for enum compatibility
+            data['status'] = data['status'].replace('_', '-')
+        return data
+
     async def get_all(self) -> List[Dict[str, Any]]:
         """Get all projects."""
         query = f"SELECT * FROM {self.table_name} ORDER BY created_at DESC"
         rows = await db_manager.execute_query(query)
-        return [self._convert_to_camel_case(dict(row)) for row in rows]
-    
+        return [self._normalize_status(self._convert_to_camel_case(dict(row))) for row in rows]
+
     async def get_by_company(self, company_id: str) -> List[Dict[str, Any]]:
         """Get projects filtered by company ID."""
         query = f"SELECT * FROM {self.table_name} WHERE company_id = $1 ORDER BY created_at DESC"
         rows = await db_manager.execute_query(query, company_id)
-        return [self._convert_to_camel_case(dict(row)) for row in rows]
+        return [self._normalize_status(self._convert_to_camel_case(dict(row))) for row in rows]
     
     async def get_by_id(self, project_id: str) -> Optional[Dict[str, Any]]:
         """Get project by ID."""
         query = f"SELECT * FROM {self.table_name} WHERE id = $1"
         row = await db_manager.execute_one(query, project_id)
         if row:
-            return Project(**self._convert_to_camel_case(dict(row)))
+            return Project(**self._normalize_status(self._convert_to_camel_case(dict(row))))
         return None
     
     async def create(self, project: ProjectCreate, company_id: Optional[str] = None) -> Project:
@@ -642,14 +649,15 @@ class DashboardRepository(BaseRepository):
             photo_row = await db_manager.execute_one(photo_stats_query)
         
         # User stats
-        # Use role_name column (from migration fix_roles_table.py)
+        # Dynamically handle both 'role_name' and 'name' columns in roles table
+        # Use COALESCE to handle either column being present
         if company_id:
             user_stats_query = """
                 SELECT 
                     COUNT(*) as total_users,
                     COUNT(*) as active_users,
-                    COUNT(*) FILTER (WHERE r.role_name = 'crew') as crew_members,
-                    COUNT(*) FILTER (WHERE r.role_name IN ('manager', 'project_manager', 'office_manager')) as managers
+                    COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) = 'crew') as crew_members,
+                    COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) IN ('manager', 'project_manager', 'office_manager')) as managers
                 FROM users u
                 LEFT JOIN roles r ON u.role_id = r.id
                 WHERE u.company_id = $1
@@ -660,8 +668,8 @@ class DashboardRepository(BaseRepository):
                 SELECT 
                     COUNT(*) as total_users,
                     COUNT(*) as active_users,
-                    COUNT(*) FILTER (WHERE r.role_name = 'crew') as crew_members,
-                    COUNT(*) FILTER (WHERE r.role_name IN ('manager', 'project_manager', 'office_manager')) as managers
+                    COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) = 'crew') as crew_members,
+                    COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) IN ('manager', 'project_manager', 'office_manager')) as managers
                 FROM users u
                 LEFT JOIN roles r ON u.role_id = r.id
             """
@@ -795,41 +803,66 @@ class UserRepository(BaseRepository):
     async def get_all(self) -> List["User"]:
         """Get all users."""
         from ..models.user import User
-        query = f"SELECT id, first_name, last_name, email, role FROM {self.table_name} ORDER BY first_name, last_name"
+        query = f"""
+            SELECT u.id, u.first_name, u.last_name, u.email, u.username, u.name,
+                   u.profile_image_url, u.company_id, u.role_id, u.is_root, u.is_active,
+                   u.created_at, u.updated_at,
+                   COALESCE(r.role_name, r.name, u.role, 'user') as role_name,
+                   r.display_name as role_display_name
+            FROM {self.table_name} u
+            LEFT JOIN roles r ON u.role_id = r.id
+            ORDER BY u.first_name, u.last_name
+        """
         rows = await db_manager.execute_query(query)
-        return [User(**self._convert_to_camel_case(dict(row))) for row in rows]
+        return [User(**dict(row)) for row in rows]
     
     async def get_by_role(self, role: str) -> List["User"]:
         """Get users by role."""
         from ..models.user import User
-        # Look up role_id from role name
-        role_id = await db_manager.execute_one("""
-            SELECT id FROM roles 
-            WHERE LOWER(role_name) = LOWER($1)
-            LIMIT 1
-        """, role)
+        # Look up role_id from role name (handle both 'manager' and 'project_manager')
+        role_lookup = role
+        if role == 'manager':
+            role_lookup = 'project_manager'
         
-        if not role_id:
+        role_row = await db_manager.execute_one("""
+            SELECT id FROM roles 
+            WHERE LOWER(role_name) = LOWER($1) OR LOWER(role_name) LIKE LOWER($2)
+            LIMIT 1
+        """, role_lookup, f'%{role}%')
+        
+        if not role_row:
             return []
         
         query = f"""
-            SELECT u.id, u.first_name, u.last_name, u.email, 
-                   COALESCE(r.role_name, 'user') as role 
+            SELECT u.id, u.first_name, u.last_name, u.email, u.username, u.name,
+                   u.profile_image_url, u.company_id, u.role_id, u.is_root, u.is_active,
+                   u.created_at, u.updated_at,
+                   COALESCE(r.role_name, r.name, 'user') as role_name,
+                   r.display_name as role_display_name
             FROM {self.table_name} u
             LEFT JOIN roles r ON u.role_id = r.id
-            WHERE u.role_id = $1 
+            WHERE u.role_id = $1 OR u.role ILIKE $2
             ORDER BY u.first_name, u.last_name
         """
-        rows = await db_manager.execute_query(query, role_id['id'])
-        return [User(**self._convert_to_camel_case(dict(row))) for row in rows]
+        rows = await db_manager.execute_query(query, role_row['id'], f'%{role}%')
+        return [User(**dict(row)) for row in rows]
     
     async def get_by_id(self, user_id: str) -> Optional["User"]:
         """Get user by ID."""
         from ..models.user import User
-        query = f"SELECT id, first_name, last_name, email, role FROM {self.table_name} WHERE id = $1"
+        query = f"""
+            SELECT u.id, u.first_name, u.last_name, u.email, u.username, u.name,
+                   u.profile_image_url, u.company_id, u.role_id, u.is_root, u.is_active,
+                   u.created_at, u.updated_at,
+                   COALESCE(r.role_name, r.name, u.role, 'user') as role_name,
+                   r.display_name as role_display_name
+            FROM {self.table_name} u
+            LEFT JOIN roles r ON u.role_id = r.id
+            WHERE u.id = $1
+        """
         row = await db_manager.execute_one(query, user_id)
         if row:
-            return User(**self._convert_to_camel_case(dict(row)))
+            return User(**dict(row))
         return None
 
 
