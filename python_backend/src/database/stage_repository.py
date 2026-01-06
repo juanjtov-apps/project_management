@@ -5,7 +5,7 @@ import uuid
 import json
 from datetime import datetime, date, timedelta
 from typing import List, Optional, Dict, Any
-from src.database.connection import db_manager
+from src.database.connection import db_manager, get_db_pool
 from src.utils.data_conversion import to_camel_case, to_snake_case
 
 
@@ -141,39 +141,53 @@ class ProjectStageRepository:
         return self._convert_to_camel_case(dict(row)) if row else None
 
     async def create(self, stage_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
-        """Create a new project stage."""
+        """Create a new project stage with auto-assigned order_index.
+
+        Uses a transaction to atomically get the next order_index and insert the stage,
+        preventing unique constraint violations from concurrent operations.
+        """
         stage_id = str(uuid.uuid4())
         now = datetime.utcnow()
 
         # Convert to snake_case for DB
         data = self._convert_from_camel_case(stage_data)
+        project_id = data.get('project_id')
 
-        query = """
-            INSERT INTO client_portal.project_stages
-            (id, project_id, order_index, name, status, planned_start_date,
-             planned_end_date, finish_materials_due_date, finish_materials_note,
-             material_area_id, client_visible, created_by, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-            RETURNING *
-        """
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                # Get the next available order_index for this project
+                max_index = await conn.fetchval(
+                    """SELECT COALESCE(MAX(order_index), -1) + 1
+                       FROM client_portal.project_stages
+                       WHERE project_id = $1""",
+                    project_id
+                )
 
-        row = await db_manager.execute_one(
-            query,
-            stage_id,
-            data.get('project_id'),
-            data.get('order_index', 0),
-            data.get('name'),
-            data.get('status', 'NOT_STARTED'),
-            data.get('planned_start_date'),
-            data.get('planned_end_date'),
-            data.get('finish_materials_due_date'),
-            data.get('finish_materials_note'),
-            data.get('material_area_id'),
-            data.get('client_visible', True),
-            user_id,
-            now,
-            now
-        )
+                # Insert with the calculated order_index
+                row = await conn.fetchrow(
+                    """INSERT INTO client_portal.project_stages
+                       (id, project_id, order_index, name, status, planned_start_date,
+                        planned_end_date, finish_materials_due_date, finish_materials_note,
+                        material_area_id, client_visible, created_by, created_at, updated_at)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                       RETURNING *""",
+                    stage_id,
+                    project_id,
+                    max_index,
+                    data.get('name'),
+                    data.get('status', 'NOT_STARTED'),
+                    data.get('planned_start_date'),
+                    data.get('planned_end_date'),
+                    data.get('finish_materials_due_date'),
+                    data.get('finish_materials_note'),
+                    data.get('material_area_id'),
+                    data.get('client_visible', True),
+                    user_id,
+                    now,
+                    now
+                )
+
         return self._convert_to_camel_case(dict(row))
 
     async def update(self, stage_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -229,29 +243,35 @@ class ProjectStageRepository:
 
     async def reorder(self, project_id: str, stage_ids: List[str]) -> List[Dict[str, Any]]:
         """Reorder stages by updating order_index.
-        Uses two-phase update to avoid unique constraint violations.
+
+        Uses a transaction with two-phase update to avoid unique constraint violations.
+        Phase 1 sets negative indices, Phase 2 sets final positive indices.
+        The transaction ensures atomicity - if any update fails, all are rolled back.
         """
         if not stage_ids:
             return await self.get_by_project(project_id)
 
-        # Phase 1: Set all to negative indices (temporary)
-        # This avoids conflicts because negative indices don't clash with existing positive ones
-        for i, stage_id in enumerate(stage_ids):
-            await db_manager.execute(
-                """UPDATE client_portal.project_stages
-                   SET order_index = $1, updated_at = NOW()
-                   WHERE id = $2 AND project_id = $3""",
-                -(i + 1), stage_id, project_id  # -1, -2, -3, etc.
-            )
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                # Phase 1: Set all to negative indices (temporary)
+                # This avoids conflicts because negative indices don't clash with existing positive ones
+                for i, stage_id in enumerate(stage_ids):
+                    await conn.execute(
+                        """UPDATE client_portal.project_stages
+                           SET order_index = $1, updated_at = NOW()
+                           WHERE id = $2 AND project_id = $3""",
+                        -(i + 1), stage_id, project_id  # -1, -2, -3, etc.
+                    )
 
-        # Phase 2: Set to final positive indices
-        for i, stage_id in enumerate(stage_ids):
-            await db_manager.execute(
-                """UPDATE client_portal.project_stages
-                   SET order_index = $1, updated_at = NOW()
-                   WHERE id = $2 AND project_id = $3""",
-                i, stage_id, project_id  # 0, 1, 2, etc.
-            )
+                # Phase 2: Set to final positive indices
+                for i, stage_id in enumerate(stage_ids):
+                    await conn.execute(
+                        """UPDATE client_portal.project_stages
+                           SET order_index = $1, updated_at = NOW()
+                           WHERE id = $2 AND project_id = $3""",
+                        i, stage_id, project_id  # 0, 1, 2, etc.
+                    )
 
         return await self.get_by_project(project_id)
 

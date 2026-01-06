@@ -389,16 +389,13 @@ export function StagesTab({ projectId }: StagesTabProps) {
   // Create stage mutation with auto-positioning by start date
   const createMutation = useMutation({
     mutationFn: async (data: StageFormData) => {
-      // Calculate position based on start date
-      const insertIndex = calculateOrderIndex(data.plannedStartDate || null);
-
-      // Create the stage
-      const newStage = await apiRequest(`/api/v1/stages`, {
+      // Create the stage - backend auto-assigns order_index at the end
+      const response = await apiRequest(`/api/v1/stages`, {
         method: "POST",
         body: {
           projectId,
           name: data.name,
-          orderIndex: insertIndex,
+          // Don't send orderIndex - backend will auto-assign it
           plannedStartDate: data.plannedStartDate || null,
           plannedEndDate: data.plannedEndDate || null,
           finishMaterialsDueDate: data.finishMaterialsDueDate || null,
@@ -407,19 +404,33 @@ export function StagesTab({ projectId }: StagesTabProps) {
         },
       });
 
-      // Reorder all stages to accommodate the new one at the correct position
-      const sortedStages = [...stages].sort((a, b) => a.orderIndex - b.orderIndex);
-      const stageIds = [
-        ...sortedStages.slice(0, insertIndex).map((s) => s.id),
-        (newStage as any).id,
-        ...sortedStages.slice(insertIndex).map((s) => s.id),
-      ];
+      // Parse the JSON response to get the created stage with its ID
+      const newStage = await response.json();
 
-      // Call reorder to fix all indices
-      await apiRequest(`/api/v1/stages/reorder?projectId=${projectId}`, {
-        method: "POST",
-        body: { stageIds },
-      });
+      // Validate we got a valid ID before using it
+      if (!newStage?.id || typeof newStage.id !== "string") {
+        throw new Error("Failed to get stage ID from response");
+      }
+
+      // If stage has a start date, reorder to position it correctly based on date
+      if (data.plannedStartDate) {
+        const insertIndex = calculateOrderIndex(data.plannedStartDate);
+        const sortedStages = [...stages].sort((a, b) => a.orderIndex - b.orderIndex);
+
+        // Only reorder if the new stage should not be at the end
+        if (insertIndex < sortedStages.length) {
+          const stageIds: string[] = [
+            ...sortedStages.slice(0, insertIndex).map((s) => s.id),
+            newStage.id,
+            ...sortedStages.slice(insertIndex).map((s) => s.id),
+          ];
+
+          await apiRequest(`/api/v1/stages/reorder?projectId=${projectId}`, {
+            method: "POST",
+            body: { stageIds },
+          });
+        }
+      }
 
       return newStage;
     },
@@ -493,7 +504,7 @@ export function StagesTab({ projectId }: StagesTabProps) {
     },
   });
 
-  // Reorder stages mutation
+  // Reorder stages mutation with optimistic update
   const reorderMutation = useMutation({
     mutationFn: async (stageIds: string[]) => {
       return apiRequest(`/api/v1/stages/reorder?projectId=${projectId}`, {
@@ -501,16 +512,50 @@ export function StagesTab({ projectId }: StagesTabProps) {
         body: { stageIds },
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    // Optimistic update for smooth drag UX
+    onMutate: async (stageIds: string[]) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({
         queryKey: [`/api/v1/stages?projectId=${projectId}`],
       });
+
+      // Snapshot previous value
+      const previousStages = queryClient.getQueryData<ProjectStage[]>(
+        [`/api/v1/stages?projectId=${projectId}`]
+      );
+
+      // Optimistically update to new order
+      if (previousStages) {
+        const reorderedStages = stageIds.map((id, index) => {
+          const stage = previousStages.find((s) => s.id === id)!;
+          return { ...stage, orderIndex: index };
+        });
+        queryClient.setQueryData(
+          [`/api/v1/stages?projectId=${projectId}`],
+          reorderedStages
+        );
+      }
+
+      return { previousStages };
     },
-    onError: (error: any) => {
+    onError: (error: any, _stageIds, context) => {
+      // Revert on error
+      if (context?.previousStages) {
+        queryClient.setQueryData(
+          [`/api/v1/stages?projectId=${projectId}`],
+          context.previousStages
+        );
+      }
       toast({
         title: "Failed to reorder stages",
         description: error.message,
         variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({
+        queryKey: [`/api/v1/stages?projectId=${projectId}`],
       });
     },
   });
