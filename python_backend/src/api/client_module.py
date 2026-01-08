@@ -87,6 +87,7 @@ class MaterialItemCreate(BaseModel):
     quantity: Optional[str] = None
     unit_cost: Optional[float] = None
     status: Optional[str] = "pending"
+    stage_id: Optional[str] = None  # Link to project stage
 
 class MaterialItemUpdate(BaseModel):
     name: Optional[str] = None
@@ -96,6 +97,7 @@ class MaterialItemUpdate(BaseModel):
     quantity: Optional[str] = None
     unit_cost: Optional[float] = None
     status: Optional[str] = None
+    stage_id: Optional[str] = None  # Link to project stage
 
 class PaymentScheduleCreate(BaseModel):
     project_id: str
@@ -174,6 +176,12 @@ async def verify_project_access(project_id: str, current_user: Dict[str, Any], p
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied: Project belongs to different company"
             )
+
+def is_client_role(current_user: Dict[str, Any]) -> bool:
+    """Check if user has client role."""
+    user_role = str(current_user.get('role', '')).lower()
+    return user_role == 'client'
+
 
 async def get_user_accessible_projects(current_user: Dict[str, Any], pool: asyncpg.Pool) -> List[str]:
     """Get list of project IDs accessible to the current user."""
@@ -865,42 +873,71 @@ async def delete_material_area(
 async def get_material_items(
     project_id: Optional[str] = Query(None),
     area_id: Optional[str] = Query(None),
+    stage_id: Optional[str] = Query(None),
     current_user: Dict[str, Any] = Depends(get_current_user_dependency),
     pool: asyncpg.Pool = Depends(get_db_pool)
 ):
-    """Get material items, optionally filtered by project or area."""
+    """Get material items, optionally filtered by project, area, or stage.
+
+    Clients only see materials with approval_status='approved'.
+    PMs/admins see all materials regardless of approval status.
+    """
     if project_id:
         await verify_project_access(project_id, current_user, pool)
-    
+
+    # Clients only see approved materials
+    approval_filter = ""
+    if is_client_role(current_user):
+        approval_filter = "AND (mi.approval_status = 'approved' OR mi.approval_status IS NULL)"
+
     async with pool.acquire() as conn:
-        if area_id:
+        # Filter by stage_id if provided
+        if stage_id:
             rows = await conn.fetch(
-                """SELECT mi.*, u.name as added_by_name, ma.name as area_name
+                f"""SELECT mi.*, u.name as added_by_name, ma.name as area_name,
+                          ps.name as stage_name
                    FROM client_portal.material_items mi
                    LEFT JOIN public.users u ON mi.added_by = u.id
                    LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
-                   WHERE mi.area_id = $1
+                   LEFT JOIN client_portal.project_stages ps ON mi.stage_id = ps.id
+                   WHERE mi.stage_id = $1 {approval_filter}
+                   ORDER BY mi.created_at DESC""",
+                stage_id
+            )
+        elif area_id:
+            rows = await conn.fetch(
+                f"""SELECT mi.*, u.name as added_by_name, ma.name as area_name,
+                          ps.name as stage_name
+                   FROM client_portal.material_items mi
+                   LEFT JOIN public.users u ON mi.added_by = u.id
+                   LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
+                   LEFT JOIN client_portal.project_stages ps ON mi.stage_id = ps.id
+                   WHERE mi.area_id = $1 {approval_filter}
                    ORDER BY mi.created_at DESC""",
                 area_id
             )
         elif project_id:
             rows = await conn.fetch(
-                """SELECT mi.*, u.name as added_by_name, ma.name as area_name
+                f"""SELECT mi.*, u.name as added_by_name, ma.name as area_name,
+                          ps.name as stage_name
                    FROM client_portal.material_items mi
                    LEFT JOIN public.users u ON mi.added_by = u.id
                    LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
-                   WHERE mi.project_id = $1
+                   LEFT JOIN client_portal.project_stages ps ON mi.stage_id = ps.id
+                   WHERE mi.project_id = $1 {approval_filter}
                    ORDER BY ma.sort_order, mi.created_at DESC""",
                 project_id
             )
         else:
             accessible_projects = await get_user_accessible_projects(current_user, pool)
             rows = await conn.fetch(
-                """SELECT mi.*, u.name as added_by_name, ma.name as area_name
+                f"""SELECT mi.*, u.name as added_by_name, ma.name as area_name,
+                          ps.name as stage_name
                    FROM client_portal.material_items mi
                    LEFT JOIN public.users u ON mi.added_by = u.id
                    LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
-                   WHERE mi.project_id = ANY($1::varchar[])
+                   LEFT JOIN client_portal.project_stages ps ON mi.stage_id = ps.id
+                   WHERE mi.project_id = ANY($1::varchar[]) {approval_filter}
                    ORDER BY mi.created_at DESC""",
                 accessible_projects
             )
@@ -914,12 +951,12 @@ async def create_material_item(
 ):
     """Create a new material item."""
     await verify_project_access(item.project_id, current_user, pool)
-    
+
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
-            """INSERT INTO client_portal.material_items 
-               (area_id, project_id, name, spec, product_link, vendor, quantity, unit_cost, status, added_by)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            """INSERT INTO client_portal.material_items
+               (area_id, project_id, name, spec, product_link, vendor, quantity, unit_cost, status, added_by, stage_id)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                RETURNING *""",
             item.area_id,
             item.project_id,
@@ -930,7 +967,8 @@ async def create_material_item(
             item.quantity,
             item.unit_cost,
             item.status,
-            current_user['id']
+            current_user['id'],
+            item.stage_id
         )
         return dict(row)
 
@@ -941,12 +979,36 @@ async def update_material_item(
     current_user: Dict[str, Any] = Depends(get_current_user_dependency),
     pool: asyncpg.Pool = Depends(get_db_pool)
 ):
-    """Update a material item."""
+    """Update a material item.
+
+    Clients can only edit: spec, product_link, vendor, quantity, unit_cost
+    Clients CANNOT edit: name, status, stage_id (PM-only fields)
+    """
+    is_client = is_client_role(current_user)
+
+    # Clients cannot change restricted fields
+    if is_client:
+        if update.name is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Clients cannot change material name. Contact your project manager."
+            )
+        if update.status is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Clients cannot change material status. Contact your project manager."
+            )
+        if update.stage_id is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Clients cannot assign materials to stages. Contact your project manager."
+            )
+
     async with pool.acquire() as conn:
         updates = []
         values = []
         param_count = 1
-        
+
         if update.name is not None:
             updates.append(f"name = ${param_count}")
             values.append(update.name)
@@ -975,13 +1037,17 @@ async def update_material_item(
             updates.append(f"status = ${param_count}")
             values.append(update.status)
             param_count += 1
-        
+        if update.stage_id is not None:
+            updates.append(f"stage_id = ${param_count}")
+            values.append(update.stage_id if update.stage_id != "" else None)
+            param_count += 1
+
         if not updates:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
-        
+
         values.append(item_id)
         query = f"UPDATE client_portal.material_items SET {', '.join(updates)}, updated_at = now() WHERE id = ${param_count} RETURNING *"
-        
+
         row = await conn.fetchrow(query, *values)
         if not row:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
@@ -993,7 +1059,16 @@ async def delete_material_item(
     current_user: Dict[str, Any] = Depends(get_current_user_dependency),
     pool: asyncpg.Pool = Depends(get_db_pool)
 ):
-    """Delete a material item."""
+    """Delete a material item.
+
+    Only PMs/admins can delete materials. Clients cannot delete.
+    """
+    if is_client_role(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Clients cannot delete materials. Contact your project manager."
+        )
+
     async with pool.acquire() as conn:
         await conn.execute(
             "DELETE FROM client_portal.material_items WHERE id = $1",

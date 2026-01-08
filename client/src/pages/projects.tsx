@@ -303,26 +303,18 @@ function ProjectCreateForm({ onClose }: { onClose: () => void }) {
 
   const createProjectMutation = useMutation({
     mutationFn: async (values: any) => {
-      console.log("Creating project with data:", values);
       // Format the data for API
       const formattedData = {
         ...values,
         dueDate: values.dueDate ? values.dueDate.toISOString() : null,
       };
-      console.log("Formatted data:", formattedData);
       const response = await apiRequest("/api/projects", {
         method: "POST",
         body: formattedData,
       });
-      console.log("Response received:", response.status);
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorData}`);
-      }
       return response.json();
     },
-    onSuccess: (data) => {
-      console.log("Project created successfully:", data);
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       onClose();
       form.reset();
@@ -337,9 +329,13 @@ function ProjectCreateForm({ onClose }: { onClose: () => void }) {
     createProjectMutation.mutate(values);
   };
 
+  const onInvalid = (errors: any) => {
+    console.error("Form validation errors:", errors);
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-4">
         <FormField
           control={form.control}
           name="name"
@@ -375,7 +371,7 @@ function ProjectCreateForm({ onClose }: { onClose: () => void }) {
             <FormItem>
               <FormLabel>Location</FormLabel>
               <FormControl>
-                <Input placeholder="Enter project location" {...field} />
+                <Input placeholder="Enter project location" {...field} value={field.value || ""} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -389,11 +385,9 @@ function ProjectCreateForm({ onClose }: { onClose: () => void }) {
             <FormItem>
               <FormLabel>Status</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                </FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="on-hold">On Hold</SelectItem>
@@ -435,22 +429,20 @@ function ProjectCreateForm({ onClose }: { onClose: () => void }) {
               <FormLabel>Due Date</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full pl-3 text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value ? (
-                        format(field.value, "PPP")
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full pl-3 text-left font-normal",
+                      !field.value && "text-muted-foreground"
+                    )}
+                  >
+                    {field.value ? (
+                      format(field.value, "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar

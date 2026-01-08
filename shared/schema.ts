@@ -138,7 +138,7 @@ export const projects = pgTable("projects", {
   companyId: varchar("company_id").notNull().references(() => companies.id, { onDelete: 'restrict' }),
   name: text("name").notNull(),
   description: text("description"),
-  location: text("location").notNull(),
+  location: text("location"),
   status: text("status").notNull().default("active"), // active, completed, on-hold, delayed
   progress: integer("progress").notNull().default(0), // 0-100
   dueDate: timestamp("due_date", { withTimezone: true }),
@@ -556,8 +556,8 @@ export const insertRolePermissionSchema = createInsertSchema(rolePermissions).om
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true, lastLoginAt: true });
 export const upsertUserSchema = createInsertSchema(users).omit({ createdAt: true, updatedAt: true, lastLoginAt: true });
 
-// Project schemas
-export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true, updatedAt: true });
+// Project schemas - companyId is omitted because backend adds it from authenticated user
+export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, companyId: true, createdAt: true, updatedAt: true });
 
 // Task schemas - companyId is omitted because backend adds it from authenticated user
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, companyId: true, createdAt: true, updatedAt: true, completedAt: true }).extend({

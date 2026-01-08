@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { 
-  Plus, Package, ExternalLink, Trash2, ChevronDown, ChevronRight, 
-  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle
+import {
+  Plus, Package, ExternalLink, Trash2, ChevronDown, ChevronRight,
+  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle, Layers, Filter, ArrowLeft
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -75,17 +76,37 @@ interface MaterialItem {
   added_by_name?: string;
   created_at: string;
   updated_at: string;
+  stage_id?: string;
+  stage_name?: string;
+}
+
+interface ProjectStage {
+  id: string;
+  projectId: string;
+  orderIndex: number;
+  name: string;
+  status: string;
 }
 
 interface MaterialsTabProps {
   projectId: string;
+  initialStageFilter?: string;
+  isClient?: boolean;
 }
 
-export function MaterialsTab({ projectId }: MaterialsTabProps) {
+export function MaterialsTab({ projectId, initialStageFilter, isClient = false }: MaterialsTabProps) {
   const [isCreateAreaOpen, setIsCreateAreaOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [stageFilter, setStageFilter] = useState<string>(initialStageFilter || "all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Update filter when initialStageFilter changes (from URL)
+  useEffect(() => {
+    if (initialStageFilter) {
+      setStageFilter(initialStageFilter);
+    }
+  }, [initialStageFilter]);
 
   const areaForm = useForm<AreaFormData>({
     resolver: zodResolver(areaSchema),
@@ -104,6 +125,12 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
   // Get all material items for the project
   const { data: allItems = [], isLoading: itemsLoading } = useQuery<MaterialItem[]>({
     queryKey: [`/api/material-items?project_id=${projectId}`],
+    enabled: !!projectId,
+  });
+
+  // Get project stages for filtering
+  const { data: stages = [] } = useQuery<ProjectStage[]>({
+    queryKey: [`/api/v1/stages?projectId=${projectId}`],
     enabled: !!projectId,
   });
 
@@ -143,12 +170,20 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
     createAreaMutation.mutate(data);
   };
 
-  // Filter items based on search
-  const filteredItems = allItems.filter(item => 
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.spec?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.vendor?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter items based on search and stage filter
+  const filteredItems = allItems.filter(item => {
+    const matchesSearch =
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.spec?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.vendor?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStage =
+      stageFilter === "all" ||
+      (stageFilter === "unassigned" && !item.stage_id) ||
+      item.stage_id === stageFilter;
+
+    return matchesSearch && matchesStage;
+  });
 
   // Calculate totals
   const totalItems = allItems.length;
@@ -168,14 +203,30 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
             Organize materials by house area with collapsible sections
           </p>
         </div>
-        
-        <Dialog open={isCreateAreaOpen} onOpenChange={setIsCreateAreaOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-area">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Area
+
+        <div className="flex items-center gap-2">
+          {/* Back to Stages button - always visible for PMs */}
+          {!isClient && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                window.location.href = `/projects?projectId=${projectId}&tab=stages`;
+              }}
+              data-testid="button-back-to-stages"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Stages
             </Button>
-          </DialogTrigger>
+          )}
+
+          {!isClient && (
+            <Dialog open={isCreateAreaOpen} onOpenChange={setIsCreateAreaOpen}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-add-area">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Area
+                </Button>
+              </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Material Area</DialogTitle>
@@ -240,7 +291,9 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
               </form>
             </Form>
           </DialogContent>
-        </Dialog>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -282,16 +335,39 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search materials by name, spec, or vendor..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-          data-testid="input-search-materials"
-        />
+      {/* Search and Stage Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search materials by name, spec, or vendor..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+            data-testid="input-search-materials"
+          />
+        </div>
+        {stages.length > 0 && (
+          <Select value={stageFilter} onValueChange={setStageFilter}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-amber-500" />
+                <SelectValue placeholder="Filter by stage" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Stages</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {stages
+                .sort((a, b) => a.orderIndex - b.orderIndex)
+                .map((stage) => (
+                  <SelectItem key={stage.id} value={stage.id}>
+                    {stage.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Areas List */}
@@ -304,12 +380,17 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
               <Building2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">No Areas Created</h3>
               <p className="text-muted-foreground mb-4">
-                Create your first material area to organize materials by house section.
+                {isClient
+                  ? "No material areas have been set up for this project yet. Contact your project manager."
+                  : "Create your first material area to organize materials by house section."
+                }
               </p>
-              <Button onClick={() => setIsCreateAreaOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Area
-              </Button>
+              {!isClient && (
+                <Button onClick={() => setIsCreateAreaOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Area
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -321,6 +402,7 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
               area={area}
               items={filteredItems.filter(item => item.area_id === area.id)}
               projectId={projectId}
+              isClient={isClient}
             />
           ))}
         </div>
@@ -333,9 +415,10 @@ interface MaterialAreaSectionProps {
   area: MaterialArea;
   items: MaterialItem[];
   projectId: string;
+  isClient?: boolean;
 }
 
-function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProps) {
+function MaterialAreaSection({ area, items, projectId, isClient = false }: MaterialAreaSectionProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -488,14 +571,16 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
             <div className="text-sm font-medium text-green-600 dark:text-green-400">
               ${areaCost.toFixed(2)}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDeleteArea}
-              data-testid={`button-delete-area-${area.id}`}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
+            {!isClient && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDeleteArea}
+                data-testid={`button-delete-area-${area.id}`}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
           </div>
         </div>
 
@@ -510,13 +595,14 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
                     item={item}
                     onDelete={handleDeleteItem}
                     projectId={projectId}
+                    isClient={isClient}
                   />
                 ))}
               </div>
             )}
 
-            {/* Add Item Form */}
-            {isAddingItem ? (
+            {/* Add Item Form - PMs only */}
+            {!isClient && isAddingItem ? (
               <Card className="border-2 border-dashed">
                 <CardContent className="p-4">
                   <Form {...itemForm}>
@@ -644,7 +730,7 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
                   </Form>
                 </CardContent>
               </Card>
-            ) : (
+            ) : !isClient ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -655,7 +741,7 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
                 <Plus className="h-4 w-4 mr-2" />
                 Add Item to {area.name}
               </Button>
-            )}
+            ) : null}
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -727,9 +813,10 @@ interface MaterialItemRowProps {
   item: MaterialItem;
   onDelete: (id: string) => void;
   projectId: string;
+  isClient?: boolean;
 }
 
-function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
+function MaterialItemRow({ item, onDelete, projectId, isClient = false }: MaterialItemRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -800,8 +887,17 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
                     <FormItem>
                       <FormLabel>Material Name *</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., 2x4 Lumber" {...field} data-testid="input-edit-name" />
+                        <Input
+                          placeholder="e.g., 2x4 Lumber"
+                          {...field}
+                          data-testid="input-edit-name"
+                          disabled={isClient}
+                          className={isClient ? "bg-muted cursor-not-allowed" : ""}
+                        />
                       </FormControl>
+                      {isClient && (
+                        <p className="text-xs text-muted-foreground">Contact PM to change material name</p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -927,6 +1023,26 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
             {item.spec && (
               <p className="text-sm text-muted-foreground">{item.spec}</p>
             )}
+            {/* Stage indicator with navigation for PMs */}
+            {item.stage_name && (
+              <div className="flex items-center gap-1 mt-1">
+                <Layers className="h-3 w-3 text-amber-500" />
+                <span className="text-xs text-muted-foreground">Stage: {item.stage_name}</span>
+                {!isClient && item.stage_id && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-1 text-xs text-amber-600 hover:text-amber-700"
+                    onClick={() => {
+                      window.location.href = `/projects?projectId=${projectId}&tab=stages&highlight=${item.stage_id}`;
+                    }}
+                    title="Go to stage"
+                  >
+                    <ChevronRight className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {item.product_link && (
@@ -949,14 +1065,16 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
             >
               <Pencil className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDelete(item.id)}
-              data-testid={`button-delete-${item.id}`}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
+            {!isClient && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(item.id)}
+                data-testid={`button-delete-${item.id}`}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
