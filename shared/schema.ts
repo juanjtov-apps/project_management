@@ -53,11 +53,11 @@ export const companies = pgTable("companies", {
   index("companies_plan_type_idx").on(table.planType),
 ]);
 
-// Roles table - defines roles available within a company
+// Roles table - global roles shared across all companies
 export const roles = pgTable("roles", {
   id: serial("id").primaryKey(),
-  companyId: varchar("company_id").references(() => companies.id, { onDelete: 'cascade' }),
-  name: varchar("name", { length: 100 }).notNull(), // e.g., "admin", "project_manager", "crew", "subcontractor", "client"
+  name: varchar("name", { length: 100 }), // e.g., "admin", "project_manager", "crew", "subcontractor", "client"
+  roleName: varchar("role_name", { length: 255 }).notNull(), // legacy field
   displayName: varchar("display_name", { length: 255 }).notNull(), // e.g., "Administrator", "Project Manager"
   description: text("description"),
   isSystemRole: boolean("is_system_role").notNull().default(false), // true for default roles that can't be deleted
@@ -65,8 +65,7 @@ export const roles = pgTable("roles", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (table) => [
-  index("roles_company_id_idx").on(table.companyId),
-  uniqueIndex("roles_company_name_idx").on(table.companyId, table.name),
+  index("roles_is_active_idx").on(table.isActive),
 ]);
 
 // Permissions registry - all available permissions in the system

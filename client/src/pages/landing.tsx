@@ -145,7 +145,7 @@ export default function Landing() {
         >
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold" style={{ color: '#FFFFFF' }}>
-              Request a Demo
+              Join the Waitlist
             </DialogTitle>
             <DialogDescription style={{ color: '#9CA3AF' }}>
               See how Proesphere can transform your project management. We'll reach out within 24 hours.
@@ -292,7 +292,7 @@ export default function Landing() {
               }}
               data-testid="button-submit-waitlist"
             >
-              {isSubmitting ? "Submitting..." : "Request Demo"}
+              {isSubmitting ? "Submitting..." : "Join the Waitlist"}
             </Button>
           </form>
         </DialogContent>
