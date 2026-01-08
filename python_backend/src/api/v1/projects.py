@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, status, Depends
 from ...models import Project, ProjectCreate, ProjectUpdate
 from ...database.repositories import ProjectRepository
-from ...api.auth import get_current_user_dependency, is_root_admin
+from ...api.auth import get_current_user_dependency, is_root_admin, get_effective_company_id
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,24 +15,26 @@ project_repo = ProjectRepository()
 
 @router.get("", response_model=List[Project], summary="Get all projects")
 async def get_projects(current_user: Dict[str, Any] = Depends(get_current_user_dependency)):
-    """Get all projects with company filtering."""
+    """Get all projects with company filtering.
+
+    - Root admin with org context: projects from that org
+    - Root admin without context: ALL projects
+    - Company user: only their company projects
+    """
     try:
-        # Apply company filtering unless root admin
-        if is_root_admin(current_user):
-            projects = await project_repo.get_all()
-            logger.debug(f"Root admin retrieved {len(projects)} projects")
+        # Use effective company ID (respects org context for root users)
+        effective_company_id = get_effective_company_id(current_user)
+        logger.debug(f"User {current_user.get('email')} - effective_company_id: {effective_company_id}")
+
+        if effective_company_id:
+            # Filter by selected organization (or user's company for non-root)
+            projects = await project_repo.get_by_company(str(effective_company_id))
+            logger.debug(f"Retrieved {len(projects)} projects for company {effective_company_id}")
         else:
-            # Try both camelCase and snake_case for compatibility
-            user_company_id = current_user.get('companyId') or current_user.get('company_id')
-            logger.debug(f"User {current_user.get('email')} - companyId: {user_company_id}")
-            
-            if user_company_id:
-                projects = await project_repo.get_by_company(str(user_company_id))
-                logger.debug(f"User {current_user.get('email')} (company {user_company_id}) retrieved {len(projects)} projects")
-            else:
-                projects = []
-                logger.warning(f"User {current_user.get('email')} has no company assigned, returning empty project list")
-        
+            # Root admin with no org selected - show all
+            projects = await project_repo.get_all()
+            logger.debug(f"Root admin (no org context) retrieved {len(projects)} projects (all)")
+
         return projects
     except Exception as e:
         logger.error(f"Error fetching projects: {e}", exc_info=True)

@@ -221,7 +221,7 @@ async def delete_company(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Root admin access required"
             )
-        
+
         success = await company_repo.delete_company(company_id)
         if not success:
             raise HTTPException(
@@ -235,5 +235,47 @@ async def delete_company(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete company"
+        )
+
+
+class CompanyStatusUpdate(BaseModel):
+    """Request model for updating company status."""
+    is_active: bool = Field(..., description="Whether the company is active")
+
+
+@router.patch("/{company_id}/status", summary="Activate or deactivate company")
+async def update_company_status(
+    company_id: str,
+    status_update: CompanyStatusUpdate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Activate or deactivate a company (root admin only)."""
+    try:
+        if not is_root_admin(current_user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Root admin access required"
+            )
+
+        updated = await company_repo.update_company(
+            company_id,
+            {"is_active": status_update.is_active}
+        )
+        if not updated:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Company not found"
+            )
+
+        action = "activated" if status_update.is_active else "deactivated"
+        logger.info(f"Company {company_id} {action} by root user {current_user.get('email')}")
+        return updated
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating company status: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update company status"
         )
 

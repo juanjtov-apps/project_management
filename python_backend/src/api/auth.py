@@ -715,33 +715,49 @@ def is_user_admin(user: Dict[str, Any]) -> bool:
 
 def is_root_admin(user: Dict[str, Any]) -> bool:
     """Check if user is root admin.
-    
+
     Checks in order:
     1. is_root field from database (preferred)
     2. id == "0" (backward compatibility)
     3. Root emails from environment variable (configurable)
     """
+    # Debug: Log all relevant fields for diagnosis
+    print(f"[DEBUG is_root_admin] Checking user:")
+    print(f"  - id: {user.get('id')!r} (type: {type(user.get('id')).__name__})")
+    print(f"  - is_root: {user.get('is_root')!r} (type: {type(user.get('is_root')).__name__})")
+    print(f"  - isRoot: {user.get('isRoot')!r} (type: {type(user.get('isRoot')).__name__})")
+    print(f"  - email: {user.get('email')!r}")
+    print(f"  - company_id: {user.get('company_id')!r}")
+    print(f"  - companyId: {user.get('companyId')!r}")
+
     # First check is_root field (preferred method)
-    if user.get("is_root") is True:
+    # Check both snake_case and camelCase versions
+    is_root_value = user.get("is_root") or user.get("isRoot")
+    if is_root_value is True:
+        print(f"[DEBUG is_root_admin] MATCHED: is_root/isRoot is True")
         return True
-    
+
     # Backward compatibility: check id
-    if user.get("id") == "0":
+    user_id = user.get("id")
+    if user_id == "0":
+        print(f"[DEBUG is_root_admin] MATCHED: id == '0'")
         return True
-    
+
     # Check against root user emails from environment variable
     # This will raise ValueError if ROOT_USER_EMAILS is not configured (fail-fast for security)
     user_email = user.get("email")
     if user_email:
         root_emails = settings.root_user_emails_list
         if user_email in root_emails:
+            print(f"[DEBUG is_root_admin] MATCHED: email in ROOT_USER_EMAILS")
             return True
-    
+
+    print(f"[DEBUG is_root_admin] NOT ROOT: No conditions matched")
     return False
 
 def get_effective_company_id(user: Dict[str, Any]) -> Optional[str]:
     """Get the effective company_id for filtering queries.
-    
+
     For root users with organization context set, returns current_organization_id.
     For root users without context, returns None (show all).
     For non-root users, returns their company_id.
@@ -752,4 +768,5 @@ def get_effective_company_id(user: Dict[str, Any]) -> Optional[str]:
         return current_org_id  # None means show all
     else:
         # Non-root users are always scoped to their company
-        return str(user.get("companyId") or user.get("company_id") or "")
+        company_id = user.get("companyId") or user.get("company_id")
+        return str(company_id) if company_id else None

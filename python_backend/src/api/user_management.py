@@ -27,7 +27,7 @@ class UserCreateRequest(BaseModel):
     email: EmailStr
     password: str
     role_id: int  # Changed from role: str - must be a valid role ID
-    company_id: str
+    company_id: Optional[str] = None  # Required for non-root users, validated in endpoint
     is_active: bool = True
     
     @field_validator('first_name', 'last_name')
@@ -464,13 +464,20 @@ async def create_user(
     try:
         logger.info(f"[Create User] Received data: {user_data.dict()}")
         logger.info(f"[Create User] Current user: {current_user.get('email')}")
-        
+
         if not is_user_admin(current_user):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin privileges required"
             )
-        
+
+        # company_id is required for user creation (root users cannot be created via API)
+        if not user_data.company_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="company_id is required for user creation"
+            )
+
         # Company admin can only create users in their own company
         if not is_root_admin(current_user):
             user_company_id = str(current_user.get('companyId') or current_user.get('company_id') or '')
@@ -480,7 +487,7 @@ async def create_user(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Company admins can only create users within their own company"
                 )
-        
+
         user = await auth_repo.create_rbac_user(user_data.dict())
         logger.info(f"User created with company restrictions enforced")
         return user
