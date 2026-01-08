@@ -37,6 +37,7 @@ import {
   Sparkles,
   GripVertical,
   LayoutTemplate,
+  ExternalLink,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { TemplateSelector } from "./template-selector";
+import { SuggestedMaterialsReview } from "./suggested-materials-review";
 
 // Stage form schema
 const stageSchema = z.object({
@@ -323,6 +325,25 @@ function SortableStageCard({
                   )}
                 </Button>
 
+                {/* Materials navigation button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-11 w-11 sm:h-9 sm:w-9 text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 touch-manipulation rounded-lg relative"
+                  onClick={() => {
+                    // Navigate to client portal materials tab filtered by this stage
+                    window.location.href = `/client-portal?projectId=${stage.projectId}&tab=materials&stageId=${stage.id}`;
+                  }}
+                  title="View materials for this stage"
+                >
+                  <Package className="h-5 w-5 sm:h-4 sm:w-4" />
+                  {stage.materialCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-amber-500 text-black text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {stage.materialCount > 9 ? "9+" : stage.materialCount}
+                    </span>
+                  )}
+                </Button>
+
                 <Button
                   variant="ghost"
                   size="icon"
@@ -354,6 +375,7 @@ function SortableStageCard({
 export function StagesTab({ projectId, onClose }: StagesTabProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
+  const [isMaterialsReviewOpen, setIsMaterialsReviewOpen] = useState(false);
   const [editingStage, setEditingStage] = useState<ProjectStage | null>(null);
   const [deleteStage, setDeleteStage] = useState<ProjectStage | null>(null);
   const { toast } = useToast();
@@ -699,9 +721,9 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
         />
 
         <div className="relative">
-          {/* Header row - stacks vertically on mobile */}
-          <div className="flex flex-col gap-4 mb-4 sm:mb-5">
-            {/* Title row with close button */}
+          {/* Header row - title and buttons on same row on desktop */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-5">
+            {/* Title section with close button */}
             <div className="flex items-center gap-3 sm:gap-4">
               {/* Close button - 44px touch target */}
               {onClose && (
@@ -718,7 +740,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
               <div className="p-2.5 sm:p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <Layers className="h-5 w-5 text-amber-500" />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0">
                 <h2 className="text-lg sm:text-xl font-semibold text-white leading-tight">
                   Project Stages
                 </h2>
@@ -728,8 +750,8 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
               </div>
             </div>
 
-            {/* Action buttons row - full width on mobile */}
-            <div className="flex gap-3 w-full">
+            {/* Action buttons - full width on mobile, inline on desktop */}
+            <div className="flex gap-3 w-full sm:w-auto">
               {stages.length === 0 && (
                 <Button
                   variant="outline"
@@ -1080,6 +1102,21 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
         open={isTemplateOpen}
         onOpenChange={setIsTemplateOpen}
         onSuccess={() => {
+          queryClient.invalidateQueries({
+            queryKey: [`/api/v1/stages?projectId=${projectId}`],
+          });
+          // Open materials review dialog after template is applied
+          setIsMaterialsReviewOpen(true);
+        }}
+      />
+
+      {/* Suggested Materials Review */}
+      <SuggestedMaterialsReview
+        projectId={projectId}
+        open={isMaterialsReviewOpen}
+        onOpenChange={setIsMaterialsReviewOpen}
+        onComplete={() => {
+          // Refresh stages to update material counts
           queryClient.invalidateQueries({
             queryKey: [`/api/v1/stages?projectId=${projectId}`],
           });

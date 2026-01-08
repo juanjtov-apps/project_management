@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Plus, Package, ExternalLink, Trash2, ChevronDown, ChevronRight,
-  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle, Layers, Filter
+  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle, Layers, Filter, ArrowLeft
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -90,14 +90,23 @@ interface ProjectStage {
 
 interface MaterialsTabProps {
   projectId: string;
+  initialStageFilter?: string;
+  isClient?: boolean;
 }
 
-export function MaterialsTab({ projectId }: MaterialsTabProps) {
+export function MaterialsTab({ projectId, initialStageFilter, isClient = false }: MaterialsTabProps) {
   const [isCreateAreaOpen, setIsCreateAreaOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [stageFilter, setStageFilter] = useState<string>("all");
+  const [stageFilter, setStageFilter] = useState<string>(initialStageFilter || "all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Update filter when initialStageFilter changes (from URL)
+  useEffect(() => {
+    if (initialStageFilter) {
+      setStageFilter(initialStageFilter);
+    }
+  }, [initialStageFilter]);
 
   const areaForm = useForm<AreaFormData>({
     resolver: zodResolver(areaSchema),
@@ -194,14 +203,30 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
             Organize materials by house area with collapsible sections
           </p>
         </div>
-        
-        <Dialog open={isCreateAreaOpen} onOpenChange={setIsCreateAreaOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-area">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Area
+
+        <div className="flex items-center gap-2">
+          {/* Back to Stages button - always visible for PMs */}
+          {!isClient && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                window.location.href = `/projects?projectId=${projectId}&tab=stages`;
+              }}
+              data-testid="button-back-to-stages"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Stages
             </Button>
-          </DialogTrigger>
+          )}
+
+          {!isClient && (
+            <Dialog open={isCreateAreaOpen} onOpenChange={setIsCreateAreaOpen}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-add-area">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Area
+                </Button>
+              </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Material Area</DialogTitle>
@@ -266,7 +291,9 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
               </form>
             </Form>
           </DialogContent>
-        </Dialog>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -353,12 +380,17 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
               <Building2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">No Areas Created</h3>
               <p className="text-muted-foreground mb-4">
-                Create your first material area to organize materials by house section.
+                {isClient
+                  ? "No material areas have been set up for this project yet. Contact your project manager."
+                  : "Create your first material area to organize materials by house section."
+                }
               </p>
-              <Button onClick={() => setIsCreateAreaOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Area
-              </Button>
+              {!isClient && (
+                <Button onClick={() => setIsCreateAreaOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Area
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -370,6 +402,7 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
               area={area}
               items={filteredItems.filter(item => item.area_id === area.id)}
               projectId={projectId}
+              isClient={isClient}
             />
           ))}
         </div>
@@ -382,9 +415,10 @@ interface MaterialAreaSectionProps {
   area: MaterialArea;
   items: MaterialItem[];
   projectId: string;
+  isClient?: boolean;
 }
 
-function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProps) {
+function MaterialAreaSection({ area, items, projectId, isClient = false }: MaterialAreaSectionProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -537,14 +571,16 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
             <div className="text-sm font-medium text-green-600 dark:text-green-400">
               ${areaCost.toFixed(2)}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDeleteArea}
-              data-testid={`button-delete-area-${area.id}`}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
+            {!isClient && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDeleteArea}
+                data-testid={`button-delete-area-${area.id}`}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
           </div>
         </div>
 
@@ -559,13 +595,14 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
                     item={item}
                     onDelete={handleDeleteItem}
                     projectId={projectId}
+                    isClient={isClient}
                   />
                 ))}
               </div>
             )}
 
-            {/* Add Item Form */}
-            {isAddingItem ? (
+            {/* Add Item Form - PMs only */}
+            {!isClient && isAddingItem ? (
               <Card className="border-2 border-dashed">
                 <CardContent className="p-4">
                   <Form {...itemForm}>
@@ -693,7 +730,7 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
                   </Form>
                 </CardContent>
               </Card>
-            ) : (
+            ) : !isClient ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -704,7 +741,7 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
                 <Plus className="h-4 w-4 mr-2" />
                 Add Item to {area.name}
               </Button>
-            )}
+            ) : null}
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -776,9 +813,10 @@ interface MaterialItemRowProps {
   item: MaterialItem;
   onDelete: (id: string) => void;
   projectId: string;
+  isClient?: boolean;
 }
 
-function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
+function MaterialItemRow({ item, onDelete, projectId, isClient = false }: MaterialItemRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -849,8 +887,17 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
                     <FormItem>
                       <FormLabel>Material Name *</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., 2x4 Lumber" {...field} data-testid="input-edit-name" />
+                        <Input
+                          placeholder="e.g., 2x4 Lumber"
+                          {...field}
+                          data-testid="input-edit-name"
+                          disabled={isClient}
+                          className={isClient ? "bg-muted cursor-not-allowed" : ""}
+                        />
                       </FormControl>
+                      {isClient && (
+                        <p className="text-xs text-muted-foreground">Contact PM to change material name</p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -976,6 +1023,26 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
             {item.spec && (
               <p className="text-sm text-muted-foreground">{item.spec}</p>
             )}
+            {/* Stage indicator with navigation for PMs */}
+            {item.stage_name && (
+              <div className="flex items-center gap-1 mt-1">
+                <Layers className="h-3 w-3 text-amber-500" />
+                <span className="text-xs text-muted-foreground">Stage: {item.stage_name}</span>
+                {!isClient && item.stage_id && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-1 text-xs text-amber-600 hover:text-amber-700"
+                    onClick={() => {
+                      window.location.href = `/projects?projectId=${projectId}&tab=stages&highlight=${item.stage_id}`;
+                    }}
+                    title="Go to stage"
+                  >
+                    <ChevronRight className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {item.product_link && (
@@ -998,14 +1065,16 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
             >
               <Pencil className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDelete(item.id)}
-              data-testid={`button-delete-${item.id}`}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
+            {!isClient && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(item.id)}
+                data-testid={`button-delete-${item.id}`}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">

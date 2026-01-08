@@ -196,6 +196,22 @@ export default function WorkPage() {
     queryKey: ["/api/photos"],
   });
 
+  // Handle URL parameters to auto-open stages dialog (e.g., from "Back to Stages" in materials tab)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const projectIdParam = params.get('projectId');
+    const tabParam = params.get('tab');
+
+    if (projectIdParam && tabParam === 'stages' && projects.length > 0) {
+      const project = projects.find(p => p.id === projectIdParam);
+      if (project) {
+        setStagesProject(project);
+        // Clean up URL after opening dialog
+        window.history.replaceState({}, '', '/projects');
+      }
+    }
+  }, [projects]);
+
   // Create a map of project ID to cover photo or first photo for thumbnails
   const projectThumbnails = useMemo(() => {
     const thumbnailMap: Record<string, string> = {};

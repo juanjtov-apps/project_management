@@ -24,25 +24,30 @@ import { StagesTab } from "@/components/client-portal/stages-tab.tsx";
 export default function ClientPortal() {
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("stages");
-  
+  const [initialStageFilter, setInitialStageFilter] = useState<string | undefined>(undefined);
+
   // Get current user for permissions
   const { data: currentUser } = useQuery<any>({
     queryKey: ["/api/v1/auth/user"],
     retry: false
   });
-  
+
+  // Check if user is a client (for RBAC in materials tab)
+  const isClient = currentUser?.role?.toLowerCase() === 'client';
+
   // Parse URL parameters on mount and when URL changes
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const projectParam = params.get('project');
+    const projectParam = params.get('projectId') || params.get('project');
     const tabParam = params.get('tab');
-    
-    console.log('Client Portal URL params:', { projectParam, tabParam, fullSearch: window.location.search });
-    
+    const stageIdParam = params.get('stageId');
+
+    console.log('Client Portal URL params:', { projectParam, tabParam, stageIdParam, fullSearch: window.location.search });
+
     if (projectParam) {
       setSelectedProject(projectParam);
     }
-    
+
     // Security: Only set tab if user has permission to access it
     if (tabParam) {
       // If trying to access payments tab without permission, redirect to issues
@@ -52,19 +57,25 @@ export default function ClientPortal() {
         setActiveTab(tabParam);
       }
     }
+
+    // If stageId is provided, set the initial filter for materials tab
+    if (stageIdParam) {
+      setInitialStageFilter(stageIdParam);
+    }
   }, [currentUser?.permissions]); // Re-run when permissions change
   
   // Also listen to URL changes via popstate (back/forward buttons)
   useEffect(() => {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
-      const projectParam = params.get('project');
+      const projectParam = params.get('projectId') || params.get('project');
       const tabParam = params.get('tab');
-      
+      const stageIdParam = params.get('stageId');
+
       if (projectParam) {
         setSelectedProject(projectParam);
       }
-      
+
       // Security: Only set tab if user has permission to access it
       if (tabParam) {
         // If trying to access payments tab without permission, redirect to issues
@@ -74,8 +85,13 @@ export default function ClientPortal() {
           setActiveTab(tabParam);
         }
       }
+
+      // Handle stageId filter for materials tab
+      if (stageIdParam) {
+        setInitialStageFilter(stageIdParam);
+      }
     };
-    
+
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [currentUser?.permissions]);
@@ -227,7 +243,11 @@ export default function ClientPortal() {
           </TabsContent>
 
           <TabsContent value="materials">
-            <MaterialsTab projectId={selectedProject} />
+            <MaterialsTab
+              projectId={selectedProject}
+              initialStageFilter={initialStageFilter}
+              isClient={isClient}
+            />
           </TabsContent>
 
           {/* Only render payments tab content if user has permission */}
