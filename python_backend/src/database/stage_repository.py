@@ -282,7 +282,7 @@ class ProjectStageRepository:
         user_id: str,
         start_date: Optional[date] = None
     ) -> List[Dict[str, Any]]:
-        """Apply a template to create stages for a project."""
+        """Apply a template to create stages and suggested materials for a project."""
         # Get template items
         template_items_query = """
             SELECT * FROM client_portal.stage_template_items
@@ -333,7 +333,113 @@ class ProjectStageRepository:
             # Move to next stage start date
             current_date = planned_end + timedelta(days=1)
 
+        # Create suggested materials from template
+        await self._create_suggested_materials_from_template(
+            project_id=project_id,
+            template_id=template_id,
+            created_stages=created_stages,
+            user_id=user_id
+        )
+
         return created_stages
+
+    async def _create_suggested_materials_from_template(
+        self,
+        project_id: str,
+        template_id: str,
+        created_stages: List[Dict[str, Any]],
+        user_id: str
+    ) -> None:
+        """Create material areas and items from template, linked to appropriate stages.
+
+        Materials are created with approval_status='pending' so PMs can review
+        before they become visible to clients.
+        """
+        # Get material templates for this stage template
+        material_templates_query = """
+            SELECT mt.stage_name, mt.area_name, mt.material_name,
+                   mt.material_category, mt.sort_order
+            FROM client_portal.material_templates mt
+            WHERE mt.stage_template_id = $1
+            ORDER BY mt.area_name, mt.sort_order
+        """
+        material_templates = await db_manager.execute_query(material_templates_query, template_id)
+
+        if not material_templates:
+            return  # No material templates for this stage template
+
+        # Build a map of stage names to stage IDs
+        stage_name_to_id = {stage['name']: stage['id'] for stage in created_stages}
+
+        # Get or create material areas for this project
+        # Group materials by area_name first
+        areas_needed = set(mt['area_name'] for mt in material_templates)
+        area_name_to_id = {}
+
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                now = datetime.utcnow()
+
+                # Create material areas (one per unique area_name)
+                for sort_order, area_name in enumerate(sorted(areas_needed)):
+                    area_id = str(uuid.uuid4())
+
+                    # Check if area already exists for this project
+                    existing_area = await conn.fetchrow(
+                        """SELECT id FROM client_portal.material_areas
+                           WHERE project_id = $1 AND name = $2""",
+                        project_id, area_name
+                    )
+
+                    if existing_area:
+                        area_name_to_id[area_name] = str(existing_area['id'])
+                    else:
+                        await conn.execute(
+                            """INSERT INTO client_portal.material_areas
+                               (id, project_id, name, description, sort_order,
+                                is_from_template, created_by, created_at, updated_at)
+                               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)""",
+                            area_id,
+                            project_id,
+                            area_name,
+                            f"Finish materials for {area_name}",
+                            sort_order,
+                            True,  # is_from_template
+                            user_id,
+                            now,
+                            now
+                        )
+                        area_name_to_id[area_name] = area_id
+
+                # Create material items with pending approval status
+                for mt in material_templates:
+                    item_id = str(uuid.uuid4())
+                    area_id = area_name_to_id.get(mt['area_name'])
+                    stage_id = stage_name_to_id.get(mt['stage_name'])
+
+                    if not area_id:
+                        continue
+
+                    await conn.execute(
+                        """INSERT INTO client_portal.material_items
+                           (id, area_id, project_id, name, spec, status,
+                            stage_id, approval_status, is_from_template,
+                            added_by, created_at, updated_at)
+                           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)""",
+                        item_id,
+                        area_id,
+                        project_id,
+                        mt['material_name'],
+                        mt['material_category'],  # Use category as initial spec hint
+                        'pending',  # material status
+                        stage_id,
+                        'pending',  # approval_status - requires PM approval
+                        True,  # is_from_template
+                        user_id,
+                        now,
+                        now
+                    )
 
     async def get_stages_count(self, project_id: str) -> int:
         """Get count of stages for a project."""
