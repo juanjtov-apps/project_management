@@ -3,7 +3,7 @@ RBAC API endpoints for v1 API - imports from existing user management router.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any
-from ...api.auth import get_current_user_dependency, is_user_admin, is_root_admin
+from ...api.auth import get_current_user_dependency, is_user_admin, is_root_admin, get_effective_company_id
 from ...database.auth_repositories import role_repo, auth_repo
 
 router = APIRouter(prefix="/rbac", tags=["rbac"])
@@ -28,51 +28,38 @@ async def get_roles(current_user: Dict[str, Any] = Depends(get_current_user_depe
 
 @router.get("/users")
 async def get_users(current_user: Dict[str, Any] = Depends(get_current_user_dependency)):
-    """Get users with proper authorization and company filtering."""
+    """Get users with proper authorization and company filtering.
+
+    - Root admin with org context: users from that org
+    - Root admin without context: ALL users
+    - Company admin: only their company users
+    """
     try:
         print(f"[RBAC /users] Request from user: {current_user.get('email')}")
-        
+
         if not is_user_admin(current_user):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin privileges required"
             )
-        
-        if is_root_admin(current_user):
-            # Root admin sees all users
-            print(f"[RBAC /users] Root admin - fetching all users")
-            users = await auth_repo.get_users()
-            print(f"[RBAC /users] Root admin retrieved {len(users)} users")
-            
-            # Debug: Log sample user data
-            if users and len(users) > 0:
-                sample = users[0]
-                print(f"[RBAC /users] Sample user response: role={sample.get('role')}, roleName={sample.get('roleName')}, role_name={sample.get('role_name')}")
-            
-            return users
+
+        # Use effective company ID (respects org context for root users)
+        effective_company_id = get_effective_company_id(current_user)
+        print(f"[RBAC /users] Effective company_id: {effective_company_id}")
+
+        if effective_company_id:
+            # Filter by selected organization (or user's company for non-root)
+            print(f"[RBAC /users] Fetching users for company_id: {effective_company_id}")
+            users = await auth_repo.get_company_users(str(effective_company_id))
+            print(f"[RBAC /users] Retrieved {len(users)} users for company {effective_company_id}")
         else:
-            # Company admin sees only their company users
-            # Handle both camelCase and snake_case
-            user_company_id = current_user.get('companyId') or current_user.get('company_id')
-            if user_company_id:
-                # Ensure it's a string
-                user_company_id = str(user_company_id)
-                print(f"[RBAC /users] Company admin fetching users for company_id: {user_company_id}")
-                users = await auth_repo.get_company_users(user_company_id)
-                print(f"[RBAC /users] Company admin retrieved {len(users)} users for company {user_company_id}")
-                
-                # Debug: Log sample user data
-                if users and len(users) > 0:
-                    sample = users[0]
-                    print(f"[RBAC /users] Sample user response: role={sample.get('role')}, roleName={sample.get('roleName')}, role_name={sample.get('role_name')}")
-                
-                if len(users) == 0:
-                    print(f"[RBAC /users] WARNING: No users found for company_id {user_company_id}")
-                return users
-        
-        print(f"[RBAC /users] WARNING: No company_id found for user {current_user.get('email')}")
-        return []
-        
+            # Root admin with no org selected - show all users
+            print(f"[RBAC /users] Root admin (no org context) - fetching ALL users")
+            users = await auth_repo.get_users()
+            print(f"[RBAC /users] Retrieved {len(users)} users (all)")
+
+        return users
+
     except HTTPException:
         raise
     except Exception as e:

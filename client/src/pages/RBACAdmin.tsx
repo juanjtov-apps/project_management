@@ -107,8 +107,11 @@ export default function RBACAdmin() {
   });
 
   // Three-tier access control
-  const isRootAdmin = currentUser?.email?.includes('chacjjlegacy') || currentUser?.email === 'admin@proesphere.com';
-  const isCompanyAdmin = currentUser?.role === 'admin' || currentUser?.email?.includes('admin');
+  // Root admin check - uses database is_root field (set during user creation)
+  // Backend validates this in is_root_admin() function in auth.py
+  const isRootAdmin = currentUser?.isRoot === true || currentUser?.is_root === true;
+  // Company admin check - based on role field only (matches backend is_user_admin() logic)
+  const isCompanyAdmin = currentUser?.role === 'admin';
   const hasRBACAccess = isRootAdmin || isCompanyAdmin;
 
   const { data: roles = [], isLoading: rolesLoading, error: rolesError } = useQuery<Role[]>({
@@ -731,8 +734,17 @@ export default function RBACAdmin() {
                                 </div>
                               </div>
 
-                              {/* Right Chevron (drill-down indicator) */}
-                              <ChevronRight className="w-5 h-5 text-[var(--pro-text-secondary)] flex-shrink-0" />
+                              {/* Active Status Toggle */}
+                              <Switch
+                                checked={isActive}
+                                onCheckedChange={(checked) => {
+                                  toggleUserStatus.mutate({
+                                    userId: user.id,
+                                    isActive: checked
+                                  });
+                                }}
+                                className="data-[state=checked]:bg-[var(--pro-mint)] flex-shrink-0"
+                              />
 
                               {/* Kebab Menu */}
                               <DropdownMenu>
@@ -745,28 +757,6 @@ export default function RBACAdmin() {
                                   </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48 bg-[var(--pro-surface)] border-[var(--pro-border)]">
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      const currentStatus = user.is_active || user.isActive;
-                                      toggleUserStatus.mutate({
-                                        userId: user.id,
-                                        isActive: !currentStatus
-                                      });
-                                    }}
-                                    className="min-h-[44px] text-[var(--pro-text-primary)]"
-                                  >
-                                    {isActive ? (
-                                      <>
-                                        <ToggleLeft className="w-4 h-4 mr-2" />
-                                        Deactivate
-                                      </>
-                                    ) : (
-                                      <>
-                                        <ToggleRight className="w-4 h-4 mr-2 text-[var(--pro-mint)]" />
-                                        Activate
-                                      </>
-                                    )}
-                                  </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={(e) => {
                                       e.preventDefault();
@@ -938,8 +928,17 @@ export default function RBACAdmin() {
                             </div>
                           </div>
 
-                          {/* Right Chevron (drill-down indicator) */}
-                          <ChevronRight className="w-5 h-5 text-[var(--pro-text-secondary)] flex-shrink-0" />
+                          {/* Active Status Toggle */}
+                          <Switch
+                            checked={isActive}
+                            onCheckedChange={(checked) => {
+                              toggleUserStatus.mutate({
+                                userId: user.id,
+                                isActive: checked
+                              });
+                            }}
+                            className="data-[state=checked]:bg-[var(--pro-mint)] flex-shrink-0"
+                          />
 
                           {/* Kebab Menu */}
                           <DropdownMenu>
@@ -953,29 +952,6 @@ export default function RBACAdmin() {
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48 bg-[var(--pro-surface)] border-[var(--pro-border)]">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  const currentStatus = user.is_active || user.isActive;
-                                  toggleUserStatus.mutate({
-                                    userId: user.id,
-                                    isActive: !currentStatus
-                                  });
-                                }}
-                                className="min-h-[44px] text-[var(--pro-text-primary)]"
-                                data-testid={`button-toggle-status-${user.id}`}
-                              >
-                                {isActive ? (
-                                  <>
-                                    <ToggleLeft className="w-4 h-4 mr-2" />
-                                    Deactivate
-                                  </>
-                                ) : (
-                                  <>
-                                    <ToggleRight className="w-4 h-4 mr-2 text-[var(--pro-mint)]" />
-                                    Activate
-                                  </>
-                                )}
-                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.preventDefault();

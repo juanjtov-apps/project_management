@@ -2,6 +2,16 @@
 Tower Flow FastAPI Application - Restructured Version
 """
 import os
+import sys
+
+# Load environment variables from .env file before anything else
+from dotenv import load_dotenv
+load_dotenv()
+
+# Ensure NODE_ENV is set
+if not os.getenv('NODE_ENV'):
+    os.environ['NODE_ENV'] = 'development'
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,8 +19,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
 
-import sys
-import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src.core.config import settings

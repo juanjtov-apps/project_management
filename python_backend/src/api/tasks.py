@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status, Query, Depends, Request
 from src.models import Task, TaskCreate, TaskUpdate, Project
 from src.database.repositories import TaskRepository, ProjectRepository
 from src.database.auth_repositories import auth_repo
-from src.api.auth import get_current_user_dependency, is_root_admin
+from src.api.auth import get_current_user_dependency, is_root_admin, get_effective_company_id
 
 router = APIRouter()
 task_repo = TaskRepository()
@@ -41,23 +41,23 @@ async def get_tasks(
     assigned_to: Optional[str] = Query(None, alias="assignedTo"),
     current_user: Dict[str, Any] = Depends(get_current_user_dependency)
 ):
-    """Get tasks with optional filters and company scope."""
+    """Get tasks with optional filters and company scope.
+
+    - Root admin with org context: tasks from that org
+    - Root admin without context: ALL tasks
+    - Company user: only their company tasks
+    """
     try:
-        # Apply company filtering unless root admin
-        user_company_id = None
-        if not is_root_admin(current_user):
-            company_id_value = current_user.get('companyId') or current_user.get('company_id')
-            if company_id_value:
-                user_company_id = str(company_id_value)
-            # If user has no company_id, user_company_id stays None, which will return empty results
-        
+        # Use effective company ID (respects org context for root users)
+        effective_company_id = get_effective_company_id(current_user)
+
         # Get all tasks with filters including company_id filter at database level
         tasks = await task_repo.get_all(
             project_id=project_id,
             status=status_filter,
             category=category,
             assigned_to=assigned_to,
-            company_id=user_company_id
+            company_id=effective_company_id  # None for root with no org selected = all tasks
         )
         
         return tasks

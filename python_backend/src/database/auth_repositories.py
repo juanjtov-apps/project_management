@@ -369,11 +369,15 @@ class AuthRepository:
         if not role_exists:
             raise ValueError(f"Invalid role_id: {role_id} does not exist in roles table")
         
-        # Ensure company_id is a string (database column is varchar)
+        # Handle company_id
+        # Root users MUST have NULL company_id, regular users must have company_id
+        is_root = data.get('is_root', False)
         company_id = data.get('company_id')
-        if company_id:
-            company_id = str(company_id)
-        
+        if is_root:
+            company_id = None  # Root users cannot belong to a company
+        elif company_id:
+            company_id = str(company_id)  # Ensure it's a string for varchar column
+
         # Hash password if provided
         password_hash = None
         if data.get('password'):
@@ -389,8 +393,7 @@ class AuthRepository:
         email = data.get('email')
         is_active = data.get('is_active', True)
         
-        # Handle is_root flag (only ONE root user allowed)
-        is_root = data.get('is_root', False)
+        # Verify only ONE root user allowed
         if is_root:
             # Verify no other root user exists
             existing_root = await db_manager.execute_one(
