@@ -218,7 +218,7 @@ def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool
             "subs": False,            # No subcontractor management
             "rbacAdmin": False,       # No RBAC admin
             "clientPortal": True,     # ONLY client portal is accessible
-            "clientPortalPayments": False  # Clients can't access payments
+            "clientPortalPayments": True   # Clients can access payments to upload proofs
         })
     
     return permissions

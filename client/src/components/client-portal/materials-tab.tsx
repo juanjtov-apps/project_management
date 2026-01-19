@@ -43,6 +43,7 @@ const materialItemSchema = z.object({
   vendor: z.string().optional(),
   quantity: z.string().optional(),
   unit_cost: z.number().optional(),
+  stage_id: z.string().optional(),
 });
 
 type AreaFormData = z.infer<typeof areaSchema>;
@@ -403,6 +404,7 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
               items={filteredItems.filter(item => item.area_id === area.id)}
               projectId={projectId}
               isClient={isClient}
+              stages={stages}
             />
           ))}
         </div>
@@ -416,9 +418,10 @@ interface MaterialAreaSectionProps {
   items: MaterialItem[];
   projectId: string;
   isClient?: boolean;
+  stages?: ProjectStage[];
 }
 
-function MaterialAreaSection({ area, items, projectId, isClient = false }: MaterialAreaSectionProps) {
+function MaterialAreaSection({ area, items, projectId, isClient = false, stages = [] }: MaterialAreaSectionProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -596,13 +599,14 @@ function MaterialAreaSection({ area, items, projectId, isClient = false }: Mater
                     onDelete={handleDeleteItem}
                     projectId={projectId}
                     isClient={isClient}
+                    stages={stages}
                   />
                 ))}
               </div>
             )}
 
-            {/* Add Item Form - PMs only */}
-            {!isClient && isAddingItem ? (
+            {/* Add Item Form - Available to all users including clients */}
+            {isAddingItem ? (
               <Card className="border-2 border-dashed">
                 <CardContent className="p-4">
                   <Form {...itemForm}>
@@ -730,7 +734,7 @@ function MaterialAreaSection({ area, items, projectId, isClient = false }: Mater
                   </Form>
                 </CardContent>
               </Card>
-            ) : !isClient ? (
+            ) : (
               <Button
                 variant="outline"
                 size="sm"
@@ -741,7 +745,7 @@ function MaterialAreaSection({ area, items, projectId, isClient = false }: Mater
                 <Plus className="h-4 w-4 mr-2" />
                 Add Item to {area.name}
               </Button>
-            ) : null}
+            )}
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -814,9 +818,10 @@ interface MaterialItemRowProps {
   onDelete: (id: string) => void;
   projectId: string;
   isClient?: boolean;
+  stages?: ProjectStage[];
 }
 
-function MaterialItemRow({ item, onDelete, projectId, isClient = false }: MaterialItemRowProps) {
+function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages = [] }: MaterialItemRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -830,6 +835,7 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false }: Materi
       vendor: item.vendor || "",
       quantity: item.quantity || "",
       unit_cost: item.unit_cost || undefined,
+      stage_id: item.stage_id || "",
     },
   });
 
@@ -845,6 +851,7 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false }: Materi
           vendor: data.vendor || null,
           quantity: data.quantity || null,
           unit_cost: data.unit_cost || null,
+          stage_id: data.stage_id || null,
         },
       });
       return response.json();
@@ -983,6 +990,43 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false }: Materi
                 />
               </div>
 
+              {/* Stage Assignment - PM/Admin only */}
+              {!isClient && stages.length > 0 && (
+                <FormField
+                  control={editForm.control}
+                  name="stage_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <Layers className="h-4 w-4 text-amber-500" />
+                        Assigned Stage
+                      </FormLabel>
+                      <Select
+                        value={field.value || "__none__"}
+                        onValueChange={(value) => field.onChange(value === "__none__" ? "" : value)}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-stage">
+                            <SelectValue placeholder="Select a stage (optional)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="__none__">No stage assigned</SelectItem>
+                          {stages
+                            .sort((a, b) => a.orderIndex - b.orderIndex)
+                            .map((stage) => (
+                              <SelectItem key={stage.id} value={stage.id}>
+                                {stage.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               <div className="flex justify-end gap-2">
                 <Button
                   type="button"
@@ -997,8 +1041,8 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false }: Materi
                   <X className="h-4 w-4 mr-1" />
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   size="sm"
                   disabled={updateItemMutation.isPending}
                   data-testid="button-submit-edit"
