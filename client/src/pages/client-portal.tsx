@@ -34,6 +34,14 @@ export default function ClientPortal() {
 
   // Check if user is a client (for RBAC in materials tab)
   const isClient = currentUser?.role?.toLowerCase() === 'client';
+  const assignedProjectId = currentUser?.assignedProjectId;
+
+  // Auto-select assigned project for client users
+  useEffect(() => {
+    if (isClient && assignedProjectId && !selectedProject) {
+      setSelectedProject(assignedProjectId);
+    }
+  }, [isClient, assignedProjectId, selectedProject]);
 
   // Parse URL parameters on mount and when URL changes
   useEffect(() => {
@@ -174,29 +182,45 @@ export default function ClientPortal() {
           </p>
         </div>
         
-        {/* Project Selector */}
-        <div className="w-80">
-          <Select value={selectedProject} onValueChange={setSelectedProject}>
-            <SelectTrigger className="w-full" data-testid="select-project">
-              <div className="flex items-center gap-2">
-                <Building className="h-4 w-4" />
-                <SelectValue placeholder="Select a project" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  <div className="flex items-center justify-between w-full">
-                    <span>{project.name}</span>
-                    <Badge variant="outline" className="ml-2">
-                      {project.status}
-                    </Badge>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Project Selector - Hidden for client users who only see their assigned project */}
+        {isClient ? (
+          // Static project display for clients
+          <div className="flex items-center gap-2 px-4 py-2 bg-[var(--pro-surface)] rounded-lg border border-[var(--pro-border)]">
+            <Building className="h-4 w-4 text-[var(--pro-text-secondary)]" />
+            <span className="font-medium text-[var(--pro-text-primary)]">
+              {projects.find(p => p.id === selectedProject)?.name || 'Loading project...'}
+            </span>
+            {projects.find(p => p.id === selectedProject)?.status && (
+              <Badge variant="outline" className="ml-2">
+                {projects.find(p => p.id === selectedProject)?.status}
+              </Badge>
+            )}
+          </div>
+        ) : (
+          // Project dropdown for non-client users
+          <div className="w-80">
+            <Select value={selectedProject} onValueChange={setSelectedProject}>
+              <SelectTrigger className="w-full" data-testid="select-project">
+                <div className="flex items-center gap-2">
+                  <Building className="h-4 w-4" />
+                  <SelectValue placeholder="Select a project" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    <div className="flex items-center justify-between w-full">
+                      <span>{project.name}</span>
+                      <Badge variant="outline" className="ml-2">
+                        {project.status}
+                      </Badge>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {!selectedProject ? (

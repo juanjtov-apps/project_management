@@ -88,6 +88,8 @@ interface UserProfile {
   companyName?: string; // camelCase alias for company_name
   username?: string;
   password?: string; // For edit form only
+  assigned_project_id?: string; // For client role users
+  assignedProjectId?: string; // camelCase alias
 }
 
 export default function RBACAdmin() {
@@ -164,7 +166,13 @@ export default function RBACAdmin() {
     queryKey: ['/api/rbac/users'],
     enabled: hasRBACAccess,
   });
-  
+
+  // Fetch projects for client role assignment
+  const { data: projects = [] } = useQuery<any[]>({
+    queryKey: ['/api/projects'],
+    enabled: hasRBACAccess,
+  });
+
   if (!hasRBACAccess) {
     return (
       <div className="container mx-auto p-6">
@@ -219,11 +227,11 @@ export default function RBACAdmin() {
       } else if (data.role_id) {
         const roleMap: Record<string, string> = {
           '1': 'admin',
-          '2': 'project_manager',
-          '3': 'office_manager',
-          '4': 'subcontractor',
-          '5': 'client',
-          '6': 'crew'
+          '2': 'office_manager',
+          '3': 'project_manager',
+          '4': 'client',
+          '5': 'crew',
+          '6': 'subcontractor'
         };
         updateData.role = roleMap[data.role_id] || 'crew';
       }
@@ -231,7 +239,12 @@ export default function RBACAdmin() {
       if (data.password && data.password.trim() !== '') {
         updateData.password = data.password;
       }
-      
+
+      // Include assigned_project_id for client users
+      if (data.assigned_project_id !== undefined) {
+        updateData.assigned_project_id = data.assigned_project_id;
+      }
+
       return apiRequest(`/api/rbac/users/${id}`, { 
         method: 'PATCH', 
         body: updateData
@@ -334,7 +347,8 @@ export default function RBACAdmin() {
       company_id: '',
       role_id: '',
       password: '',
-      confirm_password: ''
+      confirm_password: '',
+      assigned_project_id: ''
     });
 
     // Password validation helper
@@ -352,14 +366,19 @@ export default function RBACAdmin() {
     const passwordsMatch = newUser.password === newUser.confirm_password && newUser.confirm_password.length > 0;
     
     // Form validation - use currentUserCompanyId from outer scope
-    const isFormValid = 
-      newUser.email && 
-      newUser.first_name && 
-      newUser.last_name && 
-      newUser.role_id && 
+    // Client role (roleId === '4') also requires assigned_project_id
+    const isClientRole = newUser.role_id === '4';
+    const hasRequiredProjectForClient = !isClientRole || (isClientRole && newUser.assigned_project_id);
+
+    const isFormValid =
+      newUser.email &&
+      newUser.first_name &&
+      newUser.last_name &&
+      newUser.role_id &&
       currentUserCompanyId &&
       isPasswordValid &&
-      passwordsMatch;
+      passwordsMatch &&
+      hasRequiredProjectForClient;
 
     // Toggle user active status
     const toggleUserStatus = useMutation({
@@ -589,6 +608,37 @@ export default function RBACAdmin() {
                     <p className="text-xs text-red-500 mt-1">Role is required</p>
                   )}
                 </div>
+                {/* Project Assignment - Only shown for Client role (roleId === '4') */}
+                {newUser.role_id === '4' && (
+                  <div>
+                    <Label htmlFor="assigned_project">Assigned Project *</Label>
+                    <Select
+                      value={newUser.assigned_project_id}
+                      onValueChange={(value) => setNewUser({ ...newUser, assigned_project_id: value })}
+                    >
+                      <SelectTrigger id="assigned_project">
+                        <SelectValue placeholder="Select project for client" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {projects.length === 0 ? (
+                          <SelectItem value="none" disabled>No projects available</SelectItem>
+                        ) : (
+                          projects.map((project: any) => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Client users can only access this specific project
+                    </p>
+                    {!newUser.assigned_project_id && (
+                      <p className="text-xs text-red-500 mt-1">Project is required for client users</p>
+                    )}
+                  </div>
+                )}
               </form>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
@@ -612,9 +662,15 @@ export default function RBACAdmin() {
                       toast({ title: 'Error', description: 'Company ID not available', variant: 'destructive' });
                       return;
                     }
-                    
+
+                    // Validate assigned_project_id for client role
+                    if (roleIdNum === 5 && !newUser.assigned_project_id) {
+                      toast({ title: 'Error', description: 'Project is required for client users', variant: 'destructive' });
+                      return;
+                    }
+
                     // Map frontend fields to backend expected format
-                    const userPayload = {
+                    const userPayload: any = {
                       email: newUser.email.trim(),
                       first_name: newUser.first_name.trim(),
                       last_name: newUser.last_name.trim(),
@@ -623,14 +679,19 @@ export default function RBACAdmin() {
                       password: newUser.password,
                       is_active: true
                     };
-                    
+
+                    // Include assigned_project_id only for client role
+                    if (roleIdNum === 5 && newUser.assigned_project_id) {
+                      userPayload.assigned_project_id = newUser.assigned_project_id;
+                    }
+
                     console.log('[Create User] Sending payload:', userPayload);
-                    
+
                     // Creating user with validated data
                     createUserMutation.mutate(userPayload, {
                       onSuccess: () => {
                         setIsCreateDialogOpen(false);
-                        setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '', confirm_password: '' });
+                        setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '', confirm_password: '', assigned_project_id: '' });
                       }
                     });
                   }}
@@ -791,11 +852,11 @@ export default function RBACAdmin() {
                                         } else {
                                           const roleMap: Record<string, string> = {
                                             'admin': '1',
-                                            'project_manager': '2',
-                                            'office_manager': '3',
-                                            'subcontractor': '4',
-                                            'client': '5',
-                                            'crew': '6'
+                                            'office_manager': '2',
+                                            'project_manager': '3',
+                                            'client': '4',
+                                            'crew': '5',
+                                            'subcontractor': '6'
                                           };
                                           roleId = roleMap[userRole] || '';
                                         }
@@ -811,7 +872,8 @@ export default function RBACAdmin() {
                                         role_name: user.role_name || user.roleName || '',
                                         is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
                                         email: user.email || '',
-                                        password: ''
+                                        password: '',
+                                        assigned_project_id: user.assigned_project_id || user.assignedProjectId || ''
                                       };
 
                                       setEditingUser(mappedUser);
@@ -986,11 +1048,11 @@ export default function RBACAdmin() {
                                     } else {
                                       const roleMap: Record<string, string> = {
                                         'admin': '1',
-                                        'project_manager': '2',
-                                        'office_manager': '3',
-                                        'subcontractor': '4',
-                                        'client': '5',
-                                        'crew': '6'
+                                        'office_manager': '2',
+                                        'project_manager': '3',
+                                        'client': '4',
+                                        'crew': '5',
+                                        'subcontractor': '6'
                                       };
                                       roleId = roleMap[userRole] || '';
                                     }
@@ -1006,7 +1068,8 @@ export default function RBACAdmin() {
                                     role_name: user.role_name || user.roleName || '',
                                     is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
                                     email: user.email || '',
-                                    password: ''
+                                    password: '',
+                                    assigned_project_id: user.assigned_project_id || user.assignedProjectId || ''
                                   };
 
                                   setEditingUser(mappedUser);
@@ -2028,6 +2091,34 @@ export default function RBACAdmin() {
               </SelectContent>
             </Select>
           </div>
+          {/* Project Assignment - ONLY for Client role (roleId === '4') */}
+          {editingUser?.role_id?.toString() === '4' && (
+            <div>
+              <Label htmlFor="edit_assigned_project">Assigned Project *</Label>
+              <Select
+                value={editingUser?.assigned_project_id || ''}
+                onValueChange={(value) => setEditingUser(editingUser ? {...editingUser, assigned_project_id: value} : null)}
+              >
+                <SelectTrigger id="edit_assigned_project">
+                  <SelectValue placeholder="Select project for client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.length === 0 ? (
+                    <SelectItem value="none" disabled>No projects available</SelectItem>
+                  ) : (
+                    projects.map((project: any) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Client users can only access this specific project
+              </p>
+            </div>
+          )}
           <div className="flex items-center space-x-2">
             <Switch
               id="edit_is_active"
@@ -2049,10 +2140,20 @@ export default function RBACAdmin() {
           >
             Cancel
           </Button>
-          <Button 
+          <Button
             type="button"
             onClick={async () => {
               if (editingUser) {
+                // Validate project required for client role
+                if (editingUser.role_id?.toString() === '4' && !editingUser.assigned_project_id) {
+                  toast({
+                    title: 'Error',
+                    description: 'Project assignment is required for client users',
+                    variant: 'destructive'
+                  });
+                  return;
+                }
+
                 const updatePayload: any = {
                   email: editingUser.email,
                   username: editingUser.email,
@@ -2066,7 +2167,11 @@ export default function RBACAdmin() {
                 if (editingUser.password && editingUser.password.trim() !== '') {
                   updatePayload.password = editingUser.password;
                 }
-                
+                // Include assigned_project_id for client users
+                if (editingUser.role_id?.toString() === '4') {
+                  updatePayload.assigned_project_id = editingUser.assigned_project_id || null;
+                }
+
                 try {
                   await updateUserMutation.mutateAsync({
                     id: editingUser.id, 
@@ -2079,16 +2184,16 @@ export default function RBACAdmin() {
                   
                   // Update cache immediately
                   const roleId = editingUser.role_id;
-                  const roleName = roleId === '1' ? 'Admin' : 
-                                 roleId === '2' ? 'Project Manager' : 
-                                 roleId === '3' ? 'Office Manager' : 
-                                 roleId === '4' ? 'Subcontractor' : 
-                                 roleId === '5' ? 'Client' : 'Crew';
-                  const role = roleId === '1' ? 'admin' : 
-                              roleId === '2' ? 'project_manager' : 
-                              roleId === '3' ? 'office_manager' : 
-                              roleId === '4' ? 'subcontractor' : 
-                              roleId === '5' ? 'client' : 'crew';
+                  const roleName = roleId === '1' ? 'Admin' :
+                                 roleId === '2' ? 'Office Manager' :
+                                 roleId === '3' ? 'Project Manager' :
+                                 roleId === '4' ? 'Client' :
+                                 roleId === '5' ? 'Crew' : 'Subcontractor';
+                  const role = roleId === '1' ? 'admin' :
+                              roleId === '2' ? 'office_manager' :
+                              roleId === '3' ? 'project_manager' :
+                              roleId === '4' ? 'client' :
+                              roleId === '5' ? 'crew' : 'subcontractor';
                   
                   queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
                     if (!old) return old;

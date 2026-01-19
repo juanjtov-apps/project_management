@@ -19,9 +19,26 @@ async def get_projects(current_user: Dict[str, Any] = Depends(get_current_user_d
 
     - Root admin with org context: projects from that org
     - Root admin without context: ALL projects
+    - Client user: ONLY their assigned project
     - Company user: only their company projects
     """
     try:
+        # Check if user is a client - they only see their assigned project
+        user_role = str(current_user.get('role', '')).lower()
+        assigned_project_id = current_user.get('assignedProjectId') or current_user.get('assigned_project_id')
+
+        if user_role == 'client':
+            if assigned_project_id:
+                # Client with assigned project - return only that project
+                project = await project_repo.get_by_id(assigned_project_id)
+                projects = [project] if project else []
+                logger.debug(f"Client user {current_user.get('email')} - returning assigned project {assigned_project_id}")
+            else:
+                # Client without assigned project - return empty list
+                projects = []
+                logger.debug(f"Client user {current_user.get('email')} has no assigned project")
+            return projects
+
         # Use effective company ID (respects org context for root users)
         effective_company_id = get_effective_company_id(current_user)
         logger.debug(f"User {current_user.get('email')} - effective_company_id: {effective_company_id}")
@@ -51,15 +68,25 @@ async def get_project(
 ):
     """Get project by ID with company scoping."""
     try:
+        # Check if user is a client - they can only access their assigned project
+        user_role = str(current_user.get('role', '')).lower()
+        if user_role == 'client':
+            assigned_project_id = current_user.get('assignedProjectId') or current_user.get('assigned_project_id')
+            if project_id != assigned_project_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: You can only access your assigned project"
+                )
+
         project = await project_repo.get_by_id(project_id)
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Project not found"
             )
-        
-        # Verify company access (unless root admin)
-        if not is_root_admin(current_user):
+
+        # Verify company access (unless root admin or client - client already checked above)
+        if not is_root_admin(current_user) and user_role != 'client':
             user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
             project_company_id = str(project.get('company_id'))
             if project_company_id != user_company_id:
@@ -67,7 +94,7 @@ async def get_project(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Access denied: Project belongs to different company"
                 )
-        
+
         return project
     except HTTPException:
         raise

@@ -26,14 +26,30 @@ export default function ProtectedRoute({
     }
 
     const permissions = currentUser?.permissions || {};
-    const userRole = currentUser?.role;
-    
-    // Check permission if specified
-    if (requiredPermission && !permissions[requiredPermission]) {
-      setLocation("/dashboard");
+    const userRole = currentUser?.role?.toLowerCase();
+    const assignedProjectId = currentUser?.assignedProjectId;
+
+    // Client users can only access the client portal
+    // If they try to access any other protected route, redirect them
+    if (userRole === 'client' && requiredPermission !== 'clientPortal') {
+      const redirectUrl = assignedProjectId
+        ? `/client-portal?projectId=${assignedProjectId}`
+        : '/client-portal';
+      setLocation(redirectUrl);
       return;
     }
-    
+
+    // Check permission if specified
+    if (requiredPermission && !permissions[requiredPermission]) {
+      // Client users should go to client portal, others to dashboard
+      if (userRole === 'client') {
+        setLocation('/client-portal');
+      } else {
+        setLocation("/dashboard");
+      }
+      return;
+    }
+
     // Check role if specified
     if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
       setLocation("/dashboard");
