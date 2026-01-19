@@ -64,7 +64,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
 
   const getUserInitials = (user: User | undefined) => {
     if (!user) return "U";
-    const name = user.firstName || user.name || user.email || "User";
+    const name = user.firstName || (user as any).first_name || user.name || user.email || "User";
     const parts = name.split(" ");
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -175,7 +175,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
                   </div>
                   <div className="hidden md:block text-left min-w-0">
                     <div className="text-sm font-medium text-white truncate">
-                      {user?.firstName || user?.name || "User"}
+                      {user?.firstName || (user as any)?.first_name || user?.name || "User"}
                     </div>
                     <div className="text-xs capitalize truncate" style={{ color: '#9CA3AF' }}>
                       {user?.role?.replace(/_/g, ' ') || 'User'}
@@ -196,7 +196,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium text-white">
-                    {user?.firstName || user?.name || user?.email || "User"}
+                    {user?.firstName || (user as any)?.first_name || user?.name || user?.email || "User"}
                   </p>
                   <p className="text-xs" style={{ color: '#9CA3AF' }}>
                     {user?.email}

@@ -357,7 +357,7 @@ async def get_issue_comments(
         await verify_project_access(issue['project_id'], current_user, pool)
         
         rows = await conn.fetch(
-            """SELECT c.*, u.name as author_name
+            """SELECT c.*, CONCAT(u.first_name, ' ', u.last_name) as author_name
                FROM client_portal.issue_comments c
                LEFT JOIN public.users u ON c.author_id = u.id
                WHERE c.issue_id = $1
@@ -413,7 +413,7 @@ async def get_forum_messages(
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
             # Get messages from the auto-thread for this project
             rows = await conn.fetch(
-                """SELECT m.*, u.name as author_name, m.author_id as authorId, m.body as content, t.project_id as projectId
+                """SELECT m.*, CONCAT(u.first_name, ' ', u.last_name) as author_name, m.author_id as authorId, m.body as content, t.project_id as projectId
                    FROM client_portal.forum_messages m
                    LEFT JOIN public.users u ON m.author_id = u.id
                    LEFT JOIN client_portal.forum_threads t ON m.thread_id = t.id
@@ -423,7 +423,7 @@ async def get_forum_messages(
             )
         else:
             rows = await conn.fetch(
-                """SELECT m.*, u.name as author_name, m.author_id as authorId, m.body as content, t.project_id as projectId
+                """SELECT m.*, CONCAT(u.first_name, ' ', u.last_name) as author_name, m.author_id as authorId, m.body as content, t.project_id as projectId
                    FROM client_portal.forum_messages m
                    LEFT JOIN public.users u ON m.author_id = u.id
                    LEFT JOIN client_portal.forum_threads t ON m.thread_id = t.id
