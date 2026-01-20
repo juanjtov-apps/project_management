@@ -205,17 +205,20 @@ def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool
         })
     
     if role == 'client':
+        # Client users only see the client portal - all other modules are hidden
         permissions.update({
-            "clientPortal": True,
-            "tasks": False,
-            "photos": True,
-            "projects": True,
-            "schedule": False,
-            "logs": False,
-            "projectHealth": False,
-            "crew": False,
-            "subs": False,
-            "clientPortalPayments": False  # Clients can't access payments
+            "dashboard": False,       # No dashboard access
+            "projects": False,        # No project list access
+            "tasks": False,           # No tasks access
+            "photos": False,          # Access photos via portal only
+            "schedule": False,        # No schedule access
+            "logs": False,            # No logs access
+            "projectHealth": False,   # No project health access
+            "crew": False,            # No crew management
+            "subs": False,            # No subcontractor management
+            "rbacAdmin": False,       # No RBAC admin
+            "clientPortal": True,     # ONLY client portal is accessible
+            "clientPortalPayments": True   # Clients can access payments to upload proofs
         })
     
     return permissions
@@ -427,18 +430,22 @@ async def login(request: LoginRequest, response: Response):
             # Convert is_root to isRoot for frontend compatibility
             if 'is_root' in user_data:
                 user_data['isRoot'] = user_data['is_root']
-            
+
+            # Convert assigned_project_id to assignedProjectId for frontend compatibility
+            if 'assigned_project_id' in user_data:
+                user_data['assignedProjectId'] = user_data['assigned_project_id']
+
             # Use role_name from roles table, fallback to text role for backward compatibility
             role_name = user_data.get("role_name") or user_data.get("role", "user")
             user_data["role"] = role_name  # Set role for backward compatibility
-            
+
             # Add navigation permissions
             is_root = is_root_admin(user_data)
-            
+
             permissions = get_navigation_permissions(role_name, is_root)
             user_data["permissions"] = permissions
             user_data["isRootAdmin"] = is_root
-            
+
             return LoginResponse(user=user_data, session_id=session_id)
             
     except HTTPException:
@@ -486,7 +493,11 @@ async def get_current_user(request: Request):
         # Convert is_root to isRoot for frontend compatibility
         if 'is_root' in user_data:
             user_data['isRoot'] = user_data['is_root']
-        
+
+        # Convert assigned_project_id to assignedProjectId for frontend compatibility
+        if 'assigned_project_id' in user_data:
+            user_data['assignedProjectId'] = user_data['assigned_project_id']
+
         # Use role_name from roles table, fallback to text role for backward compatibility
         role_name = user_data.get("role_name") or user_data.get("role", "user")
         user_data["role"] = role_name  # Set role for backward compatibility

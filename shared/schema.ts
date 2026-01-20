@@ -113,7 +113,10 @@ export const users = pgTable("users", {
   // RBAC fields - Each user has ONE company and ONE role
   companyId: varchar("company_id").notNull().references(() => companies.id, { onDelete: 'restrict' }),
   roleId: integer("role_id").notNull().references(() => roles.id, { onDelete: 'restrict' }),
-  
+
+  // Client-specific: assigned project (only for client role users)
+  assignedProjectId: varchar("assigned_project_id").references(() => projects.id, { onDelete: 'set null' }),
+
   // Special flags
   isRoot: boolean("is_root").notNull().default(false), // TRUE for the ONE root/platform admin
   isActive: boolean("is_active").notNull().default(true),
@@ -127,6 +130,7 @@ export const users = pgTable("users", {
   index("users_role_id_idx").on(table.roleId),
   index("users_is_active_idx").on(table.isActive),
   index("users_email_idx").on(table.email),
+  index("users_assigned_project_id_idx").on(table.assignedProjectId),
 ]);
 
 // ============================================================================

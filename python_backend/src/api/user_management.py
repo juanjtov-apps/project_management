@@ -29,6 +29,7 @@ class UserCreateRequest(BaseModel):
     role_id: int  # Changed from role: str - must be a valid role ID
     company_id: Optional[str] = None  # Required for non-root users, validated in endpoint
     is_active: bool = True
+    assigned_project_id: Optional[str] = None  # For client role users only
     
     @field_validator('first_name', 'last_name')
     @classmethod
@@ -59,7 +60,8 @@ class UserUpdateRequest(BaseModel):
     role_id: Optional[int] = None  # Add this
     company_id: Optional[str] = None  # Add this
     is_active: Optional[bool] = None
-    
+    assigned_project_id: Optional[str] = None  # For client role users only
+
     model_config = ConfigDict(extra="forbid")  # Explicitly forbid extra fields like "name"
     
     @field_validator('first_name', 'last_name')

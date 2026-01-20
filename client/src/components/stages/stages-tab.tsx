@@ -70,6 +70,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -250,7 +251,7 @@ function SortableStageCard({
                     </div>
                   )}
 
-                  {stage.finishMaterialsDueDate && (
+                  {stage.finishMaterialsDueDate ? (
                     <div
                       className={`flex items-center gap-2 ${
                         isMaterialsOverdue
@@ -269,6 +270,13 @@ function SortableStageCard({
                         {isMaterialsSoon && !isMaterialsOverdue && (
                           <span className="ml-1 font-medium">({daysUntilMaterials}d)</span>
                         )}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-zinc-500">
+                      <Package className="h-4 w-4 shrink-0 opacity-50" />
+                      <span className="leading-relaxed italic">
+                        No finish materials required
                       </span>
                     </div>
                   )}
@@ -378,6 +386,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
   const [isMaterialsReviewOpen, setIsMaterialsReviewOpen] = useState(false);
   const [editingStage, setEditingStage] = useState<ProjectStage | null>(null);
   const [deleteStage, setDeleteStage] = useState<ProjectStage | null>(null);
+  const [finishMaterialsNA, setFinishMaterialsNA] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -651,7 +660,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
           name: data.name,
           plannedStartDate: data.plannedStartDate || undefined,
           plannedEndDate: data.plannedEndDate || undefined,
-          finishMaterialsDueDate: data.finishMaterialsDueDate || undefined,
+          finishMaterialsDueDate: data.finishMaterialsDueDate || null,
           finishMaterialsNote: data.finishMaterialsNote || undefined,
           clientVisible: data.clientVisible,
         },
@@ -663,6 +672,8 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
 
   const openEditDialog = (stage: ProjectStage) => {
     setEditingStage(stage);
+    // Set N/A state based on whether finish materials due date exists
+    setFinishMaterialsNA(!stage.finishMaterialsDueDate);
     form.reset({
       name: stage.name,
       plannedStartDate: stage.plannedStartDate?.split("T")[0] || "",
@@ -766,6 +777,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
                 onClick={() => {
                   setEditingStage(null);
                   form.reset();
+                  setFinishMaterialsNA(false);
                   setIsCreateOpen(true);
                 }}
                 className="flex-1 sm:flex-none bg-amber-500 hover:bg-amber-600 text-black font-semibold h-11 sm:h-10 text-sm touch-manipulation"
@@ -826,7 +838,12 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
                 Choose Template
               </Button>
               <Button
-                onClick={() => setIsCreateOpen(true)}
+                onClick={() => {
+                  setEditingStage(null);
+                  form.reset();
+                  setFinishMaterialsNA(false);
+                  setIsCreateOpen(true);
+                }}
                 className="bg-amber-500 hover:bg-amber-600 text-black"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -980,13 +997,29 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
                     <FormLabel className="text-zinc-300">
                       Finish Materials Due Date
                     </FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        className="bg-zinc-800 border-zinc-700 text-white"
-                        {...field}
-                      />
-                    </FormControl>
+                    <div className="flex items-center gap-3">
+                      <FormControl>
+                        <Input
+                          type="date"
+                          className="bg-zinc-800 border-zinc-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={finishMaterialsNA}
+                          {...field}
+                        />
+                      </FormControl>
+                      <label className="flex items-center gap-2 text-sm text-zinc-400 cursor-pointer whitespace-nowrap">
+                        <Checkbox
+                          checked={finishMaterialsNA}
+                          onCheckedChange={(checked) => {
+                            setFinishMaterialsNA(!!checked);
+                            if (checked) {
+                              field.onChange("");  // Clear date when N/A is checked
+                            }
+                          }}
+                          className="border-zinc-600 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+                        />
+                        N/A
+                      </label>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

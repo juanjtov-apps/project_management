@@ -191,15 +191,27 @@ async def get_user_accessible_projects(current_user: Dict[str, Any], pool: async
             project_ids = [row['id'] for row in rows]
             print(f"Client Portal: Root admin has access to {len(project_ids)} projects")
             return project_ids
-    
+
+    # Check if user is a client - they only see their assigned project
+    user_role = str(current_user.get('role', '')).lower()
+    assigned_project_id = current_user.get('assignedProjectId') or current_user.get('assigned_project_id')
+
+    if user_role == 'client':
+        if assigned_project_id:
+            print(f"Client Portal: Client user {current_user.get('email')} - assigned project: {assigned_project_id}")
+            return [assigned_project_id]
+        else:
+            print(f"Client Portal: Client user {current_user.get('email')} has no assigned project")
+            return []
+
     # Try both camelCase and snake_case for compatibility
     user_company_id = str(current_user.get('companyId') or current_user.get('company_id') or '')
     print(f"Client Portal: User {current_user.get('email')} - company: {user_company_id}")
-    
+
     if not user_company_id:
         print("Client Portal: Warning - User has no company_id, returning empty project list")
         return []
-    
+
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT id FROM public.projects WHERE company_id = $1",
@@ -345,7 +357,7 @@ async def get_issue_comments(
         await verify_project_access(issue['project_id'], current_user, pool)
         
         rows = await conn.fetch(
-            """SELECT c.*, u.name as author_name
+            """SELECT c.*, CONCAT(u.first_name, ' ', u.last_name) as author_name
                FROM client_portal.issue_comments c
                LEFT JOIN public.users u ON c.author_id = u.id
                WHERE c.issue_id = $1
@@ -401,7 +413,7 @@ async def get_forum_messages(
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
             # Get messages from the auto-thread for this project
             rows = await conn.fetch(
-                """SELECT m.*, u.name as author_name, m.author_id as authorId, m.body as content, t.project_id as projectId
+                """SELECT m.*, CONCAT(u.first_name, ' ', u.last_name) as author_name, m.author_id as authorId, m.body as content, t.project_id as projectId
                    FROM client_portal.forum_messages m
                    LEFT JOIN public.users u ON m.author_id = u.id
                    LEFT JOIN client_portal.forum_threads t ON m.thread_id = t.id
@@ -411,7 +423,7 @@ async def get_forum_messages(
             )
         else:
             rows = await conn.fetch(
-                """SELECT m.*, u.name as author_name, m.author_id as authorId, m.body as content, t.project_id as projectId
+                """SELECT m.*, CONCAT(u.first_name, ' ', u.last_name) as author_name, m.author_id as authorId, m.body as content, t.project_id as projectId
                    FROM client_portal.forum_messages m
                    LEFT JOIN public.users u ON m.author_id = u.id
                    LEFT JOIN client_portal.forum_threads t ON m.thread_id = t.id
