@@ -251,7 +251,7 @@ function SortableStageCard({
                     </div>
                   )}
 
-                  {stage.finishMaterialsDueDate && (
+                  {stage.finishMaterialsDueDate ? (
                     <div
                       className={`flex items-center gap-2 ${
                         isMaterialsOverdue
@@ -270,6 +270,13 @@ function SortableStageCard({
                         {isMaterialsSoon && !isMaterialsOverdue && (
                           <span className="ml-1 font-medium">({daysUntilMaterials}d)</span>
                         )}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-zinc-500">
+                      <Package className="h-4 w-4 shrink-0 opacity-50" />
+                      <span className="leading-relaxed italic">
+                        No finish materials required
                       </span>
                     </div>
                   )}
@@ -653,7 +660,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
           name: data.name,
           plannedStartDate: data.plannedStartDate || undefined,
           plannedEndDate: data.plannedEndDate || undefined,
-          finishMaterialsDueDate: data.finishMaterialsDueDate || undefined,
+          finishMaterialsDueDate: data.finishMaterialsDueDate || null,
           finishMaterialsNote: data.finishMaterialsNote || undefined,
           clientVisible: data.clientVisible,
         },
