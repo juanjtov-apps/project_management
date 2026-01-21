@@ -233,11 +233,11 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
                       maxNumberOfFiles={3 - uploadedPhotos.length}
                       onGetUploadParameters={handleGetUploadParameters}
                       onComplete={handleUploadComplete}
-                      buttonClassName="w-full"
+                      buttonClassName="w-full bg-[#4ADE80] text-[#0F1115] hover:bg-[#22C55E] shadow-lg"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 text-[#0F1115]">
                         <Camera className="h-4 w-4" />
-                        <span>Upload Photos ({uploadedPhotos.length}/3)</span>
+                        <span className="text-[#0F1115]">Upload Photos ({uploadedPhotos.length}/3)</span>
                       </div>
                     </ObjectUploader>
                   )}
