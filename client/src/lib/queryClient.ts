@@ -50,6 +50,17 @@ async function throwIfResNotOk(res: Response) {
 // API Base URL - use v1 versioned API
 const API_BASE_URL = "/api/v1";
 
+// CSRF token storage (module-level for persistence across requests)
+let csrfToken: string | null = null;
+
+export function setCsrfToken(token: string | null) {
+  csrfToken = token;
+}
+
+export function getCsrfToken(): string | null {
+  return csrfToken;
+}
+
 // Add retry logic for backend connection - handle startup timing gracefully
 async function retryFetch(url: string, options: RequestInit, retries = 5, delay = 1000): Promise<Response> {
   for (let i = 0; i < retries; i++) {
@@ -96,12 +107,20 @@ export async function apiRequest(
     finalUrl = url.replace('/api/', '/api/v1/');
   }
   const fullUrl = finalUrl.startsWith('http') ? finalUrl : (finalUrl.startsWith('/') ? finalUrl : `${API_BASE_URL}/${finalUrl}`);
+
+  // Build headers with CSRF token for state-changing requests
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...options?.headers,
+  };
+
+  if (method !== "GET" && csrfToken) {
+    headers["X-CSRF-Token"] = csrfToken;
+  }
+
   const res = await retryFetch(fullUrl, {
     method,
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
+    headers,
     body: options?.body ? JSON.stringify(options.body) : undefined,
     credentials: "include",  // Re-enable credentials for session auth
   });

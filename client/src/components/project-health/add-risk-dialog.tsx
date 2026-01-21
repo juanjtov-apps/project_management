@@ -247,10 +247,11 @@ export default function AddRiskDialog({ projectId, projects = [], trigger }: Add
                 <FormItem>
                   <FormLabel>Mitigation Plan</FormLabel>
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       placeholder="Describe the plan to mitigate or respond to this risk"
                       className="min-h-[80px]"
-                      {...field} 
+                      {...field}
+                      value={field.value || ''}
                     />
                   </FormControl>
                   <FormDescription>

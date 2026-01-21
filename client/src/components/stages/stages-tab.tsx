@@ -660,7 +660,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
           name: data.name,
           plannedStartDate: data.plannedStartDate || undefined,
           plannedEndDate: data.plannedEndDate || undefined,
-          finishMaterialsDueDate: data.finishMaterialsDueDate || null,
+          finishMaterialsDueDate: data.finishMaterialsDueDate || undefined,
           finishMaterialsNote: data.finishMaterialsNote || undefined,
           clientVisible: data.clientVisible,
         },
