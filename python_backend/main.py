@@ -12,6 +12,9 @@ load_dotenv()
 if not os.getenv('NODE_ENV'):
     os.environ['NODE_ENV'] = 'development'
 
+# Detect production environment
+IS_PRODUCTION = os.getenv('NODE_ENV') == 'production' or os.getenv('REPLIT_DEPLOYMENT')
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -112,9 +115,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Add debug logging middleware first
-from debug_middleware import LogRequests
-app.add_middleware(LogRequests)
+# Add debug logging middleware (development only)
+if not IS_PRODUCTION:
+    from debug_middleware import LogRequests
+    app.add_middleware(LogRequests)
 
 # Add request tracking middleware (for request IDs)
 from src.middleware.request_tracking import RequestTrackingMiddleware
@@ -139,7 +143,7 @@ app.add_middleware(
     allow_credentials=True,  # Enable credentials for session auth
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
+    expose_headers=["X-CSRF-Token", "X-Total-Count", "X-Page-Count"],  # Explicitly expose headers (wildcard doesn't work)
 )
 
 # Health check endpoint for keep_alive monitoring
@@ -163,17 +167,18 @@ if not settings.debug:
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     print("🐍 Starting Python FastAPI backend...")
+    print(f"🌐 Environment: {'Production' if IS_PRODUCTION else 'Development'}")
     print("🌐 Server will be available at http://0.0.0.0:8000")
     print("📋 API documentation at http://0.0.0.0:8000/docs")
-    
+
     try:
         uvicorn.run(
             "main:app",  # Use import string for reload to work properly
             host="0.0.0.0",
             port=8000,
-            reload=True,  # Enable auto-reload for development
+            reload=not IS_PRODUCTION,  # Enable auto-reload for development only
             log_level="info",
             access_log=True
         )

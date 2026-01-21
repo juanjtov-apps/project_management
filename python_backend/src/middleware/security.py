@@ -216,6 +216,11 @@ def store_csrf_token(session_id: str, token: str):
         for old_token, _ in tokens[:-10]:
             del csrf_tokens[session_id][old_token]
 
+def clear_csrf_tokens(session_id: str):
+    """Clear all CSRF tokens for a session (called on logout)."""
+    if session_id in csrf_tokens:
+        del csrf_tokens[session_id]
+
 async def validate_origin(request: Request) -> bool:
     """Validate request origin for CSRF protection."""
     # Skip validation for safe methods
