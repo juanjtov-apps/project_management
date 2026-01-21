@@ -116,6 +116,19 @@ export default function RBACAdmin() {
   const isCompanyAdmin = currentUser?.role === 'admin';
   const hasRBACAccess = isRootAdmin || isCompanyAdmin;
 
+  // Debug logging for RBAC access
+  React.useEffect(() => {
+    console.log('🔐 RBAC Access Debug:', {
+      currentUser,
+      isRoot: currentUser?.isRoot,
+      is_root: currentUser?.is_root,
+      role: currentUser?.role,
+      isRootAdmin,
+      isCompanyAdmin,
+      hasRBACAccess
+    });
+  }, [currentUser, isRootAdmin, isCompanyAdmin, hasRBACAccess]);
+
   const { data: roles = [], isLoading: rolesLoading, error: rolesError } = useQuery<Role[]>({
     queryKey: ['/api/rbac/roles'],
     enabled: hasRBACAccess,
@@ -162,10 +175,21 @@ export default function RBACAdmin() {
     enabled: hasRBACAccess,
   });
 
-  const { data: users = [], isLoading: usersLoading } = useQuery<UserProfile[]>({
+  const { data: users = [], isLoading: usersLoading, error: usersError } = useQuery<UserProfile[]>({
     queryKey: ['/api/rbac/users'],
     enabled: hasRBACAccess,
   });
+
+  // Debug logging for users query
+  React.useEffect(() => {
+    console.log('👥 Users Query Debug:', {
+      usersLoading,
+      usersError: usersError ? String(usersError) : null,
+      usersCount: users?.length || 0,
+      users: users?.slice(0, 3), // First 3 users for debugging
+      hasRBACAccess
+    });
+  }, [users, usersLoading, usersError, hasRBACAccess]);
 
   // Fetch projects for client role assignment
   const { data: projects = [] } = useQuery<any[]>({

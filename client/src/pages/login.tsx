@@ -7,7 +7,7 @@ import { Mail, Lock, AlertCircle, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, setCsrfToken } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
@@ -25,6 +25,13 @@ export default function Login() {
         method: "POST",
         body: credentials,
       });
+
+      // Capture CSRF token from response headers for subsequent requests
+      const csrfToken = response.headers.get('X-CSRF-Token');
+      if (csrfToken) {
+        setCsrfToken(csrfToken);
+      }
+
       return response.json();
     },
     onSuccess: async () => {

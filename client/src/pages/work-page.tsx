@@ -429,7 +429,6 @@ export default function WorkPage() {
       location: "",
       progress: 0,
       dueDate: undefined,
-      companyId: "", // Required by schema, will be set from project data on edit
     },
   });
 

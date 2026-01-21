@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import fs from "fs";
 import path from "path";
 import { spawn, ChildProcess } from "child_process";
 import { setupVite, serveStatic, log } from "./vite";

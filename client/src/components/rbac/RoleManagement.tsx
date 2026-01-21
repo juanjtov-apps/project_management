@@ -119,29 +119,29 @@ export function RoleManagement({ companyId }: RoleManagementProps) {
   const queryClient = useQueryClient();
 
   // Fetch company data
-  const { data: company } = useQuery({
+  const { data: company } = useQuery<Company>({
     queryKey: ['/rbac/companies', companyId],
     enabled: !!companyId,
   });
 
   // Fetch roles
-  const { data: roles = [], isLoading: rolesLoading } = useQuery({
+  const { data: roles = [], isLoading: rolesLoading } = useQuery<Role[]>({
     queryKey: ['/rbac/companies', companyId, 'roles'],
     enabled: !!companyId,
   });
 
   // Fetch role templates
-  const { data: roleTemplates = [] } = useQuery({
+  const { data: roleTemplates = [] } = useQuery<RoleTemplate[]>({
     queryKey: ['/rbac/role-templates'],
   });
 
   // Fetch permissions
-  const { data: permissions = [] } = useQuery({
+  const { data: permissions = [] } = useQuery<Permission[]>({
     queryKey: ['/rbac/permissions'],
   });
 
   // Fetch company users
-  const { data: companyUsers = [], isLoading: usersLoading } = useQuery({
+  const { data: companyUsers = [], isLoading: usersLoading } = useQuery<CompanyUser[]>({
     queryKey: ['/rbac/companies', companyId, 'users'],
     enabled: !!companyId,
   });
