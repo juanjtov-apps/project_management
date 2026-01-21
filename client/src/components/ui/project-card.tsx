@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { Building2, MapPin, MoreVertical, ArrowRight, Layers } from "lucide-react";
+import { Building2, MapPin, MoreVertical, ArrowRight, Layers, AlertTriangle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import {
   DropdownMenu,
@@ -23,6 +23,7 @@ interface ProjectCardProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onStages?: () => void;
+  onIssues?: () => void;
   isSelected?: boolean;
   className?: string;
   "data-testid"?: string;
@@ -77,6 +78,7 @@ export function ProjectCard({
   onEdit,
   onDelete,
   onStages,
+  onIssues,
   isSelected,
   className,
   "data-testid": testId,
@@ -299,6 +301,18 @@ export function ProjectCard({
                 data-testid={`button-stages-${id}`}
               >
                 <Layers className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Issues Button */}
+            {onIssues && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onIssues(); }}
+                className="flex items-center justify-center gap-1 text-xs text-red-400 hover:text-red-300 transition-colors p-2 -m-2 touch-manipulation min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:p-0 sm:m-0"
+                title="Report Issue"
+                data-testid={`button-issues-${id}`}
+              >
+                <AlertTriangle className="w-4 h-4" />
               </button>
             )}
 

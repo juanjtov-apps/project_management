@@ -246,8 +246,8 @@ async def get_issues(
                     detail="Access denied"
                 )
             rows = await conn.fetch(
-                """SELECT i.*, 
-                   u.name as created_by_name,
+                """SELECT i.*,
+                   COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name), u.email) as created_by_name,
                    (SELECT COUNT(*) FROM client_portal.issue_comments WHERE issue_id = i.id) as comment_count,
                    (SELECT COUNT(*) FROM client_portal.issue_attachments WHERE issue_id = i.id) as attachment_count,
                    COALESCE(
@@ -262,8 +262,8 @@ async def get_issues(
             )
         else:
             rows = await conn.fetch(
-                """SELECT i.*, 
-                   u.name as created_by_name,
+                """SELECT i.*,
+                   COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name), u.email) as created_by_name,
                    (SELECT COUNT(*) FROM client_portal.issue_comments WHERE issue_id = i.id) as comment_count,
                    (SELECT COUNT(*) FROM client_portal.issue_attachments WHERE issue_id = i.id) as attachment_count,
                    COALESCE(
