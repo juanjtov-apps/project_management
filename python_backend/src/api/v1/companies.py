@@ -129,10 +129,14 @@ async def get_companies(
         if is_root_admin(current_user):
             companies = await company_repo.get_companies()
         else:
-            user_company_id = current_user.get('companyId')
+            # Check both snake_case and camelCase for compatibility
+            user_company_id = current_user.get('companyId') or current_user.get('company_id')
+            logger.debug(f"[GET /companies] user_company_id: {user_company_id}")
             companies = await company_repo.get_companies()
-            companies = [c for c in companies if c.get('id') == user_company_id]
-        
+            # Use string comparison to handle type mismatches
+            companies = [c for c in companies if str(c.get('id')) == str(user_company_id)]
+            logger.debug(f"[GET /companies] Filtered to {len(companies)} companies for user company {user_company_id}")
+
         return companies
     except Exception as e:
         logger.error(f"Error fetching companies: {e}", exc_info=True)

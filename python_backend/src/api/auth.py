@@ -14,6 +14,7 @@ import logging
 from ..database.connection import get_db_pool
 from ..models.user import User
 from ..core.config import settings
+from ..middleware.security import clear_csrf_tokens
 import os
 
 logger = logging.getLogger(__name__)
@@ -227,7 +228,17 @@ async def create_session(user_id: str, user_data: Dict[str, Any]) -> str:
     """Create a new session and store it in PostgreSQL."""
     session_id = str(uuid.uuid4())
     expires_at = datetime.utcnow() + timedelta(seconds=SESSION_TTL)
-    
+
+    # Ensure role is set from role_name for compatibility
+    if 'role_name' in user_data and 'role' not in user_data:
+        user_data['role'] = user_data['role_name']
+
+    # Ensure both company_id and companyId are set
+    if 'company_id' in user_data and 'companyId' not in user_data:
+        user_data['companyId'] = user_data['company_id']
+    elif 'companyId' in user_data and 'company_id' not in user_data:
+        user_data['company_id'] = user_data['companyId']
+
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         # Store session in database (match existing schema: sid, sess, expire)
@@ -239,13 +250,13 @@ async def create_session(user_id: str, user_data: Dict[str, Any]) -> str:
                 serializable_data[key] = value.isoformat()
             else:
                 serializable_data[key] = value
-        
+
         # Add current_organization_id to session data
         current_org_id = None
         if not is_root_admin(user_data):
             current_org_id = str(user_data.get("company_id") or user_data.get("companyId") or "")
         serializable_data["current_organization_id"] = current_org_id
-        
+
         session_data = json.dumps(serializable_data)
         await conn.execute("""
             INSERT INTO sessions (sid, sess, expire)
@@ -344,7 +355,10 @@ async def destroy_session(session_id: str):
     # Remove from memory
     if session_id in session_store:
         del session_store[session_id]
-    
+
+    # Clear CSRF tokens for this session
+    clear_csrf_tokens(session_id)
+
     # Remove from database
     pool = await get_db_pool()
     async with pool.acquire() as conn:
@@ -600,13 +614,22 @@ async def get_current_user_dependency(request: Request) -> Dict[str, Any]:
     
     user_data = session_data["user_data"].copy()
     user_data.pop("password", None)
-    
+
+    # Ensure both snake_case and camelCase versions are present for compatibility
+    if 'company_id' in user_data:
+        user_data['companyId'] = user_data['company_id']
+    elif 'companyId' in user_data:
+        user_data['company_id'] = user_data['companyId']
+
+    if 'is_root' in user_data:
+        user_data['isRoot'] = user_data['is_root']
+
     # Add current_organization_id to user data for context switching
     current_org_id = session_data.get("current_organization_id")
     if current_org_id:
         user_data["currentOrganizationId"] = current_org_id
         user_data["current_organization_id"] = current_org_id
-    
+
     return user_data
 
 class SetOrganizationContextRequest(BaseModel):
@@ -714,14 +737,15 @@ async def set_organization_context(
 # Helper function to check if user is admin
 def is_user_admin(user: Dict[str, Any]) -> bool:
     """Check if user has admin privileges."""
-    # Check role first
-    if user.get("role") == "admin":
+    # Check role - try both 'role' and 'role_name' for compatibility
+    role = user.get("role") or user.get("role_name")
+    if role == "admin":
         return True
-    
+
     # Check if root user
     if is_root_admin(user):
         return True
-    
+
     return False
 
 def is_root_admin(user: Dict[str, Any]) -> bool:
