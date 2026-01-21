@@ -664,7 +664,7 @@ export default function RBACAdmin() {
                     }
 
                     // Validate assigned_project_id for client role
-                    if (roleIdNum === 5 && !newUser.assigned_project_id) {
+                    if (roleIdNum === 4 && !newUser.assigned_project_id) {
                       toast({ title: 'Error', description: 'Project is required for client users', variant: 'destructive' });
                       return;
                     }
@@ -681,7 +681,7 @@ export default function RBACAdmin() {
                     };
 
                     // Include assigned_project_id only for client role
-                    if (roleIdNum === 5 && newUser.assigned_project_id) {
+                    if (roleIdNum === 4 && newUser.assigned_project_id) {
                       userPayload.assigned_project_id = newUser.assigned_project_id;
                     }
 
