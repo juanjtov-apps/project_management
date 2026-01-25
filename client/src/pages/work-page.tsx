@@ -137,7 +137,8 @@ export default function WorkPage() {
   const [showReportIssueForm, setShowReportIssueForm] = useState(false);
   const [issueTitle, setIssueTitle] = useState("");
   const [issueDescription, setIssueDescription] = useState("");
-  const [issuePhotos, setIssuePhotos] = useState<string[]>([]);
+  const [issuePhotos, setIssuePhotos] = useState<string[]>([]); // Preview URLs for display
+  const [issuePaths, setIssuePaths] = useState<string[]>([]); // Object paths for storage
   const [isCreatingIssue, setIsCreatingIssue] = useState(false);
 
   // Projects - Filter states
@@ -642,7 +643,7 @@ export default function WorkPage() {
           project_id: issuesProject.id,
           title: issueTitle,
           description: issueDescription,
-          photos: issuePhotos,
+          photos: issuePaths, // Send object paths, not preview URLs
         },
       });
 
@@ -655,6 +656,7 @@ export default function WorkPage() {
       setIssueTitle("");
       setIssueDescription("");
       setIssuePhotos([]);
+      setIssuePaths([]);
       setShowReportIssueForm(false);
       setIssuesProject(null);
     } catch (error) {
@@ -671,7 +673,12 @@ export default function WorkPage() {
   const handleIssueUploadParameters = async () => {
     const response = await apiRequest("/api/objects/upload", { method: "POST" });
     const data = await response.json();
-    return { method: "PUT" as const, url: data.uploadURL };
+    return {
+      method: "PUT" as const,
+      url: data.uploadURL,
+      previewURL: data.previewURL,
+      objectPath: data.objectPath,
+    };
   };
 
   const resetIssueForm = () => {
@@ -679,6 +686,7 @@ export default function WorkPage() {
     setIssueTitle("");
     setIssueDescription("");
     setIssuePhotos([]);
+    setIssuePaths([]);
   };
 
   // === TASK HANDLERS ===
@@ -2438,7 +2446,12 @@ export default function WorkPage() {
                   <ObjectUploader
                     maxNumberOfFiles={3 - issuePhotos.length}
                     onGetUploadParameters={handleIssueUploadParameters}
-                    onComplete={(urls) => setIssuePhotos([...issuePhotos, ...urls])}
+                    onComplete={(results) => {
+                      const newPreviewUrls = results.map(r => r.previewURL);
+                      const newObjectPaths = results.map(r => r.objectPath);
+                      setIssuePhotos([...issuePhotos, ...newPreviewUrls]);
+                      setIssuePaths([...issuePaths, ...newObjectPaths]);
+                    }}
                     buttonClassName="w-full bg-[#4ADE80] text-[#0F1115] hover:bg-[#22C55E] shadow-lg"
                   >
                     <div className="flex items-center gap-2 text-[#0F1115]">
@@ -2455,7 +2468,10 @@ export default function WorkPage() {
                         <img src={photo} alt="" className="w-full h-16 object-cover rounded border border-zinc-700" />
                         <button
                           type="button"
-                          onClick={() => setIssuePhotos(issuePhotos.filter((_, i) => i !== index))}
+                          onClick={() => {
+                            setIssuePhotos(issuePhotos.filter((_, i) => i !== index));
+                            setIssuePaths(issuePaths.filter((_, i) => i !== index));
+                          }}
                           className="absolute top-1 right-1 bg-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           <X className="h-3 w-3 text-white" />

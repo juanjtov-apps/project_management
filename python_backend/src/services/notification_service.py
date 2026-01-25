@@ -149,13 +149,22 @@ class NotificationService:
         project_id = notification['project_id']
         source_kind = notification['source_kind']
         source_id = notification['source_id']
-        
+
         if source_kind == 'issue':
             # Route to client portal issues tab with issue ID
             return f"/client-portal?project={project_id}&tab=issues&issue={source_id}"
         elif source_kind == 'message':
             # Route to client portal forum tab with message focus
             return f"/client-portal?project={project_id}&tab=forum&focus={source_id}"
-        
+        elif source_kind == 'material':
+            # Route to client portal materials tab with material focus
+            return f"/client-portal?project={project_id}&tab=materials&material={source_id}"
+        elif source_kind == 'receipt':
+            # Route to client portal payments tab with receipt focus
+            return f"/client-portal?project={project_id}&tab=payments&receipt={source_id}"
+        elif source_kind == 'payment':
+            # Route to client portal installments/payments tab
+            return f"/client-portal?project={project_id}&tab=installments"
+
         # Fallback to project client portal
         return f"/client-portal?project={project_id}"

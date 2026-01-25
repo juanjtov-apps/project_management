@@ -172,14 +172,18 @@ def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool
     }
     
     # Client Portal access for managers, project_managers, office_managers and admins
-    # They get all tabs EXCEPT payments (which is admin-only)
+    # They get all tabs EXCEPT payments (which is admin-only, except office_manager)
     if role in ['admin', 'manager', 'project_manager', 'office_manager']:
         permissions.update({
             "crew": True,
             "subs": True,
             "clientPortal": True
         })
-    
+
+    # Office managers get payments access (they need to upload invoices)
+    if role == 'office_manager':
+        permissions["clientPortalPayments"] = True
+
     # RBAC Admin and Payments access only for admins and root
     if is_root_admin or role == 'admin':
         permissions.update({

@@ -86,7 +86,7 @@ class DownloadRequest(BaseModel):
 
 @router.post("/upload")
 async def get_upload_url():
-    """Get a signed upload URL for object storage."""
+    """Get signed URLs for upload and preview, plus the object path for storage."""
     try:
         config = get_storage_config()
         bucket_id = config["bucket_id"]
@@ -104,15 +104,23 @@ async def get_upload_url():
 
         print(f"📤 [UPLOAD] Generated object path: {object_path}")
 
-        # Generate signed URL for PUT (upload)
+        # Generate signed URL for PUT (upload) - 15 min expiry
         upload_url = await generate_signed_url(bucket_id, object_path, method="PUT", expires_minutes=15)
 
-        if upload_url:
-            return {"uploadURL": upload_url}
+        # Generate signed URL for GET (preview) - 60 min expiry
+        preview_url = await generate_signed_url(bucket_id, object_path, method="GET", expires_minutes=60)
+
+        if upload_url and preview_url:
+            print(f"📤 [UPLOAD] Generated upload and preview URLs for {object_path}")
+            return {
+                "uploadURL": upload_url,
+                "previewURL": preview_url,
+                "objectPath": object_path
+            }
         else:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to generate upload URL"
+                detail="Failed to generate upload URLs"
             )
 
     except HTTPException:

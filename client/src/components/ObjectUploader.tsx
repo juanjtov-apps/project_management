@@ -2,15 +2,22 @@ import { useState, useRef, useImperativeHandle, forwardRef } from "react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 
+export interface UploadResult {
+  previewURL: string;
+  objectPath: string;
+}
+
 interface ObjectUploaderProps {
   maxNumberOfFiles?: number;
   maxFileSize?: number;
   onGetUploadParameters: (file?: any) => Promise<{
     method: "PUT";
     url: string;
+    previewURL?: string;
+    objectPath?: string;
     headers?: Record<string, string>;
   }>;
-  onComplete?: (files: string[]) => void;
+  onComplete?: (results: UploadResult[]) => void;
   onFilesSelected?: (files: File[]) => void; // New prop for deferred upload
   buttonClassName?: string;
   children: ReactNode;
@@ -68,17 +75,17 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
 
     // Immediate upload (existing behavior)
     setIsUploading(true);
-    const uploadedUrls: string[] = [];
+    const uploadResults: UploadResult[] = [];
 
     try {
       for (const file of validFiles) {
         console.log(`📤 Uploading ${file.name}...`);
         setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
 
-        // Get upload parameters
+        // Get upload parameters (includes previewURL and objectPath)
         const params = await onGetUploadParameters(file);
-        
-        // Upload file directly
+
+        // Upload file directly using the PUT URL
         const response = await fetch(params.url, {
           method: params.method,
           body: file,
@@ -89,24 +96,28 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
         });
 
         if (response.ok) {
-          uploadedUrls.push(params.url);
+          // Store the preview URL and object path (not the upload URL)
+          uploadResults.push({
+            previewURL: params.previewURL || params.url,
+            objectPath: params.objectPath || params.url
+          });
           setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
-          console.log(`✅ Uploaded ${file.name} successfully`);
+          console.log(`✅ Uploaded ${file.name} successfully, preview: ${params.previewURL?.substring(0, 50)}...`);
         } else {
           console.error(`❌ Failed to upload ${file.name}:`, response.statusText);
         }
       }
 
-      // Call completion callback
-      if (uploadedUrls.length > 0 && onComplete) {
-        onComplete(uploadedUrls);
+      // Call completion callback with results containing previewURL and objectPath
+      if (uploadResults.length > 0 && onComplete) {
+        onComplete(uploadResults);
       }
     } catch (error) {
       console.error('Upload error:', error);
     } finally {
       setIsUploading(false);
       setUploadProgress({});
-      
+
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -119,17 +130,17 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
     if (selectedFiles.length === 0) return [];
 
     setIsUploading(true);
-    const uploadedUrls: string[] = [];
+    const uploadResults: UploadResult[] = [];
 
     try {
       for (const file of selectedFiles) {
         console.log(`📤 Uploading ${file.name}...`);
         setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
 
-        // Get upload parameters
+        // Get upload parameters (includes previewURL and objectPath)
         const params = await onGetUploadParameters(file);
-        
-        // Upload file directly
+
+        // Upload file directly using the PUT URL
         const response = await fetch(params.url, {
           method: params.method,
           body: file,
@@ -140,7 +151,10 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
         });
 
         if (response.ok) {
-          uploadedUrls.push(params.url);
+          uploadResults.push({
+            previewURL: params.previewURL || params.url,
+            objectPath: params.objectPath || params.url
+          });
           setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
           console.log(`✅ Uploaded ${file.name} successfully`);
         } else {
@@ -150,20 +164,20 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
 
       // Clear selected files after upload
       setSelectedFiles([]);
-      
+
       // Call completion callback
-      if (uploadedUrls.length > 0 && onComplete) {
-        onComplete(uploadedUrls);
+      if (uploadResults.length > 0 && onComplete) {
+        onComplete(uploadResults);
       }
 
-      return uploadedUrls;
+      return uploadResults.map(r => r.objectPath);
     } catch (error) {
       console.error('Upload error:', error);
       return [];
     } finally {
       setIsUploading(false);
       setUploadProgress({});
-      
+
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
