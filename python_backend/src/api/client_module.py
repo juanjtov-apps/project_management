@@ -279,11 +279,13 @@ async def notify_pms_and_admins(
     service = NotificationService(pool)
 
     async with pool.acquire() as conn:
-        # Get all managers/admins for this project's company
+        # Get all project managers and admins for this project's company
+        # Note: users table only has role_id, not a role text column
         managers = await conn.fetch("""
-            SELECT DISTINCT u.id, u.full_name
+            SELECT DISTINCT u.id, COALESCE(u.name, u.first_name || ' ' || u.last_name) as full_name
             FROM users u
-            WHERE u.role IN ('admin', 'manager')
+            JOIN roles r ON u.role_id = r.id
+            WHERE COALESCE(r.role_name, r.name) IN ('admin', 'project_manager')
             AND u.company_id = (
                 SELECT company_id FROM projects WHERE id = $1
             )
