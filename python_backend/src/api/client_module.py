@@ -102,6 +102,7 @@ class MaterialItemCreate(BaseModel):
     unit_cost: Optional[float] = None
     status: Optional[str] = "pending"
     stage_id: Optional[str] = None  # Link to project stage
+    order_status: Optional[str] = "pending_to_order"  # 'pending_to_order' or 'ordered'
 
 class MaterialItemUpdate(BaseModel):
     name: Optional[str] = None
@@ -112,6 +113,7 @@ class MaterialItemUpdate(BaseModel):
     unit_cost: Optional[float] = None
     status: Optional[str] = None
     stage_id: Optional[str] = None  # Link to project stage
+    order_status: Optional[str] = None  # 'pending_to_order' or 'ordered'
 
 class PaymentScheduleCreate(BaseModel):
     project_id: str
@@ -1359,7 +1361,7 @@ async def get_material_items(
                    LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
                    LEFT JOIN client_portal.project_stages ps ON mi.stage_id = ps.id
                    WHERE mi.stage_id = $1 {approval_filter}
-                   ORDER BY mi.created_at DESC""",
+                   ORDER BY mi.name ASC, mi.id""",
                 stage_id
             )
         elif area_id:
@@ -1371,7 +1373,7 @@ async def get_material_items(
                    LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
                    LEFT JOIN client_portal.project_stages ps ON mi.stage_id = ps.id
                    WHERE mi.area_id = $1 {approval_filter}
-                   ORDER BY mi.created_at DESC""",
+                   ORDER BY mi.name ASC, mi.id""",
                 area_id
             )
         elif project_id:
@@ -1383,7 +1385,7 @@ async def get_material_items(
                    LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
                    LEFT JOIN client_portal.project_stages ps ON mi.stage_id = ps.id
                    WHERE mi.project_id = $1 {approval_filter}
-                   ORDER BY ma.sort_order, mi.created_at DESC""",
+                   ORDER BY ma.sort_order, mi.name ASC, mi.id""",
                 project_id
             )
         else:
@@ -1396,10 +1398,27 @@ async def get_material_items(
                    LEFT JOIN client_portal.material_areas ma ON mi.area_id = ma.id
                    LEFT JOIN client_portal.project_stages ps ON mi.stage_id = ps.id
                    WHERE mi.project_id = ANY($1::varchar[]) {approval_filter}
-                   ORDER BY mi.created_at DESC""",
+                   ORDER BY mi.name ASC, mi.id""",
                 accessible_projects
             )
         return [dict(row) for row in rows]
+
+@router.get("/material-items/check-duplicate")
+async def check_material_duplicate(
+    area_id: str = Query(..., description="The area ID to check within"),
+    name: str = Query(..., description="The material name to check"),
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Check if a material with the same name exists in the given area."""
+    async with pool.acquire() as conn:
+        exists = await conn.fetchval("""
+            SELECT EXISTS(
+                SELECT 1 FROM client_portal.material_items
+                WHERE area_id = $1 AND LOWER(TRIM(name)) = LOWER(TRIM($2))
+            )
+        """, area_id, name)
+    return {"exists": exists, "area_id": area_id, "name": name}
 
 @router.post("/material-items")
 async def create_material_item(
@@ -1413,8 +1432,8 @@ async def create_material_item(
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """INSERT INTO client_portal.material_items
-               (area_id, project_id, name, spec, product_link, vendor, quantity, unit_cost, status, added_by, stage_id)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+               (area_id, project_id, name, spec, product_link, vendor, quantity, unit_cost, status, added_by, stage_id, order_status)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                RETURNING *""",
             item.area_id,
             item.project_id,
@@ -1426,7 +1445,8 @@ async def create_material_item(
             item.unit_cost,
             item.status,
             current_user['id'],
-            item.stage_id
+            item.stage_id,
+            item.order_status
         )
 
     # Send notification to PMs/admins if creator is a client
@@ -1511,6 +1531,10 @@ async def update_material_item(
         if update.stage_id is not None:
             updates.append(f"stage_id = ${param_count}")
             values.append(update.stage_id if update.stage_id != "" else None)
+            param_count += 1
+        if update.order_status is not None:
+            updates.append(f"order_status = ${param_count}")
+            values.append(update.order_status)
             param_count += 1
 
         if not updates:

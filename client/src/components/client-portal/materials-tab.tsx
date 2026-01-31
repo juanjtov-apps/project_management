@@ -28,6 +28,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 
 // Schema for creating an area
 const areaSchema = z.object({
@@ -73,6 +74,7 @@ interface MaterialItem {
   quantity?: string;
   unit_cost?: number;
   status: string;
+  order_status: string;  // 'pending_to_order' or 'ordered'
   added_by: string;
   added_by_name?: string;
   created_at: string;
@@ -427,6 +429,9 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [isDeleteAreaDialogOpen, setIsDeleteAreaDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const [duplicateName, setDuplicateName] = useState("");
+  const [pendingFormData, setPendingFormData] = useState<MaterialItemFormData | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -505,8 +510,43 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
     },
   });
 
-  const onSubmitItem = (data: MaterialItemFormData) => {
+  const onSubmitItem = async (data: MaterialItemFormData) => {
+    // Check for duplicate name in the same area
+    try {
+      const response = await fetch(`/api/material-items/check-duplicate?area_id=${area.id}&name=${encodeURIComponent(data.name)}`);
+      const result = await response.json();
+
+      if (result.exists) {
+        // Show duplicate warning dialog
+        setDuplicateName(data.name);
+        setPendingFormData(data);
+        setIsDuplicateDialogOpen(true);
+        return;
+      }
+    } catch (error) {
+      console.error("Error checking for duplicate:", error);
+      // Continue with creation if check fails
+    }
+
     createItemMutation.mutate(data);
+  };
+
+  const handleDuplicateChangeName = () => {
+    setIsDuplicateDialogOpen(false);
+    // Focus on name field - form stays open
+    setTimeout(() => {
+      const nameInput = document.querySelector(`[data-area-id="${area.id}"] input[name="name"]`) as HTMLInputElement;
+      if (nameInput) {
+        nameInput.focus();
+        nameInput.select();
+      }
+    }, 100);
+  };
+
+  const handleDuplicateCancel = () => {
+    setIsDuplicateDialogOpen(false);
+    setPendingFormData(null);
+    setDuplicateName("");
   };
 
   // Delete area mutation
@@ -610,7 +650,7 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
               <Card className="border-2 border-dashed">
                 <CardContent className="p-4">
                   <Form {...itemForm}>
-                    <form onSubmit={itemForm.handleSubmit(onSubmitItem)} className="space-y-4">
+                    <form onSubmit={itemForm.handleSubmit(onSubmitItem)} className="space-y-4" data-area-id={area.id}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={itemForm.control}
@@ -809,6 +849,34 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Duplicate Name Warning Dialog */}
+      <AlertDialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Material Name Already Exists
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                A material named <strong>"{duplicateName}"</strong> already exists in this area.
+              </p>
+              <p className="text-muted-foreground">
+                Please choose a different name to avoid confusion.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDuplicateCancel}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDuplicateChangeName}>
+              Change Name
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
@@ -877,6 +945,24 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages =
   const onSubmitEdit = (data: MaterialItemFormData) => {
     updateItemMutation.mutate(data);
   };
+
+  // Toggle order status mutation
+  const toggleOrderStatusMutation = useMutation({
+    mutationFn: async (newStatus: string) => {
+      const response = await apiRequest(`/api/material-items/${item.id}`, {
+        method: "PATCH",
+        body: { order_status: newStatus },
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/material-items?project_id=${projectId}`] });
+      toast({
+        title: "Status Updated",
+        description: `Material marked as ${item.order_status === 'ordered' ? 'pending' : 'ordered'}.`,
+      });
+    },
+  });
 
   const totalCost = (parseFloat(item.quantity || "0") || 1) * (item.unit_cost || 0);
 
@@ -1089,6 +1175,41 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages =
             )}
           </div>
           <div className="flex items-center gap-2">
+            {/* Order Status Toggle */}
+            <div className="flex rounded-md border border-border overflow-hidden">
+              <button
+                onClick={() => {
+                  if (item.order_status === 'ordered') {
+                    toggleOrderStatusMutation.mutate('pending_to_order');
+                  }
+                }}
+                disabled={toggleOrderStatusMutation.isPending}
+                className={cn(
+                  "px-2 py-1 text-xs transition-colors",
+                  item.order_status !== 'ordered'
+                    ? "bg-amber-500 text-white"
+                    : "bg-transparent text-muted-foreground hover:bg-muted"
+                )}
+              >
+                Pending
+              </button>
+              <button
+                onClick={() => {
+                  if (item.order_status !== 'ordered') {
+                    toggleOrderStatusMutation.mutate('ordered');
+                  }
+                }}
+                disabled={toggleOrderStatusMutation.isPending}
+                className={cn(
+                  "px-2 py-1 text-xs transition-colors",
+                  item.order_status === 'ordered'
+                    ? "bg-emerald-500 text-white"
+                    : "bg-transparent text-muted-foreground hover:bg-muted"
+                )}
+              >
+                Ordered
+              </button>
+            </div>
             {item.product_link && (
               <Button
                 variant="ghost"
