@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, Field, field_validator, EmailStr
 from ...database.auth_repositories import company_repo
+from ...database.connection import get_db_pool
 from ...api.auth import get_current_user_dependency, is_root_admin
 from ...validators import (
     validate_company_name,
@@ -13,7 +14,24 @@ from ...validators import (
     validate_email_format,
     sanitize_string,
 )
+import asyncpg
+import json
 import logging
+
+# Define allowed modules that can be toggled
+ALLOWED_MODULES = [
+    "dashboard",
+    "projects",
+    "projectHealth",
+    "schedule",
+    "photos",
+    "logs",
+    "clientPortal",
+    "rbacAdmin"
+]
+
+# Default module settings (all enabled)
+DEFAULT_MODULE_SETTINGS = {module: True for module in ALLOWED_MODULES}
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/companies", tags=["companies"])
@@ -283,3 +301,206 @@ async def update_company_status(
             detail="Failed to update company status"
         )
 
+
+# ============================================================================
+# MODULE MANAGEMENT ENDPOINTS (ROOT ADMIN ONLY)
+# ============================================================================
+
+class ModuleSettings(BaseModel):
+    """Request model for updating company module settings."""
+    enabledModules: Dict[str, bool] = Field(..., description="Module enabled/disabled states")
+
+    @field_validator('enabledModules')
+    @classmethod
+    def validate_modules(cls, v):
+        """Validate that all module keys are allowed."""
+        invalid_keys = set(v.keys()) - set(ALLOWED_MODULES)
+        if invalid_keys:
+            raise ValueError(f"Invalid module keys: {invalid_keys}. Allowed: {ALLOWED_MODULES}")
+        return v
+
+
+class BulkModuleUpdate(BaseModel):
+    """Request model for bulk module update."""
+    module: str = Field(..., description="Module key to update")
+    enabled: bool = Field(..., description="Whether to enable or disable the module")
+
+    @field_validator('module')
+    @classmethod
+    def validate_module(cls, v):
+        """Validate that module key is allowed."""
+        if v not in ALLOWED_MODULES:
+            raise ValueError(f"Invalid module: {v}. Allowed: {ALLOWED_MODULES}")
+        return v
+
+
+@router.get("/{company_id}/modules", summary="Get company module settings")
+async def get_company_modules(
+    company_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Get module settings for a company (root admin only)."""
+    if not is_root_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Root admin access required"
+        )
+
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id, name, settings FROM companies WHERE id = $1",
+            company_id
+        )
+        if not row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Company not found"
+            )
+
+        settings = row['settings'] or {}
+        if isinstance(settings, str):
+            settings = json.loads(settings)
+
+        enabled_modules = settings.get('enabledModules', DEFAULT_MODULE_SETTINGS.copy())
+
+        return {
+            "companyId": row['id'],
+            "companyName": row['name'],
+            "enabledModules": enabled_modules,
+            "availableModules": ALLOWED_MODULES
+        }
+
+
+@router.patch("/{company_id}/modules", summary="Update company module settings")
+async def update_company_modules(
+    company_id: str,
+    module_settings: ModuleSettings,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Update module settings for a company (root admin only)."""
+    if not is_root_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Root admin access required"
+        )
+
+    async with pool.acquire() as conn:
+        # Get current settings
+        row = await conn.fetchrow(
+            "SELECT settings FROM companies WHERE id = $1",
+            company_id
+        )
+        if not row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Company not found"
+            )
+
+        current_settings = row['settings'] or {}
+        if isinstance(current_settings, str):
+            current_settings = json.loads(current_settings)
+
+        # Merge new module settings
+        current_settings['enabledModules'] = module_settings.enabledModules
+
+        # Update the company
+        await conn.execute(
+            "UPDATE companies SET settings = $1 WHERE id = $2",
+            json.dumps(current_settings),
+            company_id
+        )
+
+        logger.info(f"Company {company_id} modules updated by root user {current_user.get('email')}")
+
+        return {
+            "success": True,
+            "companyId": company_id,
+            "enabledModules": module_settings.enabledModules
+        }
+
+
+@router.get("/modules/all", summary="Get all companies module settings")
+async def get_all_companies_modules(
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Get module settings for all companies (root admin only)."""
+    if not is_root_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Root admin access required"
+        )
+
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT id, name, settings FROM companies ORDER BY name"
+        )
+
+        companies = []
+        for row in rows:
+            settings = row['settings'] or {}
+            if isinstance(settings, str):
+                settings = json.loads(settings)
+
+            enabled_modules = settings.get('enabledModules', DEFAULT_MODULE_SETTINGS.copy())
+
+            companies.append({
+                "companyId": row['id'],
+                "companyName": row['name'],
+                "enabledModules": enabled_modules
+            })
+
+        return {
+            "companies": companies,
+            "availableModules": ALLOWED_MODULES
+        }
+
+
+@router.patch("/modules/bulk", summary="Bulk update module across all companies")
+async def bulk_update_module(
+    bulk_update: BulkModuleUpdate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Enable or disable a module for ALL companies (root admin only)."""
+    if not is_root_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Root admin access required"
+        )
+
+    async with pool.acquire() as conn:
+        # Get all companies
+        rows = await conn.fetch("SELECT id, settings FROM companies")
+
+        updated_count = 0
+        for row in rows:
+            settings = row['settings'] or {}
+            if isinstance(settings, str):
+                settings = json.loads(settings)
+
+            # Initialize enabledModules if not present
+            if 'enabledModules' not in settings:
+                settings['enabledModules'] = DEFAULT_MODULE_SETTINGS.copy()
+
+            # Update the specific module
+            settings['enabledModules'][bulk_update.module] = bulk_update.enabled
+
+            await conn.execute(
+                "UPDATE companies SET settings = $1 WHERE id = $2",
+                json.dumps(settings),
+                row['id']
+            )
+            updated_count += 1
+
+        action = "enabled" if bulk_update.enabled else "disabled"
+        logger.info(f"Module '{bulk_update.module}' {action} for {updated_count} companies by root user {current_user.get('email')}")
+
+        return {
+            "success": True,
+            "module": bulk_update.module,
+            "enabled": bulk_update.enabled,
+            "companiesUpdated": updated_count
+        }

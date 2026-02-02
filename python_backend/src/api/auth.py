@@ -16,6 +16,7 @@ from ..models.user import User
 from ..core.config import settings
 from ..middleware.security import clear_csrf_tokens
 import os
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -227,6 +228,52 @@ def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool
         })
     
     return permissions
+
+
+async def filter_permissions_by_company_modules(
+    permissions: Dict[str, bool],
+    company_id: str,
+    is_root: bool,
+    pool: asyncpg.Pool
+) -> Dict[str, bool]:
+    """
+    Filter navigation permissions based on company's enabled modules.
+    Root users bypass this filter and see all modules.
+    """
+    # Root users see everything
+    if is_root:
+        return permissions
+
+    if not company_id:
+        return permissions
+
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT settings FROM companies WHERE id = $1",
+                str(company_id)
+            )
+
+            if not row or not row['settings']:
+                return permissions
+
+            settings = row['settings']
+            if isinstance(settings, str):
+                settings = json.loads(settings)
+
+            enabled_modules = settings.get('enabledModules', {})
+
+            # Filter permissions - if a module is disabled, set permission to False
+            for module_key, is_enabled in enabled_modules.items():
+                if module_key in permissions and not is_enabled:
+                    permissions[module_key] = False
+
+            return permissions
+
+    except Exception as e:
+        logger.warning(f"Error filtering permissions by company modules: {e}")
+        return permissions
+
 
 async def create_session(user_id: str, user_data: Dict[str, Any]) -> str:
     """Create a new session and store it in PostgreSQL."""
@@ -464,6 +511,13 @@ async def login(request: LoginRequest, response: Response):
             is_root = is_root_admin(user_data)
 
             permissions = get_navigation_permissions(role_name, is_root)
+
+            # Filter permissions by company module settings
+            company_id = user_data.get('company_id') or user_data.get('companyId')
+            permissions = await filter_permissions_by_company_modules(
+                permissions, company_id, is_root, pool
+            )
+
             user_data["permissions"] = permissions
             user_data["isRootAdmin"] = is_root
 
@@ -525,23 +579,28 @@ async def get_current_user(request: Request):
         
         # Add navigation permissions
         is_root = is_root_admin(user_data)
-        
+
         permissions = get_navigation_permissions(role_name, is_root)
-        user_data["permissions"] = permissions
         user_data["isRootAdmin"] = is_root
-        
+
         # Add current_organization_id from session if available (already have session_data)
         if "current_organization_id" in session_data:
             current_org_id = session_data.get("current_organization_id")
             if current_org_id:
                 user_data["currentOrganizationId"] = current_org_id
                 user_data["current_organization_id"] = current_org_id
-        
-        # Fetch and add organization/company name
+
+        # Fetch and add organization/company name, and filter permissions by company modules
         company_id = user_data.get('company_id') or user_data.get('companyId')
         if company_id:
             try:
                 pool = await get_db_pool()
+
+                # Filter permissions by company module settings
+                permissions = await filter_permissions_by_company_modules(
+                    permissions, company_id, is_root, pool
+                )
+
                 async with pool.acquire() as conn:
                     company_row = await conn.fetchrow(
                         "SELECT id, name FROM companies WHERE id = $1",
@@ -554,6 +613,8 @@ async def get_current_user(request: Request):
                         }
             except Exception as e:
                 logger.warning(f"Error fetching company name: {e}")
+
+        user_data["permissions"] = permissions
         
         return user_data
         
@@ -763,38 +824,24 @@ def is_root_admin(user: Dict[str, Any]) -> bool:
     2. id == "0" (backward compatibility)
     3. Root emails from environment variable (configurable)
     """
-    # Debug: Log all relevant fields for diagnosis
-    print(f"[DEBUG is_root_admin] Checking user:")
-    print(f"  - id: {user.get('id')!r} (type: {type(user.get('id')).__name__})")
-    print(f"  - is_root: {user.get('is_root')!r} (type: {type(user.get('is_root')).__name__})")
-    print(f"  - isRoot: {user.get('isRoot')!r} (type: {type(user.get('isRoot')).__name__})")
-    print(f"  - email: {user.get('email')!r}")
-    print(f"  - company_id: {user.get('company_id')!r}")
-    print(f"  - companyId: {user.get('companyId')!r}")
-
     # First check is_root field (preferred method)
     # Check both snake_case and camelCase versions
     is_root_value = user.get("is_root") or user.get("isRoot")
     if is_root_value is True:
-        print(f"[DEBUG is_root_admin] MATCHED: is_root/isRoot is True")
         return True
 
     # Backward compatibility: check id
     user_id = user.get("id")
     if user_id == "0":
-        print(f"[DEBUG is_root_admin] MATCHED: id == '0'")
         return True
 
     # Check against root user emails from environment variable
-    # This will raise ValueError if ROOT_USER_EMAILS is not configured (fail-fast for security)
     user_email = user.get("email")
     if user_email:
         root_emails = settings.root_user_emails_list
         if user_email in root_emails:
-            print(f"[DEBUG is_root_admin] MATCHED: email in ROOT_USER_EMAILS")
             return True
 
-    print(f"[DEBUG is_root_admin] NOT ROOT: No conditions matched")
     return False
 
 def get_effective_company_id(user: Dict[str, Any]) -> Optional[str]:

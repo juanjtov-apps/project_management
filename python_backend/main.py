@@ -141,9 +141,17 @@ app.add_middleware(
     ],
     allow_origin_regex=r"https://.*\.replit\.app|https://.*\.replit\.dev|https://.*\.repl\.co",
     allow_credentials=True,  # Enable credentials for session auth
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["X-CSRF-Token", "X-Total-Count", "X-Page-Count"],  # Explicitly expose headers (wildcard doesn't work)
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-CSRF-Token",
+        "Cookie",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+    ],
+    expose_headers=["X-CSRF-Token", "X-Total-Count", "X-Page-Count"],
 )
 
 # Health check endpoint for keep_alive monitoring

@@ -360,9 +360,7 @@ async def get_user_accessible_projects(current_user: Dict[str, Any], pool: async
     if is_root_admin(current_user):
         async with pool.acquire() as conn:
             rows = await conn.fetch("SELECT id FROM public.projects")
-            project_ids = [row['id'] for row in rows]
-            print(f"Client Portal: Root admin has access to {len(project_ids)} projects")
-            return project_ids
+            return [row['id'] for row in rows]
 
     # Check if user is a client - they only see their assigned project
     user_role = str(current_user.get('role', '')).lower()
@@ -370,18 +368,14 @@ async def get_user_accessible_projects(current_user: Dict[str, Any], pool: async
 
     if user_role == 'client':
         if assigned_project_id:
-            print(f"Client Portal: Client user {current_user.get('email')} - assigned project: {assigned_project_id}")
             return [assigned_project_id]
         else:
-            print(f"Client Portal: Client user {current_user.get('email')} has no assigned project")
             return []
 
     # Try both camelCase and snake_case for compatibility
     user_company_id = str(current_user.get('companyId') or current_user.get('company_id') or '')
-    print(f"Client Portal: User {current_user.get('email')} - company: {user_company_id}")
 
     if not user_company_id:
-        print("Client Portal: Warning - User has no company_id, returning empty project list")
         return []
 
     async with pool.acquire() as conn:
@@ -389,9 +383,7 @@ async def get_user_accessible_projects(current_user: Dict[str, Any], pool: async
             "SELECT id FROM public.projects WHERE company_id = $1",
             user_company_id
         )
-        project_ids = [row['id'] for row in rows]
-        print(f"Client Portal: User {current_user.get('email')} has access to {len(project_ids)} projects")
-        return project_ids
+        return [row['id'] for row in rows]
 
 # ============================================================================
 # ISSUES ENDPOINTS
@@ -455,8 +447,6 @@ async def get_issues(
 
         # Debug logging for photo data
         result = [dict(row) for row in rows]
-        for issue in result:
-            print(f"📸 [GET_ISSUES] Issue {issue.get('id')}: attachment_count={issue.get('attachment_count')}, photos={issue.get('photos')}")
         return result
 
 @router.post("/client-issues")
@@ -485,10 +475,7 @@ async def create_issue(
 
         # Save photo attachments if provided - frontend sends object paths directly
         if issue.photos:
-            print(f"📸 [CREATE] Saving {len(issue.photos)} photos for issue {issue_data['id']}")
             for photo_path in issue.photos:
-                # Frontend sends object paths directly (e.g., ".private/uploads/uuid")
-                print(f"📸 [CREATE] Storing path: {photo_path}")
                 await conn.execute(
                     """INSERT INTO client_portal.issue_attachments (issue_id, url, uploaded_by)
                        VALUES ($1, $2, $3)""",
@@ -496,7 +483,6 @@ async def create_issue(
                     photo_path,
                     current_user['id']
                 )
-                print(f"📸 [CREATE] Saved attachment for issue {issue_data['id']}")
 
         # Log the creation in audit log
         await log_issue_action(
@@ -758,7 +744,6 @@ async def get_issue_photos(
     pool: asyncpg.Pool = Depends(get_db_pool)
 ):
     """Get fresh signed URLs for issue photos."""
-    print(f"📸 [PHOTOS] Fetching photos for issue: {issue_id}")
     async with pool.acquire() as conn:
         # Get issue to verify access
         issue = await conn.fetchrow(
@@ -766,7 +751,6 @@ async def get_issue_photos(
             issue_id
         )
         if not issue:
-            print(f"📸 [PHOTOS] Issue not found: {issue_id}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
 
         await verify_project_access(issue['project_id'], current_user, pool)
@@ -776,17 +760,14 @@ async def get_issue_photos(
             "SELECT id, url, created_at FROM client_portal.issue_attachments WHERE issue_id = $1 ORDER BY created_at",
             issue_id
         )
-        print(f"📸 [PHOTOS] Found {len(attachments)} attachments for issue {issue_id}")
 
         # Generate fresh signed URLs for each attachment
         storage_config = get_storage_config()
         bucket_id = storage_config['bucket_id']
-        print(f"📸 [PHOTOS] Using bucket: {bucket_id}")
 
         photos = []
         for attachment in attachments:
             object_path = attachment['url']
-            print(f"📸 [PHOTOS] Processing attachment {attachment['id']}, path: {object_path}")
             try:
                 signed_url = await generate_signed_url(
                     bucket_id,
@@ -794,20 +775,15 @@ async def get_issue_photos(
                     method="GET",
                     expires_minutes=60
                 )
-                print(f"📸 [PHOTOS] Generated signed URL for {object_path}: {signed_url[:80]}...")
                 photos.append({
                     "id": str(attachment['id']),
                     "url": signed_url,
                     "created_at": attachment['created_at'].isoformat() if attachment['created_at'] else None
                 })
-            except Exception as e:
+            except Exception:
                 # If signing fails, skip this photo
-                print(f"📸 [PHOTOS] Error generating signed URL for {object_path}: {e}")
-                import traceback
-                traceback.print_exc()
                 continue
 
-        print(f"📸 [PHOTOS] Returning {len(photos)} photos with signed URLs")
         return {"photos": photos}
 
 
@@ -2236,9 +2212,9 @@ async def mark_installment_paid(
             title=f"Invoice Needed: {installment['name']}",
             body=f"Payment of {amount_formatted} has been marked as paid. Please upload the invoice."
         )
-    except Exception as e:
-        # Log the error but don't fail the request
-        print(f"Warning: Failed to send notifications for installment {installment_id}: {e}")
+    except Exception:
+        # Notification failure should not fail the request
+        pass
 
     return {
         "success": True,

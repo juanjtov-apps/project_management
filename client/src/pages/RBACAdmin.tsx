@@ -1985,6 +1985,252 @@ export default function RBACAdmin() {
   };
 
   // ========================================================================
+  // MODULES MANAGEMENT COMPONENT (Root Admin Only)
+  // ========================================================================
+  const ModulesManagement = () => {
+    const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
+    const [updatingModule, setUpdatingModule] = useState<string | null>(null);
+
+    // Module display names
+    const moduleDisplayNames: Record<string, string> = {
+      dashboard: 'Dashboard',
+      projects: 'Work/Projects',
+      projectHealth: 'Project Health',
+      schedule: 'Schedule',
+      photos: 'Photos',
+      logs: 'Project Logs',
+      clientPortal: 'Client Portal',
+      rbacAdmin: 'RBAC Admin'
+    };
+
+    // Fetch all companies' module settings
+    const { data: modulesData, isLoading: modulesLoading, refetch: refetchModules } = useQuery<{
+      companies: Array<{
+        companyId: string;
+        companyName: string;
+        enabledModules: Record<string, boolean>;
+      }>;
+      availableModules: string[];
+    }>({
+      queryKey: ['/api/v1/companies/modules/all'],
+      enabled: isRootAdmin,
+    });
+
+    // Update single company modules
+    const updateModulesMutation = useMutation({
+      mutationFn: async ({ companyId, enabledModules }: { companyId: string; enabledModules: Record<string, boolean> }) => {
+        const response = await apiRequest(`/api/v1/companies/${companyId}/modules`, {
+          method: 'PATCH',
+          body: { enabledModules }
+        });
+        if (!response.ok) {
+          throw new Error('Failed to update modules');
+        }
+        return response.json();
+      },
+      onSuccess: () => {
+        refetchModules();
+        toast({ title: 'Success', description: 'Module settings updated' });
+      },
+      onError: (error: any) => {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      }
+    });
+
+    // Bulk update module across all companies
+    const bulkUpdateMutation = useMutation({
+      mutationFn: async ({ module, enabled }: { module: string; enabled: boolean }) => {
+        const response = await apiRequest('/api/v1/companies/modules/bulk', {
+          method: 'PATCH',
+          body: { module, enabled }
+        });
+        if (!response.ok) {
+          throw new Error('Failed to bulk update module');
+        }
+        return response.json();
+      },
+      onSuccess: (data) => {
+        refetchModules();
+        const action = data.enabled ? 'enabled' : 'disabled';
+        toast({
+          title: 'Success',
+          description: `${moduleDisplayNames[data.module] || data.module} ${action} for ${data.companiesUpdated} companies`
+        });
+        setUpdatingModule(null);
+      },
+      onError: (error: any) => {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        setUpdatingModule(null);
+      }
+    });
+
+    const toggleCompanyExpansion = (companyId: string) => {
+      const newExpanded = new Set(expandedCompanies);
+      if (newExpanded.has(companyId)) {
+        newExpanded.delete(companyId);
+      } else {
+        newExpanded.add(companyId);
+      }
+      setExpandedCompanies(newExpanded);
+    };
+
+    const handleModuleToggle = (companyId: string, moduleKey: string, currentModules: Record<string, boolean>) => {
+      const updatedModules = {
+        ...currentModules,
+        [moduleKey]: !currentModules[moduleKey]
+      };
+      updateModulesMutation.mutate({ companyId, enabledModules: updatedModules });
+    };
+
+    const handleBulkAction = (moduleKey: string, enabled: boolean) => {
+      setUpdatingModule(moduleKey);
+      bulkUpdateMutation.mutate({ module: moduleKey, enabled });
+    };
+
+    // Expand all companies by default on first load
+    React.useEffect(() => {
+      if (modulesData?.companies && expandedCompanies.size === 0) {
+        setExpandedCompanies(new Set(modulesData.companies.map(c => c.companyId)));
+      }
+    }, [modulesData]);
+
+    if (modulesLoading) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-2xl font-semibold">Module Management</h3>
+            <p className="text-muted-foreground">Loading module settings...</p>
+          </div>
+        </div>
+      );
+    }
+
+    const availableModules = modulesData?.availableModules || [];
+    const companiesList = modulesData?.companies || [];
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-2xl font-semibold">Module Management</h3>
+          <p className="text-muted-foreground">Enable or disable modules for each company</p>
+        </div>
+
+        {/* Bulk Actions Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Bulk Actions
+            </CardTitle>
+            <CardDescription>
+              Enable or disable a module across ALL companies at once
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {availableModules.map((moduleKey: string) => (
+                <div key={moduleKey} className="border rounded-lg p-3">
+                  <div className="font-medium text-sm mb-2">
+                    {moduleDisplayNames[moduleKey] || moduleKey}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-xs"
+                      disabled={bulkUpdateMutation.isPending}
+                      onClick={() => handleBulkAction(moduleKey, true)}
+                    >
+                      <ToggleRight className="w-3 h-3 mr-1" />
+                      Enable All
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-xs"
+                      disabled={bulkUpdateMutation.isPending}
+                      onClick={() => handleBulkAction(moduleKey, false)}
+                    >
+                      <ToggleLeft className="w-3 h-3 mr-1" />
+                      Disable All
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Per-Company Module Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building className="w-5 h-5" />
+              Company Module Settings
+            </CardTitle>
+            <CardDescription>
+              Configure modules for individual companies ({companiesList.length} companies)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {companiesList.map((company) => (
+                <Collapsible
+                  key={company.companyId}
+                  open={expandedCompanies.has(company.companyId)}
+                  onOpenChange={() => toggleCompanyExpansion(company.companyId)}
+                >
+                  <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                    <div className="flex items-center gap-2">
+                      {expandedCompanies.has(company.companyId) ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
+                      )}
+                      <span className="font-medium">{company.companyName}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {Object.values(company.enabledModules).filter(Boolean).length} / {availableModules.length} enabled
+                      </Badge>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="px-3 py-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                      {availableModules.map((moduleKey: string) => {
+                        const isEnabled = company.enabledModules[moduleKey] !== false;
+                        return (
+                          <div
+                            key={moduleKey}
+                            className="flex items-center justify-between p-2 rounded border bg-background"
+                          >
+                            <span className="text-sm">
+                              {moduleDisplayNames[moduleKey] || moduleKey}
+                            </span>
+                            <Switch
+                              checked={isEnabled}
+                              onCheckedChange={() => handleModuleToggle(
+                                company.companyId,
+                                moduleKey,
+                                company.enabledModules
+                              )}
+                              disabled={updateModulesMutation.isPending}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
+  // ========================================================================
   // EDIT USER DIALOG - Rendered at RBACAdmin level (NOT inside UserManagement)
   // This prevents the dialog from unmounting/remounting when UserManagement
   // re-renders, which was causing visual flickering.
@@ -2254,6 +2500,7 @@ export default function RBACAdmin() {
         { value: 'roles', label: 'Roles', icon: <UserCheck className="w-4 h-4" /> },
         { value: 'companies', label: 'Companies', icon: <Building className="w-4 h-4" /> },
         { value: 'permissions', label: 'Permissions', icon: <Key className="w-4 h-4" /> },
+        { value: 'modules', label: 'Modules', icon: <Settings className="w-4 h-4" /> },
       ]
     : [
         { value: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
@@ -2325,6 +2572,7 @@ export default function RBACAdmin() {
         {activeTab === 'roles' && isRootAdmin && <RoleManagement />}
         {activeTab === 'companies' && isRootAdmin && <CompanyManagement />}
         {activeTab === 'permissions' && isRootAdmin && <PermissionsOverview />}
+        {activeTab === 'modules' && isRootAdmin && <ModulesManagement />}
       </main>
 
       {/* Bottom Navigation */}

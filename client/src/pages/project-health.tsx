@@ -12,6 +12,10 @@ import AddRiskDialog from "@/components/project-health/add-risk-dialog";
 import ProjectHealthCard from "@/components/project-health/project-health-card";
 import type { Project, ProjectHealthMetrics, RiskAssessment } from "@shared/schema";
 
+// Feature flag: Risk assessments backend is not yet implemented
+// Set to true when /api/v1/risk-assessments endpoint is available
+const RISK_ASSESSMENTS_ENABLED = false;
+
 // Health score color mappings
 const getHealthColor = (score: number) => {
   if (score >= 80) return "text-green-600 bg-green-50";
@@ -365,10 +369,12 @@ export default function ProjectHealth() {
               <h3 className="text-lg font-semibold">Risk Assessments</h3>
               <p className="text-gray-600">Identify and manage project risks</p>
             </div>
-            <AddRiskDialog 
-              projectId={selectedProject !== "all" ? selectedProject : ""}
-              projects={projects}
-            />
+            {RISK_ASSESSMENTS_ENABLED && (
+              <AddRiskDialog
+                projectId={selectedProject !== "all" ? selectedProject : ""}
+                projects={projects}
+              />
+            )}
           </div>
 
           {/* Risk Assessment Grid */}
@@ -383,17 +389,23 @@ export default function ProjectHealth() {
               <CardContent className="text-center py-8">
                 <Eye className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Risk Assessments</h3>
-                <p className="text-gray-500">No risks have been identified for the selected project(s).</p>
-                <AddRiskDialog 
-                  projectId={selectedProject !== "all" ? selectedProject : ""}
-                  projects={projects}
-                  trigger={
-                    <Button className="mt-4 bg-brand-teal hover:bg-brand-teal/90">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add First Risk Assessment
-                    </Button>
-                  }
-                />
+                <p className="text-gray-500">
+                  {RISK_ASSESSMENTS_ENABLED
+                    ? "No risks have been identified for the selected project(s)."
+                    : "Risk assessment feature coming soon."}
+                </p>
+                {RISK_ASSESSMENTS_ENABLED && (
+                  <AddRiskDialog
+                    projectId={selectedProject !== "all" ? selectedProject : ""}
+                    projects={projects}
+                    trigger={
+                      <Button className="mt-4 bg-brand-teal hover:bg-brand-teal/90">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add First Risk Assessment
+                      </Button>
+                    }
+                  />
+                )}
               </CardContent>
             </Card>
           )}
