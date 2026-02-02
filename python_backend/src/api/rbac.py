@@ -5,7 +5,7 @@ Provides comprehensive Role-Based Access Control endpoints for the Tower Flow ap
 
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import asyncpg
 from ..database.connection import get_db_pool
 from ..models.rbac_models import *
@@ -567,8 +567,8 @@ async def compute_user_permissions(conn: asyncpg.Connection, user_id: str, compa
             permission_set.update(proj["permissions"])
     
     permissions = list(permission_set)
-    expires_at = datetime.utcnow() + timedelta(hours=1)
-    computed_at = datetime.utcnow()
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    computed_at = datetime.now(timezone.utc)
     
     # Cache the result
     await conn.execute("""

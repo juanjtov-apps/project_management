@@ -1,8 +1,11 @@
 """Schedule changes API endpoints with authentication and company scoping"""
+import logging
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 from ..database.repositories import ScheduleChangeRepository, TaskRepository, ProjectRepository
 from ..models.schedule_change import ScheduleChange, ScheduleChangeCreate, ScheduleChangeUpdate
@@ -37,13 +40,13 @@ async def get_schedule_changes(
                             filtered_changes.append(change)
                 # If no task_id, skip this change (orphaned)
             changes = filtered_changes
-            print(f"Schedule changes: User {current_user.get('email')} retrieved {len(changes)} changes after company filtering")
+            logger.debug(f"Schedule changes: User {current_user.get('email')} retrieved {len(changes)} changes after company filtering")
         else:
-            print(f"Schedule changes: Root admin retrieved {len(changes)} changes (no filtering)")
+            logger.debug(f"Schedule changes: Root admin retrieved {len(changes)} changes (no filtering)")
         
         return changes
     except Exception as e:
-        print(f"Schedule changes error: {e}")
+        logger.error(f"Schedule changes error: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch schedule changes")
 
 @router.post("", response_model=ScheduleChange, status_code=201)
@@ -81,7 +84,7 @@ async def create_schedule_change(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Create schedule change error: {e}")
+        logger.error(f"Create schedule change error: {e}")
         raise HTTPException(status_code=400, detail="Failed to create schedule change")
 
 @router.patch("/{change_id}", response_model=ScheduleChange)
@@ -125,7 +128,7 @@ async def update_schedule_change(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Update schedule change error: {e}")
+        logger.error(f"Update schedule change error: {e}")
         raise HTTPException(status_code=400, detail="Failed to update schedule change")
 
 @router.delete("/{change_id}")
@@ -161,5 +164,5 @@ async def delete_schedule_change(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Delete schedule change error: {e}")
+        logger.error(f"Delete schedule change error: {e}")
         raise HTTPException(status_code=400, detail="Failed to delete schedule change")

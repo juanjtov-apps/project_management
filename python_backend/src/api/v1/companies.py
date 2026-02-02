@@ -176,7 +176,7 @@ async def create_company(
                 detail="Root admin access required to create companies"
             )
         
-        company_data = company.dict()
+        company_data = company.model_dump()
         new_company = await company_repo.create_company(company_data)
         return new_company
     except HTTPException:
@@ -214,7 +214,7 @@ async def update_company(
 
         updated_company = await company_repo.update_company(
             company_id,
-            company_update.dict(exclude_unset=True)
+            company_update.model_dump(exclude_unset=True)
         )
         if not updated_company:
             raise HTTPException(

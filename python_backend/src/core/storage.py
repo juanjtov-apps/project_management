@@ -6,11 +6,14 @@ Environment routing:
 - Production (Replit): Uses Replit sidecar proxy → prod bucket (replit-objstore-...)
 """
 import os
-from datetime import datetime, timedelta
+import logging
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import httpx
 
 from .config import settings
+
+logger = logging.getLogger(__name__)
 
 # Replit sidecar endpoint (only available in Replit environment)
 REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106"
@@ -53,10 +56,10 @@ def get_gcp_storage_client():
             import json
             credentials_info = json.loads(key_json)
             _gcp_storage_client = storage.Client.from_service_account_info(credentials_info)
-            print(f"✅ GCP client initialized from JSON credentials")
+            logger.info("GCP client initialized from JSON credentials")
         elif key_path and os.path.exists(key_path):
             _gcp_storage_client = storage.Client.from_service_account_json(key_path)
-            print(f"✅ GCP client initialized from key file: {key_path}")
+            logger.info(f"GCP client initialized from key file: {key_path}")
         else:
             raise ValueError(
                 "GCP credentials not configured for development. "
@@ -67,7 +70,7 @@ def get_gcp_storage_client():
     except ImportError:
         raise ImportError("google-cloud-storage package not installed. Run: pip install google-cloud-storage")
     except Exception as e:
-        print(f"❌ Failed to create GCP storage client: {e}")
+        logger.error(f"Failed to create GCP storage client: {e}")
         raise
 
 
@@ -89,7 +92,7 @@ async def _generate_signed_url_sidecar(
 ) -> Optional[str]:
     """Generate signed URL using Replit sidecar (production only)."""
     try:
-        expires_at = (datetime.utcnow() + timedelta(minutes=expires_minutes)).isoformat() + "Z"
+        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)).isoformat() + "Z"
         request_data = {
             "bucket_name": bucket_name,
             "object_name": object_name,
@@ -108,11 +111,11 @@ async def _generate_signed_url_sidecar(
                 result = response.json()
                 return result.get("signed_url")
             else:
-                print(f"❌ Sidecar error: {response.status_code} - {response.text}")
+                logger.error(f"Sidecar error: {response.status_code} - {response.text}")
                 return None
 
     except Exception as e:
-        print(f"❌ Error calling sidecar: {e}")
+        logger.error(f"Error calling sidecar: {e}")
         return None
 
 
@@ -137,9 +140,7 @@ def _generate_signed_url_gcp(
         return url
 
     except Exception as e:
-        print(f"❌ Error generating signed URL via GCP SDK: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error generating signed URL via GCP SDK: {e}", exc_info=True)
         return None
 
 
@@ -156,13 +157,13 @@ async def generate_signed_url(
     - Development (local): GCP SDK → dev bucket
     - Production (Replit): Sidecar → prod bucket
     """
-    print(f"🔐 Generating signed URL: bucket={bucket_name}, object={object_name}, method={method}")
+    logger.debug(f"Generating signed URL: bucket={bucket_name}, object={object_name}, method={method}")
 
     if use_gcp_direct():
-        print(f"🔧 [DEV] Using GCP SDK directly → {bucket_name}")
+        logger.debug(f"[DEV] Using GCP SDK directly -> {bucket_name}")
         return _generate_signed_url_gcp(bucket_name, object_name, method, expires_minutes)
     else:
-        print(f"📡 [PROD] Using Replit sidecar → {bucket_name}")
+        logger.debug(f"[PROD] Using Replit sidecar -> {bucket_name}")
         return await _generate_signed_url_sidecar(bucket_name, object_name, method, expires_minutes)
 
 
@@ -185,7 +186,7 @@ def get_storage_config() -> dict:
         "use_gcp_direct": use_gcp_direct(),
     }
 
-    print(f"📦 Storage config: bucket={bucket_id}, env={'dev' if settings.is_development else 'prod'}, gcp_direct={config['use_gcp_direct']}")
+    logger.debug(f"Storage config: bucket={bucket_id}, env={'dev' if settings.is_development else 'prod'}, gcp_direct={config['use_gcp_direct']}")
 
     return config
 

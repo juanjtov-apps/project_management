@@ -195,7 +195,7 @@ async def delete_project(
             if hasattr(existing_project, 'company_id'):
                 project_company_id = str(getattr(existing_project, 'company_id', None) or '')
             else:
-                project_dict = existing_project.dict(by_alias=False) if hasattr(existing_project, 'dict') else {}
+                project_dict = existing_project.model_dump(by_alias=False) if hasattr(existing_project, 'model_dump') else {}
                 project_company_id = str(project_dict.get('company_id', ''))
             if project_company_id != user_company_id:
                 raise HTTPException(

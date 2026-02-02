@@ -2,7 +2,7 @@
 Database repositories for data access.
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from src.database.connection import db_manager
 from src.models import (
@@ -81,10 +81,10 @@ class ProjectRepository(BaseRepository):
     async def create(self, project: ProjectCreate, company_id: Optional[str] = None) -> Project:
         """Create a new project."""
         project_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Get data with aliases first, then convert
-        data = project.dict(by_alias=True)
+        data = project.model_dump(by_alias=True)
         data = self._convert_from_camel_case(data)
         
         # Use provided company_id parameter, or get from model, or get from data
@@ -125,7 +125,7 @@ class ProjectRepository(BaseRepository):
     
     async def update(self, project_id: str, project_update: ProjectUpdate) -> Optional[Project]:
         """Update an existing project."""
-        data = project_update.dict(exclude_unset=True, by_alias=True)
+        data = project_update.model_dump(exclude_unset=True, by_alias=True)
         data = self._convert_from_camel_case(data)
         
         if not data:
@@ -401,9 +401,9 @@ class TaskRepository(BaseRepository):
     async def create(self, task: TaskCreate) -> Task:
         """Create a new task."""
         task_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
-        data = task.dict(by_alias=True)
+        data = task.model_dump(by_alias=True)
         data = self._convert_from_camel_case(data)
         
         # Normalize status value (e.g., 'done' -> 'completed')
@@ -439,7 +439,7 @@ class TaskRepository(BaseRepository):
     
     async def update(self, task_id: str, task_update: TaskUpdate) -> Optional[Task]:
         """Update an existing task."""
-        data = task_update.dict(exclude_unset=True, by_alias=True)
+        data = task_update.model_dump(exclude_unset=True, by_alias=True)
         data = self._convert_from_camel_case(data)
         
         if not data:
@@ -546,9 +546,9 @@ class PhotoRepository(BaseRepository):
     async def create(self, photo: PhotoCreate, filename: str, original_name: str) -> Photo:
         """Create a new photo record."""
         photo_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
-        data = photo.dict(by_alias=True)
+        data = photo.model_dump(by_alias=True)
         data = self._convert_from_camel_case(data)
         
         # Get tags from the photo data, default to empty list
@@ -715,9 +715,9 @@ class ScheduleChangeRepository(BaseRepository):
     async def create(self, change: ScheduleChangeCreate) -> ScheduleChange:
         """Create a new schedule change."""
         change_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
-        data = change.dict(by_alias=True)
+        data = change.model_dump(by_alias=True)
         data = self._convert_from_camel_case(data)
         
         # Convert timezone-aware dates to timezone-naive UTC
@@ -747,7 +747,7 @@ class ScheduleChangeRepository(BaseRepository):
     
     async def update(self, change_id: str, change_update: ScheduleChangeUpdate) -> Optional[ScheduleChange]:
         """Update an existing schedule change."""
-        data = change_update.dict(exclude_unset=True, by_alias=True)
+        data = change_update.model_dump(exclude_unset=True, by_alias=True)
         data = self._convert_from_camel_case(data)
         
         if not data:
@@ -892,7 +892,7 @@ class SubcontractorAssignmentRepository(BaseRepository):
         """Create a new subcontractor assignment."""
         from ..models.subcontractor_assignment import SubcontractorAssignment
         assignment_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         data = self._convert_from_camel_case(assignment_data)
         

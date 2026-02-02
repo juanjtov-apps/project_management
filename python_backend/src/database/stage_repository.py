@@ -3,7 +3,7 @@ Repository for project stages and templates.
 """
 import uuid
 import json
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import List, Optional, Dict, Any
 from src.database.connection import db_manager, get_db_pool
 from src.utils.data_conversion import to_camel_case, to_snake_case
@@ -147,7 +147,7 @@ class ProjectStageRepository:
         preventing unique constraint violations from concurrent operations.
         """
         stage_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Convert to snake_case for DB
         data = self._convert_from_camel_case(stage_data)
@@ -296,7 +296,7 @@ class ProjectStageRepository:
 
         for item in items:
             stage_id = str(uuid.uuid4())
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
 
             # Calculate dates based on duration
             planned_start = current_date
@@ -379,7 +379,7 @@ class ProjectStageRepository:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             async with conn.transaction():
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
 
                 # Create material areas (one per unique area_name)
                 for sort_order, area_name in enumerate(sorted(areas_needed)):

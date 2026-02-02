@@ -5,6 +5,7 @@ from datetime import datetime, date
 from urllib.parse import urlparse, unquote
 from uuid import UUID
 import asyncpg
+from asyncpg.exceptions import UniqueViolationError, ForeignKeyViolationError
 import json
 import re
 
@@ -1715,15 +1716,21 @@ async def create_payment_schedule(
         )
 
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            """INSERT INTO client_portal.payment_schedules 
-               (project_id, title, notes, created_by, updated_by) 
-               VALUES ($1, $2, $3, $4, $5) 
-               RETURNING *""",
-            data.project_id, data.title, data.notes, 
-            current_user['id'], current_user['id']
-        )
-        return dict(row)
+        try:
+            row = await conn.fetchrow(
+                """INSERT INTO client_portal.payment_schedules
+                   (project_id, title, notes, created_by, updated_by)
+                   VALUES ($1, $2, $3, $4, $5)
+                   RETURNING *""",
+                data.project_id, data.title, data.notes,
+                current_user['id'], current_user['id']
+            )
+            return dict(row)
+        except UniqueViolationError:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A payment schedule with this title already exists for this project"
+            )
 
 @router.get("/payment-schedules")
 async def get_payment_schedules(
@@ -1784,13 +1791,24 @@ async def update_payment_schedule(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
         
         values.extend([current_user['id'], schedule_id])
-        query = f"""UPDATE client_portal.payment_schedules 
-                   SET {', '.join(updates)}, updated_by = ${param_count}, updated_at = NOW() 
-                   WHERE id = ${param_count + 1} 
+        query = f"""UPDATE client_portal.payment_schedules
+                   SET {', '.join(updates)}, updated_by = ${param_count}, updated_at = NOW()
+                   WHERE id = ${param_count + 1}
                    RETURNING *"""
-        
-        row = await conn.fetchrow(query, *values)
-        return dict(row)
+
+        try:
+            row = await conn.fetchrow(query, *values)
+            if not row:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Schedule not found or was deleted"
+                )
+            return dict(row)
+        except UniqueViolationError:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A payment schedule with this title already exists for this project"
+            )
 
 # ============================================================================
 # PAYMENT INSTALLMENTS
@@ -1813,36 +1831,43 @@ async def create_payment_installment(
         )
 
     async with pool.acquire() as conn:
-        # If next_milestone is true, clear any existing next_milestone for this project
-        if data.next_milestone:
+        async with conn.transaction():
+            # If next_milestone is true, clear any existing next_milestone for this project
+            if data.next_milestone:
+                await conn.execute(
+                    """UPDATE client_portal.payment_installments
+                       SET next_milestone = FALSE
+                       WHERE project_id = $1 AND status != 'paid'""",
+                    data.project_id
+                )
+
+            try:
+                row = await conn.fetchrow(
+                    """INSERT INTO client_portal.payment_installments
+                       (project_id, schedule_id, name, description, amount, currency,
+                        due_date, status, next_milestone, display_order, created_by, updated_by)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                       RETURNING *""",
+                    data.project_id, data.schedule_id, data.name, data.description,
+                    data.amount, data.currency, data.due_date, data.status,
+                    data.next_milestone, data.display_order,
+                    current_user['id'], current_user['id']
+                )
+            except UniqueViolationError:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A next milestone already exists for this project"
+                )
+
+            # Log the event
             await conn.execute(
-                """UPDATE client_portal.payment_installments 
-                   SET next_milestone = FALSE 
-                   WHERE project_id = $1 AND status != 'paid'""",
-                data.project_id
+                """INSERT INTO client_portal.payment_events
+                   (project_id, actor_id, entity_type, entity_id, action)
+                   VALUES ($1, $2, 'installment', $3, 'created')""",
+                data.project_id, current_user['id'], row['id']
             )
-        
-        row = await conn.fetchrow(
-            """INSERT INTO client_portal.payment_installments 
-               (project_id, schedule_id, name, description, amount, currency, 
-                due_date, status, next_milestone, display_order, created_by, updated_by) 
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
-               RETURNING *""",
-            data.project_id, data.schedule_id, data.name, data.description, 
-            data.amount, data.currency, data.due_date, data.status,
-            data.next_milestone, data.display_order, 
-            current_user['id'], current_user['id']
-        )
-        
-        # Log the event
-        await conn.execute(
-            """INSERT INTO client_portal.payment_events 
-               (project_id, actor_id, entity_type, entity_id, action) 
-               VALUES ($1, $2, 'installment', $3, 'created')""",
-            data.project_id, current_user['id'], row['id']
-        )
-        
-        return dict(row)
+
+            return dict(row)
 
 @router.get("/payment-installments")
 async def get_payment_installments(
@@ -1909,78 +1934,89 @@ async def update_payment_installment(
                 detail="Clients cannot edit payment installments"
             )
 
-        # If next_milestone is being set to true, clear others
-        if update.next_milestone:
-            await conn.execute(
-                """UPDATE client_portal.payment_installments 
-                   SET next_milestone = FALSE 
-                   WHERE project_id = $1 AND id != $2 AND status != 'paid'""",
-                installment['project_id'], installment_id
-            )
-        
-        updates = []
-        values = []
-        param_count = 1
-        diff = {}
-        
-        if update.name is not None:
-            updates.append(f"name = ${param_count}")
-            values.append(update.name)
-            diff['name'] = {'old': installment['name'], 'new': update.name}
-            param_count += 1
-        if update.description is not None:
-            updates.append(f"description = ${param_count}")
-            values.append(update.description)
-            param_count += 1
-        if update.amount is not None:
-            updates.append(f"amount = ${param_count}")
-            values.append(update.amount)
-            diff['amount'] = {'old': str(installment['amount']), 'new': str(update.amount)}
-            param_count += 1
-        if update.currency is not None:
-            updates.append(f"currency = ${param_count}")
-            values.append(update.currency)
-            param_count += 1
-        if update.due_date is not None:
-            updates.append(f"due_date = ${param_count}")
-            values.append(update.due_date)
-            param_count += 1
-        if update.status is not None:
-            updates.append(f"status = ${param_count}")
-            values.append(update.status)
-            diff['status'] = {'old': installment['status'], 'new': update.status}
-            param_count += 1
-        if update.next_milestone is not None:
-            updates.append(f"next_milestone = ${param_count}")
-            values.append(update.next_milestone)
-            param_count += 1
-        if update.display_order is not None:
-            updates.append(f"display_order = ${param_count}")
-            values.append(update.display_order)
-            param_count += 1
-        
-        if not updates:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
-        
-        values.extend([current_user['id'], installment_id])
-        query = f"""UPDATE client_portal.payment_installments 
-                   SET {', '.join(updates)}, updated_by = ${param_count}, updated_at = NOW() 
-                   WHERE id = ${param_count + 1} 
-                   RETURNING *"""
-        
-        row = await conn.fetchrow(query, *values)
-        
-        # Log status changes
-        if 'status' in diff:
-            import json
-            await conn.execute(
-                """INSERT INTO client_portal.payment_events 
-                   (project_id, actor_id, entity_type, entity_id, action, diff) 
-                   VALUES ($1, $2, 'installment', $3, 'status_changed', $4)""",
-                installment['project_id'], current_user['id'], installment_id, json.dumps(diff)
-            )
-        
-        return dict(row)
+        async with conn.transaction():
+            # If next_milestone is being set to true, clear others
+            if update.next_milestone:
+                await conn.execute(
+                    """UPDATE client_portal.payment_installments
+                       SET next_milestone = FALSE
+                       WHERE project_id = $1 AND id != $2 AND status != 'paid'""",
+                    installment['project_id'], installment_id
+                )
+
+            updates = []
+            values = []
+            param_count = 1
+            diff = {}
+
+            if update.name is not None:
+                updates.append(f"name = ${param_count}")
+                values.append(update.name)
+                diff['name'] = {'old': installment['name'], 'new': update.name}
+                param_count += 1
+            if update.description is not None:
+                updates.append(f"description = ${param_count}")
+                values.append(update.description)
+                param_count += 1
+            if update.amount is not None:
+                updates.append(f"amount = ${param_count}")
+                values.append(update.amount)
+                diff['amount'] = {'old': str(installment['amount']), 'new': str(update.amount)}
+                param_count += 1
+            if update.currency is not None:
+                updates.append(f"currency = ${param_count}")
+                values.append(update.currency)
+                param_count += 1
+            if update.due_date is not None:
+                updates.append(f"due_date = ${param_count}")
+                values.append(update.due_date)
+                param_count += 1
+            if update.status is not None:
+                updates.append(f"status = ${param_count}")
+                values.append(update.status)
+                diff['status'] = {'old': installment['status'], 'new': update.status}
+                param_count += 1
+            if update.next_milestone is not None:
+                updates.append(f"next_milestone = ${param_count}")
+                values.append(update.next_milestone)
+                param_count += 1
+            if update.display_order is not None:
+                updates.append(f"display_order = ${param_count}")
+                values.append(update.display_order)
+                param_count += 1
+
+            if not updates:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+
+            values.extend([current_user['id'], installment_id])
+            query = f"""UPDATE client_portal.payment_installments
+                       SET {', '.join(updates)}, updated_by = ${param_count}, updated_at = NOW()
+                       WHERE id = ${param_count + 1}
+                       RETURNING *"""
+
+            try:
+                row = await conn.fetchrow(query, *values)
+                if not row:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Installment not found or was deleted"
+                    )
+            except UniqueViolationError:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A next milestone already exists for this project"
+                )
+
+            # Log status changes
+            if 'status' in diff:
+                await conn.execute(
+                    """INSERT INTO client_portal.payment_events
+                       (project_id, actor_id, entity_type, entity_id, action, diff)
+                       VALUES ($1, $2, 'installment', $3, 'status_changed', $4)""",
+                    installment['project_id'], current_user['id'], installment_id, json.dumps(diff)
+                )
+
+            return dict(row)
 
 # ============================================================================
 # PAYMENT DOCUMENTS
