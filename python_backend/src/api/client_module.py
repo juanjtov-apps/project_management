@@ -590,7 +590,28 @@ async def update_issue(
             issue_snapshot=issue_data
         )
 
-        return issue_data
+    # Send notification when issue is closed
+    if is_resolving:
+        # Build resolver name from available fields
+        resolver_name = current_user.get('name')
+        if not resolver_name:
+            first = current_user.get('first_name', '')
+            last = current_user.get('last_name', '')
+            resolver_name = f"{first} {last}".strip()
+        if not resolver_name:
+            resolver_name = current_user.get('email', 'a user')
+
+        await notify_pms_and_admins(
+            pool=pool,
+            project_id=issue['project_id'],
+            notification_type='issue_created',  # Using existing type - title indicates it's resolved
+            source_kind='issue',
+            source_id=issue_id,
+            title=f"Issue Resolved: {issue['title'][:50]}",
+            body=f"Marked as resolved by {resolver_name}"
+        )
+
+    return issue_data
 
 
 @router.put("/client-issues/{issue_id}")
@@ -667,7 +688,20 @@ async def edit_issue(
             issue_snapshot=issue_data
         )
 
-        return issue_data
+    # Send notification to PMs/admins if editor is a client
+    if is_client_role(current_user):
+        changed_fields = list(changes.get("new", {}).keys())
+        await notify_pms_and_admins(
+            pool=pool,
+            project_id=issue['project_id'],
+            notification_type='issue_created',  # Using existing type - title indicates it's an update
+            source_kind='issue',
+            source_id=issue_id,
+            title=f"Issue Updated: {issue['title'][:50]}",
+            body=f"Fields changed: {', '.join(changed_fields)}" if changed_fields else None
+        )
+
+    return issue_data
 
 
 @router.delete("/client-issues/{issue_id}")
