@@ -6,7 +6,8 @@ Supports multi-environment operation:
 - Production (Replit): Uses sidecar → prod bucket
 """
 import uuid
-from fastapi import APIRouter, HTTPException, status
+from typing import Dict, Any
+from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
@@ -16,6 +17,7 @@ from ..core.storage import (
     generate_signed_url,
     get_object_path,
 )
+from .auth import get_current_user_dependency
 
 router = APIRouter(prefix="/objects", tags=["objects"])
 
@@ -37,8 +39,6 @@ def get_storage_config():
 async def get_object_image(object_id: str):
     """Get an image from object storage by object ID (generates GCS signed URL)."""
     try:
-        print(f"🖼️ [GCS] Generating signed URL for object: {object_id}")
-
         # Get storage configuration
         config = get_storage_config()
         bucket_id = config["bucket_id"]
@@ -53,17 +53,12 @@ async def get_object_image(object_id: str):
         # Construct the object path
         object_path = get_object_path(object_id, clean_private_dir)
 
-        print(f"📂 [GCS] Bucket: {bucket_id}")
-        print(f"📂 [GCS] Object path: {object_path}")
-
         # Generate signed URL (uses GCP SDK in dev, sidecar in prod)
         signed_url = await generate_signed_url(bucket_id, object_path, method="GET", expires_minutes=60)
 
         if signed_url:
-            print(f"✅ [GCS] Generated signed URL successfully")
             return RedirectResponse(url=signed_url, status_code=302)
         else:
-            print(f"❌ [GCS] Failed to create signed URL for object: {object_id}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Object not found in GCS bucket: {object_id}"
@@ -72,9 +67,6 @@ async def get_object_image(object_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ [GCS] Error serving object image {object_id}: {e}")
-        import traceback
-        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to serve object from GCS: {str(e)}"
@@ -85,8 +77,13 @@ class DownloadRequest(BaseModel):
 
 
 @router.post("/upload")
-async def get_upload_url():
-    """Get a signed upload URL for object storage."""
+async def get_upload_url(
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Get signed URLs for upload and preview, plus the object path for storage.
+
+    Requires authentication to prevent unauthorized file uploads.
+    """
     try:
         config = get_storage_config()
         bucket_id = config["bucket_id"]
@@ -102,25 +99,27 @@ async def get_upload_url():
         object_id = str(uuid.uuid4())
         object_path = get_object_path(object_id, clean_private_dir)
 
-        print(f"📤 [UPLOAD] Generated object path: {object_path}")
-
-        # Generate signed URL for PUT (upload)
+        # Generate signed URL for PUT (upload) - 15 min expiry
         upload_url = await generate_signed_url(bucket_id, object_path, method="PUT", expires_minutes=15)
 
-        if upload_url:
-            return {"uploadURL": upload_url}
+        # Generate signed URL for GET (preview) - 60 min expiry
+        preview_url = await generate_signed_url(bucket_id, object_path, method="GET", expires_minutes=60)
+
+        if upload_url and preview_url:
+            return {
+                "uploadURL": upload_url,
+                "previewURL": preview_url,
+                "objectPath": object_path
+            }
         else:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to generate upload URL"
+                detail="Failed to generate upload URLs"
             )
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error getting upload URL: {e}")
-        import traceback
-        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get upload URL"
@@ -154,8 +153,6 @@ async def get_download_url(request: DownloadRequest):
         else:
             object_path = normalized_path
 
-        print(f"📥 [DOWNLOAD] Object path: {object_path}")
-
         # Generate signed URL for GET (download)
         download_url = await generate_signed_url(bucket_id, object_path, method="GET", expires_minutes=15)
 
@@ -170,9 +167,6 @@ async def get_download_url(request: DownloadRequest):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error getting download URL: {e}")
-        import traceback
-        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get download URL"

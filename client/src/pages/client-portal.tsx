@@ -277,7 +277,7 @@ export default function ClientPortal() {
           {/* Only render payments tab content if user has permission */}
           {userPermissions.clientPortalPayments && (
             <TabsContent value="installments">
-              <PaymentsTab projectId={selectedProject} />
+              <PaymentsTab projectId={selectedProject} isClient={isClient} />
             </TabsContent>
           )}
         </Tabs>
