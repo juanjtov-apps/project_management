@@ -335,6 +335,9 @@ async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
                     user_row = await conn.fetchrow(query, user_id)
                     if user_row:
                         user_data = dict(user_row)
+                        # Ensure role is set from role_name for compatibility
+                        if 'role_name' in user_data and 'role' not in user_data:
+                            user_data['role'] = user_data['role_name']
                         # Initialize current_organization_id if not in session
                         current_org_id = data.get("current_organization_id")
                         if current_org_id is None:

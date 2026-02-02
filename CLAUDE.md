@@ -27,6 +27,37 @@ Browser → Node.js (port 5000) → FastAPI (port 8000) → PostgreSQL
    - All RBAC checks and business logic
    - All API endpoints at `/api/v1/*`
 
+## Database Schemas
+
+The database uses two PostgreSQL schemas:
+
+### `public` Schema (Core Business Logic)
+
+| Table | Purpose |
+|-------|---------|
+| `companies` | Multi-tenant company entities |
+| `users` | User accounts with role assignments |
+| `projects` | Construction projects |
+| `tasks` | Project tasks/punch list items |
+| `roles` | Role definitions (6 templates) |
+| `permissions` | 26 granular permissions |
+| `role_permissions` | Role-to-permission mappings |
+| `audit_logs` | System-wide audit trail |
+| `sessions` | User session management |
+
+### `client_portal` Schema (Client-Facing Features)
+
+| Feature | Tables |
+|---------|--------|
+| Issues | `issues`, `issue_comments`, `issue_attachments`, `issue_audit_log` |
+| Forum | `forum_threads`, `forum_messages`, `forum_attachments` |
+| Materials | `material_areas`, `material_items`, `material_templates` |
+| Payments | `payment_schedules`, `payment_installments`, `invoices`, `payment_receipts`, `payment_documents` |
+| Stages | `project_stages`, `stage_templates`, `stage_template_items` |
+| Notifications | `pm_notifications`, `pm_notification_prefs` |
+
+**Schema initialization:** `python_backend/src/database/init_client_portal.py`
+
 ## Development Commands
 
 ### Start Both Servers
@@ -115,12 +146,17 @@ All RBAC operations are in FastAPI (`python_backend/src/api/v1/rbac.py`):
 
 ## Environment Variables
 
-Required:
-- `DATABASE_URL` - PostgreSQL connection string
+### Required
+- `DATABASE_URL_DEV` - Neon PostgreSQL for development
+- `DATABASE_URL_PROD` - Neon PostgreSQL for production (Replit)
+- `DATABASE_URL` - Fallback PostgreSQL connection string
 - `SESSION_SECRET` - Secret for session encryption
 
-Optional (Cloud SQL):
+### Optional (Legacy Cloud SQL)
 - `DB_SSL_DIR` - Directory with SSL certificates
+- `DB_SSL_ROOT_CERT`, `DB_SSL_CERT`, `DB_SSL_KEY` - Individual cert paths
+
+**Note:** Development and production both use Neon PostgreSQL. Cloud SQL configuration is retained for legacy compatibility but is not actively used.
 
 ## GCS Photo Upload Pattern
 

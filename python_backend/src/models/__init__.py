@@ -9,7 +9,6 @@ from .photo import *
 from .log import *
 from .notification import *
 from .schedule_change import *
-from .client_module import *
 from .stage import (
     StageStatus,
     TemplateCategory,
@@ -91,17 +90,6 @@ __all__ = [
     "ScheduleChange", 
     "ScheduleChangeCreate",
     "ScheduleChangeUpdate",
-
-    # Client module models
-    "IssueStatus",
-    "IssueBase",
-    "IssueCreate",
-    "Issue",
-    "ForumMessage",
-    "MaterialItem",
-    "Installment",
-    "FrequencyUnit",
-    "NotificationSetting",
 
     # Stage models
     "StageStatus",

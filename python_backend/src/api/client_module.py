@@ -531,18 +531,29 @@ async def update_issue(
 ):
     """Update issue status."""
     async with pool.acquire() as conn:
-        # Get issue to verify project access
+        # Get current issue state for audit log
         issue = await conn.fetchrow(
-            "SELECT project_id FROM client_portal.issues WHERE id = $1",
+            "SELECT * FROM client_portal.issues WHERE id = $1",
             issue_id
         )
         if not issue:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
-        
+
         await verify_project_access(issue['project_id'], current_user, pool)
+
+        old_status = issue['status']
 
         # Check if this is a close/resolve action
         is_resolving = status_update.lower() in ('closed', 'resolved')
+
+        # If reopening a closed issue, only admins can do it
+        user_role = str(current_user.get('role', '')).lower()
+        if not is_resolving and old_status == 'closed':
+            if user_role != 'admin':
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only admins can reopen closed issues"
+                )
 
         if is_resolving:
             # Update with resolution info
@@ -566,7 +577,20 @@ async def update_issue(
                 issue_id
             )
 
-        return dict(row)
+        issue_data = dict(row)
+
+        # Log the status change in audit log
+        await log_issue_action(
+            conn=conn,
+            issue_id=issue_id,
+            project_id=issue['project_id'],
+            action='edited',
+            actor_id=current_user['id'],
+            changes={'status': {'old': old_status, 'new': status_update}},
+            issue_snapshot=issue_data
+        )
+
+        return issue_data
 
 
 @router.put("/client-issues/{issue_id}")
@@ -788,6 +812,49 @@ async def delete_issue_photo(
         )
 
         return {"success": True, "message": "Photo deleted successfully"}
+
+
+@router.get("/client-issues/{issue_id}/history")
+async def get_issue_history(
+    issue_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Get audit history for an issue. Only admins and project managers can view."""
+    # Check if user is admin or project manager
+    user_role = str(current_user.get('role', '')).lower()
+    if user_role not in ('admin', 'project_manager'):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins and project managers can view issue history"
+        )
+
+    async with pool.acquire() as conn:
+        # Get the issue to verify project access
+        issue = await conn.fetchrow("SELECT project_id FROM client_portal.issues WHERE id = $1", issue_id)
+        if not issue:
+            raise HTTPException(status_code=404, detail="Issue not found")
+        await verify_project_access(issue['project_id'], current_user, pool)
+
+        # Get audit log entries with actor name
+        rows = await conn.fetch(
+            """SELECT
+                   l.id,
+                   l.issue_id,
+                   l.action,
+                   l.changes,
+                   l.issue_snapshot,
+                   l.created_at,
+                   l.actor_id,
+                   COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name)) as actor_name
+               FROM client_portal.issue_audit_log l
+               LEFT JOIN public.users u ON l.actor_id = u.id
+               WHERE l.issue_id = $1
+               ORDER BY l.created_at DESC""",
+            issue_id
+        )
+
+        return [dict(row) for row in rows]
 
 
 @router.get("/client-issues/{issue_id}/comments")

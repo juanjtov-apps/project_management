@@ -68,9 +68,10 @@ All backend logic, including RBAC, is now handled exclusively by FastAPI:
 - **Migration Status**: ✅ All RBAC operations migrated from Node.js to FastAPI
 
 ### Database
-- **Type**: PostgreSQL (Neon serverless for production, Cloud SQL for development)
+- **Type**: PostgreSQL (Neon serverless for both development and production)
 - **ORM**: Drizzle ORM for type-safe operations
 - **Connection**: Automatic SSL detection and configuration
+- **Schemas**: `public` (core business logic) and `client_portal` (client-facing features)
 
 ## ✨ Key Features
 
@@ -172,24 +173,22 @@ pip install -r requirements.txt
 Create a `.env` file in the project root:
 
 ```bash
-# Database Configuration
-DATABASE_URL="postgresql://user:password@host:5432/dbname?sslmode=require"
-
-# For Cloud SQL (development) - optional SSL certificates
-DB_SSL_DIR="/path/to/ssl/certificates"
-# OR individual paths:
-# DB_SSL_ROOT_CERT="/path/to/server-ca.pem"
-# DB_SSL_CERT="/path/to/client-cert.pem"
-# DB_SSL_KEY="/path/to/client-key.pem"
+# Database Configuration (Neon PostgreSQL)
+DATABASE_URL_DEV="postgresql://user:password@ep-xxx.neon.tech/dbname?sslmode=require"
+DATABASE_URL_PROD="postgresql://user:password@ep-yyy.neon.tech/dbname?sslmode=require"
+DATABASE_URL="postgresql://user:password@ep-xxx.neon.tech/dbname?sslmode=require"  # Fallback
 
 # Node.js Server Configuration
 PORT=5000
-NODE_ENV=development
+NODE_ENV=development  # Use 'production' for prod database
 SESSION_SECRET="your-secret-key-here"  # Generate with: openssl rand -hex 32
 
 # Optional: Replit Auth (if using)
 # REPLIT_DOMAINS="your-domain.replit.app"
 # REPL_ID="your-repl-id"
+
+# Legacy: Cloud SQL SSL certificates (not needed for Neon)
+# DB_SSL_DIR="/path/to/ssl/certificates"
 ```
 
 **Generate SESSION_SECRET:**
@@ -379,24 +378,36 @@ FastAPI provides automatic OpenAPI documentation:
 
 ## 🗄️ Database Configuration
 
-The system supports two database configurations with automatic detection:
+The system uses **Neon PostgreSQL** for both development and production:
 
-### Neon (Production)
+### Neon (Primary - Both Environments)
 ```bash
+# Development
+export DATABASE_URL_DEV="postgresql://user:password@ep-xxx.neon.tech/dbname?sslmode=require"
+
+# Production (Replit)
+export DATABASE_URL_PROD="postgresql://user:password@ep-yyy.neon.tech/dbname?sslmode=require"
+
+# Fallback
 export DATABASE_URL="postgresql://user:password@xxx.neon.tech/dbname?sslmode=require"
 ```
-- Simple SSL connection
+- Simple SSL connection (`sslmode=require`)
 - No certificate files needed
 - Automatically detected from `neon.tech` in URL
 
-### Cloud SQL (Development)
+### Database Schemas
+
+| Schema | Purpose |
+|--------|---------|
+| `public` | Core business logic (users, projects, tasks, RBAC) |
+| `client_portal` | Client-facing features (issues, forum, materials, payments, stages) |
+
+### Legacy: Cloud SQL (Optional)
 ```bash
 export DATABASE_URL="postgresql://user:password@PUBLIC_IP:5432/dbname"
 export DB_SSL_DIR="/path/to/ssl/certificates"
 ```
-- Full SSL certificate authentication
-- Requires `server-ca.pem` at minimum
-- Client certificates recommended
+- Full SSL certificate authentication (legacy, not actively used)
 
 See [DATABASE_CONFIGURATION.md](./DATABASE_CONFIGURATION.md) for detailed configuration.
 
@@ -531,13 +542,15 @@ lsof -ti:8000 | xargs kill
 
 | Variable | Required | Description | Default |
 |----------|----------|-------------|---------|
-| `DATABASE_URL` | ✅ Yes | PostgreSQL connection string | - |
-| `DB_SSL_DIR` | Cloud SQL | Directory with SSL certificates | - |
-| `DB_SSL_ROOT_CERT` | Cloud SQL | Path to server-ca.pem | - |
-| `DB_SSL_CERT` | Cloud SQL | Path to client-cert.pem | - |
-| `DB_SSL_KEY` | Cloud SQL | Path to client-key.pem | - |
+| `DATABASE_URL_DEV` | ✅ Dev | Neon PostgreSQL for development | - |
+| `DATABASE_URL_PROD` | ✅ Prod | Neon PostgreSQL for production (Replit) | - |
+| `DATABASE_URL` | Fallback | PostgreSQL connection string (fallback) | - |
+| `DB_SSL_DIR` | Legacy | Directory with SSL certificates (Cloud SQL) | - |
+| `DB_SSL_ROOT_CERT` | Legacy | Path to server-ca.pem (Cloud SQL) | - |
+| `DB_SSL_CERT` | Legacy | Path to client-cert.pem (Cloud SQL) | - |
+| `DB_SSL_KEY` | Legacy | Path to client-key.pem (Cloud SQL) | - |
 | `PORT` | No | Node.js server port | 5000 |
-| `NODE_ENV` | No | Environment mode | development |
+| `NODE_ENV` | No | Environment mode (selects DEV/PROD URL) | development |
 | `SESSION_SECRET` | ✅ Yes | Secret for session encryption | - |
 | `REPLIT_DOMAINS` | Optional | Comma-separated domains for Replit auth | - |
 | `REPL_ID` | Optional | Replit ID for OIDC | - |

@@ -1,74 +1,67 @@
 # Database Configuration Guide
 
-This project supports two database configurations:
-- **Neon** (Production) - Serverless PostgreSQL
-- **Cloud SQL** (Development) - Google Cloud SQL with SSL certificates
+This project uses **Neon PostgreSQL** for both development and production environments.
 
-## Automatic Detection
+## Primary Configuration: Neon
 
-Both the Python backend and Node.js server automatically detect which database you're using based on:
-
-1. **Neon Detection**: If `DATABASE_URL` contains `neon.tech`
-2. **Cloud SQL Detection**: If SSL certificates are provided OR `DATABASE_URL` contains `cloudsql` or `gcp`
-
-## Configuration
-
-### For Neon (Production)
+Both development and production use Neon serverless PostgreSQL:
 
 ```bash
-# Only DATABASE_URL is needed
+# Development
+export DATABASE_URL_DEV="postgresql://user:password@ep-xxx.neon.tech/dbname?sslmode=require"
+
+# Production (Replit)
+export DATABASE_URL_PROD="postgresql://user:password@ep-yyy.neon.tech/dbname?sslmode=require"
+
+# Fallback
 export DATABASE_URL="postgresql://user:password@xxx.neon.tech/dbname?sslmode=require"
 ```
 
-The system will automatically:
-- Use simple SSL mode (`rejectUnauthorized: false` for Node.js, `'require'` for Python)
-- Connect without certificate files
+The system automatically:
+- Selects `DATABASE_URL_DEV` when `NODE_ENV=development`
+- Selects `DATABASE_URL_PROD` when `NODE_ENV=production`
+- Falls back to `DATABASE_URL` if specific env not set
+- Uses `sslmode=require` for Neon connections
 
-### For Cloud SQL (Development)
+## Database Schemas
 
-You need to provide SSL certificates. Two options:
+The database uses two PostgreSQL schemas:
 
-**Option 1: Certificate Directory (Recommended)**
-```bash
-export DATABASE_URL="postgresql://user:password@PUBLIC_IP:5432/dbname"
-export DB_SSL_DIR="/path/to/ssl/certificates"
-```
+### `public` Schema (Core Business Logic)
 
-The directory should contain:
-- `server-ca.pem` (required)
-- `client-cert.pem` (optional but recommended)
-- `client-key.pem` (optional but recommended)
+| Table | Purpose |
+|-------|---------|
+| `companies` | Multi-tenant company entities |
+| `users` | User accounts with role assignments |
+| `projects` | Construction projects |
+| `tasks` | Project tasks/punch list items |
+| `roles` | Role definitions (6 templates) |
+| `permissions` | 26 granular permissions |
+| `role_permissions` | Role-to-permission mappings |
+| `audit_logs` | System-wide audit trail |
+| `sessions` | User session management |
 
-**Option 2: Individual Certificate Paths**
-```bash
-export DATABASE_URL="postgresql://user:password@PUBLIC_IP:5432/dbname"
-export DB_SSL_ROOT_CERT="/path/to/server-ca.pem"
-export DB_SSL_CERT="/path/to/client-cert.pem"
-export DB_SSL_KEY="/path/to/client-key.pem"
-```
+### `client_portal` Schema (Client-Facing Features)
+
+| Feature | Tables |
+|---------|--------|
+| Issues | `issues`, `issue_comments`, `issue_attachments`, `issue_audit_log` |
+| Forum | `forum_threads`, `forum_messages`, `forum_attachments` |
+| Materials | `material_areas`, `material_items`, `material_templates` |
+| Payments | `payment_schedules`, `payment_installments`, `invoices`, `payment_receipts`, `payment_documents` |
+| Stages | `project_stages`, `stage_templates`, `stage_template_items` |
+| Notifications | `pm_notifications`, `pm_notification_prefs` |
+
+**Schema initialization:** `python_backend/src/database/init_client_portal.py`
 
 ## Environment Variables Summary
 
-| Variable | Required For | Description |
-|----------|-------------|-------------|
-| `DATABASE_URL` | Both | PostgreSQL connection string |
-| `DB_SSL_DIR` | Cloud SQL | Directory containing SSL certificates |
-| `DB_SSL_ROOT_CERT` | Cloud SQL | Path to server CA certificate |
-| `DB_SSL_CERT` | Cloud SQL | Path to client certificate |
-| `DB_SSL_KEY` | Cloud SQL | Path to client private key |
-
-## Connection Behavior
-
-### Neon (Production)
-- 🔵 Simple SSL connection
-- No certificate files needed
-- Automatic detection from `neon.tech` in URL
-
-### Cloud SQL (Development)
-- 🟢 Full SSL certificate authentication
-- Requires `server-ca.pem` at minimum
-- Client certificates recommended for enhanced security
-- Automatic detection from SSL env vars or URL keywords
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL_DEV` | Development | Neon PostgreSQL for development |
+| `DATABASE_URL_PROD` | Production | Neon PostgreSQL for production (Replit) |
+| `DATABASE_URL` | Fallback | PostgreSQL connection string (fallback) |
+| `NODE_ENV` | No | Determines which database URL to use |
 
 ## Testing Connections
 
@@ -80,25 +73,27 @@ python test_db_connection.py
 
 ### Node.js Server
 The server will log connection status on startup:
-- `🔵 Connecting to Neon database (production)` - Neon detected
-- `🟢 Connecting to Cloud SQL database (development)` - Cloud SQL detected
+- `🔵 Connecting to Neon database` - Neon detected
 - `✅ Database connection established` - Connection successful
 
-## Switching Between Databases
+## Legacy: Cloud SQL Configuration
 
-To switch between databases, simply change your `DATABASE_URL` environment variable:
+Cloud SQL is no longer used for development but configuration is retained for legacy compatibility:
 
-**Switch to Neon (Production):**
 ```bash
-export DATABASE_URL="postgresql://user:pass@xxx.neon.tech/dbname?sslmode=require"
-unset DB_SSL_DIR  # Remove Cloud SQL certificates
-```
-
-**Switch to Cloud SQL (Development):**
-```bash
-export DATABASE_URL="postgresql://user:pass@PUBLIC_IP:5432/dbname"
+export DATABASE_URL="postgresql://user:password@PUBLIC_IP:5432/dbname"
 export DB_SSL_DIR="/path/to/ssl/certificates"
 ```
 
-The system will automatically detect and configure the appropriate SSL settings.
+SSL certificate files required for Cloud SQL:
+- `server-ca.pem` (required)
+- `client-cert.pem` (optional)
+- `client-key.pem` (optional)
+
+| Variable | Description |
+|----------|-------------|
+| `DB_SSL_DIR` | Directory containing SSL certificates |
+| `DB_SSL_ROOT_CERT` | Path to server CA certificate |
+| `DB_SSL_CERT` | Path to client certificate |
+| `DB_SSL_KEY` | Path to client private key |
 

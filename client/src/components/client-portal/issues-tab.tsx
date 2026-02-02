@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, AlertTriangle, CheckCircle, Camera, X, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Plus, AlertTriangle, CheckCircle, Camera, X, Pencil, Trash2, Loader2, History, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -55,6 +55,17 @@ interface IssuePhoto {
   id: string;
   url: string;
   created_at: string | null;
+}
+
+interface IssueAuditEntry {
+  id: string;
+  issue_id: string;
+  action: "created" | "edited" | "deleted";
+  changes: Record<string, { old: unknown; new: unknown }> | null;
+  issue_snapshot: Record<string, unknown> | null;
+  created_at: string;
+  actor_id: string;
+  actor_name: string | null;
 }
 
 interface IssuesTabProps {
@@ -143,11 +154,125 @@ function IssuePhotos({
   );
 }
 
+// Component to display issue audit history (admin/PM only)
+function IssueHistory({ issueId }: { issueId: string }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const { data, isLoading, error } = useQuery<IssueAuditEntry[]>({
+    queryKey: [`/api/client-issues/${issueId}/history`],
+    enabled: isExpanded,
+  });
+
+  const formatAction = (action: string) => {
+    switch (action) {
+      case "created":
+        return { label: "Created", color: "bg-green-100 text-green-800" };
+      case "edited":
+        return { label: "Edited", color: "bg-blue-100 text-blue-800" };
+      case "deleted":
+        return { label: "Deleted", color: "bg-red-100 text-red-800" };
+      default:
+        return { label: action, color: "bg-gray-100 text-gray-800" };
+    }
+  };
+
+  const formatChanges = (changes: Record<string, { old: unknown; new: unknown }> | string | null) => {
+    if (!changes) return null;
+    // Handle case where changes is a JSON string (double-serialized data)
+    let parsed: Record<string, { old: unknown; new: unknown }> = {};
+    if (typeof changes === 'string') {
+      try {
+        parsed = JSON.parse(changes);
+      } catch {
+        return null;
+      }
+    } else {
+      parsed = changes;
+    }
+    return Object.entries(parsed).map(([field, value]) => {
+      const oldVal = value?.old;
+      const newVal = value?.new;
+      return (
+        <div key={field} className="text-xs text-muted-foreground ml-4">
+          <span className="font-medium">{field}:</span>{" "}
+          <span className="line-through text-red-600">{String(oldVal ?? "empty")}</span>
+          {" → "}
+          <span className="text-green-600">{String(newVal ?? "empty")}</span>
+        </div>
+      );
+    });
+  };
+
+  return (
+    <div className="mt-4 border-t pt-4">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <History className="h-4 w-4" />
+        <span>Activity History</span>
+        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+
+      {isExpanded && (
+        <div className="mt-3 space-y-3">
+          {isLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading history...
+            </div>
+          )}
+
+          {error && (
+            <div className="text-sm text-red-600">
+              Failed to load history
+            </div>
+          )}
+
+          {data && data.length === 0 && (
+            <div className="text-sm text-muted-foreground">
+              No history available
+            </div>
+          )}
+
+          {data && data.map((entry) => {
+            const actionInfo = formatAction(entry.action);
+            return (
+              <div key={entry.id} className="flex items-start gap-3 text-sm">
+                <div className="flex-shrink-0 w-2 h-2 rounded-full bg-muted-foreground mt-2" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className={`${actionInfo.color} text-xs`}>
+                      {actionInfo.label}
+                    </Badge>
+                    <span className="text-muted-foreground">
+                      by {entry.actor_name || "Unknown"}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {new Date(entry.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  {entry.action === "edited" && entry.changes && (
+                    <div className="mt-1">
+                      {formatChanges(entry.changes)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function IssuesTab({ projectId }: IssuesTabProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
   const [deleteIssueId, setDeleteIssueId] = useState<string | null>(null);
+  const [resolvingIssueId, setResolvingIssueId] = useState<string | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]); // Preview URLs for display
   const [uploadedPaths, setUploadedPaths] = useState<string[]>([]); // Object paths for storage
   const [editUploadedPhotos, setEditUploadedPhotos] = useState<string[]>([]); // Preview URLs
@@ -156,9 +281,11 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Admin and PM can delete issue photos
+  // Admin and PM can delete issue photos and view history
   const userRole = (user as { role?: string } | null)?.role;
   const canDeletePhotos = userRole === 'admin' || userRole === 'project_manager';
+  const canViewHistory = userRole === 'admin' || userRole === 'project_manager';
+  const canReopenIssues = userRole === 'admin';
 
   const form = useForm<IssueFormData>({
     resolver: zodResolver(issueSchema),
@@ -307,9 +434,34 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/client-issues?project_id=${projectId}`] });
+      setResolvingIssueId(null);
       toast({
         title: "Issue Closed",
         description: "The issue has been marked as resolved.",
+      });
+    },
+  });
+
+  // Reopen issue mutation (admin only)
+  const reopenIssueMutation = useMutation({
+    mutationFn: async (issueId: string) => {
+      const res = await apiRequest(`/api/client-issues/${issueId}?status=open`, {
+        method: "PATCH",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/client-issues?project_id=${projectId}`] });
+      toast({
+        title: "Issue Reopened",
+        description: "The issue has been reopened.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Only admins can reopen closed issues.",
+        variant: "destructive",
       });
     },
   });
@@ -672,6 +824,27 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Resolve Confirmation Dialog */}
+      <AlertDialog open={!!resolvingIssueId} onOpenChange={(open) => !open && setResolvingIssueId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark Issue as Resolved</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark this issue as resolved? This will close the issue.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => resolvingIssueId && closeIssueMutation.mutate(resolvingIssueId)}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {closeIssueMutation.isPending ? "Closing..." : "Mark Resolved"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Issues List */}
       {isLoading ? (
         <div className="text-center py-8">
@@ -744,13 +917,24 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => closeIssueMutation.mutate(issue.id)}
+                            onClick={() => setResolvingIssueId(issue.id)}
                             disabled={closeIssueMutation.isPending}
                             data-testid={`button-close-${issue.id}`}
                           >
                             Mark Resolved
                           </Button>
                         </>
+                      )}
+                      {issue.status === "closed" && canReopenIssues && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => reopenIssueMutation.mutate(issue.id)}
+                          disabled={reopenIssueMutation.isPending}
+                          data-testid={`button-reopen-${issue.id}`}
+                        >
+                          {reopenIssueMutation.isPending ? "Reopening..." : "Reopen Issue"}
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -766,6 +950,9 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
                     photoCount={issue.attachment_count || issue.photos?.length || 0}
                     canDelete={canDeletePhotos}
                   />
+
+                  {/* Activity History - Admin/PM only */}
+                  {canViewHistory && <IssueHistory issueId={issue.id} />}
                 </CardContent>
               </Card>
             );

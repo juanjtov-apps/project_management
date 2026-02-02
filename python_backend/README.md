@@ -1,6 +1,6 @@
-# Tower Flow Python Backend
+# Proesphere Python Backend
 
-A well-structured Python backend for the Tower Flow construction management system built with FastAPI.
+A well-structured Python backend for the Proesphere construction project management system built with FastAPI.
 
 ## Architecture
 
@@ -61,6 +61,37 @@ python_backend/
 - Automatic camelCase/snake_case conversion for frontend compatibility
 - Connection pooling for performance
 
+## Database Schemas
+
+The database uses two PostgreSQL schemas:
+
+### `public` Schema (Core Business Logic)
+
+| Table | Purpose |
+|-------|---------|
+| `companies` | Multi-tenant company entities |
+| `users` | User accounts with role assignments |
+| `projects` | Construction projects |
+| `tasks` | Project tasks/punch list items |
+| `roles` | Role definitions (6 templates) |
+| `permissions` | 26 granular permissions |
+| `role_permissions` | Role-to-permission mappings |
+| `audit_logs` | System-wide audit trail |
+| `sessions` | User session management |
+
+### `client_portal` Schema (Client-Facing Features)
+
+| Feature | Tables |
+|---------|--------|
+| Issues | `issues`, `issue_comments`, `issue_attachments`, `issue_audit_log` |
+| Forum | `forum_threads`, `forum_messages`, `forum_attachments` |
+| Materials | `material_areas`, `material_items`, `material_templates` |
+| Payments | `payment_schedules`, `payment_installments`, `invoices`, `payment_receipts`, `payment_documents` |
+| Stages | `project_stages`, `stage_templates`, `stage_template_items` |
+| Notifications | `pm_notifications`, `pm_notification_prefs` |
+
+**Schema initialization:** `src/database/init_client_portal.py`
+
 ### Development Features
 - FastAPI with automatic API documentation
 - Pydantic models for data validation
@@ -78,33 +109,45 @@ pip install -r requirements.txt
 
 2. Set environment variables:
 ```bash
-export DATABASE_URL="postgresql://user:pass@host:port/db"
+# Development (Neon PostgreSQL)
+export DATABASE_URL_DEV="postgresql://user:pass@ep-xxx.us-east-2.aws.neon.tech/dbname?sslmode=require"
 export NODE_ENV="development"
+
+# Production (Neon PostgreSQL on Replit)
+export DATABASE_URL_PROD="postgresql://user:pass@ep-yyy.us-east-2.aws.neon.tech/dbname?sslmode=require"
 ```
 
-### Cloud SQL (GCP) Configuration
+### Database Configuration
 
-For connecting to Google Cloud SQL, you need to configure SSL certificates. You have two options:
+**Primary: Neon PostgreSQL** (used for both development and production)
+- `DATABASE_URL_DEV` - Development database (local development)
+- `DATABASE_URL_PROD` - Production database (Replit deployment)
+- `DATABASE_URL` - Fallback if specific env not set
 
-**Option 1: Using a certificate directory (Recommended)**
+The system automatically uses `sslmode=require` for Neon connections.
+
+### Legacy: Cloud SQL (GCP) Configuration
+
+For connecting to Google Cloud SQL (retained for legacy compatibility):
+
+**Option 1: Using a certificate directory**
 ```bash
 export DATABASE_URL="postgresql://user:password@PUBLIC_IP:5432/dbname"
 export DB_SSL_DIR="/path/to/ssl/certificates"
 ```
 The directory should contain:
 - `server-ca.pem` (required) - Server CA certificate
-- `client-cert.pem` (optional but recommended) - Client certificate
-- `client-key.pem` (optional but recommended) - Client private key
+- `client-cert.pem` (optional) - Client certificate
+- `client-key.pem` (optional) - Client private key
 
 **Option 2: Using individual certificate paths**
 ```bash
-export DATABASE_URL="postgresql://user:password@PUBLIC_IP:5432/dbname"
 export DB_SSL_ROOT_CERT="/path/to/server-ca.pem"
 export DB_SSL_CERT="/path/to/client-cert.pem"
 export DB_SSL_KEY="/path/to/client-key.pem"
 ```
 
-**Note:** The `server-ca.pem` certificate is required for Cloud SQL connections. Client certificates (`client-cert.pem` and `client-key.pem`) are optional but recommended for enhanced security.
+**Note:** Cloud SQL is no longer used for development. Neon PostgreSQL is the primary database for both environments.
 
 3. Run the application:
 ```bash
@@ -117,21 +160,28 @@ The API will be available at `http://localhost:8000` with documentation at `http
 
 Configuration is managed in `src/core/config.py` using Pydantic settings:
 
-- `DATABASE_URL`: PostgreSQL connection string (required)
-- `DB_SSL_DIR`: Directory containing SSL certificates for Cloud SQL (optional)
-- `DB_SSL_ROOT_CERT`: Path to server CA certificate (server-ca.pem) (optional)
-- `DB_SSL_CERT`: Path to client certificate (client-cert.pem) (optional)
-- `DB_SSL_KEY`: Path to client private key (client-key.pem) (optional)
+### Database Settings
+- `DATABASE_URL_DEV`: Neon PostgreSQL for development (primary)
+- `DATABASE_URL_PROD`: Neon PostgreSQL for production/Replit (primary)
+- `DATABASE_URL`: Fallback PostgreSQL connection string
+- `NODE_ENV`: Environment mode - determines which database URL to use
+
+### Legacy Cloud SQL Settings (optional)
+- `DB_SSL_DIR`: Directory containing SSL certificates
+- `DB_SSL_ROOT_CERT`: Path to server CA certificate (server-ca.pem)
+- `DB_SSL_CERT`: Path to client certificate (client-cert.pem)
+- `DB_SSL_KEY`: Path to client private key (client-key.pem)
+
+### Other Settings
 - `PORT`: Server port (default: 8000)
-- `NODE_ENV`: Environment mode (development/production)
 - `UPLOAD_DIR`: Directory for file uploads (default: uploads)
 
 ### Database Connection
 
-The backend automatically detects Cloud SQL connections and configures SSL appropriately:
-- If SSL certificates are provided, it uses certificate-based SSL
-- For Neon databases, it uses simple SSL mode
-- For other databases, SSL is optional
+The backend automatically detects database type and configures SSL appropriately:
+- **Neon databases**: Uses `sslmode=require` (automatic for neon.tech URLs)
+- **Cloud SQL**: Uses certificate-based SSL if certs provided (legacy)
+- **Local PostgreSQL**: No SSL required
 
 ## Development
 
