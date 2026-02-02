@@ -202,7 +202,7 @@ async def update_log(
                         )
             
             # Update log
-            update_data = log_update.dict(exclude_unset=True, by_alias=True)
+            update_data = log_update.model_dump(exclude_unset=True, by_alias=True)
             if not update_data:
                 # Return existing log if no updates
                 log_row = await conn.fetchrow(

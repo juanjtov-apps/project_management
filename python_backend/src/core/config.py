@@ -2,7 +2,7 @@
 Application configuration settings.
 """
 import os
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -52,11 +52,13 @@ class Settings(BaseSettings):
     # Must be set via ROOT_USER_EMAILS environment variable
     root_user_emails: str = os.getenv("ROOT_USER_EMAILS", "")
     
-    class Config:
-        env_file = ".env"
+    # Pydantic v2 settings configuration
+    model_config = SettingsConfigDict(
+        env_file=".env",
         # Ignore extra environment variables (like SESSION_SECRET, NODE_ENV which are Node.js-specific)
         # This prevents validation errors when these vars are set but not defined in the model
-        extra = "ignore"
+        extra="ignore"
+    )
     
     @property
     def root_user_emails_list(self) -> list[str]:

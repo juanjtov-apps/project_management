@@ -22,7 +22,7 @@ async def verify_task_company_access(task_id: str, user_company_id: str) -> Task
         )
     
     # Get company_id from task (Task model)
-    task_dict = task.model_dump() if hasattr(task, 'model_dump') else task.dict() if hasattr(task, 'dict') else {}
+    task_dict = task.model_dump() if hasattr(task, 'model_dump') else {}
     task_company_id = str(task_dict.get('companyId') or task_dict.get('company_id') or '')
     if task_company_id != str(user_company_id):
         raise HTTPException(
@@ -134,7 +134,7 @@ async def create_task(
                 )
         
         # Set company_id from authenticated user
-        task_data = task.dict()
+        task_data = task.model_dump()
         task_data['company_id'] = user_company_id
         
         # Handle empty assignee_id by setting it to None

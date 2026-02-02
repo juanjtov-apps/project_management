@@ -90,7 +90,7 @@ async def create_project(
             )
         
         # Assign project to user's company
-        project_data = project.dict()
+        project_data = project.model_dump()
         project_data['company_id'] = str(user_company_id)
         
         print(f"Creating project for user {current_user.get('email')} (company {user_company_id}): {project}")

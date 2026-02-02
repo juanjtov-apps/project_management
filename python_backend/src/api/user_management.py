@@ -302,7 +302,7 @@ async def create_company(
             )
         
         logger.info(f"Creating company - user: {current_user.get('email')}")
-        company = await company_repo.create_company(company_data.dict())
+        company = await company_repo.create_company(company_data.model_dump())
         logger.info(f"Company created successfully")
         return company
         
@@ -338,7 +338,7 @@ async def update_company(
                     detail="Can only update own company"
                 )
         
-        company = await company_repo.update_company(company_id, company_data.dict(exclude_unset=True))
+        company = await company_repo.update_company(company_id, company_data.model_dump(exclude_unset=True))
         if not company:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -464,7 +464,7 @@ async def create_user(
 ):
     """Create a new user with company restrictions."""
     try:
-        logger.info(f"[Create User] Received data: {user_data.dict()}")
+        logger.info(f"[Create User] Received data: {user_data.model_dump()}")
         logger.info(f"[Create User] Current user: {current_user.get('email')}")
 
         if not is_user_admin(current_user):
@@ -490,7 +490,7 @@ async def create_user(
                     detail="Company admins can only create users within their own company"
                 )
 
-        user = await auth_repo.create_rbac_user(user_data.dict())
+        user = await auth_repo.create_rbac_user(user_data.model_dump())
         logger.info(f"User created with company restrictions enforced")
         return user
         
@@ -545,7 +545,7 @@ async def update_user(
                 detail="Cannot update root administrator"
             )
         
-        user = await auth_repo.update_user(user_id, user_data.dict(exclude_unset=True))
+        user = await auth_repo.update_user(user_id, user_data.model_dump(exclude_unset=True))
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -652,7 +652,7 @@ async def create_role(
             )
         
         # Pass current_user to create_role so it can get company_id if needed
-        role = await role_repo.create_role(role_data.dict(), current_user=current_user)
+        role = await role_repo.create_role(role_data.model_dump(), current_user=current_user)
         logger.info(f"Role created successfully")
         return role
         
@@ -689,7 +689,7 @@ async def update_role(
                 detail="Admin privileges required"
             )
         
-        role = await role_repo.update_role(role_id, role_data.dict(exclude_unset=True))
+        role = await role_repo.update_role(role_id, role_data.model_dump(exclude_unset=True))
         if not role:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

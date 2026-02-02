@@ -5,7 +5,7 @@ Each user belongs to ONE company and has ONE role.
 
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 
 
@@ -127,12 +127,10 @@ class Permissions:
 
 class BaseRBACModel(BaseModel):
     """Base model with timestamps"""
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    
-    class Config:
-        from_attributes = True
-        populate_by_name = True
 
 
 # ============================================================================

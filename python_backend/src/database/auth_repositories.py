@@ -5,7 +5,7 @@ Contains all authentication, user management, and company filtering functionalit
 
 import uuid
 import bcrypt
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from .connection import db_manager
 from ..models.user import User
@@ -377,7 +377,7 @@ class AuthRepository:
     async def create_rbac_user(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new user for RBAC system."""
         user_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Convert camelCase to snake_case for database
         data = self._convert_from_camel_case(user_data)
@@ -659,7 +659,7 @@ class CompanyRepository:
     async def create_company(self, company_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new company."""
         company_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         data = self._convert_from_camel_case(company_data)
         
@@ -1106,7 +1106,7 @@ class RoleRepository:
             
             if has_created_at:
                 columns.append('created_at')
-                values.append(datetime.utcnow())
+                values.append(datetime.now(timezone.utc))
             
             # Build parameterized query
             placeholders = ', '.join([f'${i+1}' for i in range(len(values))])

@@ -8,7 +8,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, Dict, Any
 import bcrypt
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import asyncpg
 import logging
 from ..database.connection import get_db_pool
@@ -19,6 +19,33 @@ import os
 import json
 
 logger = logging.getLogger(__name__)
+
+
+def ensure_timezone_aware(dt: Optional[datetime]) -> Optional[datetime]:
+    """Ensure datetime is timezone-aware (UTC).
+
+    PostgreSQL returns timezone-naive datetimes from timestamp columns.
+    This function normalizes them to timezone-aware for comparison with
+    datetime.now(timezone.utc).
+    """
+    if dt is not None and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def to_naive_utc(dt: datetime) -> datetime:
+    """Convert timezone-aware datetime to timezone-naive UTC.
+
+    PostgreSQL 'timestamp without time zone' columns cannot accept
+    timezone-aware datetimes. This function converts to naive UTC
+    for database insertion while preserving the UTC time value.
+    """
+    if dt.tzinfo is not None:
+        # Convert to UTC and remove timezone info
+        utc_dt = dt.astimezone(timezone.utc)
+        return utc_dt.replace(tzinfo=None)
+    return dt
+
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -278,7 +305,7 @@ async def filter_permissions_by_company_modules(
 async def create_session(user_id: str, user_data: Dict[str, Any]) -> str:
     """Create a new session and store it in PostgreSQL."""
     session_id = str(uuid.uuid4())
-    expires_at = datetime.utcnow() + timedelta(seconds=SESSION_TTL)
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=SESSION_TTL)
 
     # Ensure role is set from role_name for compatibility
     if 'role_name' in user_data and 'role' not in user_data:
@@ -309,13 +336,15 @@ async def create_session(user_id: str, user_data: Dict[str, Any]) -> str:
         serializable_data["current_organization_id"] = current_org_id
 
         session_data = json.dumps(serializable_data)
+        # Convert to naive UTC for 'timestamp without time zone' column
+        expires_at_naive = to_naive_utc(expires_at)
         await conn.execute("""
             INSERT INTO sessions (sid, sess, expire)
             VALUES ($1, $2, $3)
             ON CONFLICT (sid) DO UPDATE SET
                 sess = EXCLUDED.sess,
                 expire = EXCLUDED.expire
-        """, session_id, session_data, expires_at)
+        """, session_id, session_data, expires_at_naive)
     
     # Store session data in memory for quick access
     # Initialize current_organization_id to user's company_id for non-root users
@@ -338,7 +367,8 @@ async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
     # Check memory first
     if session_id in session_store:
         session_data = session_store[session_id]
-        if datetime.utcnow() < session_data["expires_at"]:
+        # Use ensure_timezone_aware for safe comparison (handles both tz-aware and tz-naive)
+        if datetime.now(timezone.utc) < ensure_timezone_aware(session_data["expires_at"]):
             return session_data
         else:
             # Session expired, remove it
@@ -394,7 +424,7 @@ async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
                         
                         session_data = {
                             "userId": user_id,
-                            "expires_at": row["expire"],
+                            "expires_at": ensure_timezone_aware(row["expire"]),
                             "user_data": user_data,
                             "current_organization_id": current_org_id
                         }
