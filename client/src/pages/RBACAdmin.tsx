@@ -88,6 +88,8 @@ interface UserProfile {
   companyName?: string; // camelCase alias for company_name
   username?: string;
   password?: string; // For edit form only
+  assigned_project_id?: string; // For client role users
+  assignedProjectId?: string; // camelCase alias
 }
 
 export default function RBACAdmin() {
@@ -107,9 +109,25 @@ export default function RBACAdmin() {
   });
 
   // Three-tier access control
-  const isRootAdmin = currentUser?.email?.includes('chacjjlegacy') || currentUser?.email === 'admin@proesphere.com';
-  const isCompanyAdmin = currentUser?.role === 'admin' || currentUser?.email?.includes('admin');
+  // Root admin check - uses database is_root field (set during user creation)
+  // Backend validates this in is_root_admin() function in auth.py
+  const isRootAdmin = currentUser?.isRoot === true || currentUser?.is_root === true;
+  // Company admin check - based on role field only (matches backend is_user_admin() logic)
+  const isCompanyAdmin = currentUser?.role === 'admin';
   const hasRBACAccess = isRootAdmin || isCompanyAdmin;
+
+  // Debug logging for RBAC access
+  React.useEffect(() => {
+    console.log('🔐 RBAC Access Debug:', {
+      currentUser,
+      isRoot: currentUser?.isRoot,
+      is_root: currentUser?.is_root,
+      role: currentUser?.role,
+      isRootAdmin,
+      isCompanyAdmin,
+      hasRBACAccess
+    });
+  }, [currentUser, isRootAdmin, isCompanyAdmin, hasRBACAccess]);
 
   const { data: roles = [], isLoading: rolesLoading, error: rolesError } = useQuery<Role[]>({
     queryKey: ['/api/rbac/roles'],
@@ -157,11 +175,28 @@ export default function RBACAdmin() {
     enabled: hasRBACAccess,
   });
 
-  const { data: users = [], isLoading: usersLoading } = useQuery<UserProfile[]>({
+  const { data: users = [], isLoading: usersLoading, error: usersError } = useQuery<UserProfile[]>({
     queryKey: ['/api/rbac/users'],
     enabled: hasRBACAccess,
   });
-  
+
+  // Debug logging for users query
+  React.useEffect(() => {
+    console.log('👥 Users Query Debug:', {
+      usersLoading,
+      usersError: usersError ? String(usersError) : null,
+      usersCount: users?.length || 0,
+      users: users?.slice(0, 3), // First 3 users for debugging
+      hasRBACAccess
+    });
+  }, [users, usersLoading, usersError, hasRBACAccess]);
+
+  // Fetch projects for client role assignment
+  const { data: projects = [] } = useQuery<any[]>({
+    queryKey: ['/api/projects'],
+    enabled: hasRBACAccess,
+  });
+
   if (!hasRBACAccess) {
     return (
       <div className="container mx-auto p-6">
@@ -216,11 +251,11 @@ export default function RBACAdmin() {
       } else if (data.role_id) {
         const roleMap: Record<string, string> = {
           '1': 'admin',
-          '2': 'project_manager',
-          '3': 'office_manager',
-          '4': 'subcontractor',
-          '5': 'client',
-          '6': 'crew'
+          '2': 'office_manager',
+          '3': 'project_manager',
+          '4': 'client',
+          '5': 'crew',
+          '6': 'subcontractor'
         };
         updateData.role = roleMap[data.role_id] || 'crew';
       }
@@ -228,7 +263,12 @@ export default function RBACAdmin() {
       if (data.password && data.password.trim() !== '') {
         updateData.password = data.password;
       }
-      
+
+      // Include assigned_project_id for client users
+      if (data.assigned_project_id !== undefined) {
+        updateData.assigned_project_id = data.assigned_project_id;
+      }
+
       return apiRequest(`/api/rbac/users/${id}`, { 
         method: 'PATCH', 
         body: updateData
@@ -331,7 +371,8 @@ export default function RBACAdmin() {
       company_id: '',
       role_id: '',
       password: '',
-      confirm_password: ''
+      confirm_password: '',
+      assigned_project_id: ''
     });
 
     // Password validation helper
@@ -349,14 +390,19 @@ export default function RBACAdmin() {
     const passwordsMatch = newUser.password === newUser.confirm_password && newUser.confirm_password.length > 0;
     
     // Form validation - use currentUserCompanyId from outer scope
-    const isFormValid = 
-      newUser.email && 
-      newUser.first_name && 
-      newUser.last_name && 
-      newUser.role_id && 
+    // Client role (roleId === '4') also requires assigned_project_id
+    const isClientRole = newUser.role_id === '4';
+    const hasRequiredProjectForClient = !isClientRole || (isClientRole && newUser.assigned_project_id);
+
+    const isFormValid =
+      newUser.email &&
+      newUser.first_name &&
+      newUser.last_name &&
+      newUser.role_id &&
       currentUserCompanyId &&
       isPasswordValid &&
-      passwordsMatch;
+      passwordsMatch &&
+      hasRequiredProjectForClient;
 
     // Toggle user active status
     const toggleUserStatus = useMutation({
@@ -586,6 +632,37 @@ export default function RBACAdmin() {
                     <p className="text-xs text-red-500 mt-1">Role is required</p>
                   )}
                 </div>
+                {/* Project Assignment - Only shown for Client role (roleId === '4') */}
+                {newUser.role_id === '4' && (
+                  <div>
+                    <Label htmlFor="assigned_project">Assigned Project *</Label>
+                    <Select
+                      value={newUser.assigned_project_id}
+                      onValueChange={(value) => setNewUser({ ...newUser, assigned_project_id: value })}
+                    >
+                      <SelectTrigger id="assigned_project">
+                        <SelectValue placeholder="Select project for client" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {projects.length === 0 ? (
+                          <SelectItem value="none" disabled>No projects available</SelectItem>
+                        ) : (
+                          projects.map((project: any) => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Client users can only access this specific project
+                    </p>
+                    {!newUser.assigned_project_id && (
+                      <p className="text-xs text-red-500 mt-1">Project is required for client users</p>
+                    )}
+                  </div>
+                )}
               </form>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
@@ -609,9 +686,15 @@ export default function RBACAdmin() {
                       toast({ title: 'Error', description: 'Company ID not available', variant: 'destructive' });
                       return;
                     }
-                    
+
+                    // Validate assigned_project_id for client role
+                    if (roleIdNum === 4 && !newUser.assigned_project_id) {
+                      toast({ title: 'Error', description: 'Project is required for client users', variant: 'destructive' });
+                      return;
+                    }
+
                     // Map frontend fields to backend expected format
-                    const userPayload = {
+                    const userPayload: any = {
                       email: newUser.email.trim(),
                       first_name: newUser.first_name.trim(),
                       last_name: newUser.last_name.trim(),
@@ -620,14 +703,19 @@ export default function RBACAdmin() {
                       password: newUser.password,
                       is_active: true
                     };
-                    
+
+                    // Include assigned_project_id only for client role
+                    if (roleIdNum === 4 && newUser.assigned_project_id) {
+                      userPayload.assigned_project_id = newUser.assigned_project_id;
+                    }
+
                     console.log('[Create User] Sending payload:', userPayload);
-                    
+
                     // Creating user with validated data
                     createUserMutation.mutate(userPayload, {
                       onSuccess: () => {
                         setIsCreateDialogOpen(false);
-                        setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '', confirm_password: '' });
+                        setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '', confirm_password: '', assigned_project_id: '' });
                       }
                     });
                   }}
@@ -731,8 +819,17 @@ export default function RBACAdmin() {
                                 </div>
                               </div>
 
-                              {/* Right Chevron (drill-down indicator) */}
-                              <ChevronRight className="w-5 h-5 text-[var(--pro-text-secondary)] flex-shrink-0" />
+                              {/* Active Status Toggle */}
+                              <Switch
+                                checked={isActive}
+                                onCheckedChange={(checked) => {
+                                  toggleUserStatus.mutate({
+                                    userId: user.id,
+                                    isActive: checked
+                                  });
+                                }}
+                                className="data-[state=checked]:bg-[var(--pro-mint)] flex-shrink-0"
+                              />
 
                               {/* Kebab Menu */}
                               <DropdownMenu>
@@ -745,28 +842,6 @@ export default function RBACAdmin() {
                                   </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48 bg-[var(--pro-surface)] border-[var(--pro-border)]">
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      const currentStatus = user.is_active || user.isActive;
-                                      toggleUserStatus.mutate({
-                                        userId: user.id,
-                                        isActive: !currentStatus
-                                      });
-                                    }}
-                                    className="min-h-[44px] text-[var(--pro-text-primary)]"
-                                  >
-                                    {isActive ? (
-                                      <>
-                                        <ToggleLeft className="w-4 h-4 mr-2" />
-                                        Deactivate
-                                      </>
-                                    ) : (
-                                      <>
-                                        <ToggleRight className="w-4 h-4 mr-2 text-[var(--pro-mint)]" />
-                                        Activate
-                                      </>
-                                    )}
-                                  </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={(e) => {
                                       e.preventDefault();
@@ -801,11 +876,11 @@ export default function RBACAdmin() {
                                         } else {
                                           const roleMap: Record<string, string> = {
                                             'admin': '1',
-                                            'project_manager': '2',
-                                            'office_manager': '3',
-                                            'subcontractor': '4',
-                                            'client': '5',
-                                            'crew': '6'
+                                            'office_manager': '2',
+                                            'project_manager': '3',
+                                            'client': '4',
+                                            'crew': '5',
+                                            'subcontractor': '6'
                                           };
                                           roleId = roleMap[userRole] || '';
                                         }
@@ -821,7 +896,8 @@ export default function RBACAdmin() {
                                         role_name: user.role_name || user.roleName || '',
                                         is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
                                         email: user.email || '',
-                                        password: ''
+                                        password: '',
+                                        assigned_project_id: user.assigned_project_id || user.assignedProjectId || ''
                                       };
 
                                       setEditingUser(mappedUser);
@@ -938,8 +1014,17 @@ export default function RBACAdmin() {
                             </div>
                           </div>
 
-                          {/* Right Chevron (drill-down indicator) */}
-                          <ChevronRight className="w-5 h-5 text-[var(--pro-text-secondary)] flex-shrink-0" />
+                          {/* Active Status Toggle */}
+                          <Switch
+                            checked={isActive}
+                            onCheckedChange={(checked) => {
+                              toggleUserStatus.mutate({
+                                userId: user.id,
+                                isActive: checked
+                              });
+                            }}
+                            className="data-[state=checked]:bg-[var(--pro-mint)] flex-shrink-0"
+                          />
 
                           {/* Kebab Menu */}
                           <DropdownMenu>
@@ -953,29 +1038,6 @@ export default function RBACAdmin() {
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48 bg-[var(--pro-surface)] border-[var(--pro-border)]">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  const currentStatus = user.is_active || user.isActive;
-                                  toggleUserStatus.mutate({
-                                    userId: user.id,
-                                    isActive: !currentStatus
-                                  });
-                                }}
-                                className="min-h-[44px] text-[var(--pro-text-primary)]"
-                                data-testid={`button-toggle-status-${user.id}`}
-                              >
-                                {isActive ? (
-                                  <>
-                                    <ToggleLeft className="w-4 h-4 mr-2" />
-                                    Deactivate
-                                  </>
-                                ) : (
-                                  <>
-                                    <ToggleRight className="w-4 h-4 mr-2 text-[var(--pro-mint)]" />
-                                    Activate
-                                  </>
-                                )}
-                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.preventDefault();
@@ -1010,11 +1072,11 @@ export default function RBACAdmin() {
                                     } else {
                                       const roleMap: Record<string, string> = {
                                         'admin': '1',
-                                        'project_manager': '2',
-                                        'office_manager': '3',
-                                        'subcontractor': '4',
-                                        'client': '5',
-                                        'crew': '6'
+                                        'office_manager': '2',
+                                        'project_manager': '3',
+                                        'client': '4',
+                                        'crew': '5',
+                                        'subcontractor': '6'
                                       };
                                       roleId = roleMap[userRole] || '';
                                     }
@@ -1030,7 +1092,8 @@ export default function RBACAdmin() {
                                     role_name: user.role_name || user.roleName || '',
                                     is_active: user.is_active !== undefined ? user.is_active : (user.isActive !== undefined ? user.isActive : true),
                                     email: user.email || '',
-                                    password: ''
+                                    password: '',
+                                    assigned_project_id: user.assigned_project_id || user.assignedProjectId || ''
                                   };
 
                                   setEditingUser(mappedUser);
@@ -1922,6 +1985,252 @@ export default function RBACAdmin() {
   };
 
   // ========================================================================
+  // MODULES MANAGEMENT COMPONENT (Root Admin Only)
+  // ========================================================================
+  const ModulesManagement = () => {
+    const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
+    const [updatingModule, setUpdatingModule] = useState<string | null>(null);
+
+    // Module display names
+    const moduleDisplayNames: Record<string, string> = {
+      dashboard: 'Dashboard',
+      projects: 'Work/Projects',
+      projectHealth: 'Project Health',
+      schedule: 'Schedule',
+      photos: 'Photos',
+      logs: 'Project Logs',
+      clientPortal: 'Client Portal',
+      rbacAdmin: 'RBAC Admin'
+    };
+
+    // Fetch all companies' module settings
+    const { data: modulesData, isLoading: modulesLoading, refetch: refetchModules } = useQuery<{
+      companies: Array<{
+        companyId: string;
+        companyName: string;
+        enabledModules: Record<string, boolean>;
+      }>;
+      availableModules: string[];
+    }>({
+      queryKey: ['/api/v1/companies/modules/all'],
+      enabled: isRootAdmin,
+    });
+
+    // Update single company modules
+    const updateModulesMutation = useMutation({
+      mutationFn: async ({ companyId, enabledModules }: { companyId: string; enabledModules: Record<string, boolean> }) => {
+        const response = await apiRequest(`/api/v1/companies/${companyId}/modules`, {
+          method: 'PATCH',
+          body: { enabledModules }
+        });
+        if (!response.ok) {
+          throw new Error('Failed to update modules');
+        }
+        return response.json();
+      },
+      onSuccess: () => {
+        refetchModules();
+        toast({ title: 'Success', description: 'Module settings updated' });
+      },
+      onError: (error: any) => {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      }
+    });
+
+    // Bulk update module across all companies
+    const bulkUpdateMutation = useMutation({
+      mutationFn: async ({ module, enabled }: { module: string; enabled: boolean }) => {
+        const response = await apiRequest('/api/v1/companies/modules/bulk', {
+          method: 'PATCH',
+          body: { module, enabled }
+        });
+        if (!response.ok) {
+          throw new Error('Failed to bulk update module');
+        }
+        return response.json();
+      },
+      onSuccess: (data) => {
+        refetchModules();
+        const action = data.enabled ? 'enabled' : 'disabled';
+        toast({
+          title: 'Success',
+          description: `${moduleDisplayNames[data.module] || data.module} ${action} for ${data.companiesUpdated} companies`
+        });
+        setUpdatingModule(null);
+      },
+      onError: (error: any) => {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        setUpdatingModule(null);
+      }
+    });
+
+    const toggleCompanyExpansion = (companyId: string) => {
+      const newExpanded = new Set(expandedCompanies);
+      if (newExpanded.has(companyId)) {
+        newExpanded.delete(companyId);
+      } else {
+        newExpanded.add(companyId);
+      }
+      setExpandedCompanies(newExpanded);
+    };
+
+    const handleModuleToggle = (companyId: string, moduleKey: string, currentModules: Record<string, boolean>) => {
+      const updatedModules = {
+        ...currentModules,
+        [moduleKey]: !currentModules[moduleKey]
+      };
+      updateModulesMutation.mutate({ companyId, enabledModules: updatedModules });
+    };
+
+    const handleBulkAction = (moduleKey: string, enabled: boolean) => {
+      setUpdatingModule(moduleKey);
+      bulkUpdateMutation.mutate({ module: moduleKey, enabled });
+    };
+
+    // Expand all companies by default on first load
+    React.useEffect(() => {
+      if (modulesData?.companies && expandedCompanies.size === 0) {
+        setExpandedCompanies(new Set(modulesData.companies.map(c => c.companyId)));
+      }
+    }, [modulesData]);
+
+    if (modulesLoading) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-2xl font-semibold">Module Management</h3>
+            <p className="text-muted-foreground">Loading module settings...</p>
+          </div>
+        </div>
+      );
+    }
+
+    const availableModules = modulesData?.availableModules || [];
+    const companiesList = modulesData?.companies || [];
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-2xl font-semibold">Module Management</h3>
+          <p className="text-muted-foreground">Enable or disable modules for each company</p>
+        </div>
+
+        {/* Bulk Actions Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Bulk Actions
+            </CardTitle>
+            <CardDescription>
+              Enable or disable a module across ALL companies at once
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {availableModules.map((moduleKey: string) => (
+                <div key={moduleKey} className="border rounded-lg p-3">
+                  <div className="font-medium text-sm mb-2">
+                    {moduleDisplayNames[moduleKey] || moduleKey}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-xs"
+                      disabled={bulkUpdateMutation.isPending}
+                      onClick={() => handleBulkAction(moduleKey, true)}
+                    >
+                      <ToggleRight className="w-3 h-3 mr-1" />
+                      Enable All
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-xs"
+                      disabled={bulkUpdateMutation.isPending}
+                      onClick={() => handleBulkAction(moduleKey, false)}
+                    >
+                      <ToggleLeft className="w-3 h-3 mr-1" />
+                      Disable All
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Per-Company Module Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building className="w-5 h-5" />
+              Company Module Settings
+            </CardTitle>
+            <CardDescription>
+              Configure modules for individual companies ({companiesList.length} companies)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {companiesList.map((company) => (
+                <Collapsible
+                  key={company.companyId}
+                  open={expandedCompanies.has(company.companyId)}
+                  onOpenChange={() => toggleCompanyExpansion(company.companyId)}
+                >
+                  <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                    <div className="flex items-center gap-2">
+                      {expandedCompanies.has(company.companyId) ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
+                      )}
+                      <span className="font-medium">{company.companyName}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {Object.values(company.enabledModules).filter(Boolean).length} / {availableModules.length} enabled
+                      </Badge>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="px-3 py-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                      {availableModules.map((moduleKey: string) => {
+                        const isEnabled = company.enabledModules[moduleKey] !== false;
+                        return (
+                          <div
+                            key={moduleKey}
+                            className="flex items-center justify-between p-2 rounded border bg-background"
+                          >
+                            <span className="text-sm">
+                              {moduleDisplayNames[moduleKey] || moduleKey}
+                            </span>
+                            <Switch
+                              checked={isEnabled}
+                              onCheckedChange={() => handleModuleToggle(
+                                company.companyId,
+                                moduleKey,
+                                company.enabledModules
+                              )}
+                              disabled={updateModulesMutation.isPending}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
+  // ========================================================================
   // EDIT USER DIALOG - Rendered at RBACAdmin level (NOT inside UserManagement)
   // This prevents the dialog from unmounting/remounting when UserManagement
   // re-renders, which was causing visual flickering.
@@ -2052,6 +2361,34 @@ export default function RBACAdmin() {
               </SelectContent>
             </Select>
           </div>
+          {/* Project Assignment - ONLY for Client role (roleId === '4') */}
+          {editingUser?.role_id?.toString() === '4' && (
+            <div>
+              <Label htmlFor="edit_assigned_project">Assigned Project *</Label>
+              <Select
+                value={editingUser?.assigned_project_id || ''}
+                onValueChange={(value) => setEditingUser(editingUser ? {...editingUser, assigned_project_id: value} : null)}
+              >
+                <SelectTrigger id="edit_assigned_project">
+                  <SelectValue placeholder="Select project for client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.length === 0 ? (
+                    <SelectItem value="none" disabled>No projects available</SelectItem>
+                  ) : (
+                    projects.map((project: any) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Client users can only access this specific project
+              </p>
+            </div>
+          )}
           <div className="flex items-center space-x-2">
             <Switch
               id="edit_is_active"
@@ -2073,10 +2410,20 @@ export default function RBACAdmin() {
           >
             Cancel
           </Button>
-          <Button 
+          <Button
             type="button"
             onClick={async () => {
               if (editingUser) {
+                // Validate project required for client role
+                if (editingUser.role_id?.toString() === '4' && !editingUser.assigned_project_id) {
+                  toast({
+                    title: 'Error',
+                    description: 'Project assignment is required for client users',
+                    variant: 'destructive'
+                  });
+                  return;
+                }
+
                 const updatePayload: any = {
                   email: editingUser.email,
                   username: editingUser.email,
@@ -2090,7 +2437,11 @@ export default function RBACAdmin() {
                 if (editingUser.password && editingUser.password.trim() !== '') {
                   updatePayload.password = editingUser.password;
                 }
-                
+                // Include assigned_project_id for client users
+                if (editingUser.role_id?.toString() === '4') {
+                  updatePayload.assigned_project_id = editingUser.assigned_project_id || null;
+                }
+
                 try {
                   await updateUserMutation.mutateAsync({
                     id: editingUser.id, 
@@ -2103,16 +2454,16 @@ export default function RBACAdmin() {
                   
                   // Update cache immediately
                   const roleId = editingUser.role_id;
-                  const roleName = roleId === '1' ? 'Admin' : 
-                                 roleId === '2' ? 'Project Manager' : 
-                                 roleId === '3' ? 'Office Manager' : 
-                                 roleId === '4' ? 'Subcontractor' : 
-                                 roleId === '5' ? 'Client' : 'Crew';
-                  const role = roleId === '1' ? 'admin' : 
-                              roleId === '2' ? 'project_manager' : 
-                              roleId === '3' ? 'office_manager' : 
-                              roleId === '4' ? 'subcontractor' : 
-                              roleId === '5' ? 'client' : 'crew';
+                  const roleName = roleId === '1' ? 'Admin' :
+                                 roleId === '2' ? 'Office Manager' :
+                                 roleId === '3' ? 'Project Manager' :
+                                 roleId === '4' ? 'Client' :
+                                 roleId === '5' ? 'Crew' : 'Subcontractor';
+                  const role = roleId === '1' ? 'admin' :
+                              roleId === '2' ? 'office_manager' :
+                              roleId === '3' ? 'project_manager' :
+                              roleId === '4' ? 'client' :
+                              roleId === '5' ? 'crew' : 'subcontractor';
                   
                   queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
                     if (!old) return old;
@@ -2149,6 +2500,7 @@ export default function RBACAdmin() {
         { value: 'roles', label: 'Roles', icon: <UserCheck className="w-4 h-4" /> },
         { value: 'companies', label: 'Companies', icon: <Building className="w-4 h-4" /> },
         { value: 'permissions', label: 'Permissions', icon: <Key className="w-4 h-4" /> },
+        { value: 'modules', label: 'Modules', icon: <Settings className="w-4 h-4" /> },
       ]
     : [
         { value: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
@@ -2220,6 +2572,7 @@ export default function RBACAdmin() {
         {activeTab === 'roles' && isRootAdmin && <RoleManagement />}
         {activeTab === 'companies' && isRootAdmin && <CompanyManagement />}
         {activeTab === 'permissions' && isRootAdmin && <PermissionsOverview />}
+        {activeTab === 'modules' && isRootAdmin && <ModulesManagement />}
       </main>
 
       {/* Bottom Navigation */}

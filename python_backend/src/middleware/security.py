@@ -216,6 +216,11 @@ def store_csrf_token(session_id: str, token: str):
         for old_token, _ in tokens[:-10]:
             del csrf_tokens[session_id][old_token]
 
+def clear_csrf_tokens(session_id: str):
+    """Clear all CSRF tokens for a session (called on logout)."""
+    if session_id in csrf_tokens:
+        del csrf_tokens[session_id]
+
 async def validate_origin(request: Request) -> bool:
     """Validate request origin for CSRF protection."""
     # Skip validation for safe methods
@@ -248,22 +253,38 @@ async def validate_origin(request: Request) -> bool:
         if referer and any(allowed in referer for allowed in allowed_origins):
             return True
     else:
-        # Production: validate origin matches host
+        # Production: validate origin matches allowed domains
+        # These are the allowed production domains for CSRF validation
+        allowed_domains = [
+            "proesphere.com",
+            "www.proesphere.com",
+        ]
+
+        # Also check X-Forwarded-Host header (set by proxy/load balancer)
+        forwarded_host = request.headers.get("x-forwarded-host", "")
+
         if origin:
-            # Extract host from origin
             try:
                 from urllib.parse import urlparse
                 origin_host = urlparse(origin).netloc
-                if origin_host == host or origin_host.endswith(f".{host}"):
+                # Check against allowed domains list
+                if origin_host in allowed_domains or any(origin_host.endswith(f".{d}") for d in allowed_domains):
+                    return True
+                # Check against X-Forwarded-Host (for proxy environments)
+                if forwarded_host and origin_host == forwarded_host:
                     return True
             except Exception:
                 pass
-        
+
         if referer:
             try:
                 from urllib.parse import urlparse
                 referer_host = urlparse(referer).netloc
-                if referer_host == host or referer_host.endswith(f".{host}"):
+                # Check against allowed domains list
+                if referer_host in allowed_domains or any(referer_host.endswith(f".{d}") for d in allowed_domains):
+                    return True
+                # Check against X-Forwarded-Host (for proxy environments)
+                if forwarded_host and referer_host == forwarded_host:
                     return True
             except Exception:
                 pass

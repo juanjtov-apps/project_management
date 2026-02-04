@@ -27,8 +27,9 @@ class UserCreateRequest(BaseModel):
     email: EmailStr
     password: str
     role_id: int  # Changed from role: str - must be a valid role ID
-    company_id: str
+    company_id: Optional[str] = None  # Required for non-root users, validated in endpoint
     is_active: bool = True
+    assigned_project_id: Optional[str] = None  # For client role users only
     
     @field_validator('first_name', 'last_name')
     @classmethod
@@ -59,7 +60,8 @@ class UserUpdateRequest(BaseModel):
     role_id: Optional[int] = None  # Add this
     company_id: Optional[str] = None  # Add this
     is_active: Optional[bool] = None
-    
+    assigned_project_id: Optional[str] = None  # For client role users only
+
     model_config = ConfigDict(extra="forbid")  # Explicitly forbid extra fields like "name"
     
     @field_validator('first_name', 'last_name')
@@ -300,7 +302,7 @@ async def create_company(
             )
         
         logger.info(f"Creating company - user: {current_user.get('email')}")
-        company = await company_repo.create_company(company_data.dict())
+        company = await company_repo.create_company(company_data.model_dump())
         logger.info(f"Company created successfully")
         return company
         
@@ -336,7 +338,7 @@ async def update_company(
                     detail="Can only update own company"
                 )
         
-        company = await company_repo.update_company(company_id, company_data.dict(exclude_unset=True))
+        company = await company_repo.update_company(company_id, company_data.model_dump(exclude_unset=True))
         if not company:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -462,15 +464,22 @@ async def create_user(
 ):
     """Create a new user with company restrictions."""
     try:
-        logger.info(f"[Create User] Received data: {user_data.dict()}")
+        logger.info(f"[Create User] Received data: {user_data.model_dump()}")
         logger.info(f"[Create User] Current user: {current_user.get('email')}")
-        
+
         if not is_user_admin(current_user):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin privileges required"
             )
-        
+
+        # company_id is required for user creation (root users cannot be created via API)
+        if not user_data.company_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="company_id is required for user creation"
+            )
+
         # Company admin can only create users in their own company
         if not is_root_admin(current_user):
             user_company_id = str(current_user.get('companyId') or current_user.get('company_id') or '')
@@ -480,8 +489,8 @@ async def create_user(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Company admins can only create users within their own company"
                 )
-        
-        user = await auth_repo.create_rbac_user(user_data.dict())
+
+        user = await auth_repo.create_rbac_user(user_data.model_dump())
         logger.info(f"User created with company restrictions enforced")
         return user
         
@@ -536,7 +545,7 @@ async def update_user(
                 detail="Cannot update root administrator"
             )
         
-        user = await auth_repo.update_user(user_id, user_data.dict(exclude_unset=True))
+        user = await auth_repo.update_user(user_id, user_data.model_dump(exclude_unset=True))
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -643,7 +652,7 @@ async def create_role(
             )
         
         # Pass current_user to create_role so it can get company_id if needed
-        role = await role_repo.create_role(role_data.dict(), current_user=current_user)
+        role = await role_repo.create_role(role_data.model_dump(), current_user=current_user)
         logger.info(f"Role created successfully")
         return role
         
@@ -680,7 +689,7 @@ async def update_role(
                 detail="Admin privileges required"
             )
         
-        role = await role_repo.update_role(role_id, role_data.dict(exclude_unset=True))
+        role = await role_repo.update_role(role_id, role_data.model_dump(exclude_unset=True))
         if not role:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

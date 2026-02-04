@@ -1,9 +1,10 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { useEffect } from "react";
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Home from "@/pages/home";
@@ -145,15 +146,43 @@ function AuthenticatedLayout({
   isNotificationModalOpen: boolean;
   setIsNotificationModalOpen: (open: boolean) => void;
 }) {
+  const [location, setLocation] = useLocation();
+
+  // Fetch current user to check if they're a client
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ['/api/v1/auth/user'],
+    enabled: isAuthenticated,
+  });
+
+  // Check if user is a client
+  const isClientUser = currentUser?.role?.toLowerCase() === 'client';
+  const assignedProjectId = currentUser?.assignedProjectId;
+
+  // Redirect clients to client portal on login
+  useEffect(() => {
+    if (isClientUser && location !== '/client-portal') {
+      // Redirect to client portal with their assigned project
+      if (assignedProjectId) {
+        setLocation(`/client-portal?projectId=${assignedProjectId}`);
+      } else {
+        setLocation('/client-portal');
+      }
+    }
+  }, [isClientUser, assignedProjectId, location, setLocation]);
+
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar
-        isMobileOpen={isMobileMenuOpen}
-        onMobileClose={() => setIsMobileMenuOpen(false)}
-      />
+      {/* Hide sidebar for client users */}
+      {!isClientUser && (
+        <Sidebar
+          isMobileOpen={isMobileMenuOpen}
+          onMobileClose={() => setIsMobileMenuOpen(false)}
+        />
+      )}
       <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Hide mobile menu toggle for clients */}
         <Header
-          onToggleMobileMenu={() => setIsMobileMenuOpen(true)}
+          onToggleMobileMenu={isClientUser ? undefined : () => setIsMobileMenuOpen(true)}
           onToggleNotifications={() => setIsNotificationModalOpen(true)}
         />
         <div className="flex-1 p-4 md:p-6 overflow-y-auto section-padding" style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>

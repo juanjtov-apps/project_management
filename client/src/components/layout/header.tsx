@@ -15,7 +15,7 @@ import type { Notification, User } from "@shared/schema";
 import OrganizationSelector from "@/components/organization-selector";
 
 interface HeaderProps {
-  onToggleMobileMenu: () => void;
+  onToggleMobileMenu?: () => void;
   onToggleNotifications: () => void;
   pageTitle?: string;
 }
@@ -64,7 +64,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
 
   const getUserInitials = (user: User | undefined) => {
     if (!user) return "U";
-    const name = user.firstName || user.name || user.email || "User";
+    const name = user.firstName || (user as any).first_name || user.name || user.email || "User";
     const parts = name.split(" ");
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -98,16 +98,18 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
     >
       <div className="flex h-full items-center justify-between gap-3 max-w-screen-2xl mx-auto px-4">
         <div className="flex items-center gap-3 min-w-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden min-w-[48px] min-h-[48px] p-0 flex-shrink-0 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C]"
-            onClick={onToggleMobileMenu}
-            aria-label="Open navigation menu"
-            data-testid="button-mobile-menu"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
+          {onToggleMobileMenu && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden min-w-[48px] min-h-[48px] p-0 flex-shrink-0 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C]"
+              onClick={onToggleMobileMenu}
+              aria-label="Open navigation menu"
+              data-testid="button-mobile-menu"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
           <div className="flex items-center gap-2 min-w-0">
             {currentUser?.organization?.name ? (
               <span className="text-lg hidden md:block font-semibold" style={{ color: '#4ADE80' }}>
@@ -175,10 +177,10 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
                   </div>
                   <div className="hidden md:block text-left min-w-0">
                     <div className="text-sm font-medium text-white truncate">
-                      {user?.firstName || user?.name || "User"}
+                      {user?.firstName || (user as any)?.first_name || user?.name || "User"}
                     </div>
                     <div className="text-xs capitalize truncate" style={{ color: '#9CA3AF' }}>
-                      {user?.role?.replace(/_/g, ' ') || 'User'}
+                      {(user as any)?.role?.replace(/_/g, ' ') || 'User'}
                     </div>
                   </div>
                 </div>
@@ -196,7 +198,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium text-white">
-                    {user?.firstName || user?.name || user?.email || "User"}
+                    {user?.firstName || (user as any)?.first_name || user?.name || user?.email || "User"}
                   </p>
                   <p className="text-xs" style={{ color: '#9CA3AF' }}>
                     {user?.email}

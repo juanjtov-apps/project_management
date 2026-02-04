@@ -147,11 +147,12 @@ async def get_db_pool() -> asyncpg.Pool:
             ssl_context = _create_ssl_context()
             
             _pool = await asyncpg.create_pool(
-                DATABASE_URL, 
+                DATABASE_URL,
                 ssl=ssl_context,
                 command_timeout=30,
                 max_size=20,  # Limit pool size
                 min_size=1,   # Keep at least one connection
+                statement_cache_size=0,  # Disable statement caching to prevent InvalidCachedStatementError after schema changes
                 server_settings={
                     'jit': 'off'  # Disable JIT for better connection stability
                 }

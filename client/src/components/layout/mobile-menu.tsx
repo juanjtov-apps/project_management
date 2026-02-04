@@ -49,8 +49,10 @@ export default function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
   const companyName = userCompany?.name || currentUser?.companyName || 'Proesphere';
 
   // Three-tier access control - only show RBAC Admin to admin users
-  const isRootAdmin = currentUser?.email?.includes('chacjjlegacy') || currentUser?.email === 'admin@proesphere.com';
-  const isCompanyAdmin = currentUser?.role === 'admin' || currentUser?.email?.includes('admin');
+  // Root admin check - uses database is_root field (matches sidebar.tsx pattern)
+  const isRootAdmin = currentUser?.isRoot === true || currentUser?.is_root === true;
+  // Company admin check - based on role field only
+  const isCompanyAdmin = currentUser?.role === 'admin';
   const hasRBACAccess = isRootAdmin || isCompanyAdmin;
   
   // Filter navigation based on user role

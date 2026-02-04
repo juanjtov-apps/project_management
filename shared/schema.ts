@@ -113,7 +113,10 @@ export const users = pgTable("users", {
   // RBAC fields - Each user has ONE company and ONE role
   companyId: varchar("company_id").notNull().references(() => companies.id, { onDelete: 'restrict' }),
   roleId: integer("role_id").notNull().references(() => roles.id, { onDelete: 'restrict' }),
-  
+
+  // Client-specific: assigned project (only for client role users)
+  assignedProjectId: varchar("assigned_project_id").references(() => projects.id, { onDelete: 'set null' }),
+
   // Special flags
   isRoot: boolean("is_root").notNull().default(false), // TRUE for the ONE root/platform admin
   isActive: boolean("is_active").notNull().default(true),
@@ -127,6 +130,7 @@ export const users = pgTable("users", {
   index("users_role_id_idx").on(table.roleId),
   index("users_is_active_idx").on(table.isActive),
   index("users_email_idx").on(table.email),
+  index("users_assigned_project_id_idx").on(table.assignedProjectId),
 ]);
 
 // ============================================================================
@@ -138,7 +142,7 @@ export const projects = pgTable("projects", {
   companyId: varchar("company_id").notNull().references(() => companies.id, { onDelete: 'restrict' }),
   name: text("name").notNull(),
   description: text("description"),
-  location: text("location").notNull(),
+  location: text("location"),
   status: text("status").notNull().default("active"), // active, completed, on-hold, delayed
   progress: integer("progress").notNull().default(0), // 0-100
   dueDate: timestamp("due_date", { withTimezone: true }),
@@ -357,79 +361,6 @@ export const healthCheckTemplates = pgTable("health_check_templates", {
 ]);
 
 // ============================================================================
-// CLIENT MODULE TABLES
-// ============================================================================
-
-export const clientIssues = pgTable("client_issues", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  title: text("title").notNull(),
-  description: text("description").notNull().default(""),
-  photos: text("photos").array().default([]),
-  createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: 'restrict' }),
-  status: text("status").notNull().default("open"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [
-  index("client_issues_project_id_idx").on(table.projectId),
-  index("client_issues_status_idx").on(table.status),
-]);
-
-export const clientForumMessages = pgTable("client_forum_messages", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: 'restrict' }),
-  content: text("content").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [
-  index("client_forum_messages_project_id_idx").on(table.projectId),
-]);
-
-export const clientMaterials = pgTable("client_materials", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  name: text("name").notNull(),
-  category: text("category").default("general"),
-  link: text("link"),
-  specification: text("specification"),
-  notes: text("notes"),
-  quantity: integer("quantity"),
-  unitCost: integer("unit_cost"), // in cents
-  totalCost: integer("total_cost"), // in cents
-  supplier: text("supplier"),
-  status: text("status").default("pending"),
-  addedBy: varchar("added_by").notNull().references(() => users.id, { onDelete: 'restrict' }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [
-  index("client_materials_project_id_idx").on(table.projectId),
-]);
-
-export const clientInstallments = pgTable("client_installments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  amount: integer("amount").notNull(), // in cents
-  dueDate: timestamp("due_date", { withTimezone: true }).notNull(),
-  isPaid: boolean("is_paid").notNull().default(false),
-  paymentMethod: text("payment_method"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [
-  index("client_installments_project_id_idx").on(table.projectId),
-  index("client_installments_due_date_idx").on(table.dueDate),
-]);
-
-export const clientNotificationSettings = pgTable("client_notification_settings", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  materialId: varchar("material_id").references(() => clientMaterials.id, { onDelete: 'cascade' }),
-  groupName: text("group_name"),
-  frequencyValue: integer("frequency_value").notNull(),
-  frequencyUnit: text("frequency_unit").notNull(),
-  notifyViaEmail: boolean("notify_via_email").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [
-  index("client_notification_settings_project_id_idx").on(table.projectId),
-]);
-
-// ============================================================================
 // COMMUNICATION & FINANCE TABLES
 // ============================================================================
 
@@ -556,8 +487,8 @@ export const insertRolePermissionSchema = createInsertSchema(rolePermissions).om
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true, lastLoginAt: true });
 export const upsertUserSchema = createInsertSchema(users).omit({ createdAt: true, updatedAt: true, lastLoginAt: true });
 
-// Project schemas
-export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true, updatedAt: true });
+// Project schemas - companyId is omitted because backend adds it from authenticated user
+export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, companyId: true, createdAt: true, updatedAt: true });
 
 // Task schemas - companyId is omitted because backend adds it from authenticated user
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, companyId: true, createdAt: true, updatedAt: true, completedAt: true }).extend({
@@ -588,13 +519,6 @@ export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({ id: 
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
 export const insertWaitlistSchema = createInsertSchema(waitlist).omit({ id: true, createdAt: true });
-
-// Client Module schemas
-export const insertClientIssueSchema = createInsertSchema(clientIssues).omit({ id: true, createdAt: true });
-export const insertClientForumMessageSchema = createInsertSchema(clientForumMessages).omit({ id: true, createdAt: true });
-export const insertClientMaterialSchema = createInsertSchema(clientMaterials).omit({ id: true, createdAt: true });
-export const insertClientInstallmentSchema = createInsertSchema(clientInstallments).omit({ id: true, createdAt: true });
-export const insertClientNotificationSettingSchema = createInsertSchema(clientNotificationSettings).omit({ id: true, createdAt: true });
 
 // ============================================================================
 // TYPE EXPORTS
@@ -660,18 +584,6 @@ export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertWaitlist = z.infer<typeof insertWaitlistSchema>;
 export type Waitlist = typeof waitlist.$inferSelect;
-
-// Client Module types
-export type InsertClientIssue = z.infer<typeof insertClientIssueSchema>;
-export type ClientIssue = typeof clientIssues.$inferSelect;
-export type InsertClientForumMessage = z.infer<typeof insertClientForumMessageSchema>;
-export type ClientForumMessage = typeof clientForumMessages.$inferSelect;
-export type InsertClientMaterial = z.infer<typeof insertClientMaterialSchema>;
-export type ClientMaterial = typeof clientMaterials.$inferSelect;
-export type InsertClientInstallment = z.infer<typeof insertClientInstallmentSchema>;
-export type ClientInstallment = typeof clientInstallments.$inferSelect;
-export type InsertClientNotificationSetting = z.infer<typeof insertClientNotificationSettingSchema>;
-export type ClientNotificationSetting = typeof clientNotificationSettings.$inferSelect;
 
 // ============================================================================
 // PERMISSION CONSTANTS

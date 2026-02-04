@@ -91,7 +91,7 @@ export default function CommunicationFeed({ projectId }: CommunicationFeedProps)
 
   // Mutations
   const createCommunicationMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/communications", data),
+    mutationFn: (data: any) => apiRequest("/api/communications", { method: "POST", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
       setNewMessage({ subject: "", message: "", type: "message", priority: "normal", projectId: projectId || "" });
@@ -100,7 +100,7 @@ export default function CommunicationFeed({ projectId }: CommunicationFeedProps)
   });
 
   const createChangeOrderMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/change-orders", data),
+    mutationFn: (data: any) => apiRequest("/api/change-orders", { method: "POST", body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/change-orders"] });
       setNewChangeOrder({ title: "", description: "", costImpact: 0, timeImpact: 0, projectId: projectId || "" });
@@ -110,7 +110,7 @@ export default function CommunicationFeed({ projectId }: CommunicationFeedProps)
 
   const updateChangeOrderMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<ChangeOrder> }) =>
-      apiRequest("PATCH", `/api/change-orders/${id}`, updates),
+      apiRequest(`/api/change-orders/${id}`, { method: "PATCH", body: updates }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/change-orders"] });
     },

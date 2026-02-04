@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { Building2, MapPin, MoreVertical, ArrowRight } from "lucide-react";
+import { Building2, MapPin, MoreVertical, ArrowRight, Layers, AlertTriangle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import {
   DropdownMenu,
@@ -22,6 +22,8 @@ interface ProjectCardProps {
   onClick?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onStages?: () => void;
+  onIssues?: () => void;
   isSelected?: boolean;
   className?: string;
   "data-testid"?: string;
@@ -75,6 +77,8 @@ export function ProjectCard({
   onClick,
   onEdit,
   onDelete,
+  onStages,
+  onIssues,
   isSelected,
   className,
   "data-testid": testId,
@@ -191,7 +195,7 @@ export function ProjectCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-full bg-black/40 hover:bg-black/60 text-white"
+                className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-black/40 hover:bg-black/60 text-white touch-manipulation"
                 onClick={handleTriggerClick}
                 data-testid={`button-menu-${id}`}
               >
@@ -263,7 +267,7 @@ export function ProjectCard({
           <Progress value={progress} className="h-1.5 bg-[#2D333B]" />
         </div>
 
-        {/* Photo Thumbnails and View Details */}
+        {/* Photo Thumbnails and Actions */}
         <div className="flex items-center justify-between pt-1">
           {/* Photo Thumbnails */}
           <div className="flex -space-x-2">
@@ -286,15 +290,42 @@ export function ProjectCard({
             )}
           </div>
 
-          {/* View Details Link */}
-          <button
-            onClick={onClick}
-            className="flex items-center gap-1 text-xs text-[#8B949E] hover:text-[#4ADE80] transition-colors"
-            data-testid={`link-view-details-${id}`}
-          >
-            View Details
-            <ArrowRight className="w-3 h-3" />
-          </button>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Stages Button */}
+            {onStages && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onStages(); }}
+                className="flex items-center justify-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors p-2 -m-2 touch-manipulation min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:p-0 sm:m-0"
+                title="Manage Stages"
+                data-testid={`button-stages-${id}`}
+              >
+                <Layers className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Issues Button */}
+            {onIssues && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onIssues(); }}
+                className="flex items-center justify-center gap-1 text-xs text-red-400 hover:text-red-300 transition-colors p-2 -m-2 touch-manipulation min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:p-0 sm:m-0"
+                title="Report Issue"
+                data-testid={`button-issues-${id}`}
+              >
+                <AlertTriangle className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* View Details Link */}
+            <button
+              onClick={onClick}
+              className="flex items-center gap-1 text-xs text-[#8B949E] hover:text-[#4ADE80] transition-colors p-2 -m-2 touch-manipulation min-h-[44px] sm:min-h-0 sm:p-0 sm:m-0"
+              data-testid={`link-view-details-${id}`}
+            >
+              View Details
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

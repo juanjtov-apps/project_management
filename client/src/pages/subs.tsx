@@ -67,7 +67,7 @@ export default function Subs() {
   console.log("Users length:", users.length);
 
   // Filter data for subcontractors
-  const subcontractors = users.filter(user => user.role === "subcontractor");
+  const subcontractors = users.filter(user => (user as any).role === "subcontractor");
   console.log("Filtered subcontractors:", subcontractors);
   console.log("Subcontractors count:", subcontractors.length);
   const subcontractorTasks = tasks.filter(task => 

@@ -3,12 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  AlertTriangle, 
-  MessageSquare, 
-  Package, 
+import {
+  AlertTriangle,
+  MessageSquare,
+  Package,
   CreditCard,
-  Building 
+  Building,
+  Layers
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,29 +19,43 @@ import { IssuesTab } from "@/components/client-portal/issues-tab.tsx";
 import { ForumTab } from "@/components/client-portal/forum-tab.tsx";
 import { MaterialsTab } from "@/components/client-portal/materials-tab.tsx";
 import PaymentsTab from "@/components/client-portal/payments-tab.tsx";
+import { StagesTab } from "@/components/client-portal/stages-tab.tsx";
 
 export default function ClientPortal() {
   const [selectedProject, setSelectedProject] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<string>("issues");
-  
+  const [activeTab, setActiveTab] = useState<string>("stages");
+  const [initialStageFilter, setInitialStageFilter] = useState<string | undefined>(undefined);
+
   // Get current user for permissions
   const { data: currentUser } = useQuery<any>({
     queryKey: ["/api/v1/auth/user"],
     retry: false
   });
-  
+
+  // Check if user is a client (for RBAC in materials tab)
+  const isClient = currentUser?.role?.toLowerCase() === 'client';
+  const assignedProjectId = currentUser?.assignedProjectId;
+
+  // Auto-select assigned project for client users
+  useEffect(() => {
+    if (isClient && assignedProjectId && !selectedProject) {
+      setSelectedProject(assignedProjectId);
+    }
+  }, [isClient, assignedProjectId, selectedProject]);
+
   // Parse URL parameters on mount and when URL changes
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const projectParam = params.get('project');
+    const projectParam = params.get('projectId') || params.get('project');
     const tabParam = params.get('tab');
-    
-    console.log('Client Portal URL params:', { projectParam, tabParam, fullSearch: window.location.search });
-    
+    const stageIdParam = params.get('stageId');
+
+    console.log('Client Portal URL params:', { projectParam, tabParam, stageIdParam, fullSearch: window.location.search });
+
     if (projectParam) {
       setSelectedProject(projectParam);
     }
-    
+
     // Security: Only set tab if user has permission to access it
     if (tabParam) {
       // If trying to access payments tab without permission, redirect to issues
@@ -50,19 +65,25 @@ export default function ClientPortal() {
         setActiveTab(tabParam);
       }
     }
+
+    // If stageId is provided, set the initial filter for materials tab
+    if (stageIdParam) {
+      setInitialStageFilter(stageIdParam);
+    }
   }, [currentUser?.permissions]); // Re-run when permissions change
   
   // Also listen to URL changes via popstate (back/forward buttons)
   useEffect(() => {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
-      const projectParam = params.get('project');
+      const projectParam = params.get('projectId') || params.get('project');
       const tabParam = params.get('tab');
-      
+      const stageIdParam = params.get('stageId');
+
       if (projectParam) {
         setSelectedProject(projectParam);
       }
-      
+
       // Security: Only set tab if user has permission to access it
       if (tabParam) {
         // If trying to access payments tab without permission, redirect to issues
@@ -72,8 +93,13 @@ export default function ClientPortal() {
           setActiveTab(tabParam);
         }
       }
+
+      // Handle stageId filter for materials tab
+      if (stageIdParam) {
+        setInitialStageFilter(stageIdParam);
+      }
     };
-    
+
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [currentUser?.permissions]);
@@ -91,6 +117,14 @@ export default function ClientPortal() {
 
   // Define all possible tabs - using Proesphere dark theme colors
   const allTabItems = [
+    {
+      value: "stages",
+      label: "Stages",
+      icon: Layers,
+      description: "Project timeline and milestones",
+      color: "text-amber-400",
+      requiresPermission: null // Always visible
+    },
     {
       value: "issues",
       label: "Issues",
@@ -132,8 +166,9 @@ export default function ClientPortal() {
   );
 
   // Calculate grid columns based on number of visible tabs
-  const gridCols = tabItems.length === 4 ? 'grid-cols-4' : 
-                   tabItems.length === 3 ? 'grid-cols-3' : 
+  const gridCols = tabItems.length === 5 ? 'grid-cols-5' :
+                   tabItems.length === 4 ? 'grid-cols-4' :
+                   tabItems.length === 3 ? 'grid-cols-3' :
                    tabItems.length === 2 ? 'grid-cols-2' : 'grid-cols-1';
 
   return (
@@ -147,29 +182,45 @@ export default function ClientPortal() {
           </p>
         </div>
         
-        {/* Project Selector */}
-        <div className="w-80">
-          <Select value={selectedProject} onValueChange={setSelectedProject}>
-            <SelectTrigger className="w-full" data-testid="select-project">
-              <div className="flex items-center gap-2">
-                <Building className="h-4 w-4" />
-                <SelectValue placeholder="Select a project" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  <div className="flex items-center justify-between w-full">
-                    <span>{project.name}</span>
-                    <Badge variant="outline" className="ml-2">
-                      {project.status}
-                    </Badge>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Project Selector - Hidden for client users who only see their assigned project */}
+        {isClient ? (
+          // Static project display for clients
+          <div className="flex items-center gap-2 px-4 py-2 bg-[var(--pro-surface)] rounded-lg border border-[var(--pro-border)]">
+            <Building className="h-4 w-4 text-[var(--pro-text-secondary)]" />
+            <span className="font-medium text-[var(--pro-text-primary)]">
+              {projects.find(p => p.id === selectedProject)?.name || 'Loading project...'}
+            </span>
+            {projects.find(p => p.id === selectedProject)?.status && (
+              <Badge variant="outline" className="ml-2">
+                {projects.find(p => p.id === selectedProject)?.status}
+              </Badge>
+            )}
+          </div>
+        ) : (
+          // Project dropdown for non-client users
+          <div className="w-80">
+            <Select value={selectedProject} onValueChange={setSelectedProject}>
+              <SelectTrigger className="w-full" data-testid="select-project">
+                <div className="flex items-center gap-2">
+                  <Building className="h-4 w-4" />
+                  <SelectValue placeholder="Select a project" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    <div className="flex items-center justify-between w-full">
+                      <span>{project.name}</span>
+                      <Badge variant="outline" className="ml-2">
+                        {project.status}
+                      </Badge>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {!selectedProject ? (
@@ -203,6 +254,10 @@ export default function ClientPortal() {
             })}
           </TabsList>
 
+          <TabsContent value="stages">
+            <StagesTab projectId={selectedProject} />
+          </TabsContent>
+
           <TabsContent value="issues">
             <IssuesTab projectId={selectedProject} />
           </TabsContent>
@@ -212,13 +267,17 @@ export default function ClientPortal() {
           </TabsContent>
 
           <TabsContent value="materials">
-            <MaterialsTab projectId={selectedProject} />
+            <MaterialsTab
+              projectId={selectedProject}
+              initialStageFilter={initialStageFilter}
+              isClient={isClient}
+            />
           </TabsContent>
 
           {/* Only render payments tab content if user has permission */}
           {userPermissions.clientPortalPayments && (
             <TabsContent value="installments">
-              <PaymentsTab projectId={selectedProject} />
+              <PaymentsTab projectId={selectedProject} isClient={isClient} />
             </TabsContent>
           )}
         </Tabs>

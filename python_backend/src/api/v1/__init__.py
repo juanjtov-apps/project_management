@@ -5,7 +5,7 @@ All v1 API endpoints are organized here with proper versioning.
 from fastapi import APIRouter
 
 # Import all v1 routers
-from . import auth, projects, tasks, photos, logs, rbac, users, dashboard, activities, objects, companies, client_module, pm_notifications, communications, change_orders, time_entries, invoices
+from . import auth, projects, tasks, photos, logs, rbac, users, dashboard, activities, objects, companies, client_module, pm_notifications, communications, change_orders, time_entries, invoices, stages, materials
 
 # Import company_admin router from main api (not v1)
 try:
@@ -31,6 +31,36 @@ try:
 except ImportError:
     user_management_router = None
 
+# Import schedule router for schedule changes
+try:
+    from ...api.schedule import router as schedule_router
+except ImportError:
+    schedule_router = None
+
+# Import notifications router
+try:
+    from ...api.notifications import router as notifications_router
+except ImportError:
+    notifications_router = None
+
+# Import testnotify router (test endpoints)
+try:
+    from ...api.testnotify import router as testnotify_router
+except ImportError:
+    testnotify_router = None
+
+# Import subcontractor_assignments router
+try:
+    from ...api.subcontractor_assignments import router as subcontractor_assignments_router
+except ImportError:
+    subcontractor_assignments_router = None
+
+# Import dashboard_stats router
+try:
+    from ...api.dashboard_stats import router as dashboard_stats_router
+except ImportError:
+    dashboard_stats_router = None
+
 def create_v1_router() -> APIRouter:
     """Create and configure the v1 API router."""
     v1_router = APIRouter(prefix="/v1", tags=["v1"])
@@ -53,7 +83,29 @@ def create_v1_router() -> APIRouter:
     v1_router.include_router(change_orders.router, tags=["change-orders"])
     v1_router.include_router(time_entries.router, tags=["time-entries"])
     v1_router.include_router(invoices.router, tags=["invoices"])
-    
+    v1_router.include_router(stages.router, tags=["stages"])
+    v1_router.include_router(materials.router, tags=["materials"])
+
+    # Include schedule router for schedule changes
+    if schedule_router:
+        v1_router.include_router(schedule_router, tags=["schedule"])
+
+    # Include notifications router
+    if notifications_router:
+        v1_router.include_router(notifications_router, tags=["notifications"])
+
+    # Include testnotify router (test endpoints)
+    if testnotify_router:
+        v1_router.include_router(testnotify_router, tags=["test-notifications"])
+
+    # Include subcontractor_assignments router
+    if subcontractor_assignments_router:
+        v1_router.include_router(subcontractor_assignments_router, prefix="/subcontractor-assignments", tags=["subcontractor-assignments"])
+
+    # Include dashboard_stats router
+    if dashboard_stats_router:
+        v1_router.include_router(dashboard_stats_router, tags=["dashboard-stats"])
+
     # Include user_management router for complete RBAC CRUD operations
     # This provides POST/PATCH/DELETE endpoints for /api/v1/rbac/*
     if user_management_router:

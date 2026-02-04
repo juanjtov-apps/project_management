@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, status, Depends
 from ...models import Project, ProjectCreate, ProjectUpdate
 from ...database.repositories import ProjectRepository
-from ...api.auth import get_current_user_dependency, is_root_admin
+from ...api.auth import get_current_user_dependency, is_root_admin, get_effective_company_id
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,24 +15,43 @@ project_repo = ProjectRepository()
 
 @router.get("", response_model=List[Project], summary="Get all projects")
 async def get_projects(current_user: Dict[str, Any] = Depends(get_current_user_dependency)):
-    """Get all projects with company filtering."""
+    """Get all projects with company filtering.
+
+    - Root admin with org context: projects from that org
+    - Root admin without context: ALL projects
+    - Client user: ONLY their assigned project
+    - Company user: only their company projects
+    """
     try:
-        # Apply company filtering unless root admin
-        if is_root_admin(current_user):
-            projects = await project_repo.get_all()
-            logger.debug(f"Root admin retrieved {len(projects)} projects")
-        else:
-            # Try both camelCase and snake_case for compatibility
-            user_company_id = current_user.get('companyId') or current_user.get('company_id')
-            logger.debug(f"User {current_user.get('email')} - companyId: {user_company_id}")
-            
-            if user_company_id:
-                projects = await project_repo.get_by_company(str(user_company_id))
-                logger.debug(f"User {current_user.get('email')} (company {user_company_id}) retrieved {len(projects)} projects")
+        # Check if user is a client - they only see their assigned project
+        user_role = str(current_user.get('role', '')).lower()
+        assigned_project_id = current_user.get('assignedProjectId') or current_user.get('assigned_project_id')
+
+        if user_role == 'client':
+            if assigned_project_id:
+                # Client with assigned project - return only that project
+                project = await project_repo.get_by_id(assigned_project_id)
+                projects = [project] if project else []
+                logger.debug(f"Client user {current_user.get('email')} - returning assigned project {assigned_project_id}")
             else:
+                # Client without assigned project - return empty list
                 projects = []
-                logger.warning(f"User {current_user.get('email')} has no company assigned, returning empty project list")
-        
+                logger.debug(f"Client user {current_user.get('email')} has no assigned project")
+            return projects
+
+        # Use effective company ID (respects org context for root users)
+        effective_company_id = get_effective_company_id(current_user)
+        logger.debug(f"User {current_user.get('email')} - effective_company_id: {effective_company_id}")
+
+        if effective_company_id:
+            # Filter by selected organization (or user's company for non-root)
+            projects = await project_repo.get_by_company(str(effective_company_id))
+            logger.debug(f"Retrieved {len(projects)} projects for company {effective_company_id}")
+        else:
+            # Root admin with no org selected - show all
+            projects = await project_repo.get_all()
+            logger.debug(f"Root admin (no org context) retrieved {len(projects)} projects (all)")
+
         return projects
     except Exception as e:
         logger.error(f"Error fetching projects: {e}", exc_info=True)
@@ -49,15 +68,25 @@ async def get_project(
 ):
     """Get project by ID with company scoping."""
     try:
+        # Check if user is a client - they can only access their assigned project
+        user_role = str(current_user.get('role', '')).lower()
+        if user_role == 'client':
+            assigned_project_id = current_user.get('assignedProjectId') or current_user.get('assigned_project_id')
+            if project_id != assigned_project_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: You can only access your assigned project"
+                )
+
         project = await project_repo.get_by_id(project_id)
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Project not found"
             )
-        
-        # Verify company access (unless root admin)
-        if not is_root_admin(current_user):
+
+        # Verify company access (unless root admin or client - client already checked above)
+        if not is_root_admin(current_user) and user_role != 'client':
             user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
             project_company_id = str(project.get('company_id'))
             if project_company_id != user_company_id:
@@ -65,7 +94,7 @@ async def get_project(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Access denied: Project belongs to different company"
                 )
-        
+
         return project
     except HTTPException:
         raise
@@ -166,7 +195,7 @@ async def delete_project(
             if hasattr(existing_project, 'company_id'):
                 project_company_id = str(getattr(existing_project, 'company_id', None) or '')
             else:
-                project_dict = existing_project.dict(by_alias=False) if hasattr(existing_project, 'dict') else {}
+                project_dict = existing_project.model_dump(by_alias=False) if hasattr(existing_project, 'model_dump') else {}
                 project_company_id = str(project_dict.get('company_id', ''))
             if project_company_id != user_company_id:
                 raise HTTPException(

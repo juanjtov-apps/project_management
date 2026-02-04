@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import fs from "fs";
 import path from "path";
 import { spawn, ChildProcess } from "child_process";
 import { setupVite, serveStatic, log } from "./vite";
@@ -234,6 +235,9 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
             // Forward origin/referer headers for proper CSRF validation
             ...(req.headers.origin ? { 'Origin': req.headers.origin } : {}),
             ...(req.headers.referer ? { 'Referer': req.headers.referer } : {}),
+            // Forward CSRF token and forwarded host for proper validation in proxy environment
+            ...(req.headers['x-csrf-token'] ? { 'X-CSRF-Token': req.headers['x-csrf-token'] as string } : {}),
+            'X-Forwarded-Host': req.headers.host || '',
           },
           body: req.method !== 'GET' && req.method !== 'HEAD' && req.body ? JSON.stringify(req.body) : undefined,
           signal: controller.signal,

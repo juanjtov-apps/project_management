@@ -5,7 +5,7 @@ Contains all authentication, user management, and company filtering functionalit
 
 import uuid
 import bcrypt
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from .connection import db_manager
 from ..models.user import User
@@ -40,7 +40,11 @@ class AuthRepository:
         """Get user by ID (without password for general use)."""
         # Dynamically detect roles table schema to handle both 'role_name' and 'name' columns
         has_role_name, has_name, has_display_name, role_name_col = await self._get_roles_column_info()
-        
+
+        # Check if assigned_project_id column exists (backwards compatibility)
+        has_assigned_project = await self._has_assigned_project_column()
+        assigned_project_select = ", u.assigned_project_id" if has_assigned_project else ""
+
         if role_name_col:
             # Build query based on available columns
             role_select = f"r.{role_name_col} as role_name"
@@ -48,10 +52,10 @@ class AuthRepository:
                 role_select += ", r.display_name as role_display_name"
             else:
                 role_select += f", r.{role_name_col} as role_display_name"
-            
+
             query = f"""
-                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
-                       u.company_id, u.is_root, u.created_at,
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id,
+                       u.company_id, u.is_root, u.created_at{assigned_project_select},
                        {role_select}
                 FROM {self.table_name} u
                 LEFT JOIN roles r ON u.role_id = r.id
@@ -60,8 +64,8 @@ class AuthRepository:
         else:
             # Fallback: no role info available
             query = f"""
-                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
-                       u.company_id, u.is_root, u.created_at,
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id,
+                       u.company_id, u.is_root, u.created_at{assigned_project_select},
                        NULL as role_name, NULL as role_display_name
                 FROM {self.table_name} u
                 WHERE u.id = $1
@@ -76,6 +80,9 @@ class AuthRepository:
             # Convert is_root to isRoot for frontend compatibility
             if 'is_root' in user_data:
                 user_data['isRoot'] = user_data['is_root']
+            # Convert assigned_project_id to assignedProjectId for frontend compatibility
+            if 'assigned_project_id' in user_data:
+                user_data['assignedProjectId'] = user_data['assigned_project_id']
             # Use role from roles table (primary source)
             if user_data.get('role_name'):
                 user_data['role'] = user_data['role_name']
@@ -107,14 +114,27 @@ class AuthRepository:
         role_name_col = 'role_name' if has_role_name else 'name' if has_name else None
         
         return has_role_name, has_name, has_display_name, role_name_col
-    
+
+    async def _has_assigned_project_column(self) -> bool:
+        """Check if users table has assigned_project_id column.
+
+        This allows backwards compatibility when the column hasn't been added yet.
+        """
+        columns_query = """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'users' AND column_name = 'assigned_project_id'
+        """
+        result = await db_manager.execute_query(columns_query)
+        return len(result) > 0
+
     async def get_users(self) -> List[Dict[str, Any]]:
         """Get all users (without passwords)."""
         # Dynamically detect roles table schema to handle both 'role_name' and 'name' columns
         has_role_name, has_name, has_display_name, role_name_col = await self._get_roles_column_info()
-        
+
         print(f"[DEBUG get_users] Role column info: has_role_name={has_role_name}, has_name={has_name}, has_display_name={has_display_name}, role_name_col={role_name_col}")
-        
+
         # Also check if users table has a legacy 'role' text column
         users_columns_query = """
             SELECT column_name
@@ -125,7 +145,11 @@ class AuthRepository:
         users_column_names = [col['column_name'] for col in users_columns_result] if users_columns_result else []
         has_legacy_role = 'role' in users_column_names
         print(f"[DEBUG get_users] Users table has legacy 'role' column: {has_legacy_role}")
-        
+
+        # Check if assigned_project_id column exists (backwards compatibility)
+        has_assigned_project = await self._has_assigned_project_column()
+        assigned_project_select = ", u.assigned_project_id" if has_assigned_project else ""
+
         # Build the role selection part of the query
         if role_name_col:
             # Primary: Get role from roles table via JOIN
@@ -134,14 +158,14 @@ class AuthRepository:
                 role_select += ", r.display_name as role_display_name"
             else:
                 role_select += f", r.{role_name_col} as role_display_name"
-            
+
             # If legacy role column exists, include it as fallback
             if has_legacy_role:
                 role_select += ", u.role as legacy_role"
-            
+
             query = f"""
-                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
-                       u.company_id, u.is_active, u.is_root, u.created_at, 
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id,
+                       u.company_id, u.is_active, u.is_root, u.created_at{assigned_project_select},
                        c.name as company_name,
                        {role_select}
                 FROM {self.table_name} u
@@ -152,8 +176,8 @@ class AuthRepository:
         elif has_legacy_role:
             # Fallback: Use legacy role column from users table
             query = f"""
-                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
-                       u.company_id, u.is_active, u.is_root, u.created_at, 
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id,
+                       u.company_id, u.is_active, u.is_root, u.created_at{assigned_project_select},
                        c.name as company_name,
                        u.role as role_name, u.role as role_display_name, u.role as legacy_role
                 FROM {self.table_name} u
@@ -163,8 +187,8 @@ class AuthRepository:
         else:
             # No role info available at all
             query = f"""
-                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
-                       u.company_id, u.is_active, u.is_root, u.created_at, 
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id,
+                       u.company_id, u.is_active, u.is_root, u.created_at{assigned_project_select},
                        c.name as company_name,
                        NULL as role_name, NULL as role_display_name
                 FROM {self.table_name} u
@@ -183,7 +207,7 @@ class AuthRepository:
             # Debug: Print first 3 users' raw data
             if i < 3:
                 print(f"[DEBUG get_users] Raw user {i+1}: email={user_data.get('email')}, role_id={user_data.get('role_id')}, role_name={user_data.get('role_name')}, company_id={user_data.get('company_id')}, company_name={user_data.get('company_name')}")
-            
+
             # Convert company_id to companyId for frontend compatibility
             if 'company_id' in user_data:
                 user_data['companyId'] = user_data['company_id']
@@ -196,7 +220,10 @@ class AuthRepository:
             # Convert is_root to isRoot for frontend compatibility
             if 'is_root' in user_data:
                 user_data['isRoot'] = user_data['is_root']
-            
+            # Convert assigned_project_id to assignedProjectId for frontend compatibility
+            if 'assigned_project_id' in user_data:
+                user_data['assignedProjectId'] = user_data['assigned_project_id']
+
             # Use role from roles table (primary source), fallback to legacy_role
             role_from_join = user_data.get('role_name')
             legacy_role = user_data.get('legacy_role')
@@ -236,9 +263,9 @@ class AuthRepository:
         """Get all users for a specific company."""
         # Dynamically detect roles table schema to handle both 'role_name' and 'name' columns
         has_role_name, has_name, has_display_name, role_name_col = await self._get_roles_column_info()
-        
+
         print(f"[DEBUG get_company_users] company_id={company_id}, role_name_col={role_name_col}")
-        
+
         # Also check if users table has a legacy 'role' text column
         users_columns_query = """
             SELECT column_name
@@ -248,7 +275,11 @@ class AuthRepository:
         users_columns_result = await db_manager.execute_query(users_columns_query)
         users_column_names = [col['column_name'] for col in users_columns_result] if users_columns_result else []
         has_legacy_role = 'role' in users_column_names
-        
+
+        # Check if assigned_project_id column exists (backwards compatibility)
+        has_assigned_project = await self._has_assigned_project_column()
+        assigned_project_select = ", u.assigned_project_id" if has_assigned_project else ""
+
         # Build the role selection part of the query
         if role_name_col:
             role_select = f"r.{role_name_col} as role_name"
@@ -256,41 +287,41 @@ class AuthRepository:
                 role_select += ", r.display_name as role_display_name"
             else:
                 role_select += f", r.{role_name_col} as role_display_name"
-            
+
             if has_legacy_role:
                 role_select += ", u.role as legacy_role"
-            
+
             query = f"""
-                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
-                       u.company_id, u.is_active, u.is_root, u.created_at, 
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id,
+                       u.company_id, u.is_active, u.is_root, u.created_at{assigned_project_select},
                        c.name as company_name,
                        {role_select}
                 FROM {self.table_name} u
                 LEFT JOIN companies c ON u.company_id::text = c.id::text
                 LEFT JOIN roles r ON u.role_id::text = r.id::text
-                WHERE u.company_id::text = $1::text 
+                WHERE u.company_id::text = $1::text
                 ORDER BY u.first_name, u.last_name
             """
         elif has_legacy_role:
             query = f"""
-                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
-                       u.company_id, u.is_active, u.is_root, u.created_at, 
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id,
+                       u.company_id, u.is_active, u.is_root, u.created_at{assigned_project_select},
                        c.name as company_name,
                        u.role as role_name, u.role as role_display_name, u.role as legacy_role
                 FROM {self.table_name} u
                 LEFT JOIN companies c ON u.company_id::text = c.id::text
-                WHERE u.company_id::text = $1::text 
+                WHERE u.company_id::text = $1::text
                 ORDER BY u.first_name, u.last_name
             """
         else:
             query = f"""
-                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id, 
-                       u.company_id, u.is_active, u.is_root, u.created_at, 
+                SELECT u.id, u.first_name, u.last_name, u.email, u.role_id,
+                       u.company_id, u.is_active, u.is_root, u.created_at{assigned_project_select},
                        c.name as company_name,
                        NULL as role_name, NULL as role_display_name
                 FROM {self.table_name} u
                 LEFT JOIN companies c ON u.company_id::text = c.id::text
-                WHERE u.company_id::text = $1::text 
+                WHERE u.company_id::text = $1::text
                 ORDER BY u.first_name, u.last_name
             """
         
@@ -304,7 +335,7 @@ class AuthRepository:
             # Debug first 3 users
             if i < 3:
                 print(f"[DEBUG get_company_users] Raw user {i+1}: email={user_data.get('email')}, company_id={user_data.get('company_id')}, company_name={user_data.get('company_name')}")
-            
+
             # Convert company_id to companyId for frontend compatibility
             if 'company_id' in user_data:
                 user_data['companyId'] = user_data['company_id']
@@ -317,18 +348,21 @@ class AuthRepository:
             # Convert is_root to isRoot for frontend compatibility
             if 'is_root' in user_data:
                 user_data['isRoot'] = user_data['is_root']
-            
+            # Convert assigned_project_id to assignedProjectId for frontend compatibility
+            if 'assigned_project_id' in user_data:
+                user_data['assignedProjectId'] = user_data['assigned_project_id']
+
             # Use role from roles table (primary source), fallback to legacy_role
             role_from_join = user_data.get('role_name')
             legacy_role = user_data.get('legacy_role')
-            
+
             if role_from_join:
                 user_data['role'] = role_from_join
                 user_data['role_name'] = user_data.get('role_display_name') or role_from_join
             elif legacy_role:
                 user_data['role'] = legacy_role
                 user_data['role_name'] = legacy_role
-            
+
             # Add roleId for frontend (primary identifier)
             if 'role_id' in user_data:
                 user_data['roleId'] = user_data['role_id']
@@ -343,7 +377,7 @@ class AuthRepository:
     async def create_rbac_user(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new user for RBAC system."""
         user_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Convert camelCase to snake_case for database
         data = self._convert_from_camel_case(user_data)
@@ -369,11 +403,15 @@ class AuthRepository:
         if not role_exists:
             raise ValueError(f"Invalid role_id: {role_id} does not exist in roles table")
         
-        # Ensure company_id is a string (database column is varchar)
+        # Handle company_id
+        # Root users MUST have NULL company_id, regular users must have company_id
+        is_root = data.get('is_root', False)
         company_id = data.get('company_id')
-        if company_id:
-            company_id = str(company_id)
-        
+        if is_root:
+            company_id = None  # Root users cannot belong to a company
+        elif company_id:
+            company_id = str(company_id)  # Ensure it's a string for varchar column
+
         # Hash password if provided
         password_hash = None
         if data.get('password'):
@@ -388,9 +426,33 @@ class AuthRepository:
         last_name = data.get('last_name') or ''
         email = data.get('email')
         is_active = data.get('is_active', True)
-        
-        # Handle is_root flag (only ONE root user allowed)
-        is_root = data.get('is_root', False)
+
+        # Check if assigned_project_id column exists (backwards compatibility)
+        has_assigned_project_col = await self._has_assigned_project_column()
+
+        # Handle assigned_project_id for client users (only if column exists)
+        assigned_project_id = data.get('assigned_project_id') if has_assigned_project_col else None
+        if has_assigned_project_col and assigned_project_id:
+            # Get role name to validate only client role can have assigned project
+            role_info = await db_manager.execute_one(
+                "SELECT COALESCE(role_name, name) as role_name FROM roles WHERE id = $1",
+                role_id
+            )
+            role_name = role_info['role_name'] if role_info else None
+            if role_name and role_name.lower() != 'client':
+                raise ValueError("Only client role users can be assigned to a project")
+
+            # Validate project exists and belongs to the same company
+            project_check = await db_manager.execute_one(
+                "SELECT company_id FROM projects WHERE id = $1",
+                assigned_project_id
+            )
+            if not project_check:
+                raise ValueError(f"Assigned project {assigned_project_id} does not exist")
+            if company_id and str(project_check['company_id']) != str(company_id):
+                raise ValueError("Assigned project must belong to the same company as the user")
+
+        # Verify only ONE root user allowed
         if is_root:
             # Verify no other root user exists
             existing_root = await db_manager.execute_one(
@@ -400,20 +462,27 @@ class AuthRepository:
                 raise ValueError("A root user already exists. Only ONE root user is allowed.")
         
         print(f"[DEBUG create_rbac_user] Inserting user: id={user_id}, email={email}, role_id={role_id}, company_id={company_id}, is_root={is_root}")
-        
-        query = f"""
-            INSERT INTO {self.table_name} 
-            (id, first_name, last_name, email, password, role_id, company_id, is_active, is_root, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-            RETURNING id, first_name, last_name, email, role_id, company_id, is_active, is_root, created_at
-        """
-        
+
+        if has_assigned_project_col:
+            query = f"""
+                INSERT INTO {self.table_name}
+                (id, first_name, last_name, email, password, role_id, company_id, is_active, is_root, assigned_project_id, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+                RETURNING id, first_name, last_name, email, role_id, company_id, is_active, is_root, assigned_project_id, created_at
+            """
+            query_params = (user_id, first_name, last_name, email, password_hash, role_id, company_id, is_active, is_root, assigned_project_id)
+        else:
+            # Column doesn't exist yet - skip assigned_project_id
+            query = f"""
+                INSERT INTO {self.table_name}
+                (id, first_name, last_name, email, password, role_id, company_id, is_active, is_root, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+                RETURNING id, first_name, last_name, email, role_id, company_id, is_active, is_root, created_at
+            """
+            query_params = (user_id, first_name, last_name, email, password_hash, role_id, company_id, is_active, is_root)
+
         try:
-            row = await db_manager.execute_one(
-                query, user_id, first_name, last_name,
-                email, password_hash, role_id,
-                company_id, is_active, is_root
-            )
+            row = await db_manager.execute_one(query, *query_params)
             print(f"[DEBUG create_rbac_user] User created successfully: {dict(row) if row else 'No row returned'}")
         except Exception as e:
             print(f"[ERROR create_rbac_user] Error inserting user into database: {e}")
@@ -451,18 +520,69 @@ class AuthRepository:
         if 'password' in data and data['password']:
             password_bytes = data['password'].encode('utf-8')
             data['password'] = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
-        
+
+        # Check if assigned_project_id column exists (backwards compatibility)
+        has_assigned_project = await self._has_assigned_project_column()
+
+        # Validate assigned_project_id if being updated (only if column exists)
+        if has_assigned_project:
+            assigned_project_id = data.get('assigned_project_id')
+            if assigned_project_id is not None:  # None means clear, empty string also clears
+                if assigned_project_id:  # Non-empty value - validate it
+                    # Get user's current role or the role being set
+                    effective_role_id = role_id
+                    if not effective_role_id:
+                        user_info = await db_manager.execute_one(
+                            "SELECT role_id, company_id FROM users WHERE id = $1", user_id
+                        )
+                        if user_info:
+                            effective_role_id = user_info['role_id']
+                            if not data.get('company_id'):
+                                data['_user_company_id'] = user_info['company_id']
+
+                    if effective_role_id:
+                        role_info = await db_manager.execute_one(
+                            "SELECT COALESCE(role_name, name) as role_name FROM roles WHERE id = $1",
+                            effective_role_id
+                        )
+                        role_name = role_info['role_name'] if role_info else None
+                        if role_name and role_name.lower() != 'client':
+                            raise ValueError("Only client role users can be assigned to a project")
+
+                    # Validate project exists and belongs to same company
+                    company_id = data.get('company_id') or data.get('_user_company_id')
+                    if company_id:
+                        project_check = await db_manager.execute_one(
+                            "SELECT company_id FROM projects WHERE id = $1",
+                            assigned_project_id
+                        )
+                        if not project_check:
+                            raise ValueError(f"Assigned project {assigned_project_id} does not exist")
+                        if str(project_check['company_id']) != str(company_id):
+                            raise ValueError("Assigned project must belong to the same company as the user")
+
+                # Remove temporary field
+                data.pop('_user_company_id', None)
+        else:
+            # Column doesn't exist - remove from data to avoid update errors
+            data.pop('assigned_project_id', None)
+
         set_clauses = []
         values = []
         param_count = 1
-        
+
+        # Build allowed fields list dynamically based on column existence
+        allowed_fields = ['first_name', 'last_name', 'email', 'password', 'role_id', 'company_id', 'is_active', 'username']
+        if has_assigned_project:
+            allowed_fields.append('assigned_project_id')
+
         for key, value in data.items():
             if key != 'id':  # Don't update ID
                 # Only update fields that exist in the users table
                 # Explicitly exclude 'name' and other invalid fields
-                if key in ['first_name', 'last_name', 'email', 'password', 'role_id', 'company_id', 'is_active', 'username']:
+                if key in allowed_fields:
                     set_clauses.append(f"{key} = ${param_count}")
-                    values.append(value)
+                    values.append(value if value != '' else None)  # Convert empty string to NULL
                     param_count += 1
         
         # Always update updated_at
@@ -539,7 +659,7 @@ class CompanyRepository:
     async def create_company(self, company_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new company."""
         company_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         data = self._convert_from_camel_case(company_data)
         
@@ -986,7 +1106,7 @@ class RoleRepository:
             
             if has_created_at:
                 columns.append('created_at')
-                values.append(datetime.utcnow())
+                values.append(datetime.now(timezone.utc))
             
             # Build parameterized query
             placeholders = ', '.join([f'${i+1}' for i in range(len(values))])

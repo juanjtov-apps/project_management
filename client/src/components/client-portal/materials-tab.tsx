@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { 
-  Plus, Package, ExternalLink, Trash2, ChevronDown, ChevronRight, 
-  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle
+import {
+  Plus, Package, ExternalLink, Trash2, ChevronDown, ChevronRight,
+  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle, Layers, Filter, ArrowLeft
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 
 // Schema for creating an area
 const areaSchema = z.object({
@@ -42,6 +44,7 @@ const materialItemSchema = z.object({
   vendor: z.string().optional(),
   quantity: z.string().optional(),
   unit_cost: z.number().optional(),
+  stage_id: z.string().optional(),
 });
 
 type AreaFormData = z.infer<typeof areaSchema>;
@@ -71,21 +74,42 @@ interface MaterialItem {
   quantity?: string;
   unit_cost?: number;
   status: string;
+  order_status: string;  // 'pending_to_order' or 'ordered'
   added_by: string;
   added_by_name?: string;
   created_at: string;
   updated_at: string;
+  stage_id?: string;
+  stage_name?: string;
+}
+
+interface ProjectStage {
+  id: string;
+  projectId: string;
+  orderIndex: number;
+  name: string;
+  status: string;
 }
 
 interface MaterialsTabProps {
   projectId: string;
+  initialStageFilter?: string;
+  isClient?: boolean;
 }
 
-export function MaterialsTab({ projectId }: MaterialsTabProps) {
+export function MaterialsTab({ projectId, initialStageFilter, isClient = false }: MaterialsTabProps) {
   const [isCreateAreaOpen, setIsCreateAreaOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [stageFilter, setStageFilter] = useState<string>(initialStageFilter || "all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Update filter when initialStageFilter changes (from URL)
+  useEffect(() => {
+    if (initialStageFilter) {
+      setStageFilter(initialStageFilter);
+    }
+  }, [initialStageFilter]);
 
   const areaForm = useForm<AreaFormData>({
     resolver: zodResolver(areaSchema),
@@ -104,6 +128,12 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
   // Get all material items for the project
   const { data: allItems = [], isLoading: itemsLoading } = useQuery<MaterialItem[]>({
     queryKey: [`/api/material-items?project_id=${projectId}`],
+    enabled: !!projectId,
+  });
+
+  // Get project stages for filtering
+  const { data: stages = [] } = useQuery<ProjectStage[]>({
+    queryKey: [`/api/v1/stages?projectId=${projectId}`],
     enabled: !!projectId,
   });
 
@@ -143,12 +173,20 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
     createAreaMutation.mutate(data);
   };
 
-  // Filter items based on search
-  const filteredItems = allItems.filter(item => 
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.spec?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.vendor?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter items based on search and stage filter
+  const filteredItems = allItems.filter(item => {
+    const matchesSearch =
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.spec?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.vendor?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStage =
+      stageFilter === "all" ||
+      (stageFilter === "unassigned" && !item.stage_id) ||
+      item.stage_id === stageFilter;
+
+    return matchesSearch && matchesStage;
+  });
 
   // Calculate totals
   const totalItems = allItems.length;
@@ -168,14 +206,30 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
             Organize materials by house area with collapsible sections
           </p>
         </div>
-        
-        <Dialog open={isCreateAreaOpen} onOpenChange={setIsCreateAreaOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-area">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Area
+
+        <div className="flex items-center gap-2">
+          {/* Back to Stages button - always visible for PMs */}
+          {!isClient && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                window.location.href = `/projects?projectId=${projectId}&tab=stages`;
+              }}
+              data-testid="button-back-to-stages"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Stages
             </Button>
-          </DialogTrigger>
+          )}
+
+          {!isClient && (
+            <Dialog open={isCreateAreaOpen} onOpenChange={setIsCreateAreaOpen}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-add-area">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Area
+                </Button>
+              </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Material Area</DialogTitle>
@@ -240,7 +294,9 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
               </form>
             </Form>
           </DialogContent>
-        </Dialog>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -282,16 +338,39 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search materials by name, spec, or vendor..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-          data-testid="input-search-materials"
-        />
+      {/* Search and Stage Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search materials by name, spec, or vendor..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+            data-testid="input-search-materials"
+          />
+        </div>
+        {stages.length > 0 && (
+          <Select value={stageFilter} onValueChange={setStageFilter}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-amber-500" />
+                <SelectValue placeholder="Filter by stage" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Stages</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {stages
+                .sort((a, b) => a.orderIndex - b.orderIndex)
+                .map((stage) => (
+                  <SelectItem key={stage.id} value={stage.id}>
+                    {stage.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Areas List */}
@@ -304,12 +383,17 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
               <Building2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">No Areas Created</h3>
               <p className="text-muted-foreground mb-4">
-                Create your first material area to organize materials by house section.
+                {isClient
+                  ? "No material areas have been set up for this project yet. Contact your project manager."
+                  : "Create your first material area to organize materials by house section."
+                }
               </p>
-              <Button onClick={() => setIsCreateAreaOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Area
-              </Button>
+              {!isClient && (
+                <Button onClick={() => setIsCreateAreaOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Area
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -321,6 +405,8 @@ export function MaterialsTab({ projectId }: MaterialsTabProps) {
               area={area}
               items={filteredItems.filter(item => item.area_id === area.id)}
               projectId={projectId}
+              isClient={isClient}
+              stages={stages}
             />
           ))}
         </div>
@@ -333,14 +419,19 @@ interface MaterialAreaSectionProps {
   area: MaterialArea;
   items: MaterialItem[];
   projectId: string;
+  isClient?: boolean;
+  stages?: ProjectStage[];
 }
 
-function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProps) {
+function MaterialAreaSection({ area, items, projectId, isClient = false, stages = [] }: MaterialAreaSectionProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [isDeleteAreaDialogOpen, setIsDeleteAreaDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const [duplicateName, setDuplicateName] = useState("");
+  const [pendingFormData, setPendingFormData] = useState<MaterialItemFormData | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -419,8 +510,43 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
     },
   });
 
-  const onSubmitItem = (data: MaterialItemFormData) => {
+  const onSubmitItem = async (data: MaterialItemFormData) => {
+    // Check for duplicate name in the same area
+    try {
+      const response = await fetch(`/api/material-items/check-duplicate?area_id=${area.id}&name=${encodeURIComponent(data.name)}`);
+      const result = await response.json();
+
+      if (result.exists) {
+        // Show duplicate warning dialog
+        setDuplicateName(data.name);
+        setPendingFormData(data);
+        setIsDuplicateDialogOpen(true);
+        return;
+      }
+    } catch (error) {
+      console.error("Error checking for duplicate:", error);
+      // Continue with creation if check fails
+    }
+
     createItemMutation.mutate(data);
+  };
+
+  const handleDuplicateChangeName = () => {
+    setIsDuplicateDialogOpen(false);
+    // Focus on name field - form stays open
+    setTimeout(() => {
+      const nameInput = document.querySelector(`[data-area-id="${area.id}"] input[name="name"]`) as HTMLInputElement;
+      if (nameInput) {
+        nameInput.focus();
+        nameInput.select();
+      }
+    }, 100);
+  };
+
+  const handleDuplicateCancel = () => {
+    setIsDuplicateDialogOpen(false);
+    setPendingFormData(null);
+    setDuplicateName("");
   };
 
   // Delete area mutation
@@ -488,14 +614,16 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
             <div className="text-sm font-medium text-green-600 dark:text-green-400">
               ${areaCost.toFixed(2)}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDeleteArea}
-              data-testid={`button-delete-area-${area.id}`}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
+            {!isClient && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDeleteArea}
+                data-testid={`button-delete-area-${area.id}`}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
           </div>
         </div>
 
@@ -510,17 +638,19 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
                     item={item}
                     onDelete={handleDeleteItem}
                     projectId={projectId}
+                    isClient={isClient}
+                    stages={stages}
                   />
                 ))}
               </div>
             )}
 
-            {/* Add Item Form */}
+            {/* Add Item Form - Available to all users including clients */}
             {isAddingItem ? (
               <Card className="border-2 border-dashed">
                 <CardContent className="p-4">
                   <Form {...itemForm}>
-                    <form onSubmit={itemForm.handleSubmit(onSubmitItem)} className="space-y-4">
+                    <form onSubmit={itemForm.handleSubmit(onSubmitItem)} className="space-y-4" data-area-id={area.id}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={itemForm.control}
@@ -719,6 +849,34 @@ function MaterialAreaSection({ area, items, projectId }: MaterialAreaSectionProp
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Duplicate Name Warning Dialog */}
+      <AlertDialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Material Name Already Exists
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                A material named <strong>"{duplicateName}"</strong> already exists in this area.
+              </p>
+              <p className="text-muted-foreground">
+                Please choose a different name to avoid confusion.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDuplicateCancel}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDuplicateChangeName}>
+              Change Name
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
@@ -727,9 +885,11 @@ interface MaterialItemRowProps {
   item: MaterialItem;
   onDelete: (id: string) => void;
   projectId: string;
+  isClient?: boolean;
+  stages?: ProjectStage[];
 }
 
-function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
+function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages = [] }: MaterialItemRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -743,6 +903,7 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
       vendor: item.vendor || "",
       quantity: item.quantity || "",
       unit_cost: item.unit_cost || undefined,
+      stage_id: item.stage_id || "",
     },
   });
 
@@ -758,6 +919,7 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
           vendor: data.vendor || null,
           quantity: data.quantity || null,
           unit_cost: data.unit_cost || null,
+          stage_id: data.stage_id || null,
         },
       });
       return response.json();
@@ -784,6 +946,24 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
     updateItemMutation.mutate(data);
   };
 
+  // Toggle order status mutation
+  const toggleOrderStatusMutation = useMutation({
+    mutationFn: async (newStatus: string) => {
+      const response = await apiRequest(`/api/material-items/${item.id}`, {
+        method: "PATCH",
+        body: { order_status: newStatus },
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/material-items?project_id=${projectId}`] });
+      toast({
+        title: "Status Updated",
+        description: `Material marked as ${item.order_status === 'ordered' ? 'pending' : 'ordered'}.`,
+      });
+    },
+  });
+
   const totalCost = (parseFloat(item.quantity || "0") || 1) * (item.unit_cost || 0);
 
   if (isEditing) {
@@ -800,8 +980,17 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
                     <FormItem>
                       <FormLabel>Material Name *</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., 2x4 Lumber" {...field} data-testid="input-edit-name" />
+                        <Input
+                          placeholder="e.g., 2x4 Lumber"
+                          {...field}
+                          data-testid="input-edit-name"
+                          disabled={isClient}
+                          className={isClient ? "bg-muted cursor-not-allowed" : ""}
+                        />
                       </FormControl>
+                      {isClient && (
+                        <p className="text-xs text-muted-foreground">Contact PM to change material name</p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -887,6 +1076,43 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
                 />
               </div>
 
+              {/* Stage Assignment - PM/Admin only */}
+              {!isClient && stages.length > 0 && (
+                <FormField
+                  control={editForm.control}
+                  name="stage_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <Layers className="h-4 w-4 text-amber-500" />
+                        Assigned Stage
+                      </FormLabel>
+                      <Select
+                        value={field.value || "__none__"}
+                        onValueChange={(value) => field.onChange(value === "__none__" ? "" : value)}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-stage">
+                            <SelectValue placeholder="Select a stage (optional)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="__none__">No stage assigned</SelectItem>
+                          {stages
+                            .sort((a, b) => a.orderIndex - b.orderIndex)
+                            .map((stage) => (
+                              <SelectItem key={stage.id} value={stage.id}>
+                                {stage.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               <div className="flex justify-end gap-2">
                 <Button
                   type="button"
@@ -901,8 +1127,8 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
                   <X className="h-4 w-4 mr-1" />
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   size="sm"
                   disabled={updateItemMutation.isPending}
                   data-testid="button-submit-edit"
@@ -927,8 +1153,63 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
             {item.spec && (
               <p className="text-sm text-muted-foreground">{item.spec}</p>
             )}
+            {/* Stage indicator with navigation for PMs */}
+            {item.stage_name && (
+              <div className="flex items-center gap-1 mt-1">
+                <Layers className="h-3 w-3 text-amber-500" />
+                <span className="text-xs text-muted-foreground">Stage: {item.stage_name}</span>
+                {!isClient && item.stage_id && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-1 text-xs text-amber-600 hover:text-amber-700"
+                    onClick={() => {
+                      window.location.href = `/projects?projectId=${projectId}&tab=stages&highlight=${item.stage_id}`;
+                    }}
+                    title="Go to stage"
+                  >
+                    <ChevronRight className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
+            {/* Order Status Toggle */}
+            <div className="flex rounded-md border border-border overflow-hidden">
+              <button
+                onClick={() => {
+                  if (item.order_status === 'ordered') {
+                    toggleOrderStatusMutation.mutate('pending_to_order');
+                  }
+                }}
+                disabled={toggleOrderStatusMutation.isPending}
+                className={cn(
+                  "px-2 py-1 text-xs transition-colors",
+                  item.order_status !== 'ordered'
+                    ? "bg-amber-500 text-white"
+                    : "bg-transparent text-muted-foreground hover:bg-muted"
+                )}
+              >
+                Pending
+              </button>
+              <button
+                onClick={() => {
+                  if (item.order_status !== 'ordered') {
+                    toggleOrderStatusMutation.mutate('ordered');
+                  }
+                }}
+                disabled={toggleOrderStatusMutation.isPending}
+                className={cn(
+                  "px-2 py-1 text-xs transition-colors",
+                  item.order_status === 'ordered'
+                    ? "bg-emerald-500 text-white"
+                    : "bg-transparent text-muted-foreground hover:bg-muted"
+                )}
+              >
+                Ordered
+              </button>
+            </div>
             {item.product_link && (
               <Button
                 variant="ghost"
@@ -949,14 +1230,16 @@ function MaterialItemRow({ item, onDelete, projectId }: MaterialItemRowProps) {
             >
               <Pencil className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDelete(item.id)}
-              data-testid={`button-delete-${item.id}`}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
+            {!isClient && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(item.id)}
+                data-testid={`button-delete-${item.id}`}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">

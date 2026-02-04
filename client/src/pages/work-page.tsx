@@ -14,9 +14,14 @@ import {
   Home,
   FolderKanban,
   ClipboardList,
+  X,
+  Layers,
+  Eye,
+  AlertTriangle,
+  Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -51,6 +56,8 @@ import { FilterBar } from "@/components/ui/filter-bar";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ProjectCard, CreateProjectCard } from "@/components/ui/project-card";
 import { ProjectQuickView } from "@/components/ui/project-quick-view";
+import { StagesTab } from "@/components/stages/stages-tab";
+import { ObjectUploader } from "@/components/ObjectUploader";
 import { TaskCard as TabletTaskCard } from "@/components/ui/task-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
@@ -122,6 +129,18 @@ export default function WorkPage() {
   // Quick View state
   const [quickViewProject, setQuickViewProject] = useState<Project | null>(null);
 
+  // Stages dialog state
+  const [stagesProject, setStagesProject] = useState<Project | null>(null);
+
+  // Issues dialog state
+  const [issuesProject, setIssuesProject] = useState<Project | null>(null);
+  const [showReportIssueForm, setShowReportIssueForm] = useState(false);
+  const [issueTitle, setIssueTitle] = useState("");
+  const [issueDescription, setIssueDescription] = useState("");
+  const [issuePhotos, setIssuePhotos] = useState<string[]>([]); // Preview URLs for display
+  const [issuePaths, setIssuePaths] = useState<string[]>([]); // Object paths for storage
+  const [isCreatingIssue, setIsCreatingIssue] = useState(false);
+
   // Projects - Filter states
   const [projectSearchTerm, setProjectSearchTerm] = useState("");
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>("all");
@@ -189,6 +208,22 @@ export default function WorkPage() {
   const { data: allPhotos = [] } = useQuery<Photo[]>({
     queryKey: ["/api/photos"],
   });
+
+  // Handle URL parameters to auto-open stages dialog (e.g., from "Back to Stages" in materials tab)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const projectIdParam = params.get('projectId');
+    const tabParam = params.get('tab');
+
+    if (projectIdParam && tabParam === 'stages' && projects.length > 0) {
+      const project = projects.find(p => p.id === projectIdParam);
+      if (project) {
+        setStagesProject(project);
+        // Clean up URL after opening dialog
+        window.history.replaceState({}, '', '/projects');
+      }
+    }
+  }, [projects]);
 
   // Create a map of project ID to cover photo or first photo for thumbnails
   const projectThumbnails = useMemo(() => {
@@ -407,7 +442,6 @@ export default function WorkPage() {
       location: "",
       progress: 0,
       dueDate: undefined,
-      companyId: "", // Required by schema, will be set from project data on edit
     },
   });
 
@@ -595,6 +629,64 @@ export default function WorkPage() {
 
   const handleOpenProject = (project: Project) => {
     setLocation(`/client-portal?project=${project.id}`);
+  };
+
+  // === ISSUE HANDLERS ===
+  const handleCreateIssue = async () => {
+    if (!issuesProject || !issueTitle || !issueDescription) return;
+
+    setIsCreatingIssue(true);
+    try {
+      await apiRequest("/api/client-issues", {
+        method: "POST",
+        body: {
+          project_id: issuesProject.id,
+          title: issueTitle,
+          description: issueDescription,
+          photos: issuePaths, // Send object paths, not preview URLs
+        },
+      });
+
+      toast({
+        title: "Issue Created",
+        description: "Your issue has been submitted successfully.",
+      });
+
+      // Reset and close
+      setIssueTitle("");
+      setIssueDescription("");
+      setIssuePhotos([]);
+      setIssuePaths([]);
+      setShowReportIssueForm(false);
+      setIssuesProject(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create issue. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingIssue(false);
+    }
+  };
+
+  const handleIssueUploadParameters = async () => {
+    const response = await apiRequest("/api/objects/upload", { method: "POST" });
+    const data = await response.json();
+    return {
+      method: "PUT" as const,
+      url: data.uploadURL,
+      previewURL: data.previewURL,
+      objectPath: data.objectPath,
+    };
+  };
+
+  const resetIssueForm = () => {
+    setShowReportIssueForm(false);
+    setIssueTitle("");
+    setIssueDescription("");
+    setIssuePhotos([]);
+    setIssuePaths([]);
   };
 
   // === TASK HANDLERS ===
@@ -901,6 +993,8 @@ export default function WorkPage() {
                       setProjectToDelete(project);
                       setIsProjectDeleteDialogOpen(true);
                     }}
+                    onStages={() => setStagesProject(project)}
+                    onIssues={() => setIssuesProject(project)}
                     isSelected={quickViewProject?.id === project.id}
                     data-testid={`project-card-${project.id}`}
                   />
@@ -2259,6 +2353,155 @@ export default function WorkPage() {
         onClose={() => setQuickViewProject(null)}
         isOpen={quickViewProject !== null}
       />
+
+      {/* Direct Stages Dialog */}
+      <Dialog open={!!stagesProject} onOpenChange={(open) => !open && setStagesProject(null)}>
+        <DialogContent hideCloseButton className="max-w-4xl max-h-[85vh] overflow-y-auto bg-zinc-900 border-zinc-700 p-0">
+          {/* sr-only header for accessibility - close button is inside StagesTab */}
+          <DialogHeader className="sr-only">
+            <DialogTitle>Project Stages</DialogTitle>
+          </DialogHeader>
+          <div className="p-6">
+            {stagesProject && (
+              <StagesTab
+                projectId={stagesProject.id}
+                onClose={() => setStagesProject(null)}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Issues Menu Dialog */}
+      <Dialog open={!!issuesProject} onOpenChange={(open) => {
+        if (!open) {
+          setIssuesProject(null);
+          resetIssueForm();
+        }
+      }}>
+        <DialogContent className="sm:max-w-md max-w-[calc(100vw-2rem)] mx-auto bg-zinc-900 border-zinc-700">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+              {showReportIssueForm ? "Report New Issue" : "Project Issues"}
+            </DialogTitle>
+          </DialogHeader>
+
+          {!showReportIssueForm ? (
+            /* Menu Options */
+            <div className="flex flex-col gap-3 py-4">
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-14 text-left bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-white"
+                onClick={() => {
+                  setLocation(`/client-portal?projectId=${issuesProject?.id}&tab=issues`);
+                  setIssuesProject(null);
+                }}
+              >
+                <Eye className="h-5 w-5 text-blue-400 flex-shrink-0" />
+                <div className="text-left">
+                  <div className="font-medium">See Project Issues</div>
+                  <div className="text-xs text-zinc-400">View all issues in client portal</div>
+                </div>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-14 text-left bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-white"
+                onClick={() => setShowReportIssueForm(true)}
+              >
+                <Plus className="h-5 w-5 text-green-400 flex-shrink-0" />
+                <div className="text-left">
+                  <div className="font-medium">Report New Issue</div>
+                  <div className="text-xs text-zinc-400">Create a new issue for this project</div>
+                </div>
+              </Button>
+            </div>
+          ) : (
+            /* Issue Creation Form */
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-300">Issue Title</label>
+                <Input
+                  placeholder="Brief description of the issue"
+                  value={issueTitle}
+                  onChange={(e) => setIssueTitle(e.target.value)}
+                  className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-300">Description</label>
+                <Textarea
+                  placeholder="Detailed description of the issue..."
+                  value={issueDescription}
+                  onChange={(e) => setIssueDescription(e.target.value)}
+                  className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 min-h-[100px]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-300">Photos (Optional, max 3)</label>
+                {issuePhotos.length < 3 && (
+                  <ObjectUploader
+                    maxNumberOfFiles={3 - issuePhotos.length}
+                    onGetUploadParameters={handleIssueUploadParameters}
+                    onComplete={(results) => {
+                      const newPreviewUrls = results.map(r => r.previewURL);
+                      const newObjectPaths = results.map(r => r.objectPath);
+                      setIssuePhotos([...issuePhotos, ...newPreviewUrls]);
+                      setIssuePaths([...issuePaths, ...newObjectPaths]);
+                    }}
+                    buttonClassName="w-full bg-[#4ADE80] text-[#0F1115] hover:bg-[#22C55E] shadow-lg"
+                  >
+                    <div className="flex items-center gap-2 text-[#0F1115]">
+                      <Camera className="h-4 w-4" />
+                      <span className="text-[#0F1115]">Upload Photos ({issuePhotos.length}/3)</span>
+                    </div>
+                  </ObjectUploader>
+                )}
+                {/* Photo previews */}
+                {issuePhotos.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    {issuePhotos.map((photo, index) => (
+                      <div key={index} className="relative group">
+                        <img src={photo} alt="" className="w-full h-16 object-cover rounded border border-zinc-700" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIssuePhotos(issuePhotos.filter((_, i) => i !== index));
+                            setIssuePaths(issuePaths.filter((_, i) => i !== index));
+                          }}
+                          className="absolute top-1 right-1 bg-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3 text-white" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={resetIssueForm}
+                  className="flex-1 bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateIssue}
+                  disabled={!issueTitle || !issueDescription || isCreatingIssue}
+                  className="flex-1"
+                >
+                  {isCreatingIssue ? "Creating..." : "Create Issue"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden">

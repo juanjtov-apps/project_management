@@ -8,15 +8,44 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, Dict, Any
 import bcrypt
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import asyncpg
 import logging
 from ..database.connection import get_db_pool
 from ..models.user import User
 from ..core.config import settings
+from ..middleware.security import clear_csrf_tokens
 import os
+import json
 
 logger = logging.getLogger(__name__)
+
+
+def ensure_timezone_aware(dt: Optional[datetime]) -> Optional[datetime]:
+    """Ensure datetime is timezone-aware (UTC).
+
+    PostgreSQL returns timezone-naive datetimes from timestamp columns.
+    This function normalizes them to timezone-aware for comparison with
+    datetime.now(timezone.utc).
+    """
+    if dt is not None and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def to_naive_utc(dt: datetime) -> datetime:
+    """Convert timezone-aware datetime to timezone-naive UTC.
+
+    PostgreSQL 'timestamp without time zone' columns cannot accept
+    timezone-aware datetimes. This function converts to naive UTC
+    for database insertion while preserving the UTC time value.
+    """
+    if dt.tzinfo is not None:
+        # Convert to UTC and remove timezone info
+        utc_dt = dt.astimezone(timezone.utc)
+        return utc_dt.replace(tzinfo=None)
+    return dt
+
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -171,14 +200,18 @@ def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool
     }
     
     # Client Portal access for managers, project_managers, office_managers and admins
-    # They get all tabs EXCEPT payments (which is admin-only)
+    # They get all tabs EXCEPT payments (which is admin-only, except office_manager)
     if role in ['admin', 'manager', 'project_manager', 'office_manager']:
         permissions.update({
             "crew": True,
             "subs": True,
             "clientPortal": True
         })
-    
+
+    # Office managers get payments access (they need to upload invoices)
+    if role == 'office_manager':
+        permissions["clientPortalPayments"] = True
+
     # RBAC Admin and Payments access only for admins and root
     if is_root_admin or role == 'admin':
         permissions.update({
@@ -205,26 +238,85 @@ def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool
         })
     
     if role == 'client':
+        # Client users only see the client portal - all other modules are hidden
         permissions.update({
-            "clientPortal": True,
-            "tasks": False,
-            "photos": True,
-            "projects": True,
-            "schedule": False,
-            "logs": False,
-            "projectHealth": False,
-            "crew": False,
-            "subs": False,
-            "clientPortalPayments": False  # Clients can't access payments
+            "dashboard": False,       # No dashboard access
+            "projects": False,        # No project list access
+            "tasks": False,           # No tasks access
+            "photos": False,          # Access photos via portal only
+            "schedule": False,        # No schedule access
+            "logs": False,            # No logs access
+            "projectHealth": False,   # No project health access
+            "crew": False,            # No crew management
+            "subs": False,            # No subcontractor management
+            "rbacAdmin": False,       # No RBAC admin
+            "clientPortal": True,     # ONLY client portal is accessible
+            "clientPortalPayments": True   # Clients can access payments to upload proofs
         })
     
     return permissions
 
+
+async def filter_permissions_by_company_modules(
+    permissions: Dict[str, bool],
+    company_id: str,
+    is_root: bool,
+    pool: asyncpg.Pool
+) -> Dict[str, bool]:
+    """
+    Filter navigation permissions based on company's enabled modules.
+    Root users bypass this filter and see all modules.
+    """
+    # Root users see everything
+    if is_root:
+        return permissions
+
+    if not company_id:
+        return permissions
+
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT settings FROM companies WHERE id = $1",
+                str(company_id)
+            )
+
+            if not row or not row['settings']:
+                return permissions
+
+            settings = row['settings']
+            if isinstance(settings, str):
+                settings = json.loads(settings)
+
+            enabled_modules = settings.get('enabledModules', {})
+
+            # Filter permissions - if a module is disabled, set permission to False
+            for module_key, is_enabled in enabled_modules.items():
+                if module_key in permissions and not is_enabled:
+                    permissions[module_key] = False
+
+            return permissions
+
+    except Exception as e:
+        logger.warning(f"Error filtering permissions by company modules: {e}")
+        return permissions
+
+
 async def create_session(user_id: str, user_data: Dict[str, Any]) -> str:
     """Create a new session and store it in PostgreSQL."""
     session_id = str(uuid.uuid4())
-    expires_at = datetime.utcnow() + timedelta(seconds=SESSION_TTL)
-    
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=SESSION_TTL)
+
+    # Ensure role is set from role_name for compatibility
+    if 'role_name' in user_data and 'role' not in user_data:
+        user_data['role'] = user_data['role_name']
+
+    # Ensure both company_id and companyId are set
+    if 'company_id' in user_data and 'companyId' not in user_data:
+        user_data['companyId'] = user_data['company_id']
+    elif 'companyId' in user_data and 'company_id' not in user_data:
+        user_data['company_id'] = user_data['companyId']
+
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         # Store session in database (match existing schema: sid, sess, expire)
@@ -236,21 +328,23 @@ async def create_session(user_id: str, user_data: Dict[str, Any]) -> str:
                 serializable_data[key] = value.isoformat()
             else:
                 serializable_data[key] = value
-        
+
         # Add current_organization_id to session data
         current_org_id = None
         if not is_root_admin(user_data):
             current_org_id = str(user_data.get("company_id") or user_data.get("companyId") or "")
         serializable_data["current_organization_id"] = current_org_id
-        
+
         session_data = json.dumps(serializable_data)
+        # Convert to naive UTC for 'timestamp without time zone' column
+        expires_at_naive = to_naive_utc(expires_at)
         await conn.execute("""
             INSERT INTO sessions (sid, sess, expire)
             VALUES ($1, $2, $3)
             ON CONFLICT (sid) DO UPDATE SET
                 sess = EXCLUDED.sess,
                 expire = EXCLUDED.expire
-        """, session_id, session_data, expires_at)
+        """, session_id, session_data, expires_at_naive)
     
     # Store session data in memory for quick access
     # Initialize current_organization_id to user's company_id for non-root users
@@ -273,7 +367,8 @@ async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
     # Check memory first
     if session_id in session_store:
         session_data = session_store[session_id]
-        if datetime.utcnow() < session_data["expires_at"]:
+        # Use ensure_timezone_aware for safe comparison (handles both tz-aware and tz-naive)
+        if datetime.now(timezone.utc) < ensure_timezone_aware(session_data["expires_at"]):
             return session_data
         else:
             # Session expired, remove it
@@ -317,6 +412,9 @@ async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
                     user_row = await conn.fetchrow(query, user_id)
                     if user_row:
                         user_data = dict(user_row)
+                        # Ensure role is set from role_name for compatibility
+                        if 'role_name' in user_data and 'role' not in user_data:
+                            user_data['role'] = user_data['role_name']
                         # Initialize current_organization_id if not in session
                         current_org_id = data.get("current_organization_id")
                         if current_org_id is None:
@@ -326,7 +424,7 @@ async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
                         
                         session_data = {
                             "userId": user_id,
-                            "expires_at": row["expire"],
+                            "expires_at": ensure_timezone_aware(row["expire"]),
                             "user_data": user_data,
                             "current_organization_id": current_org_id
                         }
@@ -341,7 +439,10 @@ async def destroy_session(session_id: str):
     # Remove from memory
     if session_id in session_store:
         del session_store[session_id]
-    
+
+    # Clear CSRF tokens for this session
+    clear_csrf_tokens(session_id)
+
     # Remove from database
     pool = await get_db_pool()
     async with pool.acquire() as conn:
@@ -427,18 +528,29 @@ async def login(request: LoginRequest, response: Response):
             # Convert is_root to isRoot for frontend compatibility
             if 'is_root' in user_data:
                 user_data['isRoot'] = user_data['is_root']
-            
+
+            # Convert assigned_project_id to assignedProjectId for frontend compatibility
+            if 'assigned_project_id' in user_data:
+                user_data['assignedProjectId'] = user_data['assigned_project_id']
+
             # Use role_name from roles table, fallback to text role for backward compatibility
             role_name = user_data.get("role_name") or user_data.get("role", "user")
             user_data["role"] = role_name  # Set role for backward compatibility
-            
+
             # Add navigation permissions
             is_root = is_root_admin(user_data)
-            
+
             permissions = get_navigation_permissions(role_name, is_root)
+
+            # Filter permissions by company module settings
+            company_id = user_data.get('company_id') or user_data.get('companyId')
+            permissions = await filter_permissions_by_company_modules(
+                permissions, company_id, is_root, pool
+            )
+
             user_data["permissions"] = permissions
             user_data["isRootAdmin"] = is_root
-            
+
             return LoginResponse(user=user_data, session_id=session_id)
             
     except HTTPException:
@@ -486,30 +598,39 @@ async def get_current_user(request: Request):
         # Convert is_root to isRoot for frontend compatibility
         if 'is_root' in user_data:
             user_data['isRoot'] = user_data['is_root']
-        
+
+        # Convert assigned_project_id to assignedProjectId for frontend compatibility
+        if 'assigned_project_id' in user_data:
+            user_data['assignedProjectId'] = user_data['assigned_project_id']
+
         # Use role_name from roles table, fallback to text role for backward compatibility
         role_name = user_data.get("role_name") or user_data.get("role", "user")
         user_data["role"] = role_name  # Set role for backward compatibility
         
         # Add navigation permissions
         is_root = is_root_admin(user_data)
-        
+
         permissions = get_navigation_permissions(role_name, is_root)
-        user_data["permissions"] = permissions
         user_data["isRootAdmin"] = is_root
-        
+
         # Add current_organization_id from session if available (already have session_data)
         if "current_organization_id" in session_data:
             current_org_id = session_data.get("current_organization_id")
             if current_org_id:
                 user_data["currentOrganizationId"] = current_org_id
                 user_data["current_organization_id"] = current_org_id
-        
-        # Fetch and add organization/company name
+
+        # Fetch and add organization/company name, and filter permissions by company modules
         company_id = user_data.get('company_id') or user_data.get('companyId')
         if company_id:
             try:
                 pool = await get_db_pool()
+
+                # Filter permissions by company module settings
+                permissions = await filter_permissions_by_company_modules(
+                    permissions, company_id, is_root, pool
+                )
+
                 async with pool.acquire() as conn:
                     company_row = await conn.fetchrow(
                         "SELECT id, name FROM companies WHERE id = $1",
@@ -522,6 +643,8 @@ async def get_current_user(request: Request):
                         }
             except Exception as e:
                 logger.warning(f"Error fetching company name: {e}")
+
+        user_data["permissions"] = permissions
         
         return user_data
         
@@ -589,13 +712,22 @@ async def get_current_user_dependency(request: Request) -> Dict[str, Any]:
     
     user_data = session_data["user_data"].copy()
     user_data.pop("password", None)
-    
+
+    # Ensure both snake_case and camelCase versions are present for compatibility
+    if 'company_id' in user_data:
+        user_data['companyId'] = user_data['company_id']
+    elif 'companyId' in user_data:
+        user_data['company_id'] = user_data['companyId']
+
+    if 'is_root' in user_data:
+        user_data['isRoot'] = user_data['is_root']
+
     # Add current_organization_id to user data for context switching
     current_org_id = session_data.get("current_organization_id")
     if current_org_id:
         user_data["currentOrganizationId"] = current_org_id
         user_data["current_organization_id"] = current_org_id
-    
+
     return user_data
 
 class SetOrganizationContextRequest(BaseModel):
@@ -703,45 +835,48 @@ async def set_organization_context(
 # Helper function to check if user is admin
 def is_user_admin(user: Dict[str, Any]) -> bool:
     """Check if user has admin privileges."""
-    # Check role first
-    if user.get("role") == "admin":
+    # Check role - try both 'role' and 'role_name' for compatibility
+    role = user.get("role") or user.get("role_name")
+    if role == "admin":
         return True
-    
+
     # Check if root user
     if is_root_admin(user):
         return True
-    
+
     return False
 
 def is_root_admin(user: Dict[str, Any]) -> bool:
     """Check if user is root admin.
-    
+
     Checks in order:
     1. is_root field from database (preferred)
     2. id == "0" (backward compatibility)
     3. Root emails from environment variable (configurable)
     """
     # First check is_root field (preferred method)
-    if user.get("is_root") is True:
+    # Check both snake_case and camelCase versions
+    is_root_value = user.get("is_root") or user.get("isRoot")
+    if is_root_value is True:
         return True
-    
+
     # Backward compatibility: check id
-    if user.get("id") == "0":
+    user_id = user.get("id")
+    if user_id == "0":
         return True
-    
+
     # Check against root user emails from environment variable
-    # This will raise ValueError if ROOT_USER_EMAILS is not configured (fail-fast for security)
     user_email = user.get("email")
     if user_email:
         root_emails = settings.root_user_emails_list
         if user_email in root_emails:
             return True
-    
+
     return False
 
 def get_effective_company_id(user: Dict[str, Any]) -> Optional[str]:
     """Get the effective company_id for filtering queries.
-    
+
     For root users with organization context set, returns current_organization_id.
     For root users without context, returns None (show all).
     For non-root users, returns their company_id.
@@ -752,4 +887,5 @@ def get_effective_company_id(user: Dict[str, Any]) -> Optional[str]:
         return current_org_id  # None means show all
     else:
         # Non-root users are always scoped to their company
-        return str(user.get("companyId") or user.get("company_id") or "")
+        company_id = user.get("companyId") or user.get("company_id")
+        return str(company_id) if company_id else None

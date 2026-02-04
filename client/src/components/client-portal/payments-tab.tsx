@@ -83,9 +83,10 @@ interface Receipt {
 
 interface PaymentsTabProps {
   projectId: string;
+  isClient?: boolean;
 }
 
-export default function PaymentsTab({ projectId }: PaymentsTabProps) {
+export default function PaymentsTab({ projectId, isClient = false }: PaymentsTabProps) {
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [isInstallmentDialogOpen, setIsInstallmentDialogOpen] = useState(false);
   const [isEditInstallmentDialogOpen, setIsEditInstallmentDialogOpen] = useState(false);
@@ -482,7 +483,7 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
 
       {/* Action Buttons */}
       <div className="flex gap-2 flex-wrap">
-        {schedules.length > 0 && (
+        {!isClient && schedules.length > 0 && (
           <Dialog open={isInstallmentDialogOpen} onOpenChange={setIsInstallmentDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" data-testid="button-add-installment">
@@ -633,19 +634,20 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
           </Dialog>
         )}
 
-        <Dialog open={isDocumentDialogOpen} onOpenChange={(open) => {
-          setIsDocumentDialogOpen(open);
-          if (!open) {
-            setSelectedFile(null);
-            documentForm.reset();
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button variant="outline" data-testid="button-upload-document">
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Document
-            </Button>
-          </DialogTrigger>
+        {!isClient && (
+          <Dialog open={isDocumentDialogOpen} onOpenChange={(open) => {
+            setIsDocumentDialogOpen(open);
+            if (!open) {
+              setSelectedFile(null);
+              documentForm.reset();
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" data-testid="button-upload-document">
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Document
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Upload Payment Document</DialogTitle>
@@ -671,6 +673,7 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
                     <Input
                       type="file"
                       accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                      className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
@@ -700,82 +703,86 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
               </form>
             </Form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        )}
 
-        <Dialog open={isInvoiceDialogOpen} onOpenChange={(open) => {
-          setIsInvoiceDialogOpen(open);
-          if (!open) {
-            setSelectedInvoiceFile(null);
-            invoiceForm.reset();
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button variant="outline" data-testid="button-upload-invoice">
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Invoice
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Upload Invoice Document</DialogTitle>
-            </DialogHeader>
-            <Form {...invoiceForm}>
-              <form onSubmit={invoiceForm.handleSubmit(onSubmitInvoice)} className="space-y-4">
-                <FormField
-                  control={invoiceForm.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Invoice Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Final Invoice" {...field} data-testid="input-invoice-title" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div>
-                  <FormLabel>Select Invoice File</FormLabel>
-                  <div className="mt-2">
-                    <Input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setSelectedInvoiceFile(file);
-                        }
-                      }}
-                      data-testid="input-invoice-file"
-                    />
-                    {selectedInvoiceFile && (
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Selected: {selectedInvoiceFile.name} ({(selectedInvoiceFile.size / 1024 / 1024).toFixed(2)} MB)
-                      </p>
+        {!isClient && (
+          <Dialog open={isInvoiceDialogOpen} onOpenChange={(open) => {
+            setIsInvoiceDialogOpen(open);
+            if (!open) {
+              setSelectedInvoiceFile(null);
+              invoiceForm.reset();
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" data-testid="button-upload-invoice">
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Invoice
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Upload Invoice Document</DialogTitle>
+              </DialogHeader>
+              <Form {...invoiceForm}>
+                <form onSubmit={invoiceForm.handleSubmit(onSubmitInvoice)} className="space-y-4">
+                  <FormField
+                    control={invoiceForm.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Invoice Title</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Final Invoice" {...field} data-testid="input-invoice-title" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
+                  />
+                  <div>
+                    <FormLabel>Select Invoice File</FormLabel>
+                    <div className="mt-2">
+                      <Input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                        className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setSelectedInvoiceFile(file);
+                          }
+                        }}
+                        data-testid="input-invoice-file"
+                      />
+                      {selectedInvoiceFile && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Selected: {selectedInvoiceFile.name} ({(selectedInvoiceFile.size / 1024 / 1024).toFixed(2)} MB)
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => {
-                    setIsInvoiceDialogOpen(false);
-                    setSelectedInvoiceFile(null);
-                  }} data-testid="button-cancel-upload-invoice">
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isUploadingInvoice || createInvoiceMutation.isPending} data-testid="button-submit-invoice">
-                    {isUploadingInvoice ? "Uploading..." : "Upload Invoice"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => {
+                      setIsInvoiceDialogOpen(false);
+                      setSelectedInvoiceFile(null);
+                    }} data-testid="button-cancel-upload-invoice">
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={isUploadingInvoice || createInvoiceMutation.isPending} data-testid="button-submit-invoice">
+                      {isUploadingInvoice ? "Uploading..." : "Upload Invoice"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Installments Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Payment Installments</CardTitle>
+          <CardTitle>Installments</CardTitle>
         </CardHeader>
         <CardContent>
           {installments.length === 0 ? (
@@ -785,11 +792,12 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
           ) : (
             <div className="space-y-3">
               {installments.map((installment: any) => (
-                <InstallmentRow 
-                  key={installment.id} 
-                  installment={installment} 
+                <InstallmentRow
+                  key={installment.id}
+                  installment={installment}
                   projectId={projectId}
                   receipts={receipts.filter((r: any) => r.installment_id === installment.id)}
+                  isClient={isClient}
                 />
               ))}
             </div>
@@ -802,7 +810,7 @@ export default function PaymentsTab({ projectId }: PaymentsTabProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Payment Documents
+            Documents
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -934,9 +942,10 @@ interface InstallmentRowProps {
   installment: any;
   projectId: string;
   receipts: Receipt[];
+  isClient?: boolean;
 }
 
-function InstallmentRow({ installment, projectId, receipts }: InstallmentRowProps) {
+function InstallmentRow({ installment, projectId, receipts, isClient = false }: InstallmentRowProps) {
   const [isReceiptDialogOpen, setIsReceiptDialogOpen] = useState(false);
   const [isMarkPaidDialogOpen, setIsMarkPaidDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -1027,9 +1036,9 @@ function InstallmentRow({ installment, projectId, receipts }: InstallmentRowProp
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/payments`] });
       queryClient.invalidateQueries({ queryKey: [`/api/payment-totals?project_id=${projectId}`] });
-      toast({ 
-        title: "Installment Marked as Paid", 
-        description: "Invoice has been generated successfully." 
+      toast({
+        title: "Installment Marked as Paid",
+        description: "Office managers have been notified to upload the invoice."
       });
       setIsMarkPaidDialogOpen(false);
     },
@@ -1104,9 +1113,9 @@ function InstallmentRow({ installment, projectId, receipts }: InstallmentRowProp
   };
 
   const statusColors = {
-    planned: "bg-gray-500",
-    payable: "bg-orange-500",
-    paid: "bg-green-500",
+    planned: "bg-gray-500 text-white",
+    payable: "bg-orange-500 text-white",
+    paid: "bg-green-500 text-white",
   };
 
   return (
@@ -1179,18 +1188,19 @@ function InstallmentRow({ installment, projectId, receipts }: InstallmentRowProp
       <div className="flex gap-2">
         {installment.status !== "paid" && (
           <>
-            <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
-              setIsEditDialogOpen(open);
-              if (!open) {
-                editForm.reset();
-              }
-            }}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" data-testid={`button-edit-installment-${installment.id}`}>
-                  <FileText className="h-4 w-4 mr-1" />
-                  Edit
-                </Button>
-              </DialogTrigger>
+            {!isClient && (
+              <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+                setIsEditDialogOpen(open);
+                if (!open) {
+                  editForm.reset();
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" data-testid={`button-edit-installment-${installment.id}`}>
+                    <FileText className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Edit Payment Installment</DialogTitle>
@@ -1304,7 +1314,8 @@ function InstallmentRow({ installment, projectId, receipts }: InstallmentRowProp
                   </form>
                 </Form>
               </DialogContent>
-            </Dialog>
+              </Dialog>
+            )}
 
             <Dialog open={isReceiptDialogOpen} onOpenChange={(open) => {
               setIsReceiptDialogOpen(open);
@@ -1381,6 +1392,7 @@ function InstallmentRow({ installment, projectId, receipts }: InstallmentRowProp
                         <Input
                           type="file"
                           accept=".pdf,.png,.jpg,.jpeg"
+                          className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
@@ -1412,80 +1424,86 @@ function InstallmentRow({ installment, projectId, receipts }: InstallmentRowProp
               </DialogContent>
             </Dialog>
 
-            <Button 
-              size="sm" 
-              data-testid={`button-mark-paid-${installment.id}`}
-              onClick={() => {
-                if (receipts.length === 0) {
-                  setIsReceiptWarningOpen(true);
-                } else {
-                  setIsMarkPaidDialogOpen(true);
-                }
-              }}
-            >
-              <CreditCard className="h-4 w-4 mr-1" />
-              Mark Paid
-            </Button>
+            {!isClient && (
+              <>
+                <Button
+                  size="sm"
+                  data-testid={`button-mark-paid-${installment.id}`}
+                  onClick={() => {
+                    if (receipts.length === 0) {
+                      setIsReceiptWarningOpen(true);
+                    } else {
+                      setIsMarkPaidDialogOpen(true);
+                    }
+                  }}
+                >
+                  <CreditCard className="h-4 w-4 mr-1" />
+                  Mark Paid
+                </Button>
 
-            <AlertDialog open={isMarkPaidDialogOpen} onOpenChange={setIsMarkPaidDialogOpen}>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-green-600" />
-                    Mark Installment as Paid
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will mark "{installment.name}" as paid and generate an invoice.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel data-testid="button-cancel-mark-paid">Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => markPaidMutation.mutate()}
-                    className="bg-green-600 hover:bg-green-700"
-                    data-testid="confirm-mark-paid"
-                  >
-                    {markPaidMutation.isPending ? "Processing..." : "Mark as Paid"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                <AlertDialog open={isMarkPaidDialogOpen} onOpenChange={setIsMarkPaidDialogOpen}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
+                        <AlertTriangle className="h-5 w-5" />
+                        Confirm Payment Completion
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="space-y-2">
+                        <p>You are about to mark <strong>"{installment.name}"</strong> as paid.</p>
+                        <p className="font-medium">Amount: ${parseFloat(installment.amount).toLocaleString()}</p>
+                        <p className="text-amber-600">This action cannot be undone. Office managers will be notified to upload the invoice.</p>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel data-testid="button-cancel-mark-paid">Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => markPaidMutation.mutate()}
+                        className="bg-amber-600 hover:bg-amber-700"
+                        data-testid="confirm-mark-paid"
+                      >
+                        {markPaidMutation.isPending ? "Processing..." : "Yes, Mark as Paid"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
 
-            <Dialog open={isReceiptWarningOpen} onOpenChange={setIsReceiptWarningOpen}>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2 text-amber-600">
-                    <AlertTriangle className="h-5 w-5" />
-                    Receipt Required
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    At least one receipt must be uploaded before marking this installment as paid. 
-                    This helps maintain accurate payment records.
-                  </p>
-                  <div className="flex justify-end gap-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setIsReceiptWarningOpen(false)}
-                      data-testid="button-close-receipt-warning"
-                    >
-                      Close
-                    </Button>
-                    <Button 
-                      onClick={() => {
-                        setIsReceiptWarningOpen(false);
-                        setIsReceiptDialogOpen(true);
-                      }}
-                      data-testid="button-upload-receipt-from-warning"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Receipt
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+                <Dialog open={isReceiptWarningOpen} onOpenChange={setIsReceiptWarningOpen}>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2 text-amber-600">
+                        <AlertTriangle className="h-5 w-5" />
+                        Receipt Required
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        At least one receipt must be uploaded before marking this installment as paid.
+                        This helps maintain accurate payment records.
+                      </p>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsReceiptWarningOpen(false)}
+                          data-testid="button-close-receipt-warning"
+                        >
+                          Close
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setIsReceiptWarningOpen(false);
+                            setIsReceiptDialogOpen(true);
+                          }}
+                          data-testid="button-upload-receipt-from-warning"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload Receipt
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </>
+            )}
           </>
         )}
       </div>
