@@ -2,17 +2,20 @@
  * Message list component for displaying chat messages.
  */
 
-import { useRef, useEffect } from "react";
-import { User, Bot, Loader2 } from "lucide-react";
+import { useRef, useEffect, useState } from "react";
+import { User, Bot, Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
 import type { AgentMessage } from "@/hooks/useAgentChat";
 import { ToolStatus } from "./ToolStatus";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface MessageListProps {
   messages: AgentMessage[];
   isLoading: boolean;
+  conversationId: string | null;
 }
 
-export function MessageList({ messages, isLoading }: MessageListProps) {
+export function MessageList({ messages, isLoading, conversationId }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,7 +78,7 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
       {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} />
+        <MessageBubble key={message.id} message={message} conversationId={conversationId} />
       ))}
 
       {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
@@ -102,13 +105,15 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
 
 interface MessageBubbleProps {
   message: AgentMessage;
+  conversationId: string | null;
 }
 
-function MessageBubble({ message }: MessageBubbleProps) {
+function MessageBubble({ message, conversationId }: MessageBubbleProps) {
   const isUser = message.role === "user";
+  const isAssistant = message.role === "assistant";
 
   return (
-    <div className={`flex items-start gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
+    <div className={`group flex items-start gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
       <div
         className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
         style={{ backgroundColor: isUser ? '#22C55E' : '#1F242C' }}
@@ -154,11 +159,165 @@ function MessageBubble({ message }: MessageBubbleProps) {
           </div>
         )}
 
-        {/* Timestamp */}
-        <span className="text-xs px-1" style={{ color: '#9CA3AF' }}>
-          {formatTime(message.timestamp)}
-        </span>
+        {/* Feedback buttons and timestamp for assistant messages */}
+        <div className="flex items-center gap-2">
+          {isAssistant && !message.isStreaming && conversationId && (
+            <FeedbackButtons messageId={message.id} conversationId={conversationId} />
+          )}
+          <span className="text-xs px-1" style={{ color: '#9CA3AF' }}>
+            {formatTime(message.timestamp)}
+          </span>
+        </div>
       </div>
+    </div>
+  );
+}
+
+interface FeedbackButtonsProps {
+  messageId: string;
+  conversationId: string;
+}
+
+function FeedbackButtons({ messageId, conversationId }: FeedbackButtonsProps) {
+  const [feedbackGiven, setFeedbackGiven] = useState<'positive' | 'negative' | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [note, setNote] = useState("");
+  const { toast } = useToast();
+
+  const submitFeedback = async (isPositive: boolean, notes?: string) => {
+    if (isSubmitting) return;
+
+    console.log("[DEBUG] Submitting feedback with:", {
+      messageId,
+      conversationId,
+      isPositive,
+    });
+
+    setIsSubmitting(true);
+    try {
+      await apiRequest("/api/v1/agent/feedback", {
+        method: "POST",
+        body: {
+          message_id: messageId,
+          conversation_id: conversationId,
+          is_positive: isPositive,
+          notes: notes || null,
+        },
+      });
+      console.log("[DEBUG] Feedback submitted successfully");
+      setFeedbackGiven(isPositive ? 'positive' : 'negative');
+      setShowNoteInput(false);
+      setNote("");
+      toast({ title: 'Feedback sent', description: 'Thank you for your feedback!' });
+    } catch (error) {
+      console.error("Failed to submit feedback:", error);
+      toast({ title: 'Error', description: 'Failed to send feedback. Please try again.', variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleThumbsDown = () => {
+    if (feedbackGiven) return;
+    setShowNoteInput(true);
+  };
+
+  const handleSubmitWithNote = () => {
+    submitFeedback(false, note);
+  };
+
+  const handleSkipNote = () => {
+    submitFeedback(false);
+  };
+
+  if (feedbackGiven) {
+    return (
+      <div className="flex items-center gap-1 px-1">
+        {feedbackGiven === 'positive' ? (
+          <ThumbsUp className="w-3.5 h-3.5" style={{ color: '#4ADE80' }} />
+        ) : (
+          <ThumbsDown className="w-3.5 h-3.5" style={{ color: '#9CA3AF' }} />
+        )}
+        <span className="text-xs" style={{ color: '#6B7280' }}>Thanks!</span>
+      </div>
+    );
+  }
+
+  if (showNoteInput) {
+    return (
+      <div className="flex flex-col gap-2 p-2 rounded-lg" style={{ backgroundColor: '#1F242C' }}>
+        <span className="text-xs" style={{ color: '#9CA3AF' }}>What could be improved?</span>
+        <input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Optional feedback..."
+          className="text-xs px-2 py-1 rounded border focus:outline-none focus:ring-1"
+          style={{
+            backgroundColor: '#0F1115',
+            borderColor: '#2D333B',
+            color: '#FFFFFF',
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSubmitWithNote();
+            if (e.key === 'Escape') setShowNoteInput(false);
+          }}
+          autoFocus
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={handleSubmitWithNote}
+            disabled={isSubmitting}
+            className="text-xs px-2 py-1 rounded transition-colors"
+            style={{ backgroundColor: '#22C55E', color: '#022C22' }}
+          >
+            Submit
+          </button>
+          <button
+            onClick={handleSkipNote}
+            disabled={isSubmitting}
+            className="text-xs px-2 py-1 rounded transition-colors"
+            style={{ backgroundColor: '#2D333B', color: '#9CA3AF' }}
+          >
+            Skip
+          </button>
+          <button
+            onClick={() => setShowNoteInput(false)}
+            className="text-xs px-2 py-1 rounded transition-colors"
+            style={{ color: '#6B7280' }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+      <button
+        onClick={() => submitFeedback(true)}
+        disabled={isSubmitting}
+        className="p-1 rounded hover:bg-opacity-20 transition-colors"
+        style={{ color: '#6B7280' }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = '#4ADE80'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = '#6B7280'; }}
+        title="Good response"
+      >
+        <ThumbsUp className="w-3.5 h-3.5" />
+      </button>
+      <button
+        onClick={handleThumbsDown}
+        disabled={isSubmitting}
+        className="p-1 rounded hover:bg-opacity-20 transition-colors"
+        style={{ color: '#6B7280' }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = '#EF4444'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = '#6B7280'; }}
+        title="Needs improvement"
+      >
+        <ThumbsDown className="w-3.5 h-3.5" />
+      </button>
     </div>
   );
 }
@@ -265,5 +424,8 @@ function formatBoldText(text: string): React.ReactNode {
 }
 
 function formatTime(date: Date): string {
+  if (!(date instanceof Date) || isNaN(date.getTime())) {
+    return "Just now";
+  }
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }

@@ -61,6 +61,12 @@ try:
 except ImportError:
     dashboard_stats_router = None
 
+# Import agent chat router
+try:
+    from ...agent.api.chat import router as agent_router
+except ImportError:
+    agent_router = None
+
 def create_v1_router() -> APIRouter:
     """Create and configure the v1 API router."""
     v1_router = APIRouter(prefix="/v1", tags=["v1"])
@@ -127,6 +133,10 @@ def create_v1_router() -> APIRouter:
     # Include waitlist router (public endpoint)
     if waitlist_router:
         v1_router.include_router(waitlist_router, tags=["waitlist"])
-    
+
+    # Include agent router for AI chat functionality
+    if agent_router:
+        v1_router.include_router(agent_router, tags=["agent"])
+
     return v1_router
 

@@ -151,6 +151,51 @@ then the next stage is the one with orderIndex=1 (e.g., "Framing").
 If the initial tool response doesn't include orderIndex, use `query_database`
 with data_type="stages" to get the full ordered list with all fields.
 
+## Understanding Finish Materials and Stages Relationship
+Materials are directly linked to project stages through the `stage_id` field.
+
+**Key Data Points:**
+- `material_items.stage_id` → links to `project_stages.id`
+- `project_stages.finish_materials_due_date` → deadline for material delivery for that stage
+- `project_stages.order_index` → sequential order of stages
+
+**IMPORTANT:** The database DOES associate materials with stages. Never say materials are not linked to stages.
+
+**When querying materials with stages:**
+1. Use `get_project_detail` - it returns `materials.byStage` which groups materials by their associated stage
+2. The `byStage` array is ordered chronologically by `finishMaterialsDue` (the stage's finish materials due date)
+3. Each stage entry includes: `stageName`, `finishMaterialsDue`, `daysUntilDue`, `isOverdue`, and `items` (list of materials)
+
+**Example Response Pattern for "What finish materials are needed and when?":**
+1. Call `get_project_detail` for the project
+2. Use `materials.byStage` to list materials grouped by stage
+3. Report materials in chronological order by their stage's due date
+4. Highlight any overdue materials using `materials.overdueItems`
+
+Example output format:
+- **Cabinets & Counters** (due Feb 10): Kitchen Cabinets [pending], Countertop [ordered]
+- **Rough Plumbing** (due Feb 20): Plumbing Fixtures [pending]
+- **Overdue:** 2 materials need attention
+
+## Project Status Summary Guidelines
+When asked for a "project status summary", "project status", or similar, ALWAYS include these sections:
+
+1. **Basic Info**: Project name, status, overall progress percentage
+2. **Current Stage**: Name, planned dates, days until end from `currentStage.activeStage`
+3. **Open Issues**:
+   - Total count from `issues.totalOpen`
+   - Critical/high priority counts from `issues.criticalCount` and `issues.highCount`
+   - List critical items from `issues.criticalItems` (up to 3)
+4. **Overdue Items**:
+   - Overdue issues count from `issues.overdueCount`
+   - List overdue issues from `issues.overdueItems`
+   - Overdue materials count from `materials.overdueCount`
+   - List overdue materials from `materials.overdueItems`
+5. **Upcoming Materials**: Next stages with materials needed and their due dates from `materials.byStage`
+6. **Payment Status** (if asked or relevant): Overdue payments from `payments.overdueInstallments`
+
+**CRITICAL: Do NOT omit open issues or overdue materials from status summaries.** These are essential for project management.
+
 {role_guidelines}
 
 {project_context}

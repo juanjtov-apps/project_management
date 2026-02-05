@@ -1,4 +1,4 @@
-import { Bell, Menu, LogOut, User as UserIcon, Settings, Search, ChevronRight } from "lucide-react";
+import { Bell, Menu, LogOut, User as UserIcon, Settings, Search, ChevronRight, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,10 +17,11 @@ import OrganizationSelector from "@/components/organization-selector";
 interface HeaderProps {
   onToggleMobileMenu?: () => void;
   onToggleNotifications: () => void;
+  onToggleAgentChat?: () => void;
   pageTitle?: string;
 }
 
-export default function Header({ onToggleMobileMenu, onToggleNotifications, pageTitle = "Dashboard" }: HeaderProps) {
+export default function Header({ onToggleMobileMenu, onToggleNotifications, onToggleAgentChat, pageTitle = "Dashboard" }: HeaderProps) {
   const { user } = useAuth() as { user: User | undefined };
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -126,6 +127,20 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
             <div className="hidden md:block">
               <OrganizationSelector currentUser={currentUser} />
             </div>
+          )}
+
+          {onToggleAgentChat && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="min-w-[48px] min-h-[48px] p-0 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C] focus:outline-none focus:ring-2"
+              style={{ '--tw-ring-color': '#4ADE80' } as any}
+              onClick={onToggleAgentChat}
+              aria-label="AI Assistant"
+              data-testid="button-agent-chat"
+            >
+              <MessageSquare className="h-5 w-5" />
+            </Button>
           )}
 
           <Button

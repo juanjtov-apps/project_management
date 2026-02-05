@@ -95,7 +95,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
 
       // Convert backend messages to AgentMessage format
       const loadedMessages: AgentMessage[] = (data.messages || []).map((msg: any) => ({
-        id: msg.id || `${msg.role}-${msg.created_at}`,
+        id: msg.id || `${msg.role}-${msg.created_at || Date.now()}`,
         role: msg.role as "user" | "assistant" | "system",
         content: msg.content || "",
         toolCalls: msg.tool_calls?.map((tc: any) => ({
@@ -106,7 +106,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
           error: tc.error,
           status: tc.success === false ? "error" : "success",
         })) || [],
-        timestamp: new Date(msg.created_at),
+        timestamp: msg.created_at ? new Date(msg.created_at) : new Date(),
         isStreaming: false,
       })).filter((msg: AgentMessage) => msg.role !== "system"); // Filter out system messages
 
@@ -254,7 +254,26 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
                 }]);
               } else if (data.conversation_id !== undefined) {
                 // Done event
+                console.log("[DEBUG] Done event received:", {
+                  conversation_id: data.conversation_id,
+                  message_id: data.message_id,
+                  currentAssistantId: assistantMessageId,
+                });
                 setConversationId(data.conversation_id);
+                // Update the assistant message with the actual database ID for feedback
+                // Also set isStreaming: false here since we're done
+                if (data.message_id) {
+                  console.log("[DEBUG] Updating message ID from", assistantMessageId, "to", data.message_id);
+                  setMessages(prev => {
+                    const updated = prev.map(msg =>
+                      msg.id === assistantMessageId
+                        ? { ...msg, id: data.message_id, isStreaming: false }
+                        : msg
+                    );
+                    console.log("[DEBUG] Messages after ID update:", updated.map(m => ({id: m.id, role: m.role})));
+                    return updated;
+                  });
+                }
               } else if (data.message !== undefined && !data.tool) {
                 // Error event
                 onError?.(data.message);
@@ -271,9 +290,10 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
         }
       }
 
-      // Mark streaming as complete
+      // Mark streaming as complete (only if not already done in the done event handler)
+      // This handles the fallback case where no message_id was received
       setMessages(prev => prev.map(msg =>
-        msg.id === assistantMessageId
+        (msg.id === assistantMessageId || (msg.role === "assistant" && msg.isStreaming))
           ? { ...msg, isStreaming: false }
           : msg
       ));

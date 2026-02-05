@@ -168,7 +168,7 @@ export function AgentChat({ projectId, onClose, conversationId: initialConversat
       )}
 
       {/* Messages */}
-      <MessageList messages={messages} isLoading={isLoading} />
+      <MessageList messages={messages} isLoading={isLoading} conversationId={conversationId} />
 
       {/* Active tool indicator */}
       {activeToolCall && (

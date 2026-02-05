@@ -7,7 +7,13 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const Sheet = SheetPrimitive.Root
+interface SheetProps extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Root> {
+  modal?: boolean;
+}
+
+const Sheet = ({ modal = true, ...props }: SheetProps) => (
+  <SheetPrimitive.Root modal={modal} {...props} />
+)
 
 const SheetTrigger = SheetPrimitive.Trigger
 
@@ -58,14 +64,15 @@ interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
     VariantProps<typeof sheetVariants> {
   hideCloseButton?: boolean;
+  hideOverlay?: boolean;
 }
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, hideCloseButton, ...props }, ref) => (
+>(({ side = "right", className, children, hideCloseButton, hideOverlay, ...props }, ref) => (
   <SheetPortal>
-    <SheetOverlay />
+    {!hideOverlay && <SheetOverlay />}
     <SheetPrimitive.Content
       ref={ref}
       className={cn(sheetVariants({ side }), className)}

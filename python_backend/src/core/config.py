@@ -51,6 +51,21 @@ class Settings(BaseSettings):
     # Comma-separated list of root user emails - REQUIRED for security
     # Must be set via ROOT_USER_EMAILS environment variable
     root_user_emails: str = os.getenv("ROOT_USER_EMAILS", "")
+
+    # Agent AI Configuration
+    agent_llm_provider: str = os.getenv("AGENT_LLM_PROVIDER", "openrouter")
+    openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
+    openrouter_model_standard: str = os.getenv("OPENROUTER_MODEL_STANDARD", "")
+    openrouter_model_complex: str = os.getenv("OPENROUTER_MODEL_COMPLEX", "")
+    # Optional: Direct Anthropic API support
+    anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
+    anthropic_model_standard: str = os.getenv("ANTHROPIC_MODEL_STANDARD", "claude-3-haiku-20240307")
+    anthropic_model_complex: str = os.getenv("ANTHROPIC_MODEL_COMPLEX", "claude-sonnet-4-20250514")
+    # Agent limits
+    agent_max_tool_calls: int = int(os.getenv("AGENT_MAX_TOOL_CALLS", "15"))
+    agent_confirmation_timeout_minutes: int = int(
+        os.getenv("AGENT_CONFIRMATION_TIMEOUT_MINUTES", "30")
+    )
     
     # Pydantic v2 settings configuration
     model_config = SettingsConfigDict(

@@ -22,14 +22,16 @@ export function AgentDrawer({
   onConversationIdChange
 }: AgentDrawerProps) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       <SheetContent
         side="right"
         hideCloseButton
-        className="w-full sm:w-[440px] sm:max-w-[440px] p-0 flex flex-col"
+        hideOverlay
+        className="w-full sm:w-[440px] sm:max-w-[440px] p-0 flex flex-col shadow-2xl"
         style={{
           backgroundColor: '#0F1115',
           borderColor: '#2D333B',
+          borderLeftWidth: '1px',
         }}
       >
         <VisuallyHidden>
