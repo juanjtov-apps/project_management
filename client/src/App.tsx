@@ -22,6 +22,7 @@ import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import NotificationModal from "@/components/notifications/notification-modal";
+import { AgentDrawer } from "@/components/agent";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useState } from "react";
 
@@ -85,6 +86,8 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
 function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [isAgentChatOpen, setIsAgentChatOpen] = useState(false);
+  const [agentConversationId, setAgentConversationId] = useState<string | null>(null);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -94,6 +97,10 @@ function App() {
           setIsMobileMenuOpen={setIsMobileMenuOpen}
           isNotificationModalOpen={isNotificationModalOpen}
           setIsNotificationModalOpen={setIsNotificationModalOpen}
+          isAgentChatOpen={isAgentChatOpen}
+          setIsAgentChatOpen={setIsAgentChatOpen}
+          agentConversationId={agentConversationId}
+          setAgentConversationId={setAgentConversationId}
         />
         <Toaster />
       </TooltipProvider>
@@ -105,12 +112,20 @@ function AppWithAuth({
   isMobileMenuOpen,
   setIsMobileMenuOpen,
   isNotificationModalOpen,
-  setIsNotificationModalOpen
+  setIsNotificationModalOpen,
+  isAgentChatOpen,
+  setIsAgentChatOpen,
+  agentConversationId,
+  setAgentConversationId
 }: {
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (open: boolean) => void;
   isNotificationModalOpen: boolean;
   setIsNotificationModalOpen: (open: boolean) => void;
+  isAgentChatOpen: boolean;
+  setIsAgentChatOpen: (open: boolean) => void;
+  agentConversationId: string | null;
+  setAgentConversationId: (id: string | null) => void;
 }) {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -127,6 +142,10 @@ function AppWithAuth({
       setIsMobileMenuOpen={setIsMobileMenuOpen}
       isNotificationModalOpen={isNotificationModalOpen}
       setIsNotificationModalOpen={setIsNotificationModalOpen}
+      isAgentChatOpen={isAgentChatOpen}
+      setIsAgentChatOpen={setIsAgentChatOpen}
+      agentConversationId={agentConversationId}
+      setAgentConversationId={setAgentConversationId}
     />
   );
 }
@@ -137,7 +156,11 @@ function AuthenticatedLayout({
   isMobileMenuOpen,
   setIsMobileMenuOpen,
   isNotificationModalOpen,
-  setIsNotificationModalOpen
+  setIsNotificationModalOpen,
+  isAgentChatOpen,
+  setIsAgentChatOpen,
+  agentConversationId,
+  setAgentConversationId
 }: {
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -145,6 +168,10 @@ function AuthenticatedLayout({
   setIsMobileMenuOpen: (open: boolean) => void;
   isNotificationModalOpen: boolean;
   setIsNotificationModalOpen: (open: boolean) => void;
+  isAgentChatOpen: boolean;
+  setIsAgentChatOpen: (open: boolean) => void;
+  agentConversationId: string | null;
+  setAgentConversationId: (id: string | null) => void;
 }) {
   const [location, setLocation] = useLocation();
 
@@ -180,10 +207,11 @@ function AuthenticatedLayout({
         />
       )}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Hide mobile menu toggle for clients */}
+        {/* Hide mobile menu toggle for clients, agent chat not available for clients */}
         <Header
           onToggleMobileMenu={isClientUser ? undefined : () => setIsMobileMenuOpen(true)}
           onToggleNotifications={() => setIsNotificationModalOpen(true)}
+          onToggleAgentChat={isClientUser ? undefined : () => setIsAgentChatOpen(true)}
         />
         <div className="flex-1 p-4 md:p-6 overflow-y-auto section-padding" style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
           <Router isAuthenticated={isAuthenticated} isLoading={isLoading} />
@@ -194,6 +222,16 @@ function AuthenticatedLayout({
         isOpen={isNotificationModalOpen}
         onClose={() => setIsNotificationModalOpen(false)}
       />
+
+      {/* Agent chat drawer - not available for client users */}
+      {!isClientUser && (
+        <AgentDrawer
+          open={isAgentChatOpen}
+          onOpenChange={setIsAgentChatOpen}
+          conversationId={agentConversationId}
+          onConversationIdChange={setAgentConversationId}
+        />
+      )}
     </div>
   );
 }

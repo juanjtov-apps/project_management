@@ -79,6 +79,18 @@ async def lifespan(app: FastAPI):
                 logger.warning(f"⚠️ Client portal schema initialization error: {e}")
                 print(f"⚠️  Client portal schema initialization error: {e}")
                 # Don't fail startup if schema initialization fails
+
+        # Initialize agent schema (only if DB is connected)
+        if db_connected:
+            try:
+                from src.database.init_agent_schema import init_agent_schema
+                await init_agent_schema()
+                logger.info("✅ Agent schema verified/initialized")
+                print("✅ Agent schema verified/initialized")
+            except Exception as e:
+                logger.warning(f"⚠️ Agent schema initialization error: {e}")
+                print(f"⚠️  Agent schema initialization error: {e}")
+                # Don't fail startup if schema initialization fails
         
         logger.info("🎯 Application startup complete")
         print("🎯 Application startup complete")
