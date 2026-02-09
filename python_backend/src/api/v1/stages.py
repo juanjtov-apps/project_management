@@ -198,7 +198,7 @@ async def update_stage(
     if 'status' in update_data and update_data['status']:
         update_data['status'] = update_data['status'].value if hasattr(update_data['status'], 'value') else update_data['status']
 
-    return await project_stage_repo.update(stage_id, update_data)
+    return await project_stage_repo.update(stage_id, update_data, user_id=current_user['id'])
 
 
 @router.delete("/{stage_id}", status_code=status.HTTP_200_OK)

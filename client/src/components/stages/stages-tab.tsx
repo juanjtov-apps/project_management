@@ -380,6 +380,11 @@ function SortableStageCard({
   );
 }
 
+interface InlineMaterial {
+  name: string;
+  areaName: string;
+}
+
 export function StagesTab({ projectId, onClose }: StagesTabProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
@@ -387,6 +392,12 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
   const [editingStage, setEditingStage] = useState<ProjectStage | null>(null);
   const [deleteStage, setDeleteStage] = useState<ProjectStage | null>(null);
   const [finishMaterialsNA, setFinishMaterialsNA] = useState(false);
+  const [inlineMaterials, setInlineMaterials] = useState<InlineMaterial[]>([]);
+  const [newMaterialName, setNewMaterialName] = useState("");
+  const [selectedAreaName, setSelectedAreaName] = useState("");
+  const [isCreatingNewArea, setIsCreatingNewArea] = useState(false);
+  const [newAreaName, setNewAreaName] = useState("");
+  const [customAreaNames, setCustomAreaNames] = useState<string[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -405,6 +416,12 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
   // Fetch stages
   const { data: stages = [], isLoading } = useQuery<ProjectStage[]>({
     queryKey: [`/api/v1/stages?projectId=${projectId}`],
+    enabled: !!projectId,
+  });
+
+  // Fetch existing material areas for the dropdown
+  const { data: existingAreas = [] } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: [`/api/material-areas?project_id=${projectId}`],
     enabled: !!projectId,
   });
 
@@ -449,6 +466,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
           finishMaterialsDueDate: data.finishMaterialsDueDate || null,
           finishMaterialsNote: data.finishMaterialsNote || null,
           clientVisible: data.clientVisible,
+          materials: inlineMaterials.length > 0 ? inlineMaterials : null,
         },
       });
 
@@ -486,7 +504,17 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
       queryClient.invalidateQueries({
         queryKey: [`/api/v1/stages?projectId=${projectId}`],
       });
+      if (inlineMaterials.length > 0) {
+        queryClient.invalidateQueries({ queryKey: [`/api/material-items`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/material-areas?project_id=${projectId}`] });
+      }
       setIsCreateOpen(false);
+      setInlineMaterials([]);
+      setNewMaterialName("");
+      setSelectedAreaName("");
+      setIsCreatingNewArea(false);
+      setNewAreaName("");
+      setCustomAreaNames([]);
       form.reset();
       toast({ title: "Stage created successfully" });
     },
@@ -517,8 +545,18 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
       queryClient.invalidateQueries({
         queryKey: [`/api/v1/stages?projectId=${projectId}`],
       });
+      if (inlineMaterials.length > 0) {
+        queryClient.invalidateQueries({ queryKey: [`/api/material-items`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/material-areas?project_id=${projectId}`] });
+      }
       setEditingStage(null);
       setIsCreateOpen(false);
+      setInlineMaterials([]);
+      setNewMaterialName("");
+      setSelectedAreaName("");
+      setIsCreatingNewArea(false);
+      setNewAreaName("");
+      setCustomAreaNames([]);
       form.reset();
       toast({ title: "Stage updated successfully" });
     },
@@ -663,7 +701,8 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
           finishMaterialsDueDate: data.finishMaterialsDueDate || undefined,
           finishMaterialsNote: data.finishMaterialsNote || undefined,
           clientVisible: data.clientVisible,
-        },
+          ...(inlineMaterials.length > 0 ? { materials: inlineMaterials } : {}),
+        } as Partial<ProjectStage>,
       });
     } else {
       createMutation.mutate(data);
@@ -672,8 +711,13 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
 
   const openEditDialog = (stage: ProjectStage) => {
     setEditingStage(stage);
-    // Set N/A state based on whether finish materials due date exists
     setFinishMaterialsNA(!stage.finishMaterialsDueDate);
+    setInlineMaterials([]);
+    setNewMaterialName("");
+    setSelectedAreaName("");
+    setIsCreatingNewArea(false);
+    setNewAreaName("");
+    setCustomAreaNames([]);
     form.reset({
       name: stage.name,
       plannedStartDate: stage.plannedStartDate?.split("T")[0] || "",
@@ -899,6 +943,12 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
           setIsCreateOpen(open);
           if (!open) {
             setEditingStage(null);
+            setInlineMaterials([]);
+            setNewMaterialName("");
+            setSelectedAreaName("");
+            setIsCreatingNewArea(false);
+            setNewAreaName("");
+            setCustomAreaNames([]);
             form.reset();
           }
         }}
@@ -1045,6 +1095,179 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
                   </FormItem>
                 )}
               />
+
+              {/* Inline Finish Materials */}
+              {!finishMaterialsNA && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium text-zinc-300">
+                      Finish Materials
+                    </label>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Add materials needed for this stage. They will appear in the Materials tab.
+                    </p>
+                  </div>
+
+                  {/* Existing materials count (edit mode) */}
+                  {editingStage && editingStage.materialCount > 0 && (
+                    <div className="flex items-center gap-2 bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/50">
+                      <Package className="h-4 w-4 text-amber-400" />
+                      <span className="text-sm text-zinc-300">
+                        {editingStage.materialCount} material{editingStage.materialCount !== 1 ? "s" : ""} already linked
+                      </span>
+                    </div>
+                  )}
+
+                  {/* List of added materials */}
+                  {inlineMaterials.length > 0 && (
+                    <div className="space-y-1.5">
+                      {inlineMaterials.map((mat, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-zinc-800 rounded-lg px-3 py-2">
+                          <Package className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                          <span className="text-sm text-zinc-200 flex-1 truncate">{mat.name}</span>
+                          <Badge variant="outline" className="text-xs border-zinc-600 text-zinc-400 shrink-0">
+                            {mat.areaName}
+                          </Badge>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-zinc-500 hover:text-red-400 shrink-0"
+                            onClick={() => setInlineMaterials(prev => prev.filter((_, idx) => idx !== i))}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Area selector */}
+                  <div className="space-y-2">
+                    {!isCreatingNewArea ? (
+                      <Select
+                        value={selectedAreaName}
+                        onValueChange={(value) => {
+                          if (value === "__new__") {
+                            setIsCreatingNewArea(true);
+                            setSelectedAreaName("");
+                          } else {
+                            setSelectedAreaName(value);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white h-9 text-sm">
+                          <SelectValue placeholder="Select area..." />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-800 border-zinc-700">
+                          {existingAreas.map((area) => (
+                            <SelectItem key={area.id} value={area.name} className="text-zinc-200">
+                              {area.name}
+                            </SelectItem>
+                          ))}
+                          {customAreaNames
+                            .filter((c) => !existingAreas.some((a) => a.name === c))
+                            .map((name) => (
+                              <SelectItem key={`custom-${name}`} value={name} className="text-zinc-200">
+                                {name}
+                              </SelectItem>
+                            ))}
+                          <SelectItem value="__new__" className="text-amber-400">
+                            + Create new area
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="New area name..."
+                          className="bg-zinc-800 border-zinc-700 text-white h-9 text-sm flex-1"
+                          value={newAreaName}
+                          onChange={(e) => setNewAreaName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && newAreaName.trim()) {
+                              e.preventDefault();
+                              const name = newAreaName.trim();
+                              setCustomAreaNames((prev) => prev.includes(name) ? prev : [...prev, name]);
+                              setSelectedAreaName(name);
+                              setIsCreatingNewArea(false);
+                              setNewAreaName("");
+                            }
+                            if (e.key === "Escape") {
+                              setIsCreatingNewArea(false);
+                              setNewAreaName("");
+                            }
+                          }}
+                          autoFocus
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 text-green-400 hover:text-green-300 shrink-0"
+                          disabled={!newAreaName.trim()}
+                          onClick={() => {
+                            if (newAreaName.trim()) {
+                              const name = newAreaName.trim();
+                              setCustomAreaNames((prev) => prev.includes(name) ? prev : [...prev, name]);
+                              setSelectedAreaName(name);
+                              setIsCreatingNewArea(false);
+                              setNewAreaName("");
+                            }
+                          }}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 text-zinc-400 hover:text-white shrink-0"
+                          onClick={() => {
+                            setIsCreatingNewArea(false);
+                            setNewAreaName("");
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Material name input + add button */}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder={selectedAreaName ? "Material name..." : "Select an area first..."}
+                      className="bg-zinc-800 border-zinc-700 text-white h-9 text-sm flex-1"
+                      value={newMaterialName}
+                      disabled={!selectedAreaName}
+                      onChange={(e) => setNewMaterialName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && newMaterialName.trim() && selectedAreaName) {
+                          e.preventDefault();
+                          setInlineMaterials(prev => [...prev, { name: newMaterialName.trim(), areaName: selectedAreaName }]);
+                          setNewMaterialName("");
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 border-zinc-700 text-zinc-400 hover:text-amber-400 shrink-0"
+                      disabled={!newMaterialName.trim() || !selectedAreaName}
+                      onClick={() => {
+                        if (newMaterialName.trim() && selectedAreaName) {
+                          setInlineMaterials(prev => [...prev, { name: newMaterialName.trim(), areaName: selectedAreaName }]);
+                          setNewMaterialName("");
+                        }
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <FormField
                 control={form.control}
