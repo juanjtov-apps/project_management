@@ -140,6 +140,71 @@ class ProjectStageRepository:
         row = await db_manager.execute_one(query, stage_id)
         return self._convert_to_camel_case(dict(row)) if row else None
 
+    async def _create_materials_for_stage(
+        self,
+        conn,
+        project_id: str,
+        stage_id: str,
+        stage_name: str,
+        materials: List[Dict[str, Any]],
+        user_id: str
+    ) -> None:
+        """Create material areas and items for a manually created/edited stage.
+
+        Materials are created with approval_status='approved' since the PM is
+        manually specifying them (no review workflow needed).
+        """
+        now = datetime.now(timezone.utc)
+
+        for material in materials:
+            area_name = material.get('area_name') or material.get('areaName') or stage_name
+
+            # Get or create material area
+            existing_area = await conn.fetchrow(
+                """SELECT id FROM client_portal.material_areas
+                   WHERE project_id = $1 AND name = $2""",
+                project_id, area_name
+            )
+
+            if existing_area:
+                area_id = str(existing_area['id'])
+            else:
+                area_id = str(uuid.uuid4())
+                max_sort = await conn.fetchval(
+                    """SELECT COALESCE(MAX(sort_order), -1) + 1
+                       FROM client_portal.material_areas WHERE project_id = $1""",
+                    project_id
+                )
+                await conn.execute(
+                    """INSERT INTO client_portal.material_areas
+                       (id, project_id, name, description, sort_order,
+                        is_from_template, created_by, created_at, updated_at)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)""",
+                    area_id, project_id, area_name,
+                    f"Finish materials for {area_name}",
+                    max_sort,
+                    False,
+                    user_id, now, now
+                )
+
+            # Create material item
+            item_id = str(uuid.uuid4())
+            await conn.execute(
+                """INSERT INTO client_portal.material_items
+                   (id, area_id, project_id, name, spec, status,
+                    stage_id, approval_status, is_from_template,
+                    added_by, created_at, updated_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)""",
+                item_id, area_id, project_id,
+                material.get('name'),
+                material.get('spec'),
+                'pending',
+                stage_id,
+                'approved',
+                False,
+                user_id, now, now
+            )
+
     async def create(self, stage_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Create a new project stage with auto-assigned order_index.
 
@@ -149,9 +214,13 @@ class ProjectStageRepository:
         stage_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc)
 
+        # Extract materials before converting to snake_case
+        materials = stage_data.pop('materials', None)
+
         # Convert to snake_case for DB
         data = self._convert_from_camel_case(stage_data)
         project_id = data.get('project_id')
+        stage_name = data.get('name', '')
 
         pool = await get_db_pool()
         async with pool.acquire() as conn:
@@ -188,44 +257,73 @@ class ProjectStageRepository:
                     now
                 )
 
+                # Create materials if provided
+                if materials:
+                    await self._create_materials_for_stage(
+                        conn, project_id, stage_id, stage_name, materials, user_id
+                    )
+
         return self._convert_to_camel_case(dict(row))
 
-    async def update(self, stage_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Update an existing stage."""
+    async def update(self, stage_id: str, update_data: Dict[str, Any], user_id: str = None) -> Optional[Dict[str, Any]]:
+        """Update an existing stage. Optionally creates new materials if provided."""
+        # Extract materials before converting
+        materials = update_data.pop('materials', None)
+
         # Convert to snake_case for DB
         data = self._convert_from_camel_case(update_data)
 
-        if not data:
+        if not data and not materials:
             return await self.get_by_id(stage_id)
 
-        # Build dynamic SET clause
-        set_clauses = []
-        values = []
-        param_count = 1
+        row = None
 
-        for key, value in data.items():
-            if key in ['id', 'project_id', 'created_by', 'created_at']:
-                continue  # Don't update these fields
-            set_clauses.append(f"{key} = ${param_count}")
-            values.append(value)
-            param_count += 1
+        # Update stage fields if any
+        if data:
+            set_clauses = []
+            values = []
+            param_count = 1
 
-        # Always update updated_at
-        set_clauses.append("updated_at = NOW()")
-        values.append(stage_id)
+            for key, value in data.items():
+                if key in ['id', 'project_id', 'created_by', 'created_at']:
+                    continue
+                set_clauses.append(f"{key} = ${param_count}")
+                values.append(value)
+                param_count += 1
 
-        if not set_clauses:
-            return await self.get_by_id(stage_id)
+            # Always update updated_at
+            set_clauses.append("updated_at = NOW()")
+            values.append(stage_id)
 
-        query = f"""
-            UPDATE client_portal.project_stages
-            SET {', '.join(set_clauses)}
-            WHERE id = ${param_count}
-            RETURNING *
-        """
+            if set_clauses:
+                query = f"""
+                    UPDATE client_portal.project_stages
+                    SET {', '.join(set_clauses)}
+                    WHERE id = ${param_count}
+                    RETURNING *
+                """
+                row = await db_manager.execute_one(query, *values)
 
-        row = await db_manager.execute_one(query, *values)
-        return self._convert_to_camel_case(dict(row)) if row else None
+        # Create new materials if provided (additive only)
+        if materials and user_id:
+            stage = row or await db_manager.execute_one(
+                "SELECT project_id, name FROM client_portal.project_stages WHERE id = $1",
+                stage_id
+            )
+            if stage:
+                project_id = stage.get('project_id')
+                stage_name = stage.get('name', '')
+                pool = await get_db_pool()
+                async with pool.acquire() as conn:
+                    async with conn.transaction():
+                        await self._create_materials_for_stage(
+                            conn, project_id, stage_id, stage_name, materials, user_id
+                        )
+
+        result = row or await db_manager.execute_one(
+            "SELECT * FROM client_portal.project_stages WHERE id = $1", stage_id
+        )
+        return self._convert_to_camel_case(dict(result)) if result else None
 
     async def delete(self, stage_id: str) -> bool:
         """Delete a stage. Materials become unlinked (not deleted)."""
@@ -283,11 +381,12 @@ class ProjectStageRepository:
         start_date: Optional[date] = None
     ) -> List[Dict[str, Any]]:
         """Apply a template to create stages and suggested materials for a project."""
-        # Get template items
+        # Get template items (DISTINCT ON prevents duplicates from causing unique constraint errors)
         template_items_query = """
-            SELECT * FROM client_portal.stage_template_items
+            SELECT DISTINCT ON (order_index) *
+            FROM client_portal.stage_template_items
             WHERE template_id = $1
-            ORDER BY order_index
+            ORDER BY order_index, created_at
         """
         items = await db_manager.execute_query(template_items_query, template_id)
 
