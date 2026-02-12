@@ -505,7 +505,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
         queryKey: [`/api/v1/stages?projectId=${projectId}`],
       });
       if (inlineMaterials.length > 0) {
-        queryClient.invalidateQueries({ queryKey: [`/api/material-items`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/material-items?project_id=${projectId}`] });
         queryClient.invalidateQueries({ queryKey: [`/api/material-areas?project_id=${projectId}`] });
       }
       setIsCreateOpen(false);
@@ -546,7 +546,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
         queryKey: [`/api/v1/stages?projectId=${projectId}`],
       });
       if (inlineMaterials.length > 0) {
-        queryClient.invalidateQueries({ queryKey: [`/api/material-items`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/material-items?project_id=${projectId}`] });
         queryClient.invalidateQueries({ queryKey: [`/api/material-areas?project_id=${projectId}`] });
       }
       setEditingStage(null);

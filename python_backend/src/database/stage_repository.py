@@ -187,6 +187,16 @@ class ProjectStageRepository:
                     user_id, now, now
                 )
 
+            # Check if this material already exists in this area for this project
+            existing = await conn.fetchval(
+                """SELECT 1 FROM client_portal.material_items
+                   WHERE area_id = $1 AND project_id = $2
+                   AND LOWER(TRIM(name)) = LOWER(TRIM($3))""",
+                area_id, project_id, material.get('name')
+            )
+            if existing:
+                continue
+
             # Create material item
             item_id = str(uuid.uuid4())
             await conn.execute(
@@ -266,7 +276,11 @@ class ProjectStageRepository:
         return self._convert_to_camel_case(dict(row))
 
     async def update(self, stage_id: str, update_data: Dict[str, Any], user_id: str = None) -> Optional[Dict[str, Any]]:
-        """Update an existing stage. Optionally creates new materials if provided."""
+        """Update an existing stage. Optionally creates new materials if provided.
+
+        Uses a single transaction for both stage update and material creation
+        to ensure atomicity.
+        """
         # Extract materials before converting
         materials = update_data.pop('materials', None)
 
@@ -276,53 +290,54 @@ class ProjectStageRepository:
         if not data and not materials:
             return await self.get_by_id(stage_id)
 
-        row = None
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                row = None
 
-        # Update stage fields if any
-        if data:
-            set_clauses = []
-            values = []
-            param_count = 1
+                # Update stage fields if any
+                if data:
+                    set_clauses = []
+                    values = []
+                    param_count = 1
 
-            for key, value in data.items():
-                if key in ['id', 'project_id', 'created_by', 'created_at']:
-                    continue
-                set_clauses.append(f"{key} = ${param_count}")
-                values.append(value)
-                param_count += 1
+                    for key, value in data.items():
+                        if key in ['id', 'project_id', 'created_by', 'created_at']:
+                            continue
+                        set_clauses.append(f"{key} = ${param_count}")
+                        values.append(value)
+                        param_count += 1
 
-            # Always update updated_at
-            set_clauses.append("updated_at = NOW()")
-            values.append(stage_id)
+                    # Always update updated_at
+                    set_clauses.append("updated_at = NOW()")
+                    values.append(stage_id)
 
-            if set_clauses:
-                query = f"""
-                    UPDATE client_portal.project_stages
-                    SET {', '.join(set_clauses)}
-                    WHERE id = ${param_count}
-                    RETURNING *
-                """
-                row = await db_manager.execute_one(query, *values)
+                    if set_clauses:
+                        query = f"""
+                            UPDATE client_portal.project_stages
+                            SET {', '.join(set_clauses)}
+                            WHERE id = ${param_count}
+                            RETURNING *
+                        """
+                        row = await conn.fetchrow(query, *values)
 
-        # Create new materials if provided (additive only)
-        if materials and user_id:
-            stage = row or await db_manager.execute_one(
-                "SELECT project_id, name FROM client_portal.project_stages WHERE id = $1",
-                stage_id
-            )
-            if stage:
-                project_id = stage.get('project_id')
-                stage_name = stage.get('name', '')
-                pool = await get_db_pool()
-                async with pool.acquire() as conn:
-                    async with conn.transaction():
+                # Create new materials if provided (additive only)
+                if materials and user_id:
+                    stage = row or await conn.fetchrow(
+                        "SELECT project_id, name FROM client_portal.project_stages WHERE id = $1",
+                        stage_id
+                    )
+                    if stage:
+                        project_id = stage.get('project_id')
+                        stage_name = stage.get('name', '')
                         await self._create_materials_for_stage(
                             conn, project_id, stage_id, stage_name, materials, user_id
                         )
 
-        result = row or await db_manager.execute_one(
-            "SELECT * FROM client_portal.project_stages WHERE id = $1", stage_id
-        )
+                result = row or await conn.fetchrow(
+                    "SELECT * FROM client_portal.project_stages WHERE id = $1", stage_id
+                )
+
         return self._convert_to_camel_case(dict(result)) if result else None
 
     async def delete(self, stage_id: str) -> bool:
@@ -511,15 +526,25 @@ class ProjectStageRepository:
                         )
                         area_name_to_id[area_name] = area_id
 
-                # Create material items with pending approval status
+                # Create material items with pending approval status (skip duplicates)
                 for mt in material_templates:
-                    item_id = str(uuid.uuid4())
                     area_id = area_name_to_id.get(mt['area_name'])
                     stage_id = stage_name_to_id.get(mt['stage_name'])
 
                     if not area_id:
                         continue
 
+                    # Check if this material already exists in this area for this project
+                    existing = await conn.fetchval(
+                        """SELECT 1 FROM client_portal.material_items
+                           WHERE area_id = $1 AND project_id = $2
+                           AND LOWER(TRIM(name)) = LOWER(TRIM($3))""",
+                        area_id, project_id, mt['material_name']
+                    )
+                    if existing:
+                        continue
+
+                    item_id = str(uuid.uuid4())
                     await conn.execute(
                         """INSERT INTO client_portal.material_items
                            (id, area_id, project_id, name, spec, status,
