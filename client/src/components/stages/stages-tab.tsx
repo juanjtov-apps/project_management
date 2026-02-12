@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -150,6 +150,7 @@ interface SortableStageCardProps {
   handleVisibilityToggle: (stage: ProjectStage) => void;
   openEditDialog: (stage: ProjectStage) => void;
   setDeleteStage: (stage: ProjectStage) => void;
+  onInsertBelow: (stage: ProjectStage) => void;
 }
 
 function SortableStageCard({
@@ -161,6 +162,7 @@ function SortableStageCard({
   handleVisibilityToggle,
   openEditDialog,
   setDeleteStage,
+  onInsertBelow,
 }: SortableStageCardProps) {
   const {
     attributes,
@@ -186,7 +188,7 @@ function SortableStageCard({
     daysUntilMaterials !== null && daysUntilMaterials >= 0 && daysUntilMaterials <= 7;
 
   return (
-    <div ref={setNodeRef} style={style} className="relative pl-6 sm:pl-12">
+    <div ref={setNodeRef} style={style} className="relative pl-6 sm:pl-12 group/stage">
       {/* Timeline Dot */}
       <div
         className={`absolute left-1 sm:left-3 top-5 sm:top-6 w-4 h-4 sm:w-5 sm:h-5 rounded-full border-[3px] sm:border-4 border-zinc-900 ${config.dotColor} transition-all duration-300`}
@@ -376,6 +378,22 @@ function SortableStageCard({
           </div>
         </CardContent>
       </Card>
+
+      {/* Insert Stage Below button */}
+      <div className="flex justify-center py-1 opacity-0 group-hover/stage:opacity-100 transition-opacity">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs text-zinc-500 hover:text-amber-400 hover:bg-amber-500/10"
+          onClick={(e) => {
+            e.stopPropagation();
+            onInsertBelow(stage);
+          }}
+        >
+          <Plus className="h-3 w-3 mr-1" />
+          Add Stage
+        </Button>
+      </div>
     </div>
   );
 }
@@ -398,6 +416,9 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
   const [isCreatingNewArea, setIsCreatingNewArea] = useState(false);
   const [newAreaName, setNewAreaName] = useState("");
   const [customAreaNames, setCustomAreaNames] = useState<string[]>([]);
+  const [insertAfterStage, setInsertAfterStage] = useState<ProjectStage | null>(null);
+  const [durationDays, setDurationDays] = useState<string>("");
+  const durationSourceRef = useRef<"duration" | "endDate" | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -412,6 +433,31 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
       clientVisible: true,
     },
   });
+
+  // Watch date fields for bidirectional duration sync
+  const watchedStartDate = form.watch("plannedStartDate");
+  const watchedEndDate = form.watch("plannedEndDate");
+
+  // Duration → End Date: auto-calculate end date when duration changes
+  useEffect(() => {
+    if (durationSourceRef.current === "duration" && watchedStartDate && durationDays && parseInt(durationDays) > 0) {
+      const start = new Date(watchedStartDate);
+      start.setDate(start.getDate() + parseInt(durationDays) - 1);
+      form.setValue("plannedEndDate", start.toISOString().split("T")[0]);
+    }
+  }, [watchedStartDate, durationDays, form]);
+
+  // End Date → Duration: auto-calculate duration when end date changes
+  useEffect(() => {
+    if (durationSourceRef.current === "endDate" && watchedStartDate && watchedEndDate) {
+      const start = new Date(watchedStartDate);
+      const end = new Date(watchedEndDate);
+      const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (diffDays > 0) {
+        setDurationDays(String(diffDays));
+      }
+    }
+  }, [watchedStartDate, watchedEndDate]);
 
   // Fetch stages
   const { data: stages = [], isLoading } = useQuery<ProjectStage[]>({
@@ -478,8 +524,22 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
         throw new Error("Failed to get stage ID from response");
       }
 
-      // If stage has a start date, reorder to position it correctly based on date
-      if (data.plannedStartDate) {
+      // If inserting after a specific stage, position right after it
+      if (insertAfterStage) {
+        const sortedStages = [...stages].sort((a, b) => a.orderIndex - b.orderIndex);
+        const insertIdx = sortedStages.findIndex((s) => s.id === insertAfterStage.id);
+        const stageIds: string[] = [
+          ...sortedStages.slice(0, insertIdx + 1).map((s) => s.id),
+          newStage.id,
+          ...sortedStages.slice(insertIdx + 1).map((s) => s.id),
+        ];
+
+        await apiRequest(`/api/v1/stages/reorder?projectId=${projectId}`, {
+          method: "POST",
+          body: { stageIds },
+        });
+      } else if (data.plannedStartDate) {
+        // If stage has a start date, reorder to position it correctly based on date
         const insertIndex = calculateOrderIndex(data.plannedStartDate);
         const sortedStages = [...stages].sort((a, b) => a.orderIndex - b.orderIndex);
 
@@ -509,6 +569,9 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
         queryClient.invalidateQueries({ queryKey: [`/api/material-areas?project_id=${projectId}`] });
       }
       setIsCreateOpen(false);
+      setInsertAfterStage(null);
+      setDurationDays("");
+      durationSourceRef.current = null;
       setInlineMaterials([]);
       setNewMaterialName("");
       setSelectedAreaName("");
@@ -711,7 +774,10 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
 
   const openEditDialog = (stage: ProjectStage) => {
     setEditingStage(stage);
+    setInsertAfterStage(null);
     setFinishMaterialsNA(!stage.finishMaterialsDueDate);
+    setDurationDays("");
+    durationSourceRef.current = null;
     setInlineMaterials([]);
     setNewMaterialName("");
     setSelectedAreaName("");
@@ -725,6 +791,38 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
       finishMaterialsDueDate: stage.finishMaterialsDueDate?.split("T")[0] || "",
       finishMaterialsNote: stage.finishMaterialsNote || "",
       clientVisible: stage.clientVisible,
+    });
+    setIsCreateOpen(true);
+  };
+
+  const handleInsertBelow = (stage: ProjectStage) => {
+    setEditingStage(null);
+    setInsertAfterStage(stage);
+    setFinishMaterialsNA(false);
+    setDurationDays("");
+    durationSourceRef.current = null;
+    setInlineMaterials([]);
+    setNewMaterialName("");
+    setSelectedAreaName("");
+    setIsCreatingNewArea(false);
+    setNewAreaName("");
+    setCustomAreaNames([]);
+
+    // Pre-fill start date as day after previous stage's end date
+    let prefillStartDate = "";
+    if (stage.plannedEndDate) {
+      const nextDay = new Date(stage.plannedEndDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      prefillStartDate = nextDay.toISOString().split("T")[0];
+    }
+
+    form.reset({
+      name: "",
+      plannedStartDate: prefillStartDate,
+      plannedEndDate: "",
+      finishMaterialsDueDate: "",
+      finishMaterialsNote: "",
+      clientVisible: true,
     });
     setIsCreateOpen(true);
   };
@@ -820,6 +918,9 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
               <Button
                 onClick={() => {
                   setEditingStage(null);
+                  setInsertAfterStage(null);
+                  setDurationDays("");
+                  durationSourceRef.current = null;
                   form.reset();
                   setFinishMaterialsNA(false);
                   setIsCreateOpen(true);
@@ -884,6 +985,9 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
               <Button
                 onClick={() => {
                   setEditingStage(null);
+                  setInsertAfterStage(null);
+                  setDurationDays("");
+                  durationSourceRef.current = null;
                   form.reset();
                   setFinishMaterialsNA(false);
                   setIsCreateOpen(true);
@@ -928,6 +1032,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
                       handleVisibilityToggle={handleVisibilityToggle}
                       openEditDialog={openEditDialog}
                       setDeleteStage={setDeleteStage}
+                      onInsertBelow={handleInsertBelow}
                     />
                   ))}
               </div>
@@ -943,6 +1048,9 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
           setIsCreateOpen(open);
           if (!open) {
             setEditingStage(null);
+            setInsertAfterStage(null);
+            setDurationDays("");
+            durationSourceRef.current = null;
             setInlineMaterials([]);
             setNewMaterialName("");
             setSelectedAreaName("");
@@ -999,7 +1107,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
                 )}
               />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="plannedStartDate"
@@ -1013,12 +1121,59 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
                           type="date"
                           className="bg-zinc-800 border-zinc-700 text-white"
                           {...field}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            // If duration is filled, recalculate end date
+                            if (durationDays && parseInt(durationDays) > 0) {
+                              durationSourceRef.current = "duration";
+                            }
+                          }}
                         />
                       </FormControl>
+                      {/* "Day after previous stage" button */}
+                      {!editingStage && (() => {
+                        const sortedStages = [...stages].sort((a, b) => a.orderIndex - b.orderIndex);
+                        const prevStage = insertAfterStage || (sortedStages.length > 0 ? sortedStages[sortedStages.length - 1] : null);
+                        if (prevStage?.plannedEndDate) {
+                          return (
+                            <button
+                              type="button"
+                              className="text-xs text-amber-400 hover:text-amber-300 hover:underline mt-1 text-left"
+                              onClick={() => {
+                                const nextDay = new Date(prevStage.plannedEndDate!);
+                                nextDay.setDate(nextDay.getDate() + 1);
+                                const dateStr = nextDay.toISOString().split("T")[0];
+                                form.setValue("plannedStartDate", dateStr);
+                                if (durationDays && parseInt(durationDays) > 0) {
+                                  durationSourceRef.current = "duration";
+                                }
+                              }}
+                            >
+                              Day after {prevStage.name} ends
+                            </button>
+                          );
+                        }
+                        return null;
+                      })()}
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                <FormItem>
+                  <FormLabel className="text-zinc-300">Duration (days)</FormLabel>
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="e.g., 14"
+                    className="bg-zinc-800 border-zinc-700 text-white"
+                    value={durationDays}
+                    onChange={(e) => {
+                      durationSourceRef.current = "duration";
+                      setDurationDays(e.target.value);
+                    }}
+                  />
+                </FormItem>
 
                 <FormField
                   control={form.control}
@@ -1031,6 +1186,10 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
                           type="date"
                           className="bg-zinc-800 border-zinc-700 text-white"
                           {...field}
+                          onChange={(e) => {
+                            durationSourceRef.current = "endDate";
+                            field.onChange(e);
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
