@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS client_portal.material_templates (
     material_name varchar(255) NOT NULL,
     material_category varchar(100),
     sort_order integer DEFAULT 0,
-    created_at timestamptz DEFAULT now()
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT unique_material_template UNIQUE (stage_template_id, stage_name, area_name, material_name)
 );
 
 -- Indexes

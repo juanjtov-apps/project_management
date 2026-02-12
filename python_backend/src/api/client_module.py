@@ -1508,6 +1508,19 @@ async def create_material_item(
     await verify_project_access(item.project_id, current_user, pool)
 
     async with pool.acquire() as conn:
+        # Server-side duplicate check
+        exists = await conn.fetchval("""
+            SELECT EXISTS(
+                SELECT 1 FROM client_portal.material_items
+                WHERE area_id = $1 AND LOWER(TRIM(name)) = LOWER(TRIM($2))
+            )
+        """, item.area_id, item.name)
+        if exists:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"A material named '{item.name}' already exists in this area"
+            )
+
         row = await conn.fetchrow(
             """INSERT INTO client_portal.material_items
                (area_id, project_id, name, spec, product_link, vendor, quantity, unit_cost, status, added_by, stage_id, order_status)
