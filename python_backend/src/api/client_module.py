@@ -92,6 +92,9 @@ class MaterialAreaUpdate(BaseModel):
     description: Optional[str] = None
     sort_order: Optional[int] = None
 
+class MaterialAreaDuplicate(BaseModel):
+    new_name: str
+
 class MaterialItemCreate(BaseModel):
     area_id: str
     project_id: str
@@ -1361,11 +1364,17 @@ async def update_material_area(
     pool: asyncpg.Pool = Depends(get_db_pool)
 ):
     """Update a material area."""
+    if is_client_role(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Clients cannot update material areas"
+        )
+
     async with pool.acquire() as conn:
         updates = []
         values = []
         param_count = 1
-        
+
         if update.name is not None:
             updates.append(f"name = ${param_count}")
             values.append(update.name)
@@ -1378,14 +1387,20 @@ async def update_material_area(
             updates.append(f"sort_order = ${param_count}")
             values.append(update.sort_order)
             param_count += 1
-        
+
         if not updates:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
-        
+
         values.append(area_id)
         query = f"UPDATE client_portal.material_areas SET {', '.join(updates)}, updated_at = now() WHERE id = ${param_count} RETURNING *"
-        
-        row = await conn.fetchrow(query, *values)
+
+        try:
+            row = await conn.fetchrow(query, *values)
+        except UniqueViolationError:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="An area with this name already exists in this project"
+            )
         if not row:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Area not found")
         return dict(row)
@@ -1403,6 +1418,108 @@ async def delete_material_area(
             area_id
         )
         return {"success": True}
+
+@router.post("/material-areas/{area_id}/duplicate")
+async def duplicate_material_area(
+    area_id: str,
+    data: MaterialAreaDuplicate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Duplicate a material area with all its materials.
+
+    Creates a new area with the given name, copies all material items
+    from the source area. Duplicated materials are renamed as
+    "{original_material_name} - {new_area_name}".
+    """
+    if is_client_role(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Clients cannot duplicate material areas"
+        )
+
+    new_name = data.new_name.strip()
+    if not new_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New area name is required"
+        )
+
+    async with pool.acquire() as conn:
+        # Fetch original area
+        original_area = await conn.fetchrow(
+            "SELECT * FROM client_portal.material_areas WHERE id = $1",
+            area_id
+        )
+        if not original_area:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Source area not found"
+            )
+
+        project_id = original_area['project_id']
+        await verify_project_access(project_id, current_user, pool)
+
+        async with conn.transaction():
+            # Create the new area
+            try:
+                new_area = await conn.fetchrow(
+                    """INSERT INTO client_portal.material_areas
+                       (project_id, name, description, sort_order, created_by)
+                       VALUES ($1, $2, $3, $4, $5)
+                       RETURNING *""",
+                    project_id,
+                    new_name,
+                    original_area['description'],
+                    original_area['sort_order'] + 1,
+                    current_user['id']
+                )
+            except UniqueViolationError:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"An area named '{new_name}' already exists in this project"
+                )
+
+            # Fetch all materials from the original area
+            original_items = await conn.fetch(
+                """SELECT * FROM client_portal.material_items
+                   WHERE area_id = $1 ORDER BY name""",
+                area_id
+            )
+
+            # Copy each material item with renamed name
+            new_items = []
+            for item in original_items:
+                new_item_name = f"{item['name']} - {new_name}"
+                new_item = await conn.fetchrow(
+                    """INSERT INTO client_portal.material_items
+                       (area_id, project_id, name, spec, product_link, vendor,
+                        quantity, unit_cost, status, added_by, stage_id,
+                        approval_status, is_from_template, order_status)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                       RETURNING *""",
+                    str(new_area['id']),
+                    project_id,
+                    new_item_name,
+                    item['spec'],
+                    item['product_link'],
+                    item['vendor'],
+                    item['quantity'],
+                    item['unit_cost'],
+                    item['status'],
+                    current_user['id'],
+                    item['stage_id'],
+                    'approved',
+                    False,
+                    'pending_to_order'
+                )
+                new_items.append(dict(new_item))
+
+        return {
+            "area": dict(new_area),
+            "items": new_items,
+            "items_copied": len(new_items)
+        }
 
 # ============================================================================
 # MATERIAL ITEMS ENDPOINTS (Comprehensive Redesign)
