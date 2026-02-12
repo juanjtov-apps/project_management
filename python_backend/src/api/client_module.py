@@ -115,6 +115,7 @@ class MaterialItemUpdate(BaseModel):
     status: Optional[str] = None
     stage_id: Optional[str] = None  # Link to project stage
     order_status: Optional[str] = None  # 'pending_to_order' or 'ordered'
+    area_id: Optional[str] = None  # Move item to a different area
 
 class PaymentScheduleCreate(BaseModel):
     project_id: str
@@ -1585,6 +1586,11 @@ async def update_material_item(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Clients cannot assign materials to stages. Contact your project manager."
             )
+        if update.area_id is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Clients cannot move materials between areas. Contact your project manager."
+            )
 
     async with pool.acquire() as conn:
         updates = []
@@ -1626,6 +1632,24 @@ async def update_material_item(
         if update.order_status is not None:
             updates.append(f"order_status = ${param_count}")
             values.append(update.order_status)
+            param_count += 1
+        if update.area_id is not None:
+            # Validate the target area exists and belongs to the same project
+            item_row = await conn.fetchrow(
+                "SELECT project_id FROM client_portal.material_items WHERE id = $1", item_id
+            )
+            if item_row:
+                target_area = await conn.fetchrow(
+                    "SELECT id FROM client_portal.material_areas WHERE id = $1 AND project_id = $2",
+                    update.area_id, item_row['project_id']
+                )
+                if not target_area:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Target area not found or belongs to a different project"
+                    )
+            updates.append(f"area_id = ${param_count}")
+            values.append(update.area_id)
             param_count += 1
 
         if not updates:

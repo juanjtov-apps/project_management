@@ -4,8 +4,19 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
+  DndContext,
+  DragOverlay,
+  DragStartEvent,
+  DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  useDraggable,
+} from "@dnd-kit/core";
+import {
   Plus, Package, ExternalLink, Trash2, ChevronDown, ChevronRight,
-  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle, Layers, Filter, ArrowLeft
+  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle, Layers, Filter, ArrowLeft, GripVertical
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -101,8 +112,18 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
   const [isCreateAreaOpen, setIsCreateAreaOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<string>(initialStageFilter || "all");
+  const [activeDragItem, setActiveDragItem] = useState<MaterialItem | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Drag-and-drop sensors with activation distance to prevent accidental drags
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   // Update filter when initialStageFilter changes (from URL)
   useEffect(() => {
@@ -171,6 +192,95 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
 
   const onSubmitArea = (data: AreaFormData) => {
     createAreaMutation.mutate(data);
+  };
+
+  // Move item between areas mutation (optimistic)
+  const moveItemMutation = useMutation({
+    mutationFn: async ({ itemId, newAreaId }: { itemId: string; newAreaId: string }) => {
+      const response = await apiRequest(`/api/material-items/${itemId}`, {
+        method: "PATCH",
+        body: { area_id: newAreaId },
+      });
+      return response.json();
+    },
+    onMutate: async ({ itemId, newAreaId }) => {
+      await queryClient.cancelQueries({
+        queryKey: [`/api/material-items?project_id=${projectId}`],
+      });
+      const previousItems = queryClient.getQueryData<MaterialItem[]>(
+        [`/api/material-items?project_id=${projectId}`]
+      );
+      if (previousItems) {
+        queryClient.setQueryData<MaterialItem[]>(
+          [`/api/material-items?project_id=${projectId}`],
+          previousItems.map((item) =>
+            item.id === itemId ? { ...item, area_id: newAreaId } : item
+          )
+        );
+      }
+      return { previousItems };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(
+          [`/api/material-items?project_id=${projectId}`],
+          context.previousItems
+        );
+      }
+      toast({
+        title: "Move Failed",
+        description: "Failed to move material to the new area. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/material-items?project_id=${projectId}`],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/material-areas?project_id=${projectId}`],
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Material Moved",
+        description: "Material has been moved to the new area.",
+      });
+    },
+  });
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const draggedItemId = event.active.id as string;
+    const item = allItems.find((i) => i.id === draggedItemId);
+    if (item) {
+      setActiveDragItem(item);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragItem(null);
+
+    if (!over) return;
+
+    const itemId = active.id as string;
+    const targetAreaId = over.id as string;
+
+    const draggedItem = allItems.find((i) => i.id === itemId);
+    if (!draggedItem) return;
+
+    // Only move if dropped on a different area
+    if (draggedItem.area_id === targetAreaId) return;
+
+    // Verify the target is actually an area
+    const targetArea = areas.find((a: MaterialArea) => a.id === targetAreaId);
+    if (!targetArea) return;
+
+    moveItemMutation.mutate({ itemId, newAreaId: targetAreaId });
+  };
+
+  const handleDragCancel = () => {
+    setActiveDragItem(null);
   };
 
   // Filter items based on search and stage filter
@@ -397,6 +507,43 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
             </div>
           </CardContent>
         </Card>
+      ) : !isClient ? (
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <div className="space-y-3">
+            {areas.map((area) => (
+              <MaterialAreaSection
+                key={area.id}
+                area={area}
+                items={filteredItems.filter(item => item.area_id === area.id)}
+                projectId={projectId}
+                isClient={isClient}
+                stages={stages}
+                isDragActive={!!activeDragItem}
+              />
+            ))}
+          </div>
+
+          <DragOverlay>
+            {activeDragItem ? (
+              <div className="bg-background border rounded-lg p-3 shadow-xl opacity-90 max-w-md">
+                <div className="flex items-center gap-2">
+                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <h4 className="font-medium text-sm">{activeDragItem.name}</h4>
+                    {activeDragItem.spec && (
+                      <p className="text-xs text-muted-foreground">{activeDragItem.spec}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       ) : (
         <div className="space-y-3">
           {areas.map((area) => (
@@ -407,6 +554,7 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
               projectId={projectId}
               isClient={isClient}
               stages={stages}
+              isDragActive={false}
             />
           ))}
         </div>
@@ -421,9 +569,14 @@ interface MaterialAreaSectionProps {
   projectId: string;
   isClient?: boolean;
   stages?: ProjectStage[];
+  isDragActive?: boolean;
 }
 
-function MaterialAreaSection({ area, items, projectId, isClient = false, stages = [] }: MaterialAreaSectionProps) {
+function MaterialAreaSection({ area, items, projectId, isClient = false, stages = [], isDragActive = false }: MaterialAreaSectionProps) {
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: area.id,
+  });
+
   const [isOpen, setIsOpen] = useState(true);
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -589,7 +742,17 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
   };
 
   return (
-    <Card>
+    <Card
+      ref={setDroppableRef}
+      className={`transition-all duration-200 ${
+        isDragActive ? "ring-2 ring-dashed ring-muted-foreground/30" : ""
+      } ${
+        isOver ? "ring-2 ring-primary bg-primary/5 scale-[1.01]" : ""
+      }`}
+    >
+      {isOver && !isOpen && (
+        <div className="text-xs text-primary text-center py-1 animate-pulse">Drop here</div>
+      )}
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <div className="flex items-center justify-between p-4">
           <CollapsibleTrigger asChild>
@@ -894,6 +1057,16 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages =
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDraggableRef,
+    isDragging,
+  } = useDraggable({
+    id: item.id,
+    disabled: isClient || isEditing,
+  });
+
   const editForm = useForm<MaterialItemFormData>({
     resolver: zodResolver(materialItemSchema),
     defaultValues: {
@@ -1145,7 +1318,23 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages =
   }
 
   return (
-    <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg" data-testid={`item-row-${item.id}`}>
+    <div
+      ref={setDraggableRef}
+      className={`flex items-start gap-3 p-3 bg-muted/30 rounded-lg transition-opacity ${
+        isDragging ? "opacity-30" : ""
+      }`}
+      data-testid={`item-row-${item.id}`}
+    >
+      {!isClient && (
+        <div
+          {...attributes}
+          {...listeners}
+          className="flex items-center justify-center w-6 h-6 mt-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors rounded"
+          title="Drag to move to another area"
+        >
+          <GripVertical className="h-4 w-4" />
+        </div>
+      )}
       <div className="flex-1 space-y-1">
         <div className="flex items-start justify-between">
           <div>
