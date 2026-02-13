@@ -131,6 +131,7 @@ Custom construction-themed palette with `pro-*` color tokens, `mint`, `brand`, `
 - Use TanStack Query for data fetching (not useEffect)
 - Fetch relative paths (`/api/v1/...`) - never hardcode localhost:8000
 - Use Wouter for routing (not React Router)
+- **Routing rule**: Both authenticated and unauthenticated Switch blocks in `App.tsx` must define routes for ALL navigable paths (e.g., `/login` must exist in authenticated routes as a redirect to `/dashboard`). After login, a race condition between `setLocation` and React Query state propagation can briefly leave the user on an auth-only URL while authenticated — any unhandled path hits the 404 catch-all.
 
 ## RBAC System
 

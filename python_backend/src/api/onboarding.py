@@ -70,7 +70,7 @@ async def _resolve_logo_url(logo_path: Optional[str]) -> Optional[str]:
     if not logo_path:
         return None
     # If it's already a full URL, return as-is
-    if logo_path.startswith("http://") or logo_path.startswith("https://"):
+    if logo_path.startswith(("http://", "https://", "data:")):
         return logo_path
     try:
         config = get_storage_config()
@@ -173,7 +173,7 @@ async def invite_client(body: InviteClientRequest, request: Request):
 
             role_col = await get_role_column_name(conn)
             client_role_row = await conn.fetchrow(
-                f"SELECT id FROM roles WHERE {role_col} = 'client'" if role_col else "SELECT id FROM roles WHERE id = 6"
+                f"SELECT id FROM roles WHERE LOWER({role_col}) = 'client'" if role_col else "SELECT id FROM roles WHERE id = 6"
             )
             client_role_id = client_role_row["id"] if client_role_row else 6
 
@@ -225,7 +225,7 @@ async def invite_client(body: InviteClientRequest, request: Request):
 
         # Fetch company branding
         company_row = await conn.fetchrow(
-            "SELECT name, logo_url, brand_color, sender_name FROM companies WHERE id = $1",
+            "SELECT name, COALESCE(logo_url, logo) as logo_url, brand_color, sender_name FROM companies WHERE id = $1",
             company_id,
         )
 
@@ -364,8 +364,11 @@ async def verify_magic_link(body: VerifyMagicLinkRequest, request: Request, resp
         if not user_data.get("is_active", True):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is inactive")
 
-        # Update last_login_at
-        await conn.execute("UPDATE users SET last_login_at = NOW() WHERE id = $1", user_id)
+        # Update last_login_at (non-critical — don't fail login if column missing)
+        try:
+            await conn.execute("UPDATE users SET last_login_at = NOW() WHERE id = $1", user_id)
+        except Exception as e:
+            logger.warning(f"Failed to update last_login_at for user {user_id}: {e}")
 
         # Check if first login (for showing tour)
         is_first_login = False
@@ -505,7 +508,7 @@ async def request_magic_link(body: RequestMagicLinkRequest, request: Request):
         if company_id:
             try:
                 company_row = await conn.fetchrow(
-                    "SELECT name, logo_url, brand_color, sender_name FROM companies WHERE id = $1",
+                    "SELECT name, COALESCE(logo_url, logo) as logo_url, brand_color, sender_name FROM companies WHERE id = $1",
                     company_id,
                 )
             except Exception:

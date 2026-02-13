@@ -183,6 +183,10 @@ async def get_role_column_name(conn) -> str:
 
 def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool]:
     """Get navigation permissions for the user matching frontend sidebar expectations."""
+    # Normalize role to lowercase for case-insensitive comparison
+    # (Database may store "Client", "Company Administrator", etc.)
+    role = (role or '').strip().lower()
+
     # Base permissions for all users
     permissions = {
         "dashboard": True,
@@ -836,7 +840,8 @@ async def set_organization_context(
 def is_user_admin(user: Dict[str, Any]) -> bool:
     """Check if user has admin privileges."""
     # Check role - try both 'role' and 'role_name' for compatibility
-    role = user.get("role") or user.get("role_name")
+    # Normalize to lowercase for case-insensitive comparison
+    role = (user.get("role") or user.get("role_name") or "").lower()
     if role == "admin":
         return True
 

@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle, Link2 } from "lucide-react";
-import { setCsrfToken, queryClient } from "@/lib/queryClient";
+import { setCsrfToken } from "@/lib/queryClient";
 
 type VerifyState = "verifying" | "success" | "error";
 
@@ -39,12 +39,12 @@ export default function MagicLink() {
     },
     onSuccess: async (data) => {
       setVerifyState("success");
-      // Invalidate auth queries so useAuth picks up the new session
-      await queryClient.invalidateQueries({ queryKey: ["/api/v1/auth/user"] });
-      // Brief delay for visual feedback, then redirect
+      // Use hard navigation to avoid React routing race condition.
+      // The session cookie is already set by the verify-magic-link response,
+      // so the target page will load fresh and fetch auth state normally.
       setTimeout(() => {
         const showTour = data.isFirstLogin ? "?showTour=true" : "";
-        setLocation(`/client-portal${showTour}`);
+        window.location.href = `/client-portal${showTour}`;
       }, 1000);
     },
     onError: (error: Error) => {
