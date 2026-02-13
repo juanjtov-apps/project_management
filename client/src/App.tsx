@@ -7,14 +7,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
-import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
 import WorkPage from "@/pages/work-page";
 import Schedule from "@/pages/schedule";
 import Photos from "@/pages/photos";
 import Logs from "@/pages/logs";
 import ClientPortal from "@/pages/client-portal";
-import Subs from "@/pages/subs";
 import RBACAdmin from "@/pages/RBACAdmin";
 import WaitlistAdmin from "@/pages/waitlist-admin";
 import ProjectHealth from "@/pages/project-health";
@@ -34,6 +32,12 @@ function RedirectToLogin() {
   return null;
 }
 
+function RedirectToDashboard() {
+  const [, setLocation] = useLocation();
+  useEffect(() => { setLocation('/dashboard'); }, [setLocation]);
+  return null;
+}
+
 function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLoading: boolean }) {
   // If still loading auth state, show loading with proper delay to prevent 404 flash
   if (isLoading) {
@@ -47,48 +51,51 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
     );
   }
 
+  if (!isAuthenticated) {
+    return (
+      <Switch>
+        <Route path="/" component={Landing} />
+        <Route path="/login" component={Login} />
+        <Route path="/auth/magic-link" component={MagicLink} />
+        <Route path="/auth/request-link" component={RequestMagicLink} />
+        <Route component={RedirectToLogin} />
+      </Switch>
+    );
+  }
+
   return (
     <Switch>
-      {!isAuthenticated ? (
-        <>
-          <Route path="/" component={Landing} />
-          <Route path="/login" component={Login} />
-          <Route path="/auth/magic-link" component={MagicLink} />
-          <Route path="/auth/request-link" component={RequestMagicLink} />
-          <Route component={RedirectToLogin} />
-        </>
-      ) : (
-        <>
-          <Route path="/" component={Dashboard} />
-          <Route path="/dashboard" component={Dashboard} />
-          <Route path="/work" component={WorkPage} />
-          <Route path="/projects" component={WorkPage} />
-          <Route path="/tasks" component={WorkPage} />
-          <Route path="/project-health" component={ProjectHealth} />
-          <Route path="/schedule" component={Schedule} />
-          <Route path="/photos" component={Photos} />
-          <Route path="/logs" component={Logs} />
-          <Route path="/client-portal">
-            <ProtectedRoute requiredPermission="clientPortal">
-              <ClientPortal />
-            </ProtectedRoute>
-          </Route>
-          {/* Subs module hidden for MVP - will be re-enabled later */}
-          <Route path="/rbac">
-            <ProtectedRoute requiredPermission="rbacAdmin">
-              <RBACAdmin />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/rbac-admin">
-            <ProtectedRoute requiredPermission="rbacAdmin">
-              <RBACAdmin />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/waitlist-admin">
-            <WaitlistAdmin />
-          </Route>
-        </>
-      )}
+      <Route path="/" component={Dashboard} />
+      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/login" component={RedirectToDashboard} />
+      <Route path="/auth/magic-link" component={RedirectToDashboard} />
+      <Route path="/auth/request-link" component={RedirectToDashboard} />
+      <Route path="/work" component={WorkPage} />
+      <Route path="/projects" component={WorkPage} />
+      <Route path="/tasks" component={WorkPage} />
+      <Route path="/project-health" component={ProjectHealth} />
+      <Route path="/schedule" component={Schedule} />
+      <Route path="/photos" component={Photos} />
+      <Route path="/logs" component={Logs} />
+      <Route path="/client-portal">
+        <ProtectedRoute requiredPermission="clientPortal">
+          <ClientPortal />
+        </ProtectedRoute>
+      </Route>
+      {/* Subs module hidden for MVP - will be re-enabled later */}
+      <Route path="/rbac">
+        <ProtectedRoute requiredPermission="rbacAdmin">
+          <RBACAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/rbac-admin">
+        <ProtectedRoute requiredPermission="rbacAdmin">
+          <RBACAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/waitlist-admin">
+        <WaitlistAdmin />
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
