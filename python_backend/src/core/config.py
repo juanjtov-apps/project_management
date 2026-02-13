@@ -67,6 +67,18 @@ class Settings(BaseSettings):
         os.getenv("AGENT_CONFIRMATION_TIMEOUT_MINUTES", "30")
     )
     
+    # Email (Resend) - for client onboarding emails
+    resend_api_key: str = os.getenv("RESEND_API_KEY", "")
+    resend_sender_domain: str = os.getenv("RESEND_SENDER_DOMAIN", "mail.proesphere.com")
+
+    # SMS (Twilio) - for client onboarding SMS
+    twilio_account_sid: str = os.getenv("TWILIO_ACCOUNT_SID", "")
+    twilio_auth_token: str = os.getenv("TWILIO_AUTH_TOKEN", "")
+    twilio_phone_number: str = os.getenv("TWILIO_PHONE_NUMBER", "")
+
+    # Magic Links - base URL for magic link generation
+    magic_link_base_url: str = os.getenv("MAGIC_LINK_BASE_URL", "http://localhost:5000")
+
     # Pydantic v2 settings configuration
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -418,7 +418,7 @@ class AuthRepository:
             password_bytes = data['password'].encode('utf-8')
             password_hash = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
         
-        if not password_hash:
+        if not password_hash and role_id != 4:  # Client role (4) uses magic link, no password
             raise ValueError("Password is required for user creation")
         
         # Get first_name and last_name

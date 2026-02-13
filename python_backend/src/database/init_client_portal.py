@@ -207,7 +207,62 @@ async def init_client_portal_schema():
     CREATE INDEX IF NOT EXISTS idx_installments_project ON client_portal.installments(project_id);
     CREATE INDEX IF NOT EXISTS idx_notifications_user ON client_portal.notifications(user_id);
     CREATE INDEX IF NOT EXISTS idx_notifications_read ON client_portal.notifications(read);
-    
+
+    -- =============================================
+    -- CLIENT ONBOARDING TABLES (Magic Link Auth)
+    -- =============================================
+
+    -- Add phone field to users table
+    ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone varchar(20);
+
+    -- Add branding fields to companies table
+    ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS logo_url text;
+    ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS brand_color varchar(7) DEFAULT '#2563eb';
+    ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS sender_name varchar(200);
+
+    -- MAGIC LINK TOKENS TABLE
+    -- Stores SHA-256 hashes of tokens (raw tokens are sent via email/SMS only)
+    CREATE TABLE IF NOT EXISTS client_portal.magic_link_tokens(
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL,
+        token_hash varchar(128) NOT NULL,
+        purpose varchar(20) NOT NULL DEFAULT 'login',
+        expires_at timestamptz NOT NULL,
+        used_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        ip_address varchar(45),
+        CONSTRAINT fk_magic_link_user FOREIGN KEY(user_id)
+            REFERENCES public.users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_magic_link_token_hash ON client_portal.magic_link_tokens(token_hash);
+    CREATE INDEX IF NOT EXISTS idx_magic_link_user ON client_portal.magic_link_tokens(user_id);
+    CREATE INDEX IF NOT EXISTS idx_magic_link_expires ON client_portal.magic_link_tokens(expires_at);
+
+    -- CLIENT INVITATIONS TABLE
+    -- Tracks onboarding state per client user
+    CREATE TABLE IF NOT EXISTS client_portal.client_invitations(
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL,
+        project_id varchar NOT NULL,
+        company_id varchar NOT NULL,
+        invited_by varchar NOT NULL,
+        welcome_note text,
+        email_sent_at timestamptz,
+        sms_sent_at timestamptz,
+        first_login_at timestamptz,
+        has_completed_tour boolean DEFAULT false,
+        status varchar(20) NOT NULL DEFAULT 'pending',
+        created_at timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT fk_invite_user FOREIGN KEY(user_id)
+            REFERENCES public.users(id) ON DELETE CASCADE,
+        CONSTRAINT fk_invite_invited_by FOREIGN KEY(invited_by)
+            REFERENCES public.users(id) ON DELETE RESTRICT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_invite_user ON client_portal.client_invitations(user_id);
+    CREATE INDEX IF NOT EXISTS idx_invite_status ON client_portal.client_invitations(status);
+
     -- Commit transaction
     COMMIT;
     """
