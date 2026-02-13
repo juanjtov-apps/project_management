@@ -140,6 +140,11 @@ app.add_middleware(RequestTrackingMiddleware)
 from src.middleware.security import setup_security_middleware
 setup_security_middleware(app)
 
+# Client route guard — defense-in-depth layer that restricts client-role users
+# to a whitelist of API endpoints (blocks access to admin/PM routes at middleware level)
+from src.middleware.client_route_guard import ClientRouteGuardMiddleware
+app.add_middleware(ClientRouteGuardMiddleware)
+
 # Add CORS middleware - allow development and production origins with credentials support
 # Production domains include Replit deployment URLs
 app.add_middleware(

@@ -15,10 +15,17 @@ router = APIRouter(prefix="/rbac", tags=["rbac"])
 async def get_roles(current_user: Dict[str, Any] = Depends(get_current_user_dependency)):
     """Get all roles."""
     try:
+        if not is_user_admin(current_user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin privileges required"
+            )
         roles = await role_repo.get_roles()
         logger.debug(f"Retrieved {len(roles)} roles")
         return roles
 
+    except HTTPException:
+        raise
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Error fetching roles: {error_msg}", exc_info=True)
@@ -74,10 +81,17 @@ async def get_users(current_user: Dict[str, Any] = Depends(get_current_user_depe
 async def get_permissions(current_user: Dict[str, Any] = Depends(get_current_user_dependency)):
     """Get all available permissions."""
     try:
+        if not is_user_admin(current_user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin privileges required"
+            )
         permissions = await role_repo.get_permissions()
         logger.debug(f"Retrieved {len(permissions)} permissions")
         return permissions
 
+    except HTTPException:
+        raise
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Error fetching permissions: {error_msg}", exc_info=True)

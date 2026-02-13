@@ -212,8 +212,9 @@ async def init_client_portal_schema():
     -- CLIENT ONBOARDING TABLES (Magic Link Auth)
     -- =============================================
 
-    -- Add phone field to users table
+    -- Add phone and tracking fields to users table
     ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone varchar(20);
+    ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
 
     -- Add branding fields to companies table
     ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS logo_url text;

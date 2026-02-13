@@ -38,6 +38,35 @@ function RedirectToDashboard() {
   return null;
 }
 
+function MagicLinkOrRedirect() {
+  // If there's a ?token= parameter, always show the magic link verification page
+  // (even if the user is already authenticated, e.g. an admin testing a client link).
+  // Otherwise, redirect based on the current user's role.
+  const search = window.location.search;
+  if (search.includes('token=')) {
+    return <MagicLink />;
+  }
+
+  // No token — redirect authenticated user to the right place
+  const [, setLocation] = useLocation();
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ['/api/v1/auth/user'],
+  });
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const role = (currentUser?.role || '').toLowerCase();
+    if (role === 'client') {
+      const projectId = currentUser?.assignedProjectId;
+      setLocation(projectId ? `/client-portal?projectId=${projectId}` : '/client-portal');
+    } else {
+      setLocation('/dashboard');
+    }
+  }, [currentUser, setLocation]);
+
+  return null;
+}
+
 function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLoading: boolean }) {
   // If still loading auth state, show loading with proper delay to prevent 404 flash
   if (isLoading) {
@@ -68,7 +97,7 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
       <Route path="/" component={Dashboard} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/login" component={RedirectToDashboard} />
-      <Route path="/auth/magic-link" component={RedirectToDashboard} />
+      <Route path="/auth/magic-link" component={MagicLinkOrRedirect} />
       <Route path="/auth/request-link" component={RedirectToDashboard} />
       <Route path="/work" component={WorkPage} />
       <Route path="/projects" component={WorkPage} />
@@ -205,7 +234,7 @@ function AuthenticatedLayout({
 
   // Redirect clients to client portal on login
   useEffect(() => {
-    if (isClientUser && location !== '/client-portal') {
+    if (isClientUser && !location.startsWith('/client-portal')) {
       // Redirect to client portal with their assigned project
       if (assignedProjectId) {
         setLocation(`/client-portal?projectId=${assignedProjectId}`);
