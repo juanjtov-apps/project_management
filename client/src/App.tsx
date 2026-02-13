@@ -18,6 +18,8 @@ import Subs from "@/pages/subs";
 import RBACAdmin from "@/pages/RBACAdmin";
 import WaitlistAdmin from "@/pages/waitlist-admin";
 import ProjectHealth from "@/pages/project-health";
+import MagicLink from "@/pages/magic-link";
+import RequestMagicLink from "@/pages/request-magic-link";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
@@ -51,6 +53,8 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
         <>
           <Route path="/" component={Landing} />
           <Route path="/login" component={Login} />
+          <Route path="/auth/magic-link" component={MagicLink} />
+          <Route path="/auth/request-link" component={RequestMagicLink} />
           <Route component={RedirectToLogin} />
         </>
       ) : (

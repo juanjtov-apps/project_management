@@ -61,6 +61,12 @@ try:
 except ImportError:
     dashboard_stats_router = None
 
+# Import onboarding router (client magic link auth)
+try:
+    from ...api.onboarding import router as onboarding_router
+except ImportError:
+    onboarding_router = None
+
 # Import agent chat router
 try:
     from ...agent.api.chat import router as agent_router
@@ -133,6 +139,10 @@ def create_v1_router() -> APIRouter:
     # Include waitlist router (public endpoint)
     if waitlist_router:
         v1_router.include_router(waitlist_router, tags=["waitlist"])
+
+    # Include onboarding router for client magic link auth
+    if onboarding_router:
+        v1_router.include_router(onboarding_router, tags=["onboarding"])
 
     # Include agent router for AI chat functionality
     if agent_router:

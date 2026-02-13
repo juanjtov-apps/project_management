@@ -21,7 +21,8 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { BottomNavigation } from '@/components/ui/bottom-navigation';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Users, Shield, Building, UserCheck, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, MoreVertical, Home, FolderKanban, ListTodo } from 'lucide-react';
+import { Users, Shield, Building, UserCheck, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, MoreVertical, Home, FolderKanban, ListTodo, Palette } from 'lucide-react';
+import CompanyBrandingForm from '@/components/onboarding/company-branding-form';
 
 interface Permission {
   id: string;
@@ -221,10 +222,19 @@ export default function RBACAdmin() {
 
   // Mutations
   const createUserMutation = useMutation({
-    mutationFn: (userData: any) => apiRequest('/api/rbac/users', { method: 'POST', body: userData }),
-    onSuccess: () => {
+    mutationFn: async (userData: any) => {
+      const response = await apiRequest('/api/rbac/users', { method: 'POST', body: userData });
+      return response.json();
+    },
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
-      toast({ title: 'Success', description: 'User created successfully' });
+      if (data?.emailSent === true) {
+        toast({ title: 'Client Invited', description: `Invitation email sent to ${data.email || 'client'}` });
+      } else if (data?.emailSent === false) {
+        toast({ title: 'Client Created', description: 'User created but invitation email failed to send. You can re-send from Client Portal.', variant: 'destructive' });
+      } else {
+        toast({ title: 'Success', description: 'User created successfully' });
+      }
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -400,8 +410,7 @@ export default function RBACAdmin() {
       newUser.last_name &&
       newUser.role_id &&
       currentUserCompanyId &&
-      isPasswordValid &&
-      passwordsMatch &&
+      (isClientRole || (isPasswordValid && passwordsMatch)) &&
       hasRequiredProjectForClient;
 
     // Toggle user active status
@@ -494,10 +503,58 @@ export default function RBACAdmin() {
               <DialogHeader>
                 <DialogTitle>Create New User</DialogTitle>
               </DialogHeader>
-              <form onSubmit={(e) => { 
-                e.preventDefault(); 
+              <form onSubmit={(e) => {
+                e.preventDefault();
                 document.getElementById('create-user-button')?.click();
               }} className="space-y-4">
+                {/* Role selector first — determines which fields are shown */}
+                <div>
+                  <Label htmlFor="role">Role *</Label>
+                  <Select value={newUser.role_id} onValueChange={(value) => setNewUser({ ...newUser, role_id: value, password: '', confirm_password: '' })}>
+                    <SelectTrigger id="role">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(() => {
+                        if (rolesLoading) {
+                          return <SelectItem value="loading" disabled>Loading roles...</SelectItem>;
+                        }
+
+                        if (!roles || roles.length === 0) {
+                          return <SelectItem value="none" disabled>No roles available</SelectItem>;
+                        }
+
+                        const rolesToShow = roles;
+
+                        if (rolesToShow.length === 0) {
+                          return <SelectItem value="none" disabled>No roles available</SelectItem>;
+                        }
+
+                        return rolesToShow
+                          .filter((role: Role) => {
+                            if (getRoleName(role) === 'Platform Administrator' && !isRootAdmin) {
+                              return false;
+                            }
+                            return true;
+                          })
+                          .map((role: Role) => (
+                            <SelectItem key={role.id} value={role.id.toString()}>
+                              {getRoleName(role) || role.displayName || role.display_name} {String(role.company_id) === '0' ? '(Platform)' : '(Standard)'}
+                            </SelectItem>
+                          ));
+                      })()}
+                    </SelectContent>
+                  </Select>
+                  {!newUser.role_id && (
+                    <p className="text-xs text-red-500 mt-1">Role is required</p>
+                  )}
+                </div>
+                {/* Client role info banner */}
+                {isClientRole && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                    Client users sign in via magic link — no password needed. An invitation email will be sent automatically.
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="first_name">First Name</Label>
@@ -525,45 +582,50 @@ export default function RBACAdmin() {
                     onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    placeholder="Enter password"
-                  />
-                  <div className="mt-2 text-xs space-y-1">
-                    <p className={passwordChecks.minLength ? "text-green-600" : "text-gray-400"}>
-                      {passwordChecks.minLength ? "✓" : "○"} At least 8 characters
-                    </p>
-                    <p className={passwordChecks.hasUppercase ? "text-green-600" : "text-gray-400"}>
-                      {passwordChecks.hasUppercase ? "✓" : "○"} One uppercase letter
-                    </p>
-                    <p className={passwordChecks.hasLowercase ? "text-green-600" : "text-gray-400"}>
-                      {passwordChecks.hasLowercase ? "✓" : "○"} One lowercase letter
-                    </p>
-                    <p className={passwordChecks.hasDigit ? "text-green-600" : "text-gray-400"}>
-                      {passwordChecks.hasDigit ? "✓" : "○"} One digit
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="confirm_password">Confirm Password *</Label>
-                  <Input
-                    id="confirm_password"
-                    type="password"
-                    value={newUser.confirm_password}
-                    onChange={(e) => setNewUser({ ...newUser, confirm_password: e.target.value })}
-                    placeholder="Re-enter password"
-                  />
-                  {newUser.confirm_password && (
-                    <p className={`mt-1 text-xs ${passwordsMatch ? "text-green-600" : "text-red-500"}`}>
-                      {passwordsMatch ? "✓ Passwords match" : "✗ Passwords do not match"}
-                    </p>
-                  )}
-                </div>
+                {/* Password fields — hidden for client role (magic link auth) */}
+                {!isClientRole && (
+                  <>
+                    <div>
+                      <Label htmlFor="password">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={newUser.password}
+                        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                        placeholder="Enter password"
+                      />
+                      <div className="mt-2 text-xs space-y-1">
+                        <p className={passwordChecks.minLength ? "text-green-600" : "text-gray-400"}>
+                          {passwordChecks.minLength ? "✓" : "○"} At least 8 characters
+                        </p>
+                        <p className={passwordChecks.hasUppercase ? "text-green-600" : "text-gray-400"}>
+                          {passwordChecks.hasUppercase ? "✓" : "○"} One uppercase letter
+                        </p>
+                        <p className={passwordChecks.hasLowercase ? "text-green-600" : "text-gray-400"}>
+                          {passwordChecks.hasLowercase ? "✓" : "○"} One lowercase letter
+                        </p>
+                        <p className={passwordChecks.hasDigit ? "text-green-600" : "text-gray-400"}>
+                          {passwordChecks.hasDigit ? "✓" : "○"} One digit
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="confirm_password">Confirm Password *</Label>
+                      <Input
+                        id="confirm_password"
+                        type="password"
+                        value={newUser.confirm_password}
+                        onChange={(e) => setNewUser({ ...newUser, confirm_password: e.target.value })}
+                        placeholder="Re-enter password"
+                      />
+                      {newUser.confirm_password && (
+                        <p className={`mt-1 text-xs ${passwordsMatch ? "text-green-600" : "text-red-500"}`}>
+                          {passwordsMatch ? "✓ Passwords match" : "✗ Passwords do not match"}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
                 {/* Company is auto-assigned - no selection needed */}
                 <div>
                   <Label>Company</Label>
@@ -572,7 +634,7 @@ export default function RBACAdmin() {
                       // Display current user's company (auto-assigned)
                       if (companiesLoading) return 'Loading company...';
                       if (!companies.length) return 'No companies available';
-                      
+
                       // Try both company_id and companyId for compatibility
                       const userCompanyId = currentUser?.company_id || currentUser?.companyId;
                       const matchedCompany = companies.find(c => c.id.toString() === userCompanyId?.toString());
@@ -583,57 +645,8 @@ export default function RBACAdmin() {
                     {isRootAdmin ? 'Users will be assigned to your company' : 'User will be assigned to your company'}
                   </p>
                 </div>
-                <div>
-                  <Label htmlFor="role">Role *</Label>
-                  <Select value={newUser.role_id} onValueChange={(value) => setNewUser({ ...newUser, role_id: value })}>
-                    <SelectTrigger id="role">
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(() => {
-                        if (rolesLoading) {
-                          return <SelectItem value="loading" disabled>Loading roles...</SelectItem>;
-                        }
-                        
-                        if (!roles || roles.length === 0) {
-                          return <SelectItem value="none" disabled>No roles available</SelectItem>;
-                        }
-                        
-                        // DEBUG: Log all roles and filter details
-                        console.log('🔍 Create User - All roles:', roles);
-                        console.log('🔍 Create User - Current company ID:', currentUserCompanyId);
-                        console.log('🔍 Create User - Roles count:', roles.length);
-                        
-                        // Show ALL roles for now - we can filter later if needed
-                        // This ensures roles are visible while we debug
-                        const rolesToShow = roles;
-                        
-                        if (rolesToShow.length === 0) {
-                          return <SelectItem value="none" disabled>No roles available</SelectItem>;
-                        }
-                        
-                        return rolesToShow
-                          .filter((role: Role) => {
-                            // Only root admin can assign Platform Administrator role
-                            if (getRoleName(role) === 'Platform Administrator' && !isRootAdmin) {
-                              return false;
-                            }
-                            return true;
-                          })
-                          .map((role: Role) => (
-                            <SelectItem key={role.id} value={role.id.toString()}>
-                              {getRoleName(role) || role.displayName || role.display_name} {String(role.company_id) === '0' ? '(Platform)' : '(Standard)'}
-                            </SelectItem>
-                          ));
-                      })()}
-                    </SelectContent>
-                  </Select>
-                  {!newUser.role_id && (
-                    <p className="text-xs text-red-500 mt-1">Role is required</p>
-                  )}
-                </div>
                 {/* Project Assignment - Only shown for Client role (roleId === '4') */}
-                {newUser.role_id === '4' && (
+                {isClientRole && (
                   <div>
                     <Label htmlFor="assigned_project">Assigned Project *</Label>
                     <Select
@@ -700,20 +713,22 @@ export default function RBACAdmin() {
                       last_name: newUser.last_name.trim(),
                       company_id: effectiveCompanyId,
                       role_id: roleIdNum,
-                      password: newUser.password,
                       is_active: true
                     };
+
+                    // Include password only for non-client roles
+                    if (roleIdNum !== 4) {
+                      userPayload.password = newUser.password;
+                    }
 
                     // Include assigned_project_id only for client role
                     if (roleIdNum === 4 && newUser.assigned_project_id) {
                       userPayload.assigned_project_id = newUser.assigned_project_id;
                     }
 
-                    console.log('[Create User] Sending payload:', userPayload);
-
                     // Creating user with validated data
                     createUserMutation.mutate(userPayload, {
-                      onSuccess: () => {
+                      onSuccess: (response: any) => {
                         setIsCreateDialogOpen(false);
                         setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '', confirm_password: '', assigned_project_id: '' });
                       }
@@ -721,7 +736,7 @@ export default function RBACAdmin() {
                   }}
                   disabled={!isFormValid || createUserMutation.isPending}
                 >
-                  {createUserMutation.isPending ? 'Creating...' : 'Create User'}
+                  {createUserMutation.isPending ? 'Creating...' : (isClientRole ? 'Create & Send Invite' : 'Create User')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -2501,9 +2516,11 @@ export default function RBACAdmin() {
         { value: 'companies', label: 'Companies', icon: <Building className="w-4 h-4" /> },
         { value: 'permissions', label: 'Permissions', icon: <Key className="w-4 h-4" /> },
         { value: 'modules', label: 'Modules', icon: <Settings className="w-4 h-4" /> },
+        { value: 'branding', label: 'Branding', icon: <Palette className="w-4 h-4" /> },
       ]
     : [
         { value: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
+        { value: 'branding', label: 'Branding', icon: <Palette className="w-4 h-4" /> },
       ];
 
   // Bottom navigation items
@@ -2573,6 +2590,7 @@ export default function RBACAdmin() {
         {activeTab === 'companies' && isRootAdmin && <CompanyManagement />}
         {activeTab === 'permissions' && isRootAdmin && <PermissionsOverview />}
         {activeTab === 'modules' && isRootAdmin && <ModulesManagement />}
+        {activeTab === 'branding' && <CompanyBrandingForm />}
       </main>
 
       {/* Bottom Navigation */}

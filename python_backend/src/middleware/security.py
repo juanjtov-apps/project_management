@@ -228,7 +228,7 @@ async def validate_origin(request: Request) -> bool:
         return True
     
     # Skip validation for public endpoints
-    public_paths = ["/api/v1/auth/login", "/api/v1/auth/logout", "/api/waitlist", "/health", "/docs", "/redoc", "/openapi.json"]
+    public_paths = ["/api/v1/auth/login", "/api/v1/auth/logout", "/api/waitlist", "/api/v1/onboarding/verify-magic-link", "/api/v1/onboarding/request-magic-link", "/health", "/docs", "/redoc", "/openapi.json"]
     if any(request.url.path.startswith(path) for path in public_paths):
         return True
     
@@ -316,6 +316,8 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             "/api/auth/logout",
             "/api/waitlist",
             "/api/v1/waitlist",
+            "/api/v1/onboarding/verify-magic-link",
+            "/api/v1/onboarding/request-magic-link",
             "/health",
             "/docs",
             "/redoc",

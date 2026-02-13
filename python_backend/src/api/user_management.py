@@ -25,12 +25,13 @@ class UserCreateRequest(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
-    password: str
+    password: Optional[str] = None  # Optional for client role (magic link auth)
     role_id: int  # Changed from role: str - must be a valid role ID
     company_id: Optional[str] = None  # Required for non-root users, validated in endpoint
     is_active: bool = True
     assigned_project_id: Optional[str] = None  # For client role users only
-    
+    welcome_note: Optional[str] = None  # For client invite email
+
     @field_validator('first_name', 'last_name')
     @classmethod
     def validate_names(cls, v):
@@ -38,17 +39,19 @@ class UserCreateRequest(BaseModel):
         if v is None:
             return v
         return validate_name(v, "name")
-    
+
     @field_validator('email')
     @classmethod
     def validate_email(cls, v):
         """Validate email format"""
         return validate_email_format(v)
-    
+
     @field_validator('password')
     @classmethod
     def validate_password(cls, v):
-        """Validate password strength"""
+        """Validate password strength — skip for None (client role)"""
+        if v is None:
+            return v
         return validate_password_strength(v)
 
 class UserUpdateRequest(BaseModel):
@@ -492,6 +495,107 @@ async def create_user(
 
         user = await auth_repo.create_rbac_user(user_data.model_dump())
         logger.info(f"User created with company restrictions enforced")
+
+        # For client role (4): trigger onboarding invite (magic link + email)
+        email_sent = False
+        if user_data.role_id == 4:
+            try:
+                from ..database.connection import get_db_pool
+                from ..services.magic_link_service import MagicLinkService
+                from ..services.email_service import EmailService
+                from ..core.config import settings
+                import uuid as uuid_mod
+
+                pool = await get_db_pool()
+                magic_link_svc = MagicLinkService(pool)
+                email_svc = EmailService()
+
+                created_user_id = user.get("id") or user.get("userId")
+
+                async with pool.acquire() as conn:
+                    # Create invitation record
+                    caller_id = str(current_user.get("id") or current_user.get("userId") or "")
+                    await conn.execute(
+                        """
+                        INSERT INTO client_portal.client_invitations
+                        (id, user_id, project_id, company_id, invited_by, welcome_note, status)
+                        VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+                        """,
+                        str(uuid_mod.uuid4()),
+                        str(created_user_id),
+                        user_data.assigned_project_id or "",
+                        str(user_data.company_id),
+                        caller_id,
+                        user_data.welcome_note,
+                    )
+
+                    # Invalidate any previous tokens and generate new one
+                    await magic_link_svc.invalidate_user_tokens(str(created_user_id), purpose="invite")
+                    raw_token = await magic_link_svc.create_magic_link(str(created_user_id), purpose="invite")
+                    magic_link_url = f"{settings.magic_link_base_url}/auth/magic-link?token={raw_token}"
+
+                    # Fetch company branding
+                    company_row = await conn.fetchrow(
+                        "SELECT name, logo_url, brand_color, sender_name FROM companies WHERE id = $1",
+                        str(user_data.company_id),
+                    )
+                    company_name = company_row["name"] if company_row else "Your Contractor"
+                    company_logo_url = company_row["logo_url"] if company_row else None
+                    brand_color = (company_row["brand_color"] if company_row else None) or "#2563eb"
+                    sender_name = company_row["sender_name"] if company_row else None
+
+                    # Fetch project name
+                    project_name = "Your Project"
+                    if user_data.assigned_project_id:
+                        project_row = await conn.fetchrow(
+                            "SELECT name FROM projects WHERE id = $1", user_data.assigned_project_id
+                        )
+                        project_name = project_row["name"] if project_row else "Your Project"
+
+                # Get caller's name
+                caller_name = f"{current_user.get('first_name', '')} {current_user.get('last_name', '')}".strip()
+                if not caller_name:
+                    caller_name = current_user.get("name", "Your Project Manager")
+
+                # Send invitation email
+                email_sent = await email_svc.send_client_invite_email(
+                    to_email=user_data.email,
+                    client_first_name=user_data.first_name,
+                    company_name=company_name,
+                    company_logo_url=company_logo_url,
+                    brand_color=brand_color,
+                    pm_name=caller_name,
+                    project_name=project_name,
+                    magic_link_url=magic_link_url,
+                    welcome_note=user_data.welcome_note,
+                    sender_name=sender_name,
+                )
+
+                if email_sent:
+                    from datetime import datetime, timezone
+                    async with pool.acquire() as conn:
+                        await conn.execute(
+                            """
+                            UPDATE client_portal.client_invitations
+                            SET email_sent_at = $1
+                            WHERE id = (
+                                SELECT id FROM client_portal.client_invitations
+                                WHERE user_id = $2 AND status = 'pending'
+                                ORDER BY created_at DESC LIMIT 1
+                            )
+                            """,
+                            datetime.now(timezone.utc),
+                            str(created_user_id),
+                        )
+
+                logger.info(f"Client onboarding invite sent: email={email_sent}")
+            except Exception as invite_err:
+                logger.error(f"Failed to send client invite (user was still created): {invite_err}", exc_info=True)
+
+        # Include invite status in response for client role
+        if user_data.role_id == 4:
+            user["emailSent"] = email_sent
+
         return user
         
     except HTTPException:
