@@ -26,6 +26,12 @@ import { AgentDrawer } from "@/components/agent";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useState } from "react";
 
+function RedirectToLogin() {
+  const [, setLocation] = useLocation();
+  useEffect(() => { setLocation('/login'); }, [setLocation]);
+  return null;
+}
+
 function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLoading: boolean }) {
   // If still loading auth state, show loading with proper delay to prevent 404 flash
   if (isLoading) {
@@ -45,6 +51,7 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
         <>
           <Route path="/" component={Landing} />
           <Route path="/login" component={Login} />
+          <Route component={RedirectToLogin} />
         </>
       ) : (
         <>
