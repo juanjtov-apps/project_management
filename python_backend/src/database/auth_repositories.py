@@ -4,10 +4,11 @@ Contains all authentication, user management, and company filtering functionalit
 """
 
 import uuid
+import asyncpg
 import bcrypt
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
-from .connection import db_manager
+from .connection import db_manager, get_db_pool
 from ..models.user import User
 from ..utils.data_conversion import to_camel_case, to_snake_case
 
@@ -712,9 +713,164 @@ class CompanyRepository:
         return None
     
     async def delete_company(self, company_id: str) -> bool:
-        """Delete a company."""
-        result = await db_manager.execute(f"DELETE FROM {self.table_name} WHERE id = $1", company_id)
-        return "DELETE 1" in result
+        """Delete a company and all related records in proper FK dependency order.
+
+        Uses safe_delete for every table since migrations may not have run and
+        tables/columns may not exist.  Error codes caught:
+          42P01 = undefined_table, 42703 = undefined_column, 42P07 = duplicate_table
+        """
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                async def safe_delete(query: str, *args):
+                    try:
+                        await conn.execute(query, *args)
+                    except Exception as e:
+                        code = getattr(e, 'sqlstate', None) or getattr(e, 'code', None)
+                        if code in ('42P01', '42703', '42P07'):
+                            pass  # table or column doesn't exist — skip
+                        else:
+                            raise
+
+                # Collect IDs for subquery-based deletes
+                project_ids = [r['id'] for r in await conn.fetch(
+                    "SELECT id FROM projects WHERE company_id = $1", company_id
+                )]
+                user_ids = [r['id'] for r in await conn.fetch(
+                    "SELECT id FROM users WHERE company_id = $1", company_id
+                )]
+
+                if project_ids:
+                    # --- client_portal: deepest leaf tables first ---
+                    # Issues (comments/attachments CASCADE from issues)
+                    await safe_delete(
+                        "DELETE FROM client_portal.issue_comments WHERE issue_id IN "
+                        "(SELECT id FROM client_portal.issues WHERE project_id = ANY($1))", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.issue_attachments WHERE issue_id IN "
+                        "(SELECT id FROM client_portal.issues WHERE project_id = ANY($1))", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.issue_audit_log WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.issues WHERE project_id = ANY($1)", project_ids)
+
+                    # Forum (messages/attachments CASCADE from threads)
+                    await safe_delete(
+                        "DELETE FROM client_portal.forum_attachments WHERE message_id IN "
+                        "(SELECT id FROM client_portal.forum_messages WHERE thread_id IN "
+                        "(SELECT id FROM client_portal.forum_threads WHERE project_id = ANY($1)))", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.forum_messages WHERE thread_id IN "
+                        "(SELECT id FROM client_portal.forum_threads WHERE project_id = ANY($1))", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.forum_threads WHERE project_id = ANY($1)", project_ids)
+
+                    # Materials (items CASCADE from areas)
+                    await safe_delete(
+                        "DELETE FROM client_portal.material_items WHERE area_id IN "
+                        "(SELECT id FROM client_portal.material_areas WHERE project_id = ANY($1))", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.material_areas WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.materials WHERE project_id = ANY($1)", project_ids)
+
+                    # Payments — RESTRICT FKs require correct leaf-first order
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_events WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_receipts WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.invoices WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_documents WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_installments WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_schedules WHERE project_id = ANY($1)", project_ids)
+
+                    # Legacy installments (files CASCADE from installments)
+                    await safe_delete(
+                        "DELETE FROM client_portal.installment_files WHERE installment_id IN "
+                        "(SELECT id FROM client_portal.installments WHERE project_id = ANY($1))", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.installments WHERE project_id = ANY($1)", project_ids)
+
+                    # Stages
+                    await safe_delete(
+                        "DELETE FROM client_portal.project_stages WHERE project_id = ANY($1)", project_ids)
+
+                    # Notifications (project-scoped)
+                    await safe_delete(
+                        "DELETE FROM client_portal.notification_settings WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.notifications WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.pm_notifications WHERE project_id = ANY($1)", project_ids)
+
+                    # Client invitations (project-scoped)
+                    await safe_delete(
+                        "DELETE FROM client_portal.client_invitations WHERE project_id = ANY($1)", project_ids)
+
+                    # --- Public schema: project-scoped tables with NO ACTION FKs ---
+                    await safe_delete("DELETE FROM schedule_changes WHERE task_id IN (SELECT id FROM tasks WHERE project_id = ANY($1))", project_ids)
+                    await safe_delete("DELETE FROM time_entries WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM change_orders WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM communications WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM subcontractor_assignments WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM invoices WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM photos WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM project_logs WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM project_health_metrics WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM risk_assessments WHERE project_id = ANY($1)", project_ids)
+                    # Legacy client_* tables
+                    await safe_delete("DELETE FROM client_notification_settings WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM client_issues WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM client_materials WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM client_forum_messages WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM client_installments WHERE project_id = ANY($1)", project_ids)
+
+                if user_ids:
+                    # User-scoped client_portal tables
+                    await safe_delete(
+                        "DELETE FROM client_portal.magic_link_tokens WHERE user_id = ANY($1)", user_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.client_invitations WHERE user_id = ANY($1)", user_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.pm_notifications WHERE recipient_user_id = ANY($1)", user_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.pm_notification_prefs WHERE recipient_user_id = ANY($1)", user_ids)
+                    # Public user-scoped tables with NO ACTION FKs
+                    await safe_delete("DELETE FROM notifications WHERE user_id = ANY($1)", user_ids)
+
+                # --- Agent schema (CASCADE from conversations handles messages/tool_calls/etc.) ---
+                await safe_delete("DELETE FROM agent.feedback WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM agent.metrics WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM agent.scheduled_jobs WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM agent.conversations WHERE company_id = $1", company_id)
+
+                # --- RBAC tables (most have CASCADE from companies) ---
+                await safe_delete("DELETE FROM project_assignments WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM user_effective_permissions WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM company_users WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM role_permissions WHERE company_id = $1", company_id)
+
+                # --- Public schema: company-scoped ---
+                await safe_delete("DELETE FROM audit_logs WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM user_activities WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM tasks WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM projects WHERE company_id = $1", company_id)
+
+                # Sessions (no user_id column — sid/sess/expire only) then users
+                if user_ids:
+                    # Sessions store user data in JSONB 'sess'; delete by matching userId
+                    for uid in user_ids:
+                        await safe_delete("DELETE FROM sessions WHERE sess::jsonb->>'userId' = $1", str(uid))
+                        await safe_delete("DELETE FROM sessions WHERE sess::jsonb->>'id' = $1", str(uid))
+                await safe_delete("DELETE FROM users WHERE company_id = $1", company_id)
+
+                # Finally delete the company
+                result = await conn.execute(f"DELETE FROM {self.table_name} WHERE id = $1", company_id)
+                return "DELETE 1" in result
 
 
 class RoleRepository:
