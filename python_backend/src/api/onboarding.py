@@ -69,7 +69,7 @@ async def _resolve_logo_url(logo_path: Optional[str]) -> Optional[str]:
     Returns None if the path is empty or URL generation fails."""
     if not logo_path:
         return None
-    # If it's already a full URL, return as-is
+    # If it's already a full URL or data URI, return as-is
     if logo_path.startswith(("http://", "https://", "data:")):
         return logo_path
     try:

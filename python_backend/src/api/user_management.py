@@ -536,11 +536,11 @@ async def create_user(
 
                     # Fetch company branding
                     company_row = await conn.fetchrow(
-                        "SELECT name, logo_url, brand_color, sender_name FROM companies WHERE id = $1",
+                        "SELECT name, COALESCE(logo_url, logo) as logo_url, brand_color, sender_name FROM companies WHERE id = $1",
                         str(user_data.company_id),
                     )
                     company_name = company_row["name"] if company_row else "Your Contractor"
-                    company_logo_url = company_row["logo_url"] if company_row else None
+                    company_logo_path = company_row["logo_url"] if company_row else None
                     brand_color = (company_row["brand_color"] if company_row else None) or "#2563eb"
                     sender_name = company_row["sender_name"] if company_row else None
 
@@ -556,6 +556,10 @@ async def create_user(
                 caller_name = f"{current_user.get('first_name', '')} {current_user.get('last_name', '')}".strip()
                 if not caller_name:
                     caller_name = current_user.get("name", "Your Project Manager")
+
+                # Resolve GCS object path to a signed URL for the email
+                from .onboarding import _resolve_logo_url
+                company_logo_url = await _resolve_logo_url(company_logo_path)
 
                 # Send invitation email
                 email_sent = await email_svc.send_client_invite_email(
