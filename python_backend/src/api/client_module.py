@@ -1881,6 +1881,13 @@ async def create_payment_schedule(
             )
             return dict(row)
         except UniqueViolationError:
+            # Schedule already exists — return it (idempotent get-or-create)
+            row = await conn.fetchrow(
+                "SELECT * FROM client_portal.payment_schedules WHERE project_id = $1 AND LOWER(title) = LOWER($2)",
+                data.project_id, data.title
+            )
+            if row:
+                return dict(row)
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A payment schedule with this title already exists for this project"

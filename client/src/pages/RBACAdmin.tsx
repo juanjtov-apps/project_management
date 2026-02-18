@@ -404,12 +404,13 @@ export default function RBACAdmin() {
     const isClientRole = newUser.role_id === '4';
     const hasRequiredProjectForClient = !isClientRole || (isClientRole && newUser.assigned_project_id);
 
+    const hasCompany = isRootAdmin ? !!newUser.company_id : !!currentUserCompanyId;
     const isFormValid =
       newUser.email &&
       newUser.first_name &&
       newUser.last_name &&
       newUser.role_id &&
-      currentUserCompanyId &&
+      hasCompany &&
       (isClientRole || (isPasswordValid && passwordsMatch)) &&
       hasRequiredProjectForClient;
 
@@ -492,9 +493,14 @@ export default function RBACAdmin() {
             <h3 className="text-2xl font-semibold">User Management</h3>
             <p className="text-muted-foreground">Manage users across all companies</p>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+            if (!open) {
+              setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '', confirm_password: '', assigned_project_id: '' });
+            }
+            setIsCreateDialogOpen(open);
+          }}>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={() => setNewUser(prev => ({ ...prev, company_id: '' }))}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add User
               </Button>
@@ -626,24 +632,52 @@ export default function RBACAdmin() {
                     </div>
                   </>
                 )}
-                {/* Company is auto-assigned - no selection needed */}
+                {/* Company assignment */}
                 <div>
-                  <Label>Company</Label>
-                  <div className="p-2 bg-gray-50 rounded border text-sm text-gray-600">
-                    {(() => {
-                      // Display current user's company (auto-assigned)
-                      if (companiesLoading) return 'Loading company...';
-                      if (!companies.length) return 'No companies available';
-
-                      // Try both company_id and companyId for compatibility
-                      const userCompanyId = currentUser?.company_id || currentUser?.companyId;
-                      const matchedCompany = companies.find(c => c.id.toString() === userCompanyId?.toString());
-                      return matchedCompany?.name || `Company ID ${userCompanyId} not found`;
-                    })()}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {isRootAdmin ? 'Users will be assigned to your company' : 'User will be assigned to your company'}
-                  </p>
+                  <Label>Company {isRootAdmin ? '*' : ''}</Label>
+                  {isRootAdmin ? (
+                    <>
+                      <Select
+                        value={newUser.company_id}
+                        onValueChange={(value) => setNewUser({ ...newUser, company_id: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select company" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {companiesLoading ? (
+                            <SelectItem value="loading" disabled>Loading companies...</SelectItem>
+                          ) : companies.length === 0 ? (
+                            <SelectItem value="none" disabled>No companies available</SelectItem>
+                          ) : (
+                            companies.map((company: Company) => (
+                              <SelectItem key={company.id} value={company.id.toString()}>
+                                {company.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Select which company this user belongs to
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="p-2 bg-gray-50 rounded border text-sm text-gray-600">
+                        {(() => {
+                          if (companiesLoading) return 'Loading company...';
+                          if (!companies.length) return 'No companies available';
+                          const userCompanyId = currentUser?.company_id || currentUser?.companyId;
+                          const matchedCompany = companies.find(c => c.id.toString() === userCompanyId?.toString());
+                          return matchedCompany?.name || `Company ID ${userCompanyId} not found`;
+                        })()}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        User will be assigned to your company
+                      </p>
+                    </>
+                  )}
                 </div>
                 {/* Project Assignment - Only shown for Client role (roleId === '4') */}
                 {isClientRole && (
@@ -684,8 +718,10 @@ export default function RBACAdmin() {
                 <Button 
                   id="create-user-button"
                   onClick={() => {
-                    // Auto-assign company - always use current user's company
-                    const companyId = currentUser?.company_id || currentUser?.companyId;
+                    // Root admin: use selected company; non-root: use current user's company
+                    const companyId = isRootAdmin
+                      ? newUser.company_id
+                      : (currentUser?.company_id || currentUser?.companyId);
                     const effectiveCompanyId = companyId?.toString() || '';
                     
                     // Parse role_id safely - ensure it's a valid number
@@ -763,29 +799,46 @@ export default function RBACAdmin() {
                     open={expandedCompanies.has(companyName)}
                     onOpenChange={() => toggleCompanyExpansion(companyName)}
                   >
-                    <CollapsibleTrigger asChild>
-                      <button className="w-full min-h-[56px] px-4 py-3 flex items-center justify-between hover:bg-[var(--pro-surface-highlight)] transition-colors">
-                        <div className="flex items-center gap-3">
-                          <Building className="w-5 h-5 text-[var(--pro-mint)]" />
-                          <div className="text-left">
-                            <h3 className="text-sm font-semibold text-[var(--pro-text-primary)]">{companyName}</h3>
-                            <p className="text-xs text-[var(--pro-text-secondary)]">
-                              {companyUsers.length} user{companyUsers.length !== 1 ? 's' : ''}
-                            </p>
+                    <div className="flex items-center min-h-[56px]">
+                      <CollapsibleTrigger asChild>
+                        <button className="flex-1 min-h-[56px] px-4 py-3 flex items-center justify-between hover:bg-[var(--pro-surface-highlight)] transition-colors">
+                          <div className="flex items-center gap-3">
+                            <Building className="w-5 h-5 text-[var(--pro-mint)]" />
+                            <div className="text-left">
+                              <h3 className="text-sm font-semibold text-[var(--pro-text-primary)]">{companyName}</h3>
+                              <p className="text-xs text-[var(--pro-text-secondary)]">
+                                {companyUsers.length} user{companyUsers.length !== 1 ? 's' : ''}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 text-xs font-medium bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)] rounded-full">
-                            {companyUsers.length}
-                          </span>
-                          <ChevronRight
-                            className={`w-5 h-5 text-[var(--pro-text-secondary)] transition-transform duration-200 ${
-                              expandedCompanies.has(companyName) ? 'rotate-90' : ''
-                            }`}
-                          />
-                        </div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 text-xs font-medium bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)] rounded-full">
+                              {companyUsers.length}
+                            </span>
+                            <ChevronRight
+                              className={`w-5 h-5 text-[var(--pro-text-secondary)] transition-transform duration-200 ${
+                                expandedCompanies.has(companyName) ? 'rotate-90' : ''
+                              }`}
+                            />
+                          </div>
+                        </button>
+                      </CollapsibleTrigger>
+                      <button
+                        className="min-w-[44px] min-h-[44px] mr-2 flex items-center justify-center rounded-lg hover:bg-[var(--pro-mint)]/20 transition-colors"
+                        aria-label={`Add user to ${companyName}`}
+                        title={`Add user to ${companyName}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const company = companies.find(c => c.name === companyName);
+                          if (company) {
+                            setNewUser(prev => ({ ...prev, company_id: company.id.toString() }));
+                          }
+                          setIsCreateDialogOpen(true);
+                        }}
+                      >
+                        <Plus className="w-4 h-4 text-[var(--pro-mint)]" />
                       </button>
-                    </CollapsibleTrigger>
+                    </div>
                     <CollapsibleContent>
                       <div className="divide-y divide-[var(--pro-border)]">
                         {companyUsers.map((user: UserProfile) => {
