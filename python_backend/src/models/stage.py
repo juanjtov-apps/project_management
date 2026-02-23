@@ -129,3 +129,11 @@ class ReorderStagesRequest(BaseModel):
     stage_ids: List[str] = Field(alias="stageIds")
 
     model_config = {"populate_by_name": True, "from_attributes": True}
+
+
+class ShiftDatesRequest(BaseModel):
+    """Request model for shifting dates of subsequent stages."""
+    after_order_index: int = Field(alias="afterOrderIndex")
+    delta_days: int = Field(alias="deltaDays")
+
+    model_config = {"populate_by_name": True, "from_attributes": True}

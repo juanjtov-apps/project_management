@@ -419,6 +419,11 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
   const [insertAfterStage, setInsertAfterStage] = useState<ProjectStage | null>(null);
   const [durationDays, setDurationDays] = useState<string>("");
   const durationSourceRef = useRef<"duration" | "endDate" | null>(null);
+  const [pendingCascade, setPendingCascade] = useState<{
+    afterOrderIndex: number;
+    deltaDays: number;
+    stageCount: number;
+  } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -558,9 +563,43 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
         }
       }
 
-      return newStage;
+      // Calculate cascade info for subsequent stages
+      let cascadeInfo: { afterOrderIndex: number; deltaDays: number; stageCount: number } | null = null;
+      if (data.plannedEndDate) {
+        const sortedStages = [...stages].sort((a, b) => a.orderIndex - b.orderIndex);
+        let insertedPosition = -1;
+
+        if (insertAfterStage) {
+          insertedPosition = sortedStages.findIndex((s) => s.id === insertAfterStage.id) + 1;
+        } else if (data.plannedStartDate) {
+          insertedPosition = calculateOrderIndex(data.plannedStartDate);
+        }
+
+        // Check if there are stages after the inserted position with dates
+        if (insertedPosition >= 0 && insertedPosition < sortedStages.length) {
+          const nextStage = sortedStages[insertedPosition];
+          if (nextStage?.plannedStartDate) {
+            const newEndDate = new Date(data.plannedEndDate);
+            const nextStartDate = new Date(nextStage.plannedStartDate);
+            const expectedNextStart = new Date(newEndDate);
+            expectedNextStart.setDate(expectedNextStart.getDate() + 1);
+            const deltaDays = Math.round(
+              (expectedNextStart.getTime() - nextStartDate.getTime()) / (1000 * 60 * 60 * 24)
+            );
+            if (deltaDays !== 0) {
+              cascadeInfo = {
+                afterOrderIndex: insertedPosition,
+                deltaDays,
+                stageCount: sortedStages.length - insertedPosition,
+              };
+            }
+          }
+        }
+      }
+
+      return { newStage, cascadeInfo };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({
         queryKey: [`/api/v1/stages?projectId=${projectId}`],
       });
@@ -580,6 +619,11 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
       setCustomAreaNames([]);
       form.reset();
       toast({ title: "Stage created successfully" });
+
+      // Show cascade dialog if applicable
+      if (result?.cascadeInfo) {
+        setPendingCascade(result.cascadeInfo);
+      }
     },
     onError: (error: any) => {
       toast({
@@ -597,7 +641,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
       data,
     }: {
       stageId: string;
-      data: Partial<ProjectStage>;
+      data: Record<string, unknown>;
     }) => {
       return apiRequest(`/api/v1/stages/${stageId}`, {
         method: "PATCH",
@@ -711,6 +755,31 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
     },
   });
 
+  // Shift dates mutation for cascading subsequent stages
+  const shiftDatesMutation = useMutation({
+    mutationFn: async (params: { afterOrderIndex: number; deltaDays: number }) => {
+      return apiRequest(`/api/v1/stages/shift-dates?projectId=${projectId}`, {
+        method: "POST",
+        body: { afterOrderIndex: params.afterOrderIndex, deltaDays: params.deltaDays },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/v1/stages?projectId=${projectId}`],
+      });
+      setPendingCascade(null);
+      toast({ title: "Subsequent stage dates adjusted" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to adjust dates",
+        description: error.message,
+        variant: "destructive",
+      });
+      setPendingCascade(null);
+    },
+  });
+
   // Configure drag sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -759,13 +828,13 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
         stageId: editingStage.id,
         data: {
           name: data.name,
-          plannedStartDate: data.plannedStartDate || undefined,
-          plannedEndDate: data.plannedEndDate || undefined,
-          finishMaterialsDueDate: data.finishMaterialsDueDate || undefined,
-          finishMaterialsNote: data.finishMaterialsNote || undefined,
+          plannedStartDate: data.plannedStartDate || null,
+          plannedEndDate: data.plannedEndDate || null,
+          finishMaterialsDueDate: data.finishMaterialsDueDate || null,
+          finishMaterialsNote: data.finishMaterialsNote || null,
           clientVisible: data.clientVisible,
           ...(inlineMaterials.length > 0 ? { materials: inlineMaterials } : {}),
-        } as Partial<ProjectStage>,
+        },
       });
     } else {
       createMutation.mutate(data);
@@ -1537,6 +1606,43 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
           });
         }}
       />
+
+      {/* Cascade Dates Confirmation */}
+      <AlertDialog open={!!pendingCascade} onOpenChange={(open) => !open && setPendingCascade(null)}>
+        <AlertDialogContent className="bg-zinc-900 border-zinc-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">
+              Adjust subsequent stages?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              {pendingCascade && (
+                <>
+                  This will shift {pendingCascade.stageCount} subsequent stage{pendingCascade.stageCount !== 1 ? "s" : ""} by{" "}
+                  <span className="text-white font-medium">
+                    {Math.abs(pendingCascade.deltaDays)} day{Math.abs(pendingCascade.deltaDays) !== 1 ? "s" : ""}
+                    {pendingCascade.deltaDays > 0 ? " forward" : " back"}
+                  </span>{" "}
+                  to maintain the timeline.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700">
+              No, keep dates
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => pendingCascade && shiftDatesMutation.mutate({
+                afterOrderIndex: pendingCascade.afterOrderIndex,
+                deltaDays: pendingCascade.deltaDays,
+              })}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {shiftDatesMutation.isPending ? "Adjusting..." : "Yes, adjust dates"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
