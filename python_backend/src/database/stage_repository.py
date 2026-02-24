@@ -364,27 +364,30 @@ class ProjectStageRepository:
         if not stage_ids:
             return await self.get_by_project(project_id)
 
+        # Batch reorder using unnest() arrays — 2 queries total regardless of stage count
+        neg_indices = [-(i + 1) for i in range(len(stage_ids))]
+        final_indices = list(range(len(stage_ids)))
+
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             async with conn.transaction():
-                # Phase 1: Set all to negative indices (temporary)
-                # This avoids conflicts because negative indices don't clash with existing positive ones
-                for i, stage_id in enumerate(stage_ids):
-                    await conn.execute(
-                        """UPDATE client_portal.project_stages
-                           SET order_index = $1, updated_at = NOW()
-                           WHERE id = $2 AND project_id = $3""",
-                        -(i + 1), stage_id, project_id  # -1, -2, -3, etc.
-                    )
+                # Phase 1: Set all to negative indices (avoids unique constraint conflicts)
+                await conn.execute(
+                    """UPDATE client_portal.project_stages AS s
+                       SET order_index = t.idx, updated_at = NOW()
+                       FROM unnest($1::uuid[], $2::int[]) AS t(sid, idx)
+                       WHERE s.id = t.sid AND s.project_id = $3""",
+                    stage_ids, neg_indices, project_id
+                )
 
                 # Phase 2: Set to final positive indices
-                for i, stage_id in enumerate(stage_ids):
-                    await conn.execute(
-                        """UPDATE client_portal.project_stages
-                           SET order_index = $1, updated_at = NOW()
-                           WHERE id = $2 AND project_id = $3""",
-                        i, stage_id, project_id  # 0, 1, 2, etc.
-                    )
+                await conn.execute(
+                    """UPDATE client_portal.project_stages AS s
+                       SET order_index = t.idx, updated_at = NOW()
+                       FROM unnest($1::uuid[], $2::int[]) AS t(sid, idx)
+                       WHERE s.id = t.sid AND s.project_id = $3""",
+                    stage_ids, final_indices, project_id
+                )
 
         return await self.get_by_project(project_id)
 
@@ -406,46 +409,45 @@ class ProjectStageRepository:
         items = await db_manager.execute_query(template_items_query, template_id)
 
         current_date = start_date or date.today()
-        created_stages = []
+        now = datetime.now(timezone.utc)
+
+        # Pre-compute all values, then batch insert in a single query
+        values_list = []
+        params = []
+        param_idx = 1
 
         for item in items:
             stage_id = str(uuid.uuid4())
-            now = datetime.now(timezone.utc)
-
-            # Calculate dates based on duration
             planned_start = current_date
             duration = item['default_duration_days'] or 7
             planned_end = current_date + timedelta(days=duration)
-            # Materials due 7 days before stage starts (or today if past)
             materials_due = max(planned_start - timedelta(days=7), date.today())
 
-            query = """
-                INSERT INTO client_portal.project_stages
-                (id, project_id, order_index, name, status, planned_start_date,
-                 planned_end_date, finish_materials_due_date, finish_materials_note,
-                 client_visible, created_by, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, 'NOT_STARTED', $5, $6, $7, $8, true, $9, $10, $11)
-                RETURNING *
-            """
+            placeholders = ", ".join(f"${param_idx + i}" for i in range(12))
+            values_list.append(f"({placeholders})")
+            params.extend([
+                stage_id, project_id, item['order_index'], item['name'],
+                'NOT_STARTED', planned_start, planned_end, materials_due,
+                item['default_materials_note'], user_id, now, now
+            ])
+            param_idx += 12
 
-            row = await db_manager.execute_one(
-                query,
-                stage_id,
-                project_id,
-                item['order_index'],
-                item['name'],
-                planned_start,
-                planned_end,
-                materials_due,
-                item['default_materials_note'],
-                user_id,
-                now,
-                now
-            )
-            created_stages.append(self._convert_to_camel_case(dict(row)))
-
-            # Move to next stage start date
             current_date = planned_end + timedelta(days=1)
+
+        if not values_list:
+            return []
+
+        query = f"""
+            INSERT INTO client_portal.project_stages
+            (id, project_id, order_index, name, status, planned_start_date,
+             planned_end_date, finish_materials_due_date, finish_materials_note,
+             client_visible, created_by, created_at, updated_at)
+            VALUES {", ".join(values_list)}
+            RETURNING *
+        """
+
+        rows = await db_manager.execute_query(query, *params)
+        created_stages = [self._convert_to_camel_case(dict(row)) for row in rows]
 
         # Create suggested materials from template
         await self._create_suggested_materials_from_template(

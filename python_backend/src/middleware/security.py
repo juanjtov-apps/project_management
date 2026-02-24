@@ -141,39 +141,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         window_start = current_time - self.window_seconds
         data["requests"] = [req_time for req_time in data["requests"] if req_time > window_start]
 
-def validate_input_data(data: Any) -> Any:
-    """Sanitize input data to prevent XSS and injection attacks"""
-    if isinstance(data, str):
-        # Remove potential XSS patterns
-        data = re.sub(r'<script[^>]*>.*?</script>', '', data, flags=re.IGNORECASE | re.DOTALL)
-        data = re.sub(r'<iframe[^>]*>.*?</iframe>', '', data, flags=re.IGNORECASE | re.DOTALL)
-        data = re.sub(r'<object[^>]*>.*?</object>', '', data, flags=re.IGNORECASE | re.DOTALL)
-        data = re.sub(r'<embed[^>]*>', '', data, flags=re.IGNORECASE)
-        data = re.sub(r'javascript:', '', data, flags=re.IGNORECASE)
-        data = re.sub(r'on\w+\s*=', '', data, flags=re.IGNORECASE)
-        
-        # Basic SQL injection prevention (additional to parameterized queries)
-        suspicious_patterns = [
-            r'union\s+select', r'insert\s+into', r'delete\s+from',
-            r'drop\s+table', r'alter\s+table', r'exec\s*\(',
-            r'execute\s*\(', r'sp_executesql'
-        ]
-        
-        for pattern in suspicious_patterns:
-            if re.search(pattern, data, re.IGNORECASE):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid input detected"
-                )
-    
-    elif isinstance(data, dict):
-        return {key: validate_input_data(value) for key, value in data.items()}
-    
-    elif isinstance(data, list):
-        return [validate_input_data(item) for item in data]
-    
-    return data
-
 def generate_csrf_token() -> str:
     """Generate a secure CSRF token."""
     return secrets.token_urlsafe(32)

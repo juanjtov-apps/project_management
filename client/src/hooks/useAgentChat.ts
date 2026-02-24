@@ -254,24 +254,16 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
                 }]);
               } else if (data.conversation_id !== undefined) {
                 // Done event
-                console.log("[DEBUG] Done event received:", {
-                  conversation_id: data.conversation_id,
-                  message_id: data.message_id,
-                  currentAssistantId: assistantMessageId,
-                });
                 setConversationId(data.conversation_id);
                 // Update the assistant message with the actual database ID for feedback
                 // Also set isStreaming: false here since we're done
                 if (data.message_id) {
-                  console.log("[DEBUG] Updating message ID from", assistantMessageId, "to", data.message_id);
                   setMessages(prev => {
-                    const updated = prev.map(msg =>
+                    return prev.map(msg =>
                       msg.id === assistantMessageId
                         ? { ...msg, id: data.message_id, isStreaming: false }
                         : msg
                     );
-                    console.log("[DEBUG] Messages after ID update:", updated.map(m => ({id: m.id, role: m.role})));
-                    return updated;
                   });
                 }
               } else if (data.message !== undefined && !data.tool) {

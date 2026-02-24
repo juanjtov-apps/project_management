@@ -33,20 +33,9 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, onTo
     window.addEventListener('dialog:open', handleDialogOpen);
     window.addEventListener('dialog:close', handleDialogClose);
 
-    const checkDialogs = () => {
-      const hasOpenDialog = document.querySelector('[role="dialog"][data-state="open"]') !== null;
-      setIsDialogOpen(hasOpenDialog);
-    };
-
-    const observer = new MutationObserver(checkDialogs);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-state'] });
-
-    checkDialogs();
-
     return () => {
       window.removeEventListener('dialog:open', handleDialogOpen);
       window.removeEventListener('dialog:close', handleDialogClose);
-      observer.disconnect();
     };
   }, []);
 

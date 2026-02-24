@@ -149,6 +149,34 @@ class LogoutResponse(BaseModel):
 # In-memory session store (replace with Redis in production)
 session_store: Dict[str, Dict[str, Any]] = {}
 
+# Maximum number of sessions to keep in memory (LRU-style eviction)
+MAX_SESSION_STORE_SIZE = 10000
+
+
+def _cleanup_expired_sessions() -> int:
+    """Remove expired sessions from the in-memory store. Returns count removed."""
+    now = datetime.now(timezone.utc)
+    expired_keys = [
+        sid for sid, data in session_store.items()
+        if now >= ensure_timezone_aware(data["expires_at"])
+    ]
+    for sid in expired_keys:
+        del session_store[sid]
+    return len(expired_keys)
+
+
+async def start_session_cleanup_task():
+    """Start a background task that periodically cleans up expired sessions."""
+    import asyncio
+    while True:
+        await asyncio.sleep(300)  # Run every 5 minutes
+        try:
+            removed = _cleanup_expired_sessions()
+            if removed > 0:
+                logger.info(f"Session cleanup: removed {removed} expired sessions, {len(session_store)} remaining")
+        except Exception as e:
+            logger.error(f"Session cleanup error: {e}")
+
 # Cache for roles table column info to avoid repeated schema queries
 _roles_column_cache: Dict[str, Any] = {}
 

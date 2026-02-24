@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getStatusColor } from "@/lib/statusColors";
 import type { Project } from "@shared/schema";
 
 interface ProjectCardProps {
@@ -16,21 +17,6 @@ interface ProjectCardProps {
   onDelete?: (project: Project) => void;
   onViewDetails?: (project: Project) => void;
 }
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "active":
-      return "bg-brand-teal/10 text-brand-teal";
-    case "completed":
-      return "bg-green-100 text-green-800";
-    case "delayed":
-      return "bg-red-100 text-red-800";
-    case "on-hold":
-      return "bg-gray-100 text-gray-800";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
-};
 
 const getProgressColor = (status: string) => {
   switch (status) {
