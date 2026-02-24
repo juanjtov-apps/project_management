@@ -95,6 +95,21 @@ const stageSchema = z.object({
 
 type StageFormData = z.infer<typeof stageSchema>;
 
+/** Timezone-safe date arithmetic — avoids the UTC-parse + local-getDate mismatch. */
+function addDaysToDate(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d + days));
+  return date.toISOString().split("T")[0];
+}
+
+function daysBetween(startStr: string, endStr: string): number {
+  const [sy, sm, sd] = startStr.split("-").map(Number);
+  const [ey, em, ed] = endStr.split("-").map(Number);
+  const s = Date.UTC(sy, sm - 1, sd);
+  const e = Date.UTC(ey, em - 1, ed);
+  return Math.round((e - s) / (1000 * 60 * 60 * 24));
+}
+
 interface ProjectStage {
   id: string;
   projectId: string;
@@ -446,20 +461,16 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
   // Duration → End Date: auto-calculate end date when duration changes
   useEffect(() => {
     if (durationSourceRef.current === "duration" && watchedStartDate && durationDays && parseInt(durationDays) > 0) {
-      const start = new Date(watchedStartDate);
-      start.setDate(start.getDate() + parseInt(durationDays) - 1);
-      form.setValue("plannedEndDate", start.toISOString().split("T")[0]);
+      form.setValue("plannedEndDate", addDaysToDate(watchedStartDate, parseInt(durationDays)));
     }
   }, [watchedStartDate, durationDays, form]);
 
   // End Date → Duration: auto-calculate duration when end date changes
   useEffect(() => {
     if (durationSourceRef.current === "endDate" && watchedStartDate && watchedEndDate) {
-      const start = new Date(watchedStartDate);
-      const end = new Date(watchedEndDate);
-      const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      if (diffDays > 0) {
-        setDurationDays(String(diffDays));
+      const diff = daysBetween(watchedStartDate, watchedEndDate);
+      if (diff > 0) {
+        setDurationDays(String(diff));
       }
     }
   }, [watchedStartDate, watchedEndDate]);
@@ -483,17 +494,16 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
       return stages.length;
     }
 
-    const newDate = new Date(startDate);
     const sortedStages = [...stages].sort((a, b) => a.orderIndex - b.orderIndex);
 
-    // Find position among dated stages
+    // Find position among dated stages (compare as strings — YYYY-MM-DD sorts correctly)
     for (let i = 0; i < sortedStages.length; i++) {
       const stage = sortedStages[i];
       if (!stage.plannedStartDate) {
         // Hit an undated stage, insert before it
         return i;
       }
-      if (new Date(stage.plannedStartDate) > newDate) {
+      if (stage.plannedStartDate > startDate) {
         return i;
       }
     }
@@ -579,13 +589,8 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
         if (insertedPosition >= 0 && insertedPosition < sortedStages.length) {
           const nextStage = sortedStages[insertedPosition];
           if (nextStage?.plannedStartDate) {
-            const newEndDate = new Date(data.plannedEndDate);
-            const nextStartDate = new Date(nextStage.plannedStartDate);
-            const expectedNextStart = new Date(newEndDate);
-            expectedNextStart.setDate(expectedNextStart.getDate() + 1);
-            const deltaDays = Math.round(
-              (expectedNextStart.getTime() - nextStartDate.getTime()) / (1000 * 60 * 60 * 24)
-            );
+            const expectedNextStart = addDaysToDate(data.plannedEndDate, 1);
+            const deltaDays = daysBetween(nextStage.plannedStartDate, expectedNextStart);
             if (deltaDays !== 0) {
               cascadeInfo = {
                 afterOrderIndex: insertedPosition,
@@ -880,9 +885,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
     // Pre-fill start date as day after previous stage's end date
     let prefillStartDate = "";
     if (stage.plannedEndDate) {
-      const nextDay = new Date(stage.plannedEndDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      prefillStartDate = nextDay.toISOString().split("T")[0];
+      prefillStartDate = addDaysToDate(stage.plannedEndDate, 1);
     }
 
     form.reset({
@@ -898,7 +901,9 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return null;
-    return new Date(dateStr).toLocaleDateString("en-US", {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
     });
@@ -908,8 +913,8 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
     if (!dateStr) return null;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const target = new Date(dateStr);
-    target.setHours(0, 0, 0, 0);
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const target = new Date(y, m - 1, d);
     const diff = Math.ceil(
       (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -1209,9 +1214,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
                               type="button"
                               className="text-xs text-amber-400 hover:text-amber-300 hover:underline mt-1 text-left"
                               onClick={() => {
-                                const nextDay = new Date(prevStage.plannedEndDate!);
-                                nextDay.setDate(nextDay.getDate() + 1);
-                                const dateStr = nextDay.toISOString().split("T")[0];
+                                const dateStr = addDaysToDate(prevStage.plannedEndDate!, 1);
                                 form.setValue("plannedStartDate", dateStr);
                                 if (durationDays && parseInt(durationDays) > 0) {
                                   durationSourceRef.current = "duration";
