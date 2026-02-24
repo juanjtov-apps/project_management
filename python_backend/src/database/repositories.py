@@ -81,7 +81,7 @@ class ProjectRepository(BaseRepository):
     async def create(self, project: ProjectCreate, company_id: Optional[str] = None) -> Project:
         """Create a new project."""
         project_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         
         # Get data with aliases first, then convert
         data = project.model_dump(by_alias=True)
@@ -347,7 +347,7 @@ class TaskRepository(BaseRepository):
     async def create(self, task: TaskCreate) -> Task:
         """Create a new task."""
         task_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         
         data = task.model_dump(by_alias=True)
         data = self._convert_from_camel_case(data)
@@ -492,7 +492,7 @@ class PhotoRepository(BaseRepository):
     async def create(self, photo: PhotoCreate, filename: str, original_name: str) -> Photo:
         """Create a new photo record."""
         photo_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         
         data = photo.model_dump(by_alias=True)
         data = self._convert_from_camel_case(data)
@@ -661,7 +661,7 @@ class ScheduleChangeRepository(BaseRepository):
     async def create(self, change: ScheduleChangeCreate) -> ScheduleChange:
         """Create a new schedule change."""
         change_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         
         data = change.model_dump(by_alias=True)
         data = self._convert_from_camel_case(data)
@@ -838,7 +838,7 @@ class SubcontractorAssignmentRepository(BaseRepository):
         """Create a new subcontractor assignment."""
         from ..models.subcontractor_assignment import SubcontractorAssignment
         assignment_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         
         data = self._convert_from_camel_case(assignment_data)
         
