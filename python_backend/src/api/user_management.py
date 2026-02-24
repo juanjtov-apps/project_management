@@ -709,11 +709,15 @@ async def delete_user(
                     detail="Company admins can only delete users within their own company"
                 )
         
-        success = await auth_repo.delete_user(user_id)
+        try:
+            success = await auth_repo.delete_user(user_id)
+        except ValueError as e:
+            raise HTTPException(status_code=409, detail=str(e))
+
         if not success:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete user"
             )
         
         admin_type = "root admin" if is_root_admin(current_user) else "company admin"

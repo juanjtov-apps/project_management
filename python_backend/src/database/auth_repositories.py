@@ -615,11 +615,17 @@ class AuthRepository:
         try:
             # First, unassign tasks assigned to this user
             await db_manager.execute("UPDATE tasks SET assignee_id = NULL WHERE assignee_id = $1", user_id)
-            
+
             # Then delete the user
             result = await db_manager.execute(f"DELETE FROM {self.table_name} WHERE id = $1", user_id)
             return "DELETE 1" in result
         except Exception as e:
+            code = getattr(e, 'sqlstate', None)
+            if code == '23503':  # foreign_key_violation
+                raise ValueError(
+                    "This user has associated records (issues, posts, comments, etc.) and cannot be deleted. "
+                    "Deactivate the user instead, or contact your administrator."
+                )
             print(f"Error deleting user {user_id}: {e}")
             return False
     

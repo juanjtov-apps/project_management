@@ -21,7 +21,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { BottomNavigation } from '@/components/ui/bottom-navigation';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Users, Shield, Building, UserCheck, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, MoreVertical, Home, FolderKanban, ListTodo, Palette } from 'lucide-react';
+import { Users, Shield, Building, UserCheck, UserCheck2, UserX, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, MoreVertical, Home, FolderKanban, ListTodo, Palette } from 'lucide-react';
 import CompanyBrandingForm from '@/components/onboarding/company-branding-form';
 
 interface Permission {
@@ -350,7 +350,8 @@ export default function RBACAdmin() {
           user.id === userId ? { ...user, is_active: isActive } : user
         );
       });
-      toast({ title: 'Success', description: 'User status updated successfully' });
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+      toast({ title: 'Success', description: `User ${isActive ? 'activated' : 'deactivated'} successfully` });
     },
     onError: (error: any) => {
       console.error('Toggle user status error:', error);
@@ -834,18 +835,6 @@ export default function RBACAdmin() {
                                 </div>
                               </div>
 
-                              {/* Active Status Toggle */}
-                              <Switch
-                                checked={isActive}
-                                onCheckedChange={(checked) => {
-                                  toggleUserStatus.mutate({
-                                    userId: user.id,
-                                    isActive: checked
-                                  });
-                                }}
-                                className="data-[state=checked]:bg-[var(--pro-mint)] flex-shrink-0"
-                              />
-
                               {/* Kebab Menu */}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -857,6 +846,19 @@ export default function RBACAdmin() {
                                   </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48 bg-[var(--pro-surface)] border-[var(--pro-border)]">
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      toggleUserStatus.mutate({
+                                        userId: user.id,
+                                        isActive: !isActive
+                                      });
+                                    }}
+                                    className={`min-h-[44px] ${isActive ? 'text-[var(--pro-text-secondary)]' : 'text-[var(--pro-mint)]'}`}
+                                  >
+                                    {isActive ? <UserX className="w-4 h-4 mr-2" /> : <UserCheck2 className="w-4 h-4 mr-2" />}
+                                    {isActive ? 'Deactivate User' : 'Activate User'}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
                                   <DropdownMenuItem
                                     onClick={(e) => {
                                       e.preventDefault();
@@ -1023,18 +1025,6 @@ export default function RBACAdmin() {
                             </div>
                           </div>
 
-                          {/* Active Status Toggle */}
-                          <Switch
-                            checked={isActive}
-                            onCheckedChange={(checked) => {
-                              toggleUserStatus.mutate({
-                                userId: user.id,
-                                isActive: checked
-                              });
-                            }}
-                            className="data-[state=checked]:bg-[var(--pro-mint)] flex-shrink-0"
-                          />
-
                           {/* Kebab Menu */}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -1047,6 +1037,19 @@ export default function RBACAdmin() {
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48 bg-[var(--pro-surface)] border-[var(--pro-border)]">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  toggleUserStatus.mutate({
+                                    userId: user.id,
+                                    isActive: !isActive
+                                  });
+                                }}
+                                className={`min-h-[44px] ${isActive ? 'text-[var(--pro-text-secondary)]' : 'text-[var(--pro-mint)]'}`}
+                              >
+                                {isActive ? <UserX className="w-4 h-4 mr-2" /> : <UserCheck2 className="w-4 h-4 mr-2" />}
+                                {isActive ? 'Deactivate User' : 'Activate User'}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.preventDefault();

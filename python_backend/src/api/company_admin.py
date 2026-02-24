@@ -443,7 +443,22 @@ async def suspend_user(
             "UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1",
             user_id
         )
-        
+
+        # Invalidate all active sessions for the suspended user
+        await conn.execute(
+            "DELETE FROM sessions WHERE sess->>'id' = $1",
+            user_id
+        )
+
+        # Clear from in-memory session store
+        from .auth import session_store
+        sessions_to_remove = [
+            sid for sid, data in session_store.items()
+            if str(data.get("userId")) == str(user_id)
+        ]
+        for sid in sessions_to_remove:
+            del session_store[sid]
+
         return {"success": True, "message": f"User {user_id} has been suspended"}
 
 @router.put("/users/{user_id}/activate")

@@ -527,7 +527,14 @@ async def login(request: LoginRequest, response: Response):
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid credentials"
                 )
-            
+
+            # Check if user is active
+            if not user_data.get("is_active", True):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Your account has been deactivated. Please contact your administrator."
+                )
+
             # Create session
             session_id = await create_session(user_data["id"], user_data)
             
@@ -622,11 +629,19 @@ async def get_current_user(request: Request):
         
         user_data = session_data["user_data"].copy()
         user_data.pop("password", None)
-        
+
+        # Check if user is still active
+        if not user_data.get("is_active", True):
+            await destroy_session(session_id)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your account has been deactivated"
+            )
+
         # Convert company_id to companyId for frontend compatibility
         if 'company_id' in user_data:
             user_data['companyId'] = user_data['company_id']
-        
+
         # Convert is_root to isRoot for frontend compatibility
         if 'is_root' in user_data:
             user_data['isRoot'] = user_data['is_root']
@@ -744,6 +759,13 @@ async def get_current_user_dependency(request: Request) -> Dict[str, Any]:
     
     user_data = session_data["user_data"].copy()
     user_data.pop("password", None)
+
+    # Check if user is still active
+    if not user_data.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account has been deactivated"
+        )
 
     # Ensure both snake_case and camelCase versions are present for compatibility
     if 'company_id' in user_data:
