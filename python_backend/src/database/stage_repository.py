@@ -565,6 +565,27 @@ class ProjectStageRepository:
                         now
                     )
 
+    async def shift_dates(self, project_id: str, after_order_index: int, delta_days: int) -> List[Dict[str, Any]]:
+        """Shift dates of all stages after a given order_index by delta_days.
+
+        Shifts planned_start_date, planned_end_date, and finish_materials_due_date
+        for stages with order_index > after_order_index. Only non-NULL dates are shifted.
+        """
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    """UPDATE client_portal.project_stages
+                       SET planned_start_date = planned_start_date + ($1 || ' days')::interval,
+                           planned_end_date = planned_end_date + ($1 || ' days')::interval,
+                           finish_materials_due_date = finish_materials_due_date + ($1 || ' days')::interval,
+                           updated_at = NOW()
+                       WHERE project_id = $2 AND order_index > $3""",
+                    str(delta_days), project_id, after_order_index
+                )
+
+        return await self.get_by_project(project_id)
+
     async def get_stages_count(self, project_id: str) -> int:
         """Get count of stages for a project."""
         query = """
