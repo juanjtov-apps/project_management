@@ -16,18 +16,28 @@ const TOUR_STEPS: Step[] = [
     title: "Issues & Approvals",
     content:
       "Report issues, request changes, or approve selections directly from this tab.",
+    disableBeacon: true,
   },
   {
     target: '[data-tour="forum-tab"]',
     title: "Communication",
     content:
       "Message your project manager anytime. Ask questions, share feedback, or get updates.",
+    disableBeacon: true,
   },
   {
     target: '[data-tour="materials-tab"]',
     title: "Materials",
     content:
       "View and collaborate on material selections for your project. Add specs, vendors, and links.",
+    disableBeacon: true,
+  },
+  {
+    target: '[data-tour="installments-tab"]',
+    title: "Payments",
+    content:
+      "View your payment schedule and upload proof of payments for each installment.",
+    disableBeacon: true,
   },
 ];
 
