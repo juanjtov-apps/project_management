@@ -75,7 +75,7 @@ class GetIssuesTool(BaseTool):
 
         # Build query
         query = """
-            SELECT i.*, p.name as project_name, u.name as assigned_user_name
+            SELECT i.*, p.name as project_name, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as assigned_user_name
             FROM client_portal.issues i
             LEFT JOIN projects p ON i.project_id::text = p.id::text
             LEFT JOIN users u ON i.assigned_to::text = u.id::text

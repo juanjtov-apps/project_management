@@ -64,7 +64,6 @@ interface Company {
 
 interface UserProfile {
   id: string;
-  name: string;
   email: string;
   first_name?: string;
   firstName?: string; // camelCase alias
@@ -158,12 +157,13 @@ export default function RBACAdmin() {
 
   // Filter data based on admin level with field name compatibility
   // Use string comparison to handle type mismatches between string and number IDs
+  const [showInactiveUsers, setShowInactiveUsers] = useState(false);
   const currentUserCompanyId = String(currentUser?.company_id || currentUser?.companyId || '');
   const filteredCompanies = isRootAdmin ? companies : companies.filter(c => String(c.id) === currentUserCompanyId);
-  const filteredUsers = isRootAdmin ? users : users.filter(u => {
+  const filteredUsers = (isRootAdmin ? users : users.filter(u => {
     const userCompanyId = String(u.company_id || u.companyId || '');
     return userCompanyId === currentUserCompanyId;
-  });
+  })).filter(u => showInactiveUsers || u.is_active || u.isActive);
   const filteredRoles = isRootAdmin ? roles : roles.filter(r => !r.company_id || String(r.company_id) === currentUserCompanyId);
 
   // Mutations
@@ -730,6 +730,29 @@ export default function RBACAdmin() {
               flicker caused by UserManagement remounting */}
         </div>
 
+        {/* Filter: show/hide inactive users */}
+        {(() => {
+          const allUsers = isRootAdmin ? users : users.filter(u => {
+            const uid = String(u.company_id || u.companyId || '');
+            return uid === currentUserCompanyId;
+          });
+          const inactiveCount = allUsers.filter(u => !(u.is_active || u.isActive)).length;
+          if (inactiveCount === 0) return null;
+          return (
+            <button
+              onClick={() => setShowInactiveUsers(prev => !prev)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                showInactiveUsers
+                  ? 'bg-[var(--pro-mint)]/15 text-[var(--pro-mint)] border border-[var(--pro-mint)]/30'
+                  : 'bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)] border border-[var(--pro-border)]'
+              }`}
+            >
+              <Eye className="w-3 h-3" />
+              {showInactiveUsers ? 'Hide' : 'Show'} inactive ({inactiveCount})
+            </button>
+          );
+        })()}
+
         <div className="space-y-4">
           {usersLoading ? (
             <Card>
@@ -791,7 +814,7 @@ export default function RBACAdmin() {
                       <div className="divide-y divide-[var(--pro-border)]">
                         {companyUsers.map((user: UserProfile) => {
                           // Get user initials
-                          const displayName = user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
+                          const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
                           const initials = displayName
                             .split(' ')
                             .map(n => n[0])
@@ -864,7 +887,6 @@ export default function RBACAdmin() {
                                       e.preventDefault();
                                       e.stopPropagation();
 
-                                      const nameParts = (user.name || '').split(' ');
                                       let roleId = user.role_id?.toString();
                                       if (!roleId && user.role && roles && roles.length > 0) {
                                         const roleNameMap: Record<string, string> = {
@@ -899,8 +921,8 @@ export default function RBACAdmin() {
 
                                       const mappedUser = {
                                         ...user,
-                                        first_name: user.first_name || user.firstName || nameParts[0] || '',
-                                        last_name: user.last_name || user.lastName || nameParts.slice(1).join(' ') || '',
+                                        first_name: user.first_name || user.firstName || '',
+                                        last_name: user.last_name || user.lastName || '',
                                         company_id: (user.company_id || user.companyId)?.toString() || '',
                                         role_id: roleId || '',
                                         role: user.role || '',
@@ -981,10 +1003,10 @@ export default function RBACAdmin() {
                   <div className="divide-y divide-[var(--pro-border)]">
                     {companyUsers.map((user: UserProfile) => {
                       // Get user initials
-                      const displayName = user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
+                      const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
                       const initials = displayName
                         .split(' ')
-                        .map(n => n[0])
+                        .map((n: string) => n[0])
                         .join('')
                         .slice(0, 2)
                         .toUpperCase();
@@ -1055,7 +1077,6 @@ export default function RBACAdmin() {
                                   e.preventDefault();
                                   e.stopPropagation();
 
-                                  const nameParts = (user.name || '').split(' ');
                                   let roleId = user.role_id?.toString();
                                   if (!roleId && user.role && roles && roles.length > 0) {
                                     const roleNameMap: Record<string, string> = {
@@ -1090,8 +1111,8 @@ export default function RBACAdmin() {
 
                                   const mappedUser = {
                                     ...user,
-                                    first_name: user.first_name || user.firstName || nameParts[0] || '',
-                                    last_name: user.last_name || user.lastName || nameParts.slice(1).join(' ') || '',
+                                    first_name: user.first_name || user.firstName || '',
+                                    last_name: user.last_name || user.lastName || '',
                                     company_id: (user.company_id || user.companyId)?.toString() || '',
                                     role_id: roleId || '',
                                     role: user.role || '',
@@ -1749,11 +1770,11 @@ export default function RBACAdmin() {
                           <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                               <span className="text-sm font-medium">
-                                {user.name?.[0] || user.email?.[0]?.toUpperCase()}
+                                {(user.first_name || user.email)?.[0]?.toUpperCase()}
                               </span>
                             </div>
                             <div>
-                              <p className="font-medium">{user.name || 'No name'}</p>
+                              <p className="font-medium">{`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'No name'}</p>
                               <p className="text-sm text-muted-foreground">{user.email}</p>
                             </div>
                           </div>

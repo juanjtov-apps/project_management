@@ -18,7 +18,6 @@ class User(BaseModel):
     username: Optional[str] = None
     firstName: Optional[str] = Field(default=None, alias="first_name")
     lastName: Optional[str] = Field(default=None, alias="last_name")
-    name: Optional[str] = None
     profileImageUrl: Optional[str] = Field(default=None, alias="profile_image_url")
     
     # RBAC fields - ONE company, ONE role
@@ -48,42 +47,41 @@ class UserCreate(BaseModel):
     password: str
     firstName: Optional[str] = None
     lastName: Optional[str] = None
-    name: Optional[str] = None
     profileImageUrl: Optional[str] = None
-    
+
     # Required: company and role
     companyId: str
     roleId: int
-    
+
     # Optional flags
     isRoot: bool = False
     isActive: bool = True
-    
-    @field_validator('username', 'firstName', 'lastName', 'name')
+
+    @field_validator('username', 'firstName', 'lastName')
     @classmethod
     def validate_names(cls, v):
         """Validate name fields"""
         if v is None:
             return v
         return validate_name(v, "name")
-    
+
     @field_validator('email')
     @classmethod
     def validate_email(cls, v):
         """Validate email format"""
         return validate_email_format(v)
-    
+
     @field_validator('password')
     @classmethod
     def validate_password(cls, v):
         """Validate password strength"""
         return validate_password_strength(v)
-    
+
     def get_display_name(self) -> str:
         """Get display name, preferring full name over username"""
         if self.firstName and self.lastName:
             return f"{self.firstName} {self.lastName}"
-        return self.name or self.firstName or self.username or self.email
+        return self.firstName or self.username or self.email
 
 
 class UserUpdate(BaseModel):
@@ -93,16 +91,15 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     firstName: Optional[str] = None
     lastName: Optional[str] = None
-    name: Optional[str] = None
     profileImageUrl: Optional[str] = None
-    
+
     # Role can be updated (company cannot)
     roleId: Optional[int] = None
-    
+
     # Flags
     isActive: Optional[bool] = None
-    
-    @field_validator('username', 'firstName', 'lastName', 'name')
+
+    @field_validator('username', 'firstName', 'lastName')
     @classmethod
     def validate_names(cls, v):
         """Validate name fields"""
@@ -134,7 +131,6 @@ class UserWithRole(BaseModel):
     username: Optional[str] = None
     firstName: Optional[str] = Field(default=None, alias="first_name")
     lastName: Optional[str] = Field(default=None, alias="last_name")
-    name: Optional[str] = None
     profileImageUrl: Optional[str] = Field(default=None, alias="profile_image_url")
     companyId: str = Field(alias="company_id")
     roleId: int = Field(alias="role_id")

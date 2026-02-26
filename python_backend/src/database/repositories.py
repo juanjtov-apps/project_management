@@ -723,7 +723,7 @@ class UserRepository(BaseRepository):
         """Get all users."""
         from ..models.user import User
         query = f"""
-            SELECT u.id, u.first_name, u.last_name, u.email, u.username, u.name,
+            SELECT u.id, u.first_name, u.last_name, u.email, u.username,
                    u.profile_image_url, u.company_id, u.role_id, u.is_root, u.is_active,
                    u.created_at, u.updated_at,
                    COALESCE(r.role_name, r.name, u.role, 'user') as role_name,
@@ -753,7 +753,7 @@ class UserRepository(BaseRepository):
             return []
         
         query = f"""
-            SELECT u.id, u.first_name, u.last_name, u.email, u.username, u.name,
+            SELECT u.id, u.first_name, u.last_name, u.email, u.username,
                    u.profile_image_url, u.company_id, u.role_id, u.is_root, u.is_active,
                    u.created_at, u.updated_at,
                    COALESCE(r.role_name, r.name, 'user') as role_name,
@@ -770,7 +770,7 @@ class UserRepository(BaseRepository):
         """Get user by ID."""
         from ..models.user import User
         query = f"""
-            SELECT u.id, u.first_name, u.last_name, u.email, u.username, u.name,
+            SELECT u.id, u.first_name, u.last_name, u.email, u.username,
                    u.profile_image_url, u.company_id, u.role_id, u.is_root, u.is_active,
                    u.created_at, u.updated_at,
                    COALESCE(r.role_name, r.name, u.role, 'user') as role_name,
