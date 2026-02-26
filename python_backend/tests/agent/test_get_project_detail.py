@@ -148,9 +148,9 @@ class TestGetProjectDetailExecution:
             with patch(
                 "src.agent.tools.projects.get_project_detail.db_manager"
             ) as mock_db:
-                # Return stages for first call, empty for others
+                # Return empty for tasks, stages for stages calls, empty for payments/issues/materials/legacy
                 mock_db.execute_query = AsyncMock(
-                    side_effect=[[], sample_stages, [], []]
+                    side_effect=[[], sample_stages, sample_stages, [], [], [], []]
                 )
 
                 result = await get_project_detail_tool.execute(
@@ -189,9 +189,9 @@ class TestGetProjectDetailExecution:
             with patch(
                 "src.agent.tools.projects.get_project_detail.db_manager"
             ) as mock_db:
-                # Return tasks, then stages, then issues
+                # Return tasks, then empty for stages/stages-summary/payments/issues/materials/legacy
                 mock_db.execute_query = AsyncMock(
-                    side_effect=[sample_tasks, [], []]
+                    side_effect=[sample_tasks, [], [], [], [], [], []]
                 )
 
                 result = await get_project_detail_tool.execute(

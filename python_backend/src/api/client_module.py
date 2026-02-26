@@ -289,7 +289,7 @@ async def notify_pms_and_admins(
         # Get all project managers and admins for this project's company
         # Note: users table only has role_id, not a role text column
         managers = await conn.fetch("""
-            SELECT DISTINCT u.id, COALESCE(u.name, u.first_name || ' ' || u.last_name) as full_name
+            SELECT DISTINCT u.id, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as full_name
             FROM users u
             JOIN roles r ON u.role_id = r.id
             WHERE COALESCE(r.role_name, r.name) IN ('admin', 'project_manager')
@@ -334,7 +334,7 @@ async def notify_office_managers(
         # Also include admins as they may handle invoices too
         # Note: users table only has role_id, not a role text column
         office_managers = await conn.fetch("""
-            SELECT DISTINCT u.id, COALESCE(u.name, u.first_name || ' ' || u.last_name) as full_name
+            SELECT DISTINCT u.id, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as full_name
             FROM users u
             JOIN roles r ON u.role_id = r.id
             WHERE COALESCE(r.role_name, r.name) IN ('office_manager', 'admin')
@@ -416,8 +416,8 @@ async def get_issues(
                 )
             rows = await conn.fetch(
                 """SELECT i.*,
-                   COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name), u.email) as created_by_name,
-                   COALESCE(r.name, CONCAT(r.first_name, ' ', r.last_name), r.email) as resolved_by_name,
+                   COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as created_by_name,
+                   COALESCE(NULLIF(CONCAT(r.first_name, ' ', r.last_name), ' '), r.email) as resolved_by_name,
                    (SELECT COUNT(*) FROM client_portal.issue_comments WHERE issue_id = i.id) as comment_count,
                    (SELECT COUNT(*) FROM client_portal.issue_attachments WHERE issue_id = i.id) as attachment_count,
                    COALESCE(
@@ -434,8 +434,8 @@ async def get_issues(
         else:
             rows = await conn.fetch(
                 """SELECT i.*,
-                   COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name), u.email) as created_by_name,
-                   COALESCE(r.name, CONCAT(r.first_name, ' ', r.last_name), r.email) as resolved_by_name,
+                   COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as created_by_name,
+                   COALESCE(NULLIF(CONCAT(r.first_name, ' ', r.last_name), ' '), r.email) as resolved_by_name,
                    (SELECT COUNT(*) FROM client_portal.issue_comments WHERE issue_id = i.id) as comment_count,
                    (SELECT COUNT(*) FROM client_portal.issue_attachments WHERE issue_id = i.id) as attachment_count,
                    COALESCE(
@@ -584,11 +584,9 @@ async def update_issue(
     # Send notification when issue is closed
     if is_resolving:
         # Build resolver name from available fields
-        resolver_name = current_user.get('name')
-        if not resolver_name:
-            first = current_user.get('first_name', '')
-            last = current_user.get('last_name', '')
-            resolver_name = f"{first} {last}".strip()
+        first = current_user.get('first_name', '')
+        last = current_user.get('last_name', '')
+        resolver_name = f"{first} {last}".strip()
         if not resolver_name:
             resolver_name = current_user.get('email', 'a user')
 
@@ -861,7 +859,7 @@ async def get_issue_history(
                    l.issue_snapshot,
                    l.created_at,
                    l.actor_id,
-                   COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name)) as actor_name
+                   COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as actor_name
                FROM client_portal.issue_audit_log l
                LEFT JOIN public.users u ON l.actor_id = u.id
                WHERE l.issue_id = $1
@@ -1022,7 +1020,7 @@ async def get_materials(
             if project_id not in accessible_projects:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
             rows = await conn.fetch(
-                """SELECT m.*, u.name as added_by_name
+                """SELECT m.*, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as added_by_name
                    FROM client_portal.materials m
                    LEFT JOIN public.users u ON m.added_by = u.id
                    WHERE m.project_id = $1
@@ -1031,7 +1029,7 @@ async def get_materials(
             )
         else:
             rows = await conn.fetch(
-                """SELECT m.*, u.name as added_by_name
+                """SELECT m.*, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as added_by_name
                    FROM client_portal.materials m
                    LEFT JOIN public.users u ON m.added_by = u.id
                    WHERE m.project_id = ANY($1::varchar[])
@@ -1550,7 +1548,7 @@ async def get_material_items(
         # Filter by stage_id if provided
         if stage_id:
             rows = await conn.fetch(
-                f"""SELECT mi.*, u.name as added_by_name, ma.name as area_name,
+                f"""SELECT mi.*, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as added_by_name, ma.name as area_name,
                           ps.name as stage_name
                    FROM client_portal.material_items mi
                    LEFT JOIN public.users u ON mi.added_by = u.id
@@ -1562,7 +1560,7 @@ async def get_material_items(
             )
         elif area_id:
             rows = await conn.fetch(
-                f"""SELECT mi.*, u.name as added_by_name, ma.name as area_name,
+                f"""SELECT mi.*, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as added_by_name, ma.name as area_name,
                           ps.name as stage_name
                    FROM client_portal.material_items mi
                    LEFT JOIN public.users u ON mi.added_by = u.id
@@ -1574,7 +1572,7 @@ async def get_material_items(
             )
         elif project_id:
             rows = await conn.fetch(
-                f"""SELECT mi.*, u.name as added_by_name, ma.name as area_name,
+                f"""SELECT mi.*, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as added_by_name, ma.name as area_name,
                           ps.name as stage_name
                    FROM client_portal.material_items mi
                    LEFT JOIN public.users u ON mi.added_by = u.id
@@ -1587,7 +1585,7 @@ async def get_material_items(
         else:
             accessible_projects = await get_user_accessible_projects(current_user, pool)
             rows = await conn.fetch(
-                f"""SELECT mi.*, u.name as added_by_name, ma.name as area_name,
+                f"""SELECT mi.*, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as added_by_name, ma.name as area_name,
                           ps.name as stage_name
                    FROM client_portal.material_items mi
                    LEFT JOIN public.users u ON mi.added_by = u.id

@@ -21,7 +21,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { BottomNavigation } from '@/components/ui/bottom-navigation';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Users, Shield, Building, UserCheck, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, MoreVertical, Home, FolderKanban, ListTodo, Palette } from 'lucide-react';
+import { Users, Shield, Building, UserCheck, UserCheck2, UserX, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, MoreVertical, Home, FolderKanban, ListTodo, Palette } from 'lucide-react';
 import CompanyBrandingForm from '@/components/onboarding/company-branding-form';
 
 interface Permission {
@@ -31,7 +31,6 @@ interface Permission {
   category: string;
   resource_type: string;
   action: string;
-  created_at: string;
 }
 
 interface Role {
@@ -65,7 +64,6 @@ interface Company {
 
 interface UserProfile {
   id: string;
-  name: string;
   email: string;
   first_name?: string;
   firstName?: string; // camelCase alias
@@ -117,19 +115,6 @@ export default function RBACAdmin() {
   const isCompanyAdmin = currentUser?.role === 'admin';
   const hasRBACAccess = isRootAdmin || isCompanyAdmin;
 
-  // Debug logging for RBAC access
-  React.useEffect(() => {
-    console.log('🔐 RBAC Access Debug:', {
-      currentUser,
-      isRoot: currentUser?.isRoot,
-      is_root: currentUser?.is_root,
-      role: currentUser?.role,
-      isRootAdmin,
-      isCompanyAdmin,
-      hasRBACAccess
-    });
-  }, [currentUser, isRootAdmin, isCompanyAdmin, hasRBACAccess]);
-
   const { data: roles = [], isLoading: rolesLoading, error: rolesError } = useQuery<Role[]>({
     queryKey: ['/api/rbac/roles'],
     enabled: hasRBACAccess,
@@ -142,35 +127,6 @@ export default function RBACAdmin() {
     return role.name || role.roleName || role.role_name || '';
   };
 
-  // Debug logging for roles
-  React.useEffect(() => {
-    console.log('🔍 Roles Query State:', {
-      rolesLoading,
-      rolesError: rolesError ? String(rolesError) : null,
-      rolesCount: roles?.length || 0,
-      hasRBACAccess,
-      roles: roles
-    });
-    
-    if (rolesError) {
-      console.error('❌ Roles query error:', rolesError);
-      console.error('❌ Error details:', JSON.stringify(rolesError, null, 2));
-    }
-    if (roles && roles.length > 0) {
-      console.log(`✅ Loaded ${roles.length} roles:`, roles.map(r => ({ 
-        id: r.id, 
-        name: getRoleName(r), 
-        company_id: r.company_id,
-        is_template: r.is_template,
-      })));
-    } else if (!rolesLoading && roles.length === 0) {
-      console.warn('⚠️ No roles found - check backend endpoint /api/v1/rbac/roles');
-      console.warn('⚠️ hasRBACAccess:', hasRBACAccess);
-      console.warn('⚠️ rolesLoading:', rolesLoading);
-      console.warn('⚠️ rolesError:', rolesError);
-    }
-  }, [roles, rolesLoading, rolesError, hasRBACAccess]);
-
   const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
     queryKey: ['/api/companies'],
     enabled: hasRBACAccess,
@@ -180,17 +136,6 @@ export default function RBACAdmin() {
     queryKey: ['/api/rbac/users'],
     enabled: hasRBACAccess,
   });
-
-  // Debug logging for users query
-  React.useEffect(() => {
-    console.log('👥 Users Query Debug:', {
-      usersLoading,
-      usersError: usersError ? String(usersError) : null,
-      usersCount: users?.length || 0,
-      users: users?.slice(0, 3), // First 3 users for debugging
-      hasRBACAccess
-    });
-  }, [users, usersLoading, usersError, hasRBACAccess]);
 
   // Fetch projects for client role assignment
   const { data: projects = [] } = useQuery<any[]>({
@@ -212,12 +157,13 @@ export default function RBACAdmin() {
 
   // Filter data based on admin level with field name compatibility
   // Use string comparison to handle type mismatches between string and number IDs
+  const [showInactiveUsers, setShowInactiveUsers] = useState(false);
   const currentUserCompanyId = String(currentUser?.company_id || currentUser?.companyId || '');
   const filteredCompanies = isRootAdmin ? companies : companies.filter(c => String(c.id) === currentUserCompanyId);
-  const filteredUsers = isRootAdmin ? users : users.filter(u => {
+  const filteredUsers = (isRootAdmin ? users : users.filter(u => {
     const userCompanyId = String(u.company_id || u.companyId || '');
     return userCompanyId === currentUserCompanyId;
-  });
+  })).filter(u => showInactiveUsers || u.is_active || u.isActive);
   const filteredRoles = isRootAdmin ? roles : roles.filter(r => !r.company_id || String(r.company_id) === currentUserCompanyId);
 
   // Mutations
@@ -295,8 +241,11 @@ export default function RBACAdmin() {
 
   const deleteUserMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/rbac/users/${id}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+    onSuccess: (_data, deletedUserId) => {
+      queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
+        if (!old) return old;
+        return old.filter((user: any) => user.id !== deletedUserId);
+      });
       toast({ title: 'Success', description: 'User deleted successfully' });
     },
     onError: (error: any) => {
@@ -356,35 +305,106 @@ export default function RBACAdmin() {
   // Move updateCompanyMutation to inside CompanyManagement component where state is defined
 
   // ========================================================================
-  // EDIT USER DIALOG STATE - Lifted to RBACAdmin level to persist across
-  // UserManagement remounts (which happen when query data changes)
+  // EDIT USER DIALOG STATE - At RBACAdmin level to persist across re-renders
   // ========================================================================
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
-  const [editDialogKey, setEditDialogKey] = useState(0);
-  const editSessionRef = React.useRef(0);
-  const editCloseTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const editBlockCloseUntilRef = React.useRef(0);
 
-  // Component functions
-  const UserManagement = () => {
-    const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-    // NOTE: Edit dialog state has been LIFTED to RBACAdmin level (above) to prevent
-    // state loss when UserManagement remounts due to query data changes
-    // Initialize with all companies expanded - will be populated when usersByCompany is computed
-    const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
-    const [newUser, setNewUser] = useState({
-      email: '',
-      first_name: '',
-      last_name: '',
-      company_id: '',
-      role_id: '',
-      password: '',
-      confirm_password: '',
-      assigned_project_id: ''
+  // ========================================================================
+  // USER MANAGEMENT STATE - Lifted to RBACAdmin level so UserManagement can
+  // be a plain render function (not a component) to avoid unmount/remount
+  // ========================================================================
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
+  const [newUser, setNewUser] = useState({
+    email: '',
+    first_name: '',
+    last_name: '',
+    company_id: '',
+    role_id: '',
+    password: '',
+    confirm_password: '',
+    assigned_project_id: ''
+  });
+
+  // Toggle user active status
+  const toggleUserStatus = useMutation({
+    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+      const endpoint = isActive
+        ? `/api/company-admin/users/${userId}/activate`
+        : `/api/company-admin/users/${userId}/suspend`;
+      const response = await apiRequest(endpoint, {
+        method: 'PUT'
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to update user status');
+      }
+      return response.json();
+    },
+    onSuccess: (_data, { userId, isActive }) => {
+      queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
+        if (!old) return old;
+        return old.map((user: any) =>
+          user.id === userId ? { ...user, is_active: isActive } : user
+        );
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+      toast({ title: 'Success', description: `User ${isActive ? 'activated' : 'deactivated'} successfully` });
+    },
+    onError: (error: any) => {
+      console.error('Toggle user status error:', error);
+      toast({ title: 'Error', description: error.message || 'Failed to update user status', variant: 'destructive' });
+    }
+  });
+
+  // Group filtered users by company, including companies with no users
+  const usersByCompany = React.useMemo(() => {
+    const grouped: { [key: string]: UserProfile[] } = {};
+
+    // First, initialize all companies with empty arrays
+    filteredCompanies.forEach((company: Company) => {
+      grouped[company.name] = [];
     });
 
+    // Then add users to their respective companies with proper company name mapping
+    filteredUsers.forEach((user: UserProfile) => {
+      const userCompanyId = String(user.company_id || user.companyId || '');
+      const company = companies.find(c => String(c.id) === userCompanyId);
+      // Check both snake_case and camelCase variants for company_name
+      const userCompanyName = user.company_name || user.companyName;
+      const companyKey = company?.name || userCompanyName || 'Unassigned';
+
+      if (!grouped[companyKey]) {
+        grouped[companyKey] = [];
+      }
+      grouped[companyKey].push(user);
+    });
+
+    return grouped;
+  }, [filteredUsers, filteredCompanies, companies]);
+
+  // Auto-expand all companies on first load and preserve state on refetch
+  React.useEffect(() => {
+    if (Object.keys(usersByCompany).length > 0 && expandedCompanies.size === 0) {
+      // Initialize all companies as expanded only if expandedCompanies is empty
+      setExpandedCompanies(new Set(Object.keys(usersByCompany)));
+    }
+  }, [usersByCompany]);
+
+  const toggleCompanyExpansion = (companyName: string) => {
+    const newExpanded = new Set(expandedCompanies);
+    if (newExpanded.has(companyName)) {
+      newExpanded.delete(companyName);
+    } else {
+      newExpanded.add(companyName);
+    }
+    setExpandedCompanies(newExpanded);
+  };
+
+  // Plain render function (NOT a component) — avoids unstable component identity
+  const renderUserManagement = () => {
     // Password validation helper
     const validatePassword = (password: string) => {
       return {
@@ -394,11 +414,11 @@ export default function RBACAdmin() {
         hasDigit: /\d/.test(password),
       };
     };
-    
+
     const passwordChecks = validatePassword(newUser.password);
     const isPasswordValid = Object.values(passwordChecks).every(Boolean);
     const passwordsMatch = newUser.password === newUser.confirm_password && newUser.confirm_password.length > 0;
-    
+
     // Form validation - use currentUserCompanyId from outer scope
     // Client role (roleId === '4') also requires assigned_project_id
     const isClientRole = newUser.role_id === '4';
@@ -413,78 +433,6 @@ export default function RBACAdmin() {
       hasCompany &&
       (isClientRole || (isPasswordValid && passwordsMatch)) &&
       hasRequiredProjectForClient;
-
-    // Toggle user active status
-    const toggleUserStatus = useMutation({
-      mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
-        const endpoint = isActive 
-          ? `/api/company-admin/users/${userId}/activate`
-          : `/api/company-admin/users/${userId}/suspend`;
-        const response = await apiRequest(endpoint, {
-          method: 'PUT'
-        });
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(errorText || 'Failed to update user status');
-        }
-        return response.json();
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
-        toast({ title: 'Success', description: 'User status updated successfully' });
-      },
-      onError: (error: any) => {
-        console.error('Toggle user status error:', error);
-        toast({ title: 'Error', description: error.message || 'Failed to update user status', variant: 'destructive' });
-      }
-    });
-
-    // NOTE: updateUserMutation moved back to RBACAdmin level since Edit User Dialog
-    // is now rendered at that level
-
-    // Group filtered users by company, including companies with no users
-    const usersByCompany = React.useMemo(() => {
-      const grouped: { [key: string]: UserProfile[] } = {};
-      
-      // First, initialize all companies with empty arrays
-      filteredCompanies.forEach((company: Company) => {
-        grouped[company.name] = [];
-      });
-      
-      // Then add users to their respective companies with proper company name mapping
-      filteredUsers.forEach((user: UserProfile) => {
-        const userCompanyId = String(user.company_id || user.companyId || '');
-        const company = companies.find(c => String(c.id) === userCompanyId);
-        // Check both snake_case and camelCase variants for company_name
-        const userCompanyName = user.company_name || user.companyName;
-        const companyKey = company?.name || userCompanyName || 'Unassigned';
-        
-        if (!grouped[companyKey]) {
-          grouped[companyKey] = [];
-        }
-        grouped[companyKey].push(user);
-      });
-      
-      return grouped;
-    }, [filteredUsers, filteredCompanies, companies]);
-
-    // Auto-expand all companies on first load and preserve state on refetch
-    React.useEffect(() => {
-      if (Object.keys(usersByCompany).length > 0 && expandedCompanies.size === 0) {
-        // Initialize all companies as expanded only if expandedCompanies is empty
-        setExpandedCompanies(new Set(Object.keys(usersByCompany)));
-      }
-    }, [usersByCompany]);
-
-    const toggleCompanyExpansion = (companyName: string) => {
-      const newExpanded = new Set(expandedCompanies);
-      if (newExpanded.has(companyName)) {
-        newExpanded.delete(companyName);
-      } else {
-        newExpanded.add(companyName);
-      }
-      setExpandedCompanies(newExpanded);
-    };
 
     return (
       <div className="space-y-6">
@@ -782,6 +730,29 @@ export default function RBACAdmin() {
               flicker caused by UserManagement remounting */}
         </div>
 
+        {/* Filter: show/hide inactive users */}
+        {(() => {
+          const allUsers = isRootAdmin ? users : users.filter(u => {
+            const uid = String(u.company_id || u.companyId || '');
+            return uid === currentUserCompanyId;
+          });
+          const inactiveCount = allUsers.filter(u => !(u.is_active || u.isActive)).length;
+          if (inactiveCount === 0) return null;
+          return (
+            <button
+              onClick={() => setShowInactiveUsers(prev => !prev)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                showInactiveUsers
+                  ? 'bg-[var(--pro-mint)]/15 text-[var(--pro-mint)] border border-[var(--pro-mint)]/30'
+                  : 'bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)] border border-[var(--pro-border)]'
+              }`}
+            >
+              <Eye className="w-3 h-3" />
+              {showInactiveUsers ? 'Hide' : 'Show'} inactive ({inactiveCount})
+            </button>
+          );
+        })()}
+
         <div className="space-y-4">
           {usersLoading ? (
             <Card>
@@ -843,7 +814,7 @@ export default function RBACAdmin() {
                       <div className="divide-y divide-[var(--pro-border)]">
                         {companyUsers.map((user: UserProfile) => {
                           // Get user initials
-                          const displayName = user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
+                          const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
                           const initials = displayName
                             .split(' ')
                             .map(n => n[0])
@@ -887,18 +858,6 @@ export default function RBACAdmin() {
                                 </div>
                               </div>
 
-                              {/* Active Status Toggle */}
-                              <Switch
-                                checked={isActive}
-                                onCheckedChange={(checked) => {
-                                  toggleUserStatus.mutate({
-                                    userId: user.id,
-                                    isActive: checked
-                                  });
-                                }}
-                                className="data-[state=checked]:bg-[var(--pro-mint)] flex-shrink-0"
-                              />
-
                               {/* Kebab Menu */}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -911,17 +870,23 @@ export default function RBACAdmin() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48 bg-[var(--pro-surface)] border-[var(--pro-border)]">
                                   <DropdownMenuItem
+                                    onClick={() => {
+                                      toggleUserStatus.mutate({
+                                        userId: user.id,
+                                        isActive: !isActive
+                                      });
+                                    }}
+                                    className={`min-h-[44px] ${isActive ? 'text-[var(--pro-text-secondary)]' : 'text-[var(--pro-mint)]'}`}
+                                  >
+                                    {isActive ? <UserX className="w-4 h-4 mr-2" /> : <UserCheck2 className="w-4 h-4 mr-2" />}
+                                    {isActive ? 'Deactivate User' : 'Activate User'}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
+                                  <DropdownMenuItem
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
 
-                                      if (editCloseTimerRef.current) {
-                                        clearTimeout(editCloseTimerRef.current);
-                                        editCloseTimerRef.current = null;
-                                      }
-                                      editSessionRef.current += 1;
-
-                                      const nameParts = (user.name || '').split(' ');
                                       let roleId = user.role_id?.toString();
                                       if (!roleId && user.role && roles && roles.length > 0) {
                                         const roleNameMap: Record<string, string> = {
@@ -956,8 +921,8 @@ export default function RBACAdmin() {
 
                                       const mappedUser = {
                                         ...user,
-                                        first_name: user.first_name || user.firstName || nameParts[0] || '',
-                                        last_name: user.last_name || user.lastName || nameParts.slice(1).join(' ') || '',
+                                        first_name: user.first_name || user.firstName || '',
+                                        last_name: user.last_name || user.lastName || '',
                                         company_id: (user.company_id || user.companyId)?.toString() || '',
                                         role_id: roleId || '',
                                         role: user.role || '',
@@ -1038,10 +1003,10 @@ export default function RBACAdmin() {
                   <div className="divide-y divide-[var(--pro-border)]">
                     {companyUsers.map((user: UserProfile) => {
                       // Get user initials
-                      const displayName = user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
+                      const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
                       const initials = displayName
                         .split(' ')
-                        .map(n => n[0])
+                        .map((n: string) => n[0])
                         .join('')
                         .slice(0, 2)
                         .toUpperCase();
@@ -1082,18 +1047,6 @@ export default function RBACAdmin() {
                             </div>
                           </div>
 
-                          {/* Active Status Toggle */}
-                          <Switch
-                            checked={isActive}
-                            onCheckedChange={(checked) => {
-                              toggleUserStatus.mutate({
-                                userId: user.id,
-                                isActive: checked
-                              });
-                            }}
-                            className="data-[state=checked]:bg-[var(--pro-mint)] flex-shrink-0"
-                          />
-
                           {/* Kebab Menu */}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -1107,17 +1060,23 @@ export default function RBACAdmin() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48 bg-[var(--pro-surface)] border-[var(--pro-border)]">
                               <DropdownMenuItem
+                                onClick={() => {
+                                  toggleUserStatus.mutate({
+                                    userId: user.id,
+                                    isActive: !isActive
+                                  });
+                                }}
+                                className={`min-h-[44px] ${isActive ? 'text-[var(--pro-text-secondary)]' : 'text-[var(--pro-mint)]'}`}
+                              >
+                                {isActive ? <UserX className="w-4 h-4 mr-2" /> : <UserCheck2 className="w-4 h-4 mr-2" />}
+                                {isActive ? 'Deactivate User' : 'Activate User'}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
+                              <DropdownMenuItem
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
 
-                                  if (editCloseTimerRef.current) {
-                                    clearTimeout(editCloseTimerRef.current);
-                                    editCloseTimerRef.current = null;
-                                  }
-                                  editSessionRef.current += 1;
-
-                                  const nameParts = (user.name || '').split(' ');
                                   let roleId = user.role_id?.toString();
                                   if (!roleId && user.role && roles && roles.length > 0) {
                                     const roleNameMap: Record<string, string> = {
@@ -1152,8 +1111,8 @@ export default function RBACAdmin() {
 
                                   const mappedUser = {
                                     ...user,
-                                    first_name: user.first_name || user.firstName || nameParts[0] || '',
-                                    last_name: user.last_name || user.lastName || nameParts.slice(1).join(' ') || '',
+                                    first_name: user.first_name || user.firstName || '',
+                                    last_name: user.last_name || user.lastName || '',
                                     company_id: (user.company_id || user.companyId)?.toString() || '',
                                     role_id: roleId || '',
                                     role: user.role || '',
@@ -1811,11 +1770,11 @@ export default function RBACAdmin() {
                           <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                               <span className="text-sm font-medium">
-                                {user.name?.[0] || user.email?.[0]?.toUpperCase()}
+                                {(user.first_name || user.email)?.[0]?.toUpperCase()}
                               </span>
                             </div>
                             <div>
-                              <p className="font-medium">{user.name || 'No name'}</p>
+                              <p className="font-medium">{`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'No name'}</p>
                               <p className="text-sm text-muted-foreground">{user.email}</p>
                             </div>
                           </div>
@@ -2307,14 +2266,6 @@ export default function RBACAdmin() {
     <Dialog 
       open={isEditUserDialogOpen}
       onOpenChange={(open) => {
-        const now = Date.now();
-        const blockedUntil = editBlockCloseUntilRef.current;
-        
-        // Block close if we're in the critical period after update
-        if (!open && now < blockedUntil) {
-          return;
-        }
-        
         // Allow closing manually (via cancel button or X)
         if (!open && !updateUserMutation.isPending) {
           setIsEditUserDialogOpen(false);
@@ -2404,25 +2355,11 @@ export default function RBACAdmin() {
                 {rolesLoading ? (
                   <SelectItem value="loading" disabled>Loading roles...</SelectItem>
                 ) : roles && roles.length > 0 ? (
-                  (() => {
-                    // DEBUG: Log all roles and filter details
-                    console.log('🔍 Edit User - All roles:', roles);
-                    console.log('🔍 Edit User - Current company ID:', currentUserCompanyId);
-                    console.log('🔍 Edit User - Roles count:', roles.length);
-                    
-                    // Show ALL roles for now - we can filter later if needed
-                    const rolesToShow = roles;
-                    
-                    if (rolesToShow.length === 0) {
-                      return <SelectItem value="none" disabled>No roles available</SelectItem>;
-                    }
-                    
-                    return rolesToShow.map((role: Role) => (
-                      <SelectItem key={role.id} value={role.id.toString()}>
-                        {getRoleName(role) || role.displayName || role.display_name} {String(role.company_id) === '0' ? '(Platform)' : '(Standard)'}
-                      </SelectItem>
-                    ));
-                  })()
+                  roles.map((role: Role) => (
+                    <SelectItem key={role.id} value={role.id.toString()}>
+                      {getRoleName(role) || role.displayName || role.display_name} {String(role.company_id) === '0' ? '(Platform)' : '(Standard)'}
+                    </SelectItem>
+                  ))
                 ) : (
                   <SelectItem value="none" disabled>No roles available</SelectItem>
                 )}
@@ -2516,11 +2453,7 @@ export default function RBACAdmin() {
                     data: updatePayload
                   });
                   
-                  // Block trailing close events for a short period
-                  const blockDurationMs = 1200;
-                  editBlockCloseUntilRef.current = Date.now() + blockDurationMs;
-                  
-                  // Update cache immediately
+                  // Update cache immediately with all edited fields
                   const roleId = editingUser.role_id;
                   const roleName = roleId === '1' ? 'Admin' :
                                  roleId === '2' ? 'Office Manager' :
@@ -2532,20 +2465,30 @@ export default function RBACAdmin() {
                               roleId === '3' ? 'project_manager' :
                               roleId === '4' ? 'client' :
                               roleId === '5' ? 'crew' : 'subcontractor';
-                  
+
                   queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
                     if (!old) return old;
-                    return old.map((user: any) => 
-                      user.id === editingUser.id 
-                        ? { ...user, role_id: roleId, role: role, role_name: roleName }
+                    return old.map((user: any) =>
+                      user.id === editingUser.id
+                        ? {
+                            ...user,
+                            first_name: editingUser.first_name,
+                            last_name: editingUser.last_name,
+                            email: editingUser.email,
+                            is_active: editingUser.is_active,
+                            role_id: roleId,
+                            role: role,
+                            role_name: roleName,
+                            assigned_project_id: editingUser.assigned_project_id,
+                            name: `${editingUser.first_name || ''} ${editingUser.last_name || ''}`.trim(),
+                          }
                         : user
                     );
                   });
                   
                   setIsEditUserDialogOpen(false);
                   setEditingUser(null);
-                  editCloseTimerRef.current = null;
-                  
+
                 } catch (error) {
                   console.error('Update failed:', error);
                 }
@@ -2638,7 +2581,7 @@ export default function RBACAdmin() {
 
       {/* Content Area */}
       <main className="p-4">
-        {activeTab === 'users' && <UserManagement />}
+        {activeTab === 'users' && renderUserManagement()}
         {activeTab === 'roles' && isRootAdmin && <RoleManagement />}
         {activeTab === 'companies' && isRootAdmin && <CompanyManagement />}
         {activeTab === 'permissions' && isRootAdmin && <PermissionsOverview />}

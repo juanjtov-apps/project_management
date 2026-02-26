@@ -15,19 +15,6 @@ from src.models import (
 )
 from src.utils.data_conversion import to_camel_case, to_snake_case
 
-def normalize_datetime(dt):
-    """Convert timezone-aware datetime to timezone-naive UTC datetime."""
-    if dt is None:
-        return None
-    if isinstance(dt, str):
-        # Parse ISO string to datetime
-        dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
-    if dt.tzinfo is not None:
-        # Convert to UTC and make naive
-        return dt.utctimetuple()
-    return dt
-
-
 class BaseRepository:
     """Base repository with common database operations."""
     
@@ -527,100 +514,86 @@ class DashboardRepository(BaseRepository):
         super().__init__("")
     
     async def get_comprehensive_stats(self, company_id: Optional[str] = None) -> Dict[str, Any]:
-        """Get comprehensive dashboard statistics with optional company filtering."""
-        # Project stats
-        if company_id:
-            project_stats_query = """
-                SELECT 
+        """Get comprehensive dashboard statistics with optional company filtering.
+
+        Runs all 4 aggregate queries concurrently via asyncio.gather().
+        """
+        import asyncio
+
+        company_filter = " WHERE company_id = $1" if company_id else ""
+        company_params: list = [company_id] if company_id else []
+
+        async def _project_stats():
+            q = f"""
+                SELECT
                     COUNT(*) as total_projects,
                     COUNT(*) FILTER (WHERE status = 'active') as active_projects,
                     COUNT(*) FILTER (WHERE status = 'completed') as completed_projects,
                     COALESCE(AVG(progress), 0) as average_progress
-                FROM projects
-                WHERE company_id = $1
+                FROM projects{company_filter}
             """
-            project_row = await db_manager.execute_one(project_stats_query, company_id)
-        else:
-            project_stats_query = """
-                SELECT 
-                    COUNT(*) as total_projects,
-                    COUNT(*) FILTER (WHERE status = 'active') as active_projects,
-                    COUNT(*) FILTER (WHERE status = 'completed') as completed_projects,
-                    COALESCE(AVG(progress), 0) as average_progress
-                FROM projects
-            """
-            project_row = await db_manager.execute_one(project_stats_query)
-        
-        # Task stats  
-        if company_id:
-            task_stats_query = """
-                SELECT 
+            return await db_manager.execute_one(q, *company_params)
+
+        async def _task_stats():
+            q = f"""
+                SELECT
                     COUNT(*) as total_tasks,
                     COUNT(*) FILTER (WHERE status = 'completed') as completed_tasks,
                     COUNT(*) FILTER (WHERE status IN ('pending', 'in-progress')) as pending_tasks,
                     COUNT(*) FILTER (WHERE due_date < NOW() AND status != 'completed') as overdue_tasks
-                FROM tasks
-                WHERE company_id = $1
+                FROM tasks{company_filter}
             """
-            task_row = await db_manager.execute_one(task_stats_query, company_id)
-        else:
-            task_stats_query = """
-                SELECT 
-                    COUNT(*) as total_tasks,
-                    COUNT(*) FILTER (WHERE status = 'completed') as completed_tasks,
-                    COUNT(*) FILTER (WHERE status IN ('pending', 'in-progress')) as pending_tasks,
-                    COUNT(*) FILTER (WHERE due_date < NOW() AND status != 'completed') as overdue_tasks
-                FROM tasks
-            """
-            task_row = await db_manager.execute_one(task_stats_query)
-        
-        # Photo stats - filter by project company_id
-        if company_id:
-            photo_stats_query = """
-                SELECT 
-                    COUNT(*) as total_photos,
-                    COUNT(*) FILTER (WHERE p.created_at >= NOW() - INTERVAL '7 days') as photos_this_week
-                FROM photos p
-                JOIN projects pr ON p.project_id = pr.id
-                WHERE pr.company_id = $1
-            """
-            photo_row = await db_manager.execute_one(photo_stats_query, company_id)
-        else:
-            photo_stats_query = """
-                SELECT 
-                    COUNT(*) as total_photos,
-                    COUNT(*) FILTER (WHERE p.created_at >= NOW() - INTERVAL '7 days') as photos_this_week
-                FROM photos p
-            """
-            photo_row = await db_manager.execute_one(photo_stats_query)
-        
-        # User stats
-        # Dynamically handle both 'role_name' and 'name' columns in roles table
-        # Use COALESCE to handle either column being present
-        if company_id:
-            user_stats_query = """
-                SELECT 
-                    COUNT(*) as total_users,
-                    COUNT(*) as active_users,
-                    COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) = 'crew') as crew_members,
-                    COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) IN ('manager', 'project_manager', 'office_manager')) as managers
-                FROM users u
-                LEFT JOIN roles r ON u.role_id = r.id
-                WHERE u.company_id = $1
-            """
-            user_row = await db_manager.execute_one(user_stats_query, company_id)
-        else:
-            user_stats_query = """
-                SELECT 
-                    COUNT(*) as total_users,
-                    COUNT(*) as active_users,
-                    COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) = 'crew') as crew_members,
-                    COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) IN ('manager', 'project_manager', 'office_manager')) as managers
-                FROM users u
-                LEFT JOIN roles r ON u.role_id = r.id
-            """
-            user_row = await db_manager.execute_one(user_stats_query)
-        
+            return await db_manager.execute_one(q, *company_params)
+
+        async def _photo_stats():
+            if company_id:
+                q = """
+                    SELECT
+                        COUNT(*) as total_photos,
+                        COUNT(*) FILTER (WHERE p.created_at >= NOW() - INTERVAL '7 days') as photos_this_week
+                    FROM photos p
+                    JOIN projects pr ON p.project_id = pr.id
+                    WHERE pr.company_id = $1
+                """
+                return await db_manager.execute_one(q, company_id)
+            else:
+                q = """
+                    SELECT
+                        COUNT(*) as total_photos,
+                        COUNT(*) FILTER (WHERE p.created_at >= NOW() - INTERVAL '7 days') as photos_this_week
+                    FROM photos p
+                """
+                return await db_manager.execute_one(q)
+
+        async def _user_stats():
+            if company_id:
+                q = """
+                    SELECT
+                        COUNT(*) as total_users,
+                        COUNT(*) as active_users,
+                        COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) = 'crew') as crew_members,
+                        COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) IN ('manager', 'project_manager', 'office_manager')) as managers
+                    FROM users u
+                    LEFT JOIN roles r ON u.role_id = r.id
+                    WHERE u.company_id = $1
+                """
+                return await db_manager.execute_one(q, company_id)
+            else:
+                q = """
+                    SELECT
+                        COUNT(*) as total_users,
+                        COUNT(*) as active_users,
+                        COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) = 'crew') as crew_members,
+                        COUNT(*) FILTER (WHERE COALESCE(r.role_name, r.name) IN ('manager', 'project_manager', 'office_manager')) as managers
+                    FROM users u
+                    LEFT JOIN roles r ON u.role_id = r.id
+                """
+                return await db_manager.execute_one(q)
+
+        project_row, task_row, photo_row, user_row = await asyncio.gather(
+            _project_stats(), _task_stats(), _photo_stats(), _user_stats()
+        )
+
         return {
             "projects": self._convert_to_camel_case(dict(project_row)) if project_row else {},
             "tasks": self._convert_to_camel_case(dict(task_row)) if task_row else {},
@@ -750,7 +723,7 @@ class UserRepository(BaseRepository):
         """Get all users."""
         from ..models.user import User
         query = f"""
-            SELECT u.id, u.first_name, u.last_name, u.email, u.username, u.name,
+            SELECT u.id, u.first_name, u.last_name, u.email, u.username,
                    u.profile_image_url, u.company_id, u.role_id, u.is_root, u.is_active,
                    u.created_at, u.updated_at,
                    COALESCE(r.role_name, r.name, u.role, 'user') as role_name,
@@ -780,7 +753,7 @@ class UserRepository(BaseRepository):
             return []
         
         query = f"""
-            SELECT u.id, u.first_name, u.last_name, u.email, u.username, u.name,
+            SELECT u.id, u.first_name, u.last_name, u.email, u.username,
                    u.profile_image_url, u.company_id, u.role_id, u.is_root, u.is_active,
                    u.created_at, u.updated_at,
                    COALESCE(r.role_name, r.name, 'user') as role_name,
@@ -797,7 +770,7 @@ class UserRepository(BaseRepository):
         """Get user by ID."""
         from ..models.user import User
         query = f"""
-            SELECT u.id, u.first_name, u.last_name, u.email, u.username, u.name,
+            SELECT u.id, u.first_name, u.last_name, u.email, u.username,
                    u.profile_image_url, u.company_id, u.role_id, u.is_root, u.is_active,
                    u.created_at, u.updated_at,
                    COALESCE(r.role_name, r.name, u.role, 'user') as role_name,

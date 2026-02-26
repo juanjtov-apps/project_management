@@ -2,72 +2,15 @@ import express, { type Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import fs from "fs";
 import path from "path";
-import { spawn, ChildProcess } from "child_process";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupSecurityMiddleware, validateInput, csrfProtection } from "./security";
 
 const app = express();
 
-// Python backend process
-let pythonBackend: ChildProcess | null = null;
-
-function startPythonBackend(): void {
-  if (pythonBackend) {
-    console.log("🐍 Python backend already started");
-    return;
-  }
-  
-  console.log("🐍 Starting Python FastAPI backend...");
-  
-  pythonBackend = spawn("python3", ["main.py"], {
-    cwd: path.join(process.cwd(), "python_backend"),
-    stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env },
-  });
-  
-  pythonBackend.stdout?.on("data", (data) => {
-    console.log(`[Python Backend] ${data.toString().trim()}`);
-  });
-  
-  pythonBackend.stderr?.on("data", (data) => {
-    console.log(`[Python Backend Error] ${data.toString().trim()}`);
-  });
-  
-  pythonBackend.on("error", (err) => {
-    console.error("❌ Failed to start Python backend:", err);
-    pythonBackend = null;
-  });
-  
-  pythonBackend.on("exit", (code) => {
-    console.log(`🐍 Python backend exited with code ${code}`);
-    pythonBackend = null;
-  });
-}
-
-// Cleanup on exit
-process.on("SIGINT", () => {
-  if (pythonBackend) {
-    console.log("🛑 Stopping Python backend...");
-    pythonBackend.kill();
-  }
-  process.exit();
-});
-
-process.on("SIGTERM", () => {
-  if (pythonBackend) {
-    console.log("🛑 Stopping Python backend...");
-    pythonBackend.kill();
-  }
-  process.exit();
-});
-
 async function setupFrontendOnly(app: express.Express): Promise<Server> {
-  console.log("🚀 Starting Proesphere: Frontend + Python Backend");
-  console.log("✅ Frontend on port 5000, Python FastAPI backend on port 8000");
-  
-  // Start Python backend automatically
-  startPythonBackend();
-  
+  console.log("Starting Proesphere: Frontend + Python Backend");
+  console.log("Frontend on port 5000, Python FastAPI backend on port 8000");
+
   // Helper function to verify backend is actually accepting HTTP connections
   async function verifyBackendReady(): Promise<boolean> {
     try {
@@ -146,30 +89,6 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
   // Add manual API forwarding to Python backend
   console.log("🔄 Setting up API forwarding to Python backend");
   
-  // Helper function to check if backend is actually reachable
-  async function checkBackendHealth(): Promise<boolean> {
-    try {
-      const response = await fetch('http://127.0.0.1:8000/health', {
-        method: 'GET',
-        signal: AbortSignal.timeout(2000), // 2 second timeout
-      });
-      return response.ok;
-    } catch (error) {
-      return false;
-    }
-  }
-  
-  // Periodically verify backend is still alive
-  setInterval(async () => {
-    if (backendReady) {
-      const isHealthy = await checkBackendHealth();
-      if (!isHealthy) {
-        console.warn('⚠️  Backend health check failed, marking as not ready');
-        backendReady = false;
-      }
-    }
-  }, 10000); // Check every 10 seconds
-  
   app.all('/api/*', async (req, res, next) => {
     // PURE PROXY MODE: All API routes are forwarded to Python FastAPI backend
     // ALL backend logic, database operations, and RBAC checks are handled by FastAPI (Port 8000)
@@ -188,7 +107,7 @@ async function setupFrontendOnly(app: express.Express): Promise<Server> {
       
       if (!backendReady) {
         // Try health check as fallback
-        const isHealthy = await checkBackendHealth();
+        const isHealthy = await verifyBackendReady();
         if (isHealthy) {
           console.log('✅ Backend health check passed, marking as ready');
           backendReady = true;
@@ -447,15 +366,6 @@ app.use((req, res, next) => {
   // Production guard: Use 0.0.0.0 in production, 127.0.0.1 in development
   // macOS doesn't support reusePort, so we use standard listen() method
   const host = process.env.HOST || (isProduction ? '0.0.0.0' : '127.0.0.1');
-  
-  // Production guard: Verify critical environment variables
-  // NOTE: SESSION_SECRET is no longer required here - FastAPI handles all session management
-  if (isProduction) {
-    if (!process.env.DATABASE_URL) {
-      throw new Error('DATABASE_URL environment variable is required in production');
-    }
-    // SESSION_SECRET is handled by FastAPI backend, not Node.js
-  }
   
   server.listen(port, host, () => {
     log(`serving on ${host}:${port} (${isProduction ? 'production' : 'development'})`);

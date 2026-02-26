@@ -69,7 +69,6 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
       // Store files for later upload
       setSelectedFiles(validFiles);
       onFilesSelected?.(validFiles);
-      console.log(`📁 Selected ${validFiles.length} files for upload`);
       return;
     }
 
@@ -79,7 +78,6 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
 
     try {
       for (const file of validFiles) {
-        console.log(`📤 Uploading ${file.name}...`);
         setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
 
         // Get upload parameters (includes previewURL and objectPath)
@@ -102,9 +100,8 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
             objectPath: params.objectPath || params.url
           });
           setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
-          console.log(`✅ Uploaded ${file.name} successfully, preview: ${params.previewURL?.substring(0, 50)}...`);
         } else {
-          console.error(`❌ Failed to upload ${file.name}:`, response.statusText);
+          console.error(`Failed to upload ${file.name}:`, response.statusText);
         }
       }
 
@@ -134,7 +131,6 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
 
     try {
       for (const file of selectedFiles) {
-        console.log(`📤 Uploading ${file.name}...`);
         setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
 
         // Get upload parameters (includes previewURL and objectPath)
@@ -156,9 +152,8 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
             objectPath: params.objectPath || params.url
           });
           setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
-          console.log(`✅ Uploaded ${file.name} successfully`);
         } else {
-          console.error(`❌ Failed to upload ${file.name}:`, response.statusText);
+          console.error(`Failed to upload ${file.name}:`, response.statusText);
         }
       }
 

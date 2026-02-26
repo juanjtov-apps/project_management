@@ -1,5 +1,5 @@
 """
-Tower Flow FastAPI Application - Restructured Version
+Proesphere FastAPI Application
 """
 import os
 import sys
@@ -92,11 +92,24 @@ async def lifespan(app: FastAPI):
                 print(f"⚠️  Agent schema initialization error: {e}")
                 # Don't fail startup if schema initialization fails
         
-        logger.info("🎯 Application startup complete")
-        print("🎯 Application startup complete")
-        print("🌐 Server is ready at http://0.0.0.0:8000")
-        print("📋 API documentation at http://0.0.0.0:8000/docs")
+        # Start session cleanup background task
+        import asyncio
+        try:
+            from src.api.auth import start_session_cleanup_task
+            cleanup_task = asyncio.create_task(start_session_cleanup_task())
+            logger.info("Session cleanup task started")
+        except Exception as e:
+            logger.warning(f"Failed to start session cleanup task: {e}")
+            cleanup_task = None
+
+        logger.info("Application startup complete")
+        print("Server is ready at http://0.0.0.0:8000")
+        print("API documentation at http://0.0.0.0:8000/docs")
         yield
+
+        # Cancel cleanup task on shutdown
+        if cleanup_task:
+            cleanup_task.cancel()
         
     except KeyboardInterrupt:
         logger.info("🛑 Shutdown requested by user")

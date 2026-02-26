@@ -66,8 +66,6 @@ export default function ClientPortal() {
     const tabParam = params.get('tab');
     const stageIdParam = params.get('stageId');
 
-    console.log('Client Portal URL params:', { projectParam, tabParam, stageIdParam, fullSearch: window.location.search });
-
     if (projectParam) {
       setSelectedProject(projectParam);
     }

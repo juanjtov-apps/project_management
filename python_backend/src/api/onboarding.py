@@ -180,17 +180,15 @@ async def invite_client(body: InviteClientRequest, request: Request):
             import uuid
 
             client_user_id = str(uuid.uuid4())
-            full_name = f"{body.first_name} {body.last_name}".strip()
             await conn.execute(
                 """
-                INSERT INTO users (id, email, username, name, first_name, last_name, role_id, company_id,
+                INSERT INTO users (id, email, username, first_name, last_name, role_id, company_id,
                                    assigned_project_id, phone, is_active, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, NOW(), NOW())
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, NOW(), NOW())
                 """,
                 client_user_id,
                 body.email,
                 body.email,
-                full_name,
                 body.first_name,
                 body.last_name,
                 client_role_id,

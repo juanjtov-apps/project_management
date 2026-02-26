@@ -152,10 +152,11 @@ async def list_users(
         
         # Build query with optional filters
         query = """
-            SELECT 
+            SELECT
                 u.id,
                 u.email,
-                u.name,
+                u.first_name,
+                u.last_name,
                 COALESCE(r.name, r.role_name, 'user') as role,
                 u.company_id,
                 c.name as company_name,
@@ -192,7 +193,7 @@ async def list_users(
             {
                 "id": row["id"],
                 "email": row["email"] or "",
-                "name": row["name"] or "Unknown",
+                "name": f"{row['first_name'] or ''} {row['last_name'] or ''}".strip() or "Unknown",
                 "role": row["role"],
                 "company_id": row["company_id"] or "",
                 "company_name": row["company_name"] or "Unknown",

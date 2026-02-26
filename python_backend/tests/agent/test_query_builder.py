@@ -52,7 +52,7 @@ class TestQueryBuilderBasics:
         filters = {"status": "pending"}
         query, params = builder.build_select(filters)
 
-        assert "status = $" in query
+        assert "UPPER(" in query and "status" in query
         assert "pending" in params
 
     def test_build_select_respects_column_access(self):

@@ -188,12 +188,6 @@ function FeedbackButtons({ messageId, conversationId }: FeedbackButtonsProps) {
   const submitFeedback = async (isPositive: boolean, notes?: string) => {
     if (isSubmitting) return;
 
-    console.log("[DEBUG] Submitting feedback with:", {
-      messageId,
-      conversationId,
-      isPositive,
-    });
-
     setIsSubmitting(true);
     try {
       await apiRequest("/api/v1/agent/feedback", {
@@ -205,7 +199,6 @@ function FeedbackButtons({ messageId, conversationId }: FeedbackButtonsProps) {
           notes: notes || null,
         },
       });
-      console.log("[DEBUG] Feedback submitted successfully");
       setFeedbackGiven(isPositive ? 'positive' : 'negative');
       setShowNoteInput(false);
       setNote("");
