@@ -264,6 +264,27 @@ async def init_client_portal_schema():
     CREATE INDEX IF NOT EXISTS idx_invite_user ON client_portal.client_invitations(user_id);
     CREATE INDEX IF NOT EXISTS idx_invite_status ON client_portal.client_invitations(status);
 
+    -- MATERIAL DOCUMENTS TABLE
+    CREATE TABLE IF NOT EXISTS client_portal.material_documents(
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        item_id uuid NOT NULL,
+        project_id varchar NOT NULL,
+        document_path text NOT NULL,
+        file_name text NOT NULL,
+        mime_type text,
+        uploaded_by varchar NOT NULL,
+        created_at timestamptz DEFAULT now(),
+        CONSTRAINT fk_matdoc_item FOREIGN KEY(item_id)
+            REFERENCES client_portal.material_items(id) ON DELETE CASCADE,
+        CONSTRAINT fk_matdoc_project FOREIGN KEY(project_id)
+            REFERENCES public.projects(id) ON DELETE CASCADE,
+        CONSTRAINT fk_matdoc_user FOREIGN KEY(uploaded_by)
+            REFERENCES public.users(id) ON DELETE RESTRICT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_matdoc_item ON client_portal.material_documents(item_id);
+    CREATE INDEX IF NOT EXISTS idx_matdoc_project ON client_portal.material_documents(project_id);
+
     -- Commit transaction
     COMMIT;
     """

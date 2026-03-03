@@ -16,7 +16,8 @@ import {
 } from "@dnd-kit/core";
 import {
   Plus, Package, ExternalLink, Trash2, ChevronDown, ChevronRight,
-  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle, Layers, Filter, ArrowLeft, GripVertical, Copy, Loader2
+  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle, Layers, Filter, ArrowLeft, GripVertical, Copy, Loader2,
+  CalendarClock, Paperclip, FileText, Upload, Download
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -100,6 +101,7 @@ interface ProjectStage {
   orderIndex: number;
   name: string;
   status: string;
+  finishMaterialsDueDate?: string;
 }
 
 interface MaterialsTabProps {
@@ -155,6 +157,12 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
   // Get project stages for filtering
   const { data: stages = [] } = useQuery<ProjectStage[]>({
     queryKey: [`/api/v1/stages?projectId=${projectId}`],
+    enabled: !!projectId,
+  });
+
+  // Get document counts per material item (for badge display)
+  const { data: docCounts = {} } = useQuery<Record<string, number>>({
+    queryKey: [`/api/material-documents/count?project_id=${projectId}`],
     enabled: !!projectId,
   });
 
@@ -306,6 +314,38 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
     return sum + (qty * cost);
   }, 0);
 
+  // Compute materials deadline data grouped by stage urgency
+  const getDaysUntil = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(dateStr);
+    target.setHours(0, 0, 0, 0);
+    return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const formatDeadlineDate = (dateStr?: string) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  const stageDueDates = stages
+    .filter((s) => s.finishMaterialsDueDate && s.status !== "COMPLETE")
+    .map((s) => {
+      const stageItems = allItems.filter((i) => i.stage_id === s.id);
+      const needsOrdering = stageItems.filter((i) => i.order_status === "pending_to_order").length;
+      const daysUntil = getDaysUntil(s.finishMaterialsDueDate);
+      return { ...s, needsOrdering, totalItems: stageItems.length, daysUntil };
+    })
+    .filter((s) => s.totalItems > 0)
+    .sort(
+      (a, b) =>
+        new Date(a.finishMaterialsDueDate!).getTime() -
+        new Date(b.finishMaterialsDueDate!).getTime()
+    );
+
+  const hasUnorderedDeadlines = stageDueDates.some((s) => s.needsOrdering > 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -408,6 +448,92 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
           )}
         </div>
       </div>
+
+      {/* Materials Deadlines */}
+      {hasUnorderedDeadlines && stageDueDates.length > 0 && (
+        <div className="rounded-xl bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border border-zinc-700/50 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <CalendarClock className="h-5 w-5 text-rose-400" />
+            <h3 className="font-semibold text-white">Materials Deadlines</h3>
+          </div>
+          <div className="space-y-2">
+            {stageDueDates.map((stage) => {
+              const isOverdue = stage.daysUntil !== null && stage.daysUntil < 0;
+              const isDueSoon = stage.daysUntil !== null && stage.daysUntil >= 0 && stage.daysUntil <= 7;
+              const orderedCount = stage.totalItems - stage.needsOrdering;
+              const progressPct = stage.totalItems > 0 ? (orderedCount / stage.totalItems) * 100 : 0;
+
+              return (
+                <div
+                  key={stage.id}
+                  onClick={() => setStageFilter(stage.id)}
+                  className={`flex items-center gap-4 p-3 rounded-lg border transition-colors cursor-pointer ${
+                    stageFilter === stage.id
+                      ? "bg-zinc-800 border-zinc-600"
+                      : "bg-zinc-900/40 border-zinc-800 hover:bg-zinc-800/50 hover:border-zinc-700"
+                  }`}
+                >
+                  {/* Urgency indicator */}
+                  <div
+                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                      isOverdue
+                        ? "bg-red-500"
+                        : isDueSoon
+                          ? "bg-amber-500"
+                          : "bg-zinc-500"
+                    }`}
+                  />
+
+                  {/* Stage info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="text-sm font-medium text-white truncate">
+                        {stage.name}
+                      </span>
+                      <span
+                        className={`text-xs shrink-0 ${
+                          isOverdue
+                            ? "text-red-400 font-semibold"
+                            : isDueSoon
+                              ? "text-amber-400"
+                              : "text-zinc-400"
+                        }`}
+                      >
+                        {isOverdue
+                          ? `Overdue (${formatDeadlineDate(stage.finishMaterialsDueDate)})`
+                          : isDueSoon && stage.daysUntil === 0
+                            ? "Due today"
+                            : isDueSoon && stage.daysUntil === 1
+                              ? "Due tomorrow"
+                              : `Due ${formatDeadlineDate(stage.finishMaterialsDueDate)}`}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-1.5 rounded-full bg-zinc-700 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            progressPct === 100
+                              ? "bg-emerald-500"
+                              : isOverdue
+                                ? "bg-red-500"
+                                : "bg-amber-500"
+                          }`}
+                          style={{ width: `${progressPct}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-zinc-400 shrink-0">
+                        {stage.needsOrdering > 0
+                          ? `${stage.needsOrdering} of ${stage.totalItems} need ordering`
+                          : `All ${stage.totalItems} ordered`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -524,6 +650,7 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
                 isClient={isClient}
                 stages={stages}
                 isDragActive={!!activeDragItem}
+                docCounts={docCounts}
               />
             ))}
           </div>
@@ -555,6 +682,7 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
               isClient={isClient}
               stages={stages}
               isDragActive={false}
+              docCounts={docCounts}
             />
           ))}
         </div>
@@ -570,9 +698,10 @@ interface MaterialAreaSectionProps {
   isClient?: boolean;
   stages?: ProjectStage[];
   isDragActive?: boolean;
+  docCounts?: Record<string, number>;
 }
 
-function MaterialAreaSection({ area, items, projectId, isClient = false, stages = [], isDragActive = false }: MaterialAreaSectionProps) {
+function MaterialAreaSection({ area, items, projectId, isClient = false, stages = [], isDragActive = false, docCounts = {} }: MaterialAreaSectionProps) {
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: area.id,
   });
@@ -859,7 +988,7 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
         <div className="text-xs text-primary text-center py-1 animate-pulse">Drop here</div>
       )}
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <div className="flex items-center justify-between p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4">
           <CollapsibleTrigger asChild>
             <div className="flex items-center gap-3 flex-1 cursor-pointer hover:bg-accent/50 transition-colors rounded-lg p-2 -m-2">
               {isOpen ? (
@@ -904,7 +1033,7 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
               </div>
             </div>
           </CollapsibleTrigger>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 pl-10 sm:pl-0">
             <Badge variant="outline" className="text-xs">
               {items.length} {items.length === 1 ? 'item' : 'items'}
             </Badge>
@@ -957,6 +1086,7 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
                     projectId={projectId}
                     isClient={isClient}
                     stages={stages}
+                    docCount={docCounts[item.id] || 0}
                   />
                 ))}
               </div>
@@ -1258,10 +1388,23 @@ interface MaterialItemRowProps {
   projectId: string;
   isClient?: boolean;
   stages?: ProjectStage[];
+  docCount?: number;
 }
 
-function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages = [] }: MaterialItemRowProps) {
+interface MaterialDocument {
+  id: string;
+  item_id: string;
+  file_name: string;
+  mime_type?: string;
+  download_url?: string;
+  uploaded_by: string;
+  uploaded_by_email?: string;
+  created_at?: string;
+}
+
+function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages = [], docCount = 0 }: MaterialItemRowProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showDocs, setShowDocs] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -1344,6 +1487,96 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages =
       });
     },
   });
+
+  // Document queries and mutations
+  const { data: documents = [], isLoading: docsLoading } = useQuery<MaterialDocument[]>({
+    queryKey: [`/api/material-documents?item_id=${item.id}`],
+    enabled: showDocs,
+  });
+
+  const uploadDocMutation = useMutation({
+    mutationFn: async (params: { documentPath: string; fileName: string; mimeType: string }) => {
+      const response = await apiRequest("/api/material-documents", {
+        method: "POST",
+        body: {
+          item_id: item.id,
+          project_id: projectId,
+          document_path: params.documentPath,
+          file_name: params.fileName,
+          mime_type: params.mimeType,
+        },
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/material-documents?item_id=${item.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-documents/count?project_id=${projectId}`] });
+      toast({ title: "Document Uploaded", description: "Document attached to material." });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Upload Failed",
+        description: error?.message || "Failed to attach document.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteDocMutation = useMutation({
+    mutationFn: async (docId: string) => {
+      const response = await apiRequest(`/api/material-documents/${docId}`, { method: "DELETE" });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/material-documents?item_id=${item.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-documents/count?project_id=${projectId}`] });
+      toast({ title: "Document Deleted" });
+    },
+  });
+
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+
+  const handleDocFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (10MB max)
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Maximum file size is 50MB.", variant: "destructive" });
+      e.target.value = "";
+      return;
+    }
+
+    setIsUploadingDoc(true);
+    try {
+      // Step 1: Get signed upload URL from GCS
+      const uploadParams = await apiRequest("/api/v1/objects/upload", { method: "POST" });
+      const { uploadURL, objectPath } = await uploadParams.json();
+
+      // Step 2: Upload file to GCS via signed PUT URL
+      const uploadResponse = await fetch(uploadURL, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Failed to upload file to storage");
+      }
+
+      // Step 3: Create document record in database
+      uploadDocMutation.mutate({
+        documentPath: objectPath,
+        fileName: file.name,
+        mimeType: file.type,
+      });
+    } catch (error) {
+      toast({ title: "Upload Failed", description: "Could not upload document.", variant: "destructive" });
+    } finally {
+      setIsUploadingDoc(false);
+      e.target.value = "";
+    }
+  };
 
   const totalCost = (parseFloat(item.quantity || "0") || 1) * (item.unit_cost || 0);
 
@@ -1543,9 +1776,9 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages =
           <GripVertical className="h-4 w-4" />
         </div>
       )}
-      <div className="flex-1 space-y-1">
-        <div className="flex items-start justify-between">
-          <div>
+      <div className="flex-1 min-w-0 space-y-1">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <div className="min-w-0">
             <h4 className="font-medium">{item.name}</h4>
             {item.spec && (
               <p className="text-sm text-muted-foreground">{item.spec}</p>
@@ -1571,9 +1804,9 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages =
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
             {/* Order Status Toggle */}
-            <div className="flex rounded-md border border-border overflow-hidden">
+            <div className="flex rounded-md border border-border overflow-hidden shrink-0">
               <button
                 onClick={() => {
                   if (item.order_status === 'ordered') {
@@ -1607,39 +1840,57 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages =
                 Ordered
               </button>
             </div>
-            {item.product_link && (
+            {/* Icon buttons grouped together so they never split across lines */}
+            <div className="flex items-center">
+              {item.product_link && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  data-testid={`button-link-${item.id}`}
+                >
+                  <a href={item.product_link} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
-                asChild
-                data-testid={`button-link-${item.id}`}
+                onClick={() => setShowDocs(!showDocs)}
+                className="relative"
+                title="Documents"
+                data-testid={`button-docs-${item.id}`}
               >
-                <a href={item.product_link} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                </a>
+                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                {docCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-cyan-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {docCount}
+                  </span>
+                )}
               </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEditing(true)}
-              data-testid={`button-edit-${item.id}`}
-            >
-              <Pencil className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            </Button>
-            {!isClient && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onDelete(item.id)}
-                data-testid={`button-delete-${item.id}`}
+                onClick={() => setIsEditing(true)}
+                data-testid={`button-edit-${item.id}`}
               >
-                <Trash2 className="h-4 w-4 text-destructive" />
+                <Pencil className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               </Button>
-            )}
+              {!isClient && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onDelete(item.id)}
+                  data-testid={`button-delete-${item.id}`}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-x-4 gap-y-1 flex-wrap text-sm text-muted-foreground">
           {item.vendor && <span>📦 {item.vendor}</span>}
           {item.quantity && <span>Qty: {item.quantity}</span>}
           {item.unit_cost !== null && item.unit_cost !== undefined && (
@@ -1651,6 +1902,74 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages =
             </span>
           )}
         </div>
+
+        {/* Documents Panel */}
+        {showDocs && (
+          <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Documents {documents.length > 0 && `(${documents.length}/5)`}
+              </span>
+              {documents.length < 5 && (
+                <label className="inline-flex items-center gap-1.5 px-2 py-1 text-xs text-cyan-600 dark:text-cyan-400 hover:bg-muted rounded cursor-pointer transition-colors">
+                  <Upload className="h-3 w-3" />
+                  {isUploadingDoc ? "Uploading..." : "Upload"}
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                    onChange={handleDocFileSelect}
+                    disabled={isUploadingDoc}
+                  />
+                </label>
+              )}
+            </div>
+
+            {docsLoading ? (
+              <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Loading documents...
+              </div>
+            ) : documents.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-1">
+                No documents attached. Upload installation manuals, layouts, or specs.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-center gap-2 p-2 bg-background rounded border border-border/50 text-xs min-w-0"
+                  >
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="flex-1 truncate font-medium min-w-0">{doc.file_name}</span>
+                    <div className="flex items-center gap-2 shrink-0 ml-auto">
+                      {doc.download_url && (
+                        <a
+                          href={doc.download_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-cyan-600 dark:text-cyan-400 hover:underline"
+                          title="Download"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      <button
+                        onClick={() => deleteDocMutation.mutate(doc.id)}
+                        className="text-destructive hover:text-destructive/80"
+                        title="Delete document"
+                        disabled={deleteDocMutation.isPending}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

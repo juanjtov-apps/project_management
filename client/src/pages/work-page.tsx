@@ -924,6 +924,7 @@ export default function WorkPage() {
                       setIsProjectDeleteDialogOpen(true);
                     }}
                     onStages={() => setStagesProject(project)}
+                    onMaterials={() => setLocation(`/client-portal?projectId=${project.id}&tab=materials`)}
                     onIssues={() => setIssuesProject(project)}
                     isSelected={quickViewProject?.id === project.id}
                     data-testid={`project-card-${project.id}`}

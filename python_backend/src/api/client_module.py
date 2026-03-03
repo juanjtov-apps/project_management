@@ -1802,6 +1802,142 @@ async def delete_material_item(
         return {"success": True}
 
 # ============================================================================
+# MATERIAL DOCUMENTS ENDPOINTS
+# ============================================================================
+
+class MaterialDocumentCreate(BaseModel):
+    item_id: str
+    project_id: str
+    document_path: str
+    file_name: str
+    mime_type: Optional[str] = None
+
+
+@router.get("/material-documents")
+async def get_material_documents(
+    item_id: str = Query(...),
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Get all documents attached to a material item. Returns fresh signed GET URLs."""
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT md.id, md.item_id, md.project_id, md.document_path,
+                      md.file_name, md.mime_type, md.uploaded_by, md.created_at,
+                      u.email as uploaded_by_email
+               FROM client_portal.material_documents md
+               LEFT JOIN public.users u ON u.id = md.uploaded_by
+               WHERE md.item_id = $1
+               ORDER BY md.created_at DESC""",
+            item_id
+        )
+
+        config = get_storage_config()
+        documents = []
+        for row in rows:
+            doc = dict(row)
+            doc["created_at"] = doc["created_at"].isoformat() if doc["created_at"] else None
+            # Generate fresh signed GET URL for downloading
+            download_url = await generate_signed_url(
+                config["bucket_id"],
+                doc["document_path"],
+                method="GET",
+                expires_minutes=60
+            )
+            doc["download_url"] = download_url
+            documents.append(doc)
+
+        return documents
+
+
+@router.post("/material-documents")
+async def create_material_document(
+    data: MaterialDocumentCreate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Attach a document to a material item. Both clients and PMs can upload. Max 5 per item."""
+    async with pool.acquire() as conn:
+        # Enforce max 5 documents per item
+        count = await conn.fetchval(
+            "SELECT COUNT(*) FROM client_portal.material_documents WHERE item_id = $1",
+            data.item_id
+        )
+        if count >= 5:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Maximum 5 documents per material item. Delete an existing document first."
+            )
+
+        row = await conn.fetchrow(
+            """INSERT INTO client_portal.material_documents
+               (item_id, project_id, document_path, file_name, mime_type, uploaded_by)
+               VALUES ($1, $2, $3, $4, $5, $6)
+               RETURNING id, created_at""",
+            data.item_id,
+            data.project_id,
+            data.document_path,
+            data.file_name,
+            data.mime_type,
+            current_user["id"]
+        )
+
+        return {
+            "id": str(row["id"]),
+            "item_id": data.item_id,
+            "file_name": data.file_name,
+            "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+        }
+
+
+@router.delete("/material-documents/{doc_id}")
+async def delete_material_document(
+    doc_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Delete a material document. PMs/admins can delete any, clients can only delete their own."""
+    async with pool.acquire() as conn:
+        doc = await conn.fetchrow(
+            "SELECT uploaded_by FROM client_portal.material_documents WHERE id = $1",
+            doc_id
+        )
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Clients can only delete their own uploads
+        if is_client_role(current_user) and doc["uploaded_by"] != current_user["id"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only delete documents you uploaded."
+            )
+
+        await conn.execute(
+            "DELETE FROM client_portal.material_documents WHERE id = $1",
+            doc_id
+        )
+        return {"success": True}
+
+
+@router.get("/material-documents/count")
+async def get_material_document_counts(
+    project_id: str = Query(...),
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
+    pool: asyncpg.Pool = Depends(get_db_pool)
+):
+    """Get document counts per material item for a project (for badge display)."""
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT item_id, COUNT(*) as doc_count
+               FROM client_portal.material_documents
+               WHERE project_id = $1
+               GROUP BY item_id""",
+            project_id
+        )
+        return {str(row["item_id"]): row["doc_count"] for row in rows}
+
+
+# ============================================================================
 # STATS ENDPOINT
 # ============================================================================
 
