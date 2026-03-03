@@ -397,12 +397,12 @@ export default function Photos() {
                       maxNumberOfFiles={10}
                       maxFileSize={10485760} // 10MB
                       onGetUploadParameters={handleGetUploadParameters}
-                      buttonClassName="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-dashed border-gray-300 py-8"
+                      buttonClassName="w-full bg-[#1F242C] hover:bg-[#2D333B] text-[#9CA3AF] border-2 border-dashed border-[#2D333B] hover:border-[#4ADE80]/40 py-8 transition-colors duration-200"
                     >
                       <div className="flex flex-col items-center gap-2">
-                        <Upload size={24} />
-                        <span>Select Photos</span>
-                        <span className="text-xs">Up to 10 photos, max 10MB each</span>
+                        <Upload size={24} className="text-[#4ADE80]" />
+                        <span className="font-medium text-[#C9D1D9]">Select Photos</span>
+                        <span className="text-xs text-[#6B7280]">Up to 10 photos, max 10MB each</span>
                       </div>
                     </ObjectUploader>
                   </div>
