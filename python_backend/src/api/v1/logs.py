@@ -15,7 +15,8 @@ class ProjectLogCreateRequest(BaseModel):
     projectId: str = Field(..., description="Project ID")
     title: str = Field(..., min_length=1, description="Log title")
     content: str = Field(..., min_length=1, description="Log content")
-    logType: str = Field(default="general", description="Log type")
+    type: str = Field(default="general", description="Log type")
+    status: str = Field(default="open", description="Log status")
     images: Optional[List[str]] = Field(default=[], description="Array of image URLs")
 
 @router.get("", response_model=List[Dict[str, Any]], summary="Get project logs")
@@ -114,11 +115,11 @@ async def create_log(
             
             # Create log
             log_id = await conn.fetchval("""
-                INSERT INTO project_logs (project_id, user_id, title, content, type, images)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                INSERT INTO project_logs (project_id, user_id, title, content, type, status, images)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING id
-            """, log_data.projectId, current_user.get('id'), log_data.title, 
-                log_data.content, log_data.logType, log_data.images)
+            """, log_data.projectId, current_user.get('id'), log_data.title,
+                log_data.content, log_data.type, log_data.status, log_data.images)
             
             # Get created log
             log_row = await conn.fetchrow(
@@ -201,7 +202,7 @@ async def update_log(
                         )
             
             # Update log
-            update_data = log_update.model_dump(exclude_unset=True, by_alias=True)
+            update_data = log_update.model_dump(exclude_unset=True)
             if not update_data:
                 # Return existing log if no updates
                 log_row = await conn.fetchrow(
