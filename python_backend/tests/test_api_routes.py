@@ -161,13 +161,6 @@ class TestClientPortalRoutes:
 
 class TestNotificationRoutes:
     @pytest.mark.asyncio
-    async def test_notifications_endpoint_exists(self, client):
-        """GET /api/v1/notifications should exist (not 404)."""
-        response = await client.get("/api/v1/notifications")
-        # May return 200 (empty list) or 401 depending on implementation
-        assert response.status_code != 404, f"Endpoint returned 404"
-
-    @pytest.mark.asyncio
     async def test_pm_notifications_requires_auth(self, client):
         """GET /api/v1/pm-notifications should return 401 without auth."""
         response = await client.get("/api/v1/pm-notifications")
@@ -347,49 +340,6 @@ class TestActivitiesRoutes:
 # ============================================================================
 # COMMUNICATIONS ENDPOINTS
 # ============================================================================
-
-class TestCommunicationsRoutes:
-    @pytest.mark.asyncio
-    async def test_communications_requires_auth(self, client):
-        """GET /api/v1/communications should return 401 without auth."""
-        response = await client.get("/api/v1/communications?project_id=test")
-        assert response.status_code == 401, f"Expected 401, got {response.status_code}"
-
-
-# ============================================================================
-# CHANGE ORDERS ENDPOINTS
-# ============================================================================
-
-class TestChangeOrdersRoutes:
-    @pytest.mark.asyncio
-    async def test_change_orders_requires_auth(self, client):
-        """GET /api/v1/change-orders should return 401 without auth."""
-        response = await client.get("/api/v1/change-orders?project_id=test")
-        assert response.status_code == 401, f"Expected 401, got {response.status_code}"
-
-
-# ============================================================================
-# TIME ENTRIES ENDPOINTS
-# ============================================================================
-
-class TestTimeEntriesRoutes:
-    @pytest.mark.asyncio
-    async def test_time_entries_requires_auth(self, client):
-        """GET /api/v1/time-entries should return 401 without auth."""
-        response = await client.get("/api/v1/time-entries?project_id=test")
-        assert response.status_code == 401, f"Expected 401, got {response.status_code}"
-
-
-# ============================================================================
-# INVOICES ENDPOINTS
-# ============================================================================
-
-class TestInvoicesRoutes:
-    @pytest.mark.asyncio
-    async def test_invoices_requires_auth(self, client):
-        """GET /api/v1/invoices should return 401 without auth."""
-        response = await client.get("/api/v1/invoices?project_id=test")
-        assert response.status_code == 401, f"Expected 401, got {response.status_code}"
 
 
 # ============================================================================

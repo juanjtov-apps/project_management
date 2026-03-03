@@ -1,590 +1,302 @@
-# Proesphere - Construction Project Management System
+# Proesphere
 
-A comprehensive construction project management application designed to streamline workflows, enhance collaboration, and improve oversight for construction projects. Proesphere provides tools for managing projects, tasks, crew members, photo documentation, project logs, and scheduling, enabling users to build smarter, deliver on time, on budget, and with high quality.
+Construction project management platform built for general contractors. Manage projects, tasks, schedules, budgets, photos, client communications, and AI-assisted operations — all from one place.
 
-## 🎯 MVP Success Criteria
+## Architecture
 
-**A foreman can:**
-1. Log in
-2. View all projects
-3. Inline-edit a task and see it persist after refresh
-4. Add and remove projects
-5. Use dropdowns and change the tasks' status
-
-### MVP User Journeys
-- Open `/projects` → list or cards view
-- Click a project → edit task fields inline
-- Auto-save with toast → refresh to confirm persistence
-
-## 🏗️ Architecture
-
-The application uses a **fully independent server architecture** with clear separation between frontend and backend. 
-
-> **✅ Recent Update**: All RBAC operations (users, roles, permissions, companies) have been migrated from Node.js to FastAPI. The Node.js server now acts as a pure proxy for all API requests. See [RBAC_MIGRATION_TO_FASTAPI.md](./RBAC_MIGRATION_TO_FASTAPI.md) for details.
-
-All backend logic, including RBAC, is now handled exclusively by FastAPI:
+Proesphere uses a **Pure Proxy** architecture where Node.js serves the React frontend and proxies API requests, while Python FastAPI handles all business logic.
 
 ```
-┌─────────────────┐         HTTP         ┌─────────────────┐
-│  Node.js Server │  ──────────────────> │  Python Backend │
-│  (Port 5000)    │  <────────────────── │  (Port 8000)    │
-│  Frontend Only  │      Proxy/Forward   │  FastAPI        │
-│  + Auth Proxy   │      ALL API Calls    │  ALL Backend    │
-└─────────────────┘                      └─────────────────┘
-                                              │
-                                              ▼
-                                        ┌─────────────┐
-                                        │ PostgreSQL  │
-                                        │  Database   │
-                                        └─────────────┘
+Browser → Node.js (port 5000) → FastAPI (port 8000) → PostgreSQL (Neon)
+             ↑                        ↑
+       Serves React             ALL business logic
+       + API proxy              RBAC + Database ops
 ```
 
-### Architecture Principles
+- **Node.js (port 5000)**: Serves the React SPA and proxies `/api/*` — no database queries or business logic
+- **FastAPI (port 8000)**: All API endpoints, RBAC, database operations via asyncpg
+- **PostgreSQL**: Two schemas — `public` (core business) and `client_portal` (client-facing features)
+- **Google Cloud Storage**: Photo and file uploads with signed URLs
 
-- **Frontend (Node.js)**: Serves React app, handles session management, proxies ALL API requests
-- **Backend (FastAPI)**: Handles ALL business logic, database operations, and API endpoints
-- **No Database Operations in Node.js**: All data operations are handled by FastAPI
-- **RBAC Migration Complete**: All RBAC operations (users, roles, permissions, companies) migrated to FastAPI
+## Tech Stack
 
-### Frontend (Node.js/React)
-- **Port**: 5000
-- **Framework**: React 18 with TypeScript
-- **State Management**: TanStack Query for server state
-- **UI Components**: Radix UI components with shadcn/ui design system
-- **Styling**: Tailwind CSS with custom construction-themed palette
-- **Purpose**: Serves React frontend, handles session-based authentication, proxies ALL API requests to FastAPI
-- **Note**: No database operations - all backend logic is handled by FastAPI
+| Layer | Technologies |
+|-------|-------------|
+| Frontend | React 18, TypeScript, Wouter, TanStack Query, Tailwind CSS |
+| UI Components | Radix UI / shadcn, Framer Motion, GSAP, Recharts, Lucide icons |
+| Forms & DnD | React Hook Form, Zod, @dnd-kit |
+| File Upload | Uppy (GCS signed URLs) |
+| Backend | Python FastAPI, asyncpg, Pydantic, bcrypt |
+| Database | Neon PostgreSQL (dev & prod) |
+| Storage | Google Cloud Storage (signed URLs) |
+| Email | Resend (transactional, white-labeled) |
+| SMS | Twilio |
+| AI | Agentic AI with tool-based orchestration and SSE streaming |
 
-### Backend (Python FastAPI)
-- **Port**: 8000
-- **Framework**: FastAPI with async/await
-- **Database**: PostgreSQL with asyncpg
-- **Purpose**: Handles ALL API logic, database operations, and business logic
-- **Features**: 
-  - Auto-reload enabled for development
-  - RESTful API with OpenAPI docs
-  - Complete RBAC system (users, roles, permissions, companies)
-  - Multi-tenant architecture with row-level security
-- **Migration Status**: ✅ All RBAC operations migrated from Node.js to FastAPI
+## Features
 
-### Database
-- **Type**: PostgreSQL (Neon serverless for both development and production)
-- **ORM**: Drizzle ORM for type-safe operations
-- **Connection**: Automatic SSL detection and configuration
-- **Schemas**: `public` (core business logic) and `client_portal` (client-facing features)
+### Dashboard
 
-## ✨ Key Features
+Overview of all active projects with KPI cards, activity feed, and quick actions. Four tabbed views:
 
-### Core Modules
+- **Project Overview** — multi-project summary with recent activity and quick actions
+- **Task Management** — expired/upcoming tasks, today's assignments
+- **Communications** — cross-project communication feed
+- **Financial Health** — budget tracking, cost analysis, margin monitoring
 
-- **📊 Dashboard**: Multi-tab interface with overview, tasks, communications, and financial health
-- **🔨 Unified Work Module**: Combined Projects and Tasks interface with segmented navigation
-- **📝 Project Logs**: Documentation with enhanced tag management and photo attachments
-- **📸 Photos**: Image documentation with unified gallery, filtering, and search
-- **📅 Schedule Changes**: Timeline and Calendar views for modifications
-- **🔔 PM Notifications**: Real-time notifications with deep linking
-- **👥 User Management**: Role-based access control (RBAC) with multi-tenant architecture
-- **🏢 Company Management**: Multi-company support with company-level isolation
-- **📊 Project Health**: Visual health scores, risk matrices, and dashboards
+### Projects & Tasks
 
-### Client Portal Module
+Unified work management at `/work` with a segmented Projects/Tasks view.
 
-- **Issues Reporting**: Tracking with photo uploads, priority, status, and comments
-- **Forum Messaging**: Project-level communication
-- **Material Lists**: Area-based material organization with cost calculations
-- **Payment System**: Payment schedules, installments, document uploads, and invoice generation
+- Project CRUD with status, budget, and progress tracking
+- Task assignment, priorities, due dates, and status updates
+- Visual project stages with drag-and-drop reordering
+- Inline task editing with auto-save
+- Overdue task detection and filtering
+- Project quick-view drawer
 
-### RBAC System
+### Client Portal
 
-Comprehensive three-tier role-based access control **fully implemented in FastAPI**:
-- **Root Admin**: System-wide access across all companies
-- **Company Admin**: Company-level administration with data isolation
-- **Regular Users**: 6 role templates (admin, project_manager, office_manager, subcontractor, client, crew)
-- **26 Permissions**: Granular permission system with integer-based IDs
-- **Row-Level Security**: Multi-tenant data isolation at database level
-- **API Endpoints**: All RBAC operations available at `/api/v1/rbac/*`
-- **Migration Status**: ✅ All RBAC operations migrated from Node.js to FastAPI (see [RBAC_MIGRATION_TO_FASTAPI.md](./RBAC_MIGRATION_TO_FASTAPI.md))
+A dedicated portal for construction clients (homeowners/business owners) with six tabbed modules:
 
-## 🛠️ Tech Stack
+| Tab | Features |
+|-----|----------|
+| **Stages** | Visual project timeline, stage templates, progress tracking, insert-between, drag-and-drop |
+| **Issues** | Ticket creation, comments, photo attachments, assignments, visibility control, full audit log |
+| **Forum** | Discussion threads, nested replies, thread pinning, file attachments |
+| **Materials** | Material areas (rooms/zones), item specs, vendor links, status tracking, templates, drag-and-drop |
+| **Payments** | Payment schedules, installment tracking, receipts, invoice attachments, due date management |
+| **Notifications** | PM notification preferences, event-based alerts, channel and cadence settings |
 
-### Frontend
-- **React 18** with TypeScript
-- **TanStack Query** for server state management
-- **Radix UI** + **shadcn/ui** for components
-- **Tailwind CSS** for styling
-- **Vite** for build tooling
-- **Wouter** for routing
+### Client Onboarding (Magic Link Auth)
 
-### Backend
-- **FastAPI** (Python 3.10+) - All API logic and business operations
-- **Uvicorn** ASGI server
-- **asyncpg** for PostgreSQL async operations
-- **Pydantic** for data validation and request/response models
-- **bcrypt** for password hashing
-- **Repository Pattern** for database operations
-- **RBAC System** - Complete role-based access control implementation
+Passwordless, white-labeled onboarding exclusively for client users. Admins invite clients in 30 seconds — clients authenticate via magic links, never needing a password. All other roles continue using password-based login.
 
-### Database
-- **PostgreSQL** (Neon or Cloud SQL)
-- **Drizzle ORM** for schema management
+- **Admin invite flow**: Name, email, phone, project, welcome note — branded email + SMS sent automatically
+- **Magic link verification**: SHA-256 hashed tokens, single-use, 72h invite / 15min login expiry
+- **White-labeled emails**: Contractor's logo, brand color, company name — "Proesphere" never appears
+- **Guided tour**: 4-step react-joyride walkthrough on first visit (Stages, Issues, Forum, Materials)
+- **Anti-enumeration**: `request-magic-link` always returns 200 regardless of email existence
+- **Rate limiting**: 3 requests/email/15min, 10 requests/IP/15min
+- **Company branding**: Admin-configurable logo, brand color, and email sender name
 
-### Infrastructure
-- **Google Cloud Storage** for photo storage
-- **Express.js** for frontend server (proxy only, no database operations)
-- **Express Sessions** for session-based authentication
-- **PostgreSQL** with automatic SSL detection (Neon/Cloud SQL)
+See [docs/client-onboarding.md](docs/client-onboarding.md) for the full technical walkthrough.
 
-## 📋 Prerequisites
+### RBAC Admin
 
-- **Node.js** (v18 or higher)
-- **Python** (3.10 or higher)
-- **PostgreSQL** database access (Neon or Cloud SQL)
-- **npm** or **yarn**
-- **pip** (Python package manager)
+Granular role-based access control with three-tier authorization:
 
-## 🚀 Quick Start
+- **6 role templates**: admin, project_manager, office_manager, crew, subcontractor, client
+- **26 granular permissions** across projects, tasks, RBAC, client portal, and more
+- **User management**: Create, edit, activate/deactivate users with role assignment
+- **Company management** (root admin): Multi-tenant company creation, subscription tiers, company settings
+- **Row-level security**: Multi-tenant data isolation at the database level via company_id filtering
 
-### 1. Clone the Repository
+### Project Health
+
+Health scoring and risk assessment dashboard:
+
+- Overall health score (0–100) with category breakdowns (schedule, budget, quality, resources)
+- Risk identification with impact/probability matrix and mitigation plans
+- Color-coded health cards per project
+
+### Schedule
+
+Four-view schedule management:
+
+- **Overview**: Schedule change requests with approval/rejection workflow
+- **Timeline**: Visual timeline of project milestones
+- **Gantt**: Gantt chart view across projects
+- **Calendar**: Monthly calendar with day-by-day task visualization
+
+### Photos
+
+GCS-backed photo gallery with tagging and organization:
+
+- Upload with signed URLs (PUT for upload, GET for preview, object path for storage)
+- Tag system, project filtering, and full-text search
+- Grid and list views with full-screen preview
+- Photos linked to daily log entries
+
+### Logs
+
+Project documentation with four log types:
+
+- **General**: Daily notes and observations
+- **Issue**: Problem documentation and tracking
+- **Milestone**: Achievement and phase completion records
+- **Safety**: Safety incidents and concerns
+
+Each log supports rich descriptions, multi-photo attachments, tags, and status tracking.
+
+### Agentic AI
+
+Natural language interface for project operations powered by a tool-based agent architecture:
+
+- **8+ agent tools**: Projects, tasks, stages, materials, issues, payments, and dynamic database queries
+- **Conversation persistence**: Multi-turn conversations with project context switching
+- **Real-time streaming**: Server-sent events (SSE) for live responses
+- **Tool execution feedback**: Visual indicators for each tool call in the chat UI
+- **Feedback system**: Thumbs up/down on agent responses for continuous improvement
+- **Confirmation workflows**: High-risk actions require explicit user approval
+
+### Notifications
+
+In-app notification system with bell icon, unread counts, and a full notification center. PM-specific notifications with configurable preferences (event types, channels, cadence).
+
+## Database
+
+Two PostgreSQL schemas handle data isolation between core business logic and client-facing features:
+
+**`public` schema** — companies, users, projects, tasks, photos, project_logs, roles, permissions, role_permissions, sessions, audit_logs
+
+**`client_portal` schema** — issues (+ comments, attachments, audit), forum (threads, messages, attachments), materials (items, areas, templates), payments (schedules, installments, invoices, receipts, documents), stages (+ templates), notifications (+ preferences), magic_link_tokens, client_invitations
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- Python 3.10+
+- PostgreSQL (Neon recommended)
+- Google Cloud Storage bucket (for photos)
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL_DEV` | Yes | Neon PostgreSQL connection string (development) |
+| `DATABASE_URL_PROD` | Yes | Neon PostgreSQL connection string (production) |
+| `DATABASE_URL` | Fallback | PostgreSQL connection string (fallback) |
+| `SESSION_SECRET` | Yes | Secret for session encryption |
+| `GCP_PROJECT_ID` | Yes | Google Cloud project ID |
+| `RESEND_API_KEY` | For email | Resend API key for transactional emails |
+| `RESEND_SENDER_DOMAIN` | No | Verified sender domain (default: `mail.proesphere.com`) |
+| `TWILIO_ACCOUNT_SID` | For SMS | Twilio account SID |
+| `TWILIO_AUTH_TOKEN` | For SMS | Twilio auth token |
+| `TWILIO_PHONE_NUMBER` | For SMS | Twilio sender phone number |
+| `MAGIC_LINK_BASE_URL` | Yes | Base URL for magic links (e.g., `https://yourapp.com`) |
+
+### Install Dependencies
 
 ```bash
-git clone <repository-url>
-cd project_management
-```
-
-### 2. Install Dependencies
-
-**Frontend (Node.js):**
-```bash
+# Frontend
 npm install
+
+# Backend
+cd python_backend && pip install -r requirements.txt
 ```
 
-**Backend (Python):**
-```bash
-cd python_backend
-pip install -r requirements.txt
-# Or with virtual environment:
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### 3. Configure Environment Variables
-
-Create a `.env` file in the project root:
-
-```bash
-# Database Configuration (Neon PostgreSQL)
-DATABASE_URL_DEV="postgresql://user:password@ep-xxx.neon.tech/dbname?sslmode=require"
-DATABASE_URL_PROD="postgresql://user:password@ep-yyy.neon.tech/dbname?sslmode=require"
-DATABASE_URL="postgresql://user:password@ep-xxx.neon.tech/dbname?sslmode=require"  # Fallback
-
-# Node.js Server Configuration
-PORT=5000
-NODE_ENV=development  # Use 'production' for prod database
-SESSION_SECRET="your-secret-key-here"  # Generate with: openssl rand -hex 32
-
-# Optional: Replit Auth (if using)
-# REPLIT_DOMAINS="your-domain.replit.app"
-# REPL_ID="your-repl-id"
-
-# Legacy: Cloud SQL SSL certificates (not needed for Neon)
-# DB_SSL_DIR="/path/to/ssl/certificates"
-```
-
-**Generate SESSION_SECRET:**
-```bash
-# Using Node.js
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-
-# Or using Python
-python -c "import secrets; print(secrets.token_hex(32))"
-
-# Or using openssl
-openssl rand -hex 32
-```
-
-### 4. Start the Application
-
-**Option A: Start Both Servers Together (Recommended)**
+### Start Both Servers
 
 ```bash
 ./start-servers.sh
 ```
 
-This script:
-- Starts Python backend on port 8000
-- Starts Node.js frontend on port 5000
-- Monitors both servers
-- Handles cleanup on exit
+The script starts both servers, monitors health, handles port conflicts, and provides colored console output.
 
-**Option B: Start Servers Independently**
+### Start Independently
 
-**Terminal 1 - Python Backend:**
 ```bash
-cd python_backend
-python3 main.py
-```
+# Terminal 1 — Python backend (port 8000)
+cd python_backend && python3 main.py
 
-**Terminal 2 - Node.js Frontend:**
-```bash
+# Terminal 2 — Node.js frontend + proxy (port 5000)
 npm run dev
 ```
 
-### 5. Access the Application
+### Access the Application
 
 - **Frontend**: http://localhost:5000
-- **Python API Docs**: http://localhost:8000/docs
-- **Python API Health**: http://localhost:8000/health
-- **Node.js Backend Status**: http://localhost:5000/api/backend-status
-
-## 🔧 Development Workflow
-
-### Auto-Reload
-
-Both servers support auto-reload during development:
-
-- **Python Backend**: Automatically restarts when Python files change (enabled by default)
-- **Node.js Frontend**: Hot-reloads via Vite in development mode
-- **React Components**: Hot module replacement for instant updates
-
-### Making Changes
-
-1. **Backend Changes**: Edit Python files in `python_backend/src/` - server auto-reloads
-2. **Frontend Changes**: Edit React components in `client/src/` - hot-reloads automatically
-3. **API Changes**: Update FastAPI routes in `python_backend/src/api/` - auto-reloads
-
-### Restarting Servers
-
-- **Node.js**: Usually auto-reloads, but restart with `Ctrl+C` and `npm run dev`
-- **Python**: Auto-reloads on file changes, or manually restart with `Ctrl+C` and `python3 main.py`
-
-## 📁 Project Structure
-
-```
-project_management/
-├── client/                    # React frontend application
-│   ├── src/
-│   │   ├── pages/            # Page components
-│   │   ├── components/       # Reusable components
-│   │   ├── hooks/            # Custom React hooks
-│   │   └── lib/              # Utilities and helpers
-│   └── public/               # Static assets
-│
-├── python_backend/           # Python FastAPI backend
-│   ├── src/
-│   │   ├── api/             # API route handlers
-│   │   │   ├── v1/         # Versioned API endpoints
-│   │   │   ├── auth.py     # Authentication
-│   │   │   ├── projects.py # Project endpoints
-│   │   │   ├── tasks.py    # Task endpoints
-│   │   │   └── ...
-│   │   ├── models/         # Pydantic models
-│   │   ├── database/       # Database layer
-│   │   │   ├── connection.py
-│   │   │   ├── repositories.py
-│   │   │   └── migrations/
-│   │   ├── core/           # Core configuration
-│   │   ├── middleware/     # Middleware
-│   │   ├── services/       # Business logic services
-│   │   └── utils/          # Utilities
-│   ├── main.py             # Application entry point
-│   └── requirements.txt    # Python dependencies
-│
-├── server/                  # Node.js Express server
-│   ├── index.ts            # Frontend server and API proxy
-│   ├── routes.ts           # Legacy routes (most migrated to FastAPI)
-│   └── storage.ts          # Legacy storage (RBAC operations removed)
-│
-├── shared/                  # Shared TypeScript types
-│   └── schema.ts           # Database schema types
-│
-├── start-servers.sh        # Script to start both servers
-├── start_python_backend.sh # Python backend starter
-├── package.json            # Node.js dependencies
-└── README.md              # This file
-```
-
-## 📡 API Documentation
-
-### Base URLs
-
-- **Development**: `http://localhost:8000`
-- **API Version**: `/api/v1`
-
-### Interactive API Docs
-
-FastAPI provides automatic OpenAPI documentation:
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
+- **Health check**: http://localhost:8000/health
 
-### Main API Endpoints
-
-#### Authentication
-- `POST /api/v1/auth/login` - User login
-- `POST /api/v1/auth/logout` - User logout
-- `GET /api/v1/auth/me` - Get current user
-
-#### Projects
-- `GET /api/v1/projects` - List projects
-- `POST /api/v1/projects` - Create project
-- `GET /api/v1/projects/{id}` - Get project
-- `PUT /api/v1/projects/{id}` - Update project
-- `DELETE /api/v1/projects/{id}` - Delete project
-
-#### Tasks
-- `GET /api/v1/tasks` - List tasks
-- `POST /api/v1/tasks` - Create task
-- `GET /api/v1/tasks/{id}` - Get task
-- `PUT /api/v1/tasks/{id}` - Update task
-- `PATCH /api/v1/tasks/{id}/assign` - Assign task to user
-- `DELETE /api/v1/tasks/{id}` - Delete task
-
-#### Users & RBAC
-- `GET /api/v1/users` - List users (admin only)
-- `GET /api/v1/users/managers` - Get managers for task assignment
-- `GET /api/v1/rbac/users` - List users with RBAC filtering
-- `POST /api/v1/rbac/users` - Create user (admin only)
-- `PATCH /api/v1/rbac/users/{id}` - Update user (admin only)
-- `DELETE /api/v1/rbac/users/{id}` - Delete user (admin only)
-- `GET /api/v1/rbac/roles` - List roles
-- `POST /api/v1/rbac/roles` - Create role (admin only)
-- `PATCH /api/v1/rbac/roles/{id}` - Update role (admin only)
-- `DELETE /api/v1/rbac/roles/{id}` - Delete role (admin only)
-- `GET /api/v1/rbac/permissions` - List all available permissions
-- `GET /api/v1/rbac/companies` - List companies (admin only)
-- `POST /api/v1/rbac/companies` - Create company (admin only)
-- `PATCH /api/v1/rbac/companies/{id}` - Update company (admin only)
-- `DELETE /api/v1/rbac/companies/{id}` - Delete company (root admin only)
-- `GET /api/v1/rbac/companies/{id}/users` - Get users for a company
-- `GET /api/v1/companies` - List companies (legacy endpoint)
-- `POST /api/v1/companies` - Create company (legacy endpoint)
-- `PATCH /api/v1/companies/{id}` - Update company (legacy endpoint)
-- `DELETE /api/v1/companies/{id}` - Delete company (legacy endpoint)
-
-#### Dashboard
-- `GET /api/v1/dashboard` - Dashboard overview
-- `GET /api/v1/dashboard/stats` - Dashboard statistics
-
-#### Photos
-- `GET /api/v1/photos` - List photos
-- `POST /api/v1/photos` - Upload photo
-- `DELETE /api/v1/photos/{id}` - Delete photo
-
-#### Project Logs
-- `GET /api/v1/logs` - List project logs
-- `POST /api/v1/logs` - Create log entry
-- `PATCH /api/v1/logs/{id}` - Update log entry
-- `DELETE /api/v1/logs/{id}` - Delete log entry
-
-## 🗄️ Database Configuration
-
-The system uses **Neon PostgreSQL** for both development and production:
-
-### Neon (Primary - Both Environments)
-```bash
-# Development
-export DATABASE_URL_DEV="postgresql://user:password@ep-xxx.neon.tech/dbname?sslmode=require"
-
-# Production (Replit)
-export DATABASE_URL_PROD="postgresql://user:password@ep-yyy.neon.tech/dbname?sslmode=require"
-
-# Fallback
-export DATABASE_URL="postgresql://user:password@xxx.neon.tech/dbname?sslmode=require"
-```
-- Simple SSL connection (`sslmode=require`)
-- No certificate files needed
-- Automatically detected from `neon.tech` in URL
-
-### Database Schemas
-
-| Schema | Purpose |
-|--------|---------|
-| `public` | Core business logic (users, projects, tasks, RBAC) |
-| `client_portal` | Client-facing features (issues, forum, materials, payments, stages) |
-
-### Legacy: Cloud SQL (Optional)
-```bash
-export DATABASE_URL="postgresql://user:password@PUBLIC_IP:5432/dbname"
-export DB_SSL_DIR="/path/to/ssl/certificates"
-```
-- Full SSL certificate authentication (legacy, not actively used)
-
-See [DATABASE_CONFIGURATION.md](./DATABASE_CONFIGURATION.md) for detailed configuration.
-
-## 🧪 Testing
-
-### Test Database Connection
-
-**Python Backend:**
-```bash
-cd python_backend
-python test_db_connection.py
-```
-
-**Node.js Server:**
-```bash
-npm run test:db
-```
-
-### Run API Tests
+## Other Commands
 
 ```bash
-# Comprehensive Python test suite
-python test_api_endpoints.py
+npm run build          # Build frontend for production
+npm run check          # TypeScript type checking
 
-# RBAC Migration Test (verifies all RBAC endpoints in FastAPI)
-python test_rbac_fastapi_migration.py
-
-# Simple bash test (requires browser login first)
-chmod +x simple_test_endpoints.sh
-./simple_test_endpoints.sh
+# Python tests
+cd python_backend && python3 -m pytest tests/ -v
 ```
 
-### Test Endpoints
+## Project Structure
 
-1. **Health Check**: `curl http://localhost:8000/health`
-2. **Backend Status**: `curl http://localhost:5000/api/backend-status`
-3. **RBAC Roles**: `curl http://localhost:8000/api/v1/rbac/roles` (requires auth)
-4. **RBAC Permissions**: `curl http://localhost:8000/api/v1/rbac/permissions` (requires auth)
-
-## 🚢 Deployment
-
-### Production Considerations
-
-1. **Disable Auto-Reload**: Set `reload=False` in production
-2. **Environment Variables**: Use secure secret management
-3. **Database**: Use Neon or managed PostgreSQL
-4. **SSL**: Configure proper SSL certificates
-5. **Process Management**: Use PM2, systemd, or Docker
-
-### Using PM2
-
-**Backend:**
-```bash
-pm2 start python_backend/main.py --name backend --interpreter python3
+```
+├── client/                     # React frontend
+│   └── src/
+│       ├── pages/              # Page components (dashboard, work, photos, logs, etc.)
+│       ├── components/         # Reusable UI components
+│       │   ├── client-portal/  # Client portal tabs (issues, forum, materials, etc.)
+│       │   ├── onboarding/     # Invite dialog, guided tour, company branding
+│       │   ├── rbac/           # RBAC admin components
+│       │   ├── dashboard/      # Dashboard widgets
+│       │   ├── agent/          # AI chat interface
+│       │   └── ui/             # shadcn base components
+│       ├── hooks/              # Custom hooks (useAuth, etc.)
+│       └── lib/                # Utilities (queryClient, etc.)
+├── python_backend/             # FastAPI backend
+│   └── src/
+│       ├── api/                # API endpoints
+│       │   └── v1/             # Versioned routes
+│       ├── agent/              # Agentic AI (orchestrator, tools, context)
+│       ├── services/           # Email, SMS, magic link services
+│       ├── models/             # Pydantic request/response models
+│       ├── database/           # Connection pool, repositories, migrations
+│       ├── middleware/          # Security, CSRF, rate limiting
+│       └── core/               # Settings and configuration
+├── server/                     # Express proxy (no business logic)
+├── docs/                       # Documentation and PRDs
+└── start-servers.sh            # Combined server startup script
 ```
 
-**Frontend:**
-```bash
-pm2 start npm --name frontend -- run start
-```
+## Documentation
 
-### Using Docker
+| Document | Description |
+|----------|-------------|
+| [CLAUDE.md](CLAUDE.md) | Architecture rules, coding standards, and development reference |
+| [docs/client-onboarding.md](docs/client-onboarding.md) | Magic link onboarding technical walkthrough |
+| [docs/prds/onboarding.md](docs/prds/onboarding.md) | Client onboarding PRD |
+| [docs/prds/Proesphere_Agentic_AI_PRD.md](docs/prds/Proesphere_Agentic_AI_PRD.md) | Agentic AI specification |
 
-See deployment documentation for Docker setup.
+## Security
 
-## 🐛 Troubleshooting
+- **Session-based auth**: PostgreSQL-backed sessions with bcrypt password hashing
+- **Magic link auth**: SHA-256 hash-only storage, single-use tokens, expiry enforcement
+- **RBAC**: 26 granular permissions with row-level multi-tenant isolation
+- **CSRF protection**: Token-based CSRF with exemptions for public endpoints
+- **Rate limiting**: Per-endpoint rate limiting on sensitive operations
+- **Anti-enumeration**: Magic link requests return identical responses regardless of email existence
+- **Company isolation**: All queries scoped by company_id — no cross-tenant data access
+
+## Troubleshooting
 
 ### Port Already in Use
 
 ```bash
-# Check what's using the port
-lsof -i :5000
-lsof -i :8000
-
-# Kill process on port
-lsof -ti:5000 | xargs kill
-lsof -ti:8000 | xargs kill
+lsof -i :5000    # Check port 5000
+lsof -i :8000    # Check port 8000
+lsof -ti:5000 | xargs kill   # Free port 5000
+lsof -ti:8000 | xargs kill   # Free port 8000
 ```
 
 ### Database Connection Fails
 
-1. Verify `DATABASE_URL` is correct
-2. Check SSL certificates exist (for Cloud SQL)
-3. Ensure database allows connections from your IP
-4. Test connections separately:
-   ```bash
-   npm run test:db
-   cd python_backend && python test_db_connection.py
-   ```
+1. Verify `DATABASE_URL_DEV` or `DATABASE_URL_PROD` is set correctly
+2. Test Python connection: `cd python_backend && python test_db_connection.py`
+3. Test Node connection: `npm run test:db`
+4. Ensure the database allows connections from your IP
 
 ### Python Backend Not Starting
 
-1. Check Python version: `python3 --version` (should be 3.10+)
-2. Verify dependencies: `pip list`
-3. Check for import errors in logs
-4. Ensure you're in the `python_backend` directory
-
-### Node.js Server Not Starting
-
-1. Check Node version: `node --version` (should be 18+)
-2. Verify dependencies: `npm list`
-3. Check TypeScript errors: `npm run check`
-4. Ensure `SESSION_SECRET` is set
+1. Check Python version: `python3 --version` (must be 3.10+)
+2. Verify dependencies: `pip install -r python_backend/requirements.txt`
+3. Check for import errors in the console output
 
 ### Frontend Not Loading
 
 1. Check browser console for errors
 2. Verify both servers are running
-3. Check CORS settings
-4. Clear browser cache
-
-## 📚 Additional Documentation
-
-- [Local Setup Guide](./LOCAL_SETUP.md) - Detailed local development setup
-- [Database Configuration](./DATABASE_CONFIGURATION.md) - Database setup details
-- [Independent Servers](./INDEPENDENT_SERVERS.md) - Architecture details
-- [Testing Guide](./TESTING_GUIDE.md) - Testing procedures
-- [Setup Checklist](./SETUP_CHECKLIST.md) - Pre-deployment checklist
-- [RBAC Migration to FastAPI](./RBAC_MIGRATION_TO_FASTAPI.md) - Complete RBAC migration documentation
-
-## 🔐 Security
-
-- **Authentication**: Session-based with bcrypt password hashing
-- **RBAC**: Role-based access control with row-level security (fully implemented in FastAPI)
-- **Multi-Tenant**: Company-level data isolation enforced at API and database levels
-- **CORS**: Configured for development and production
-- **SSL**: Required for database connections (automatic detection for Neon/Cloud SQL)
-- **Secrets**: Environment variables for sensitive data
-- **Authorization**: All RBAC operations require admin privileges with company scoping
-
-## 📝 Environment Variables Reference
-
-| Variable | Required | Description | Default |
-|----------|----------|-------------|---------|
-| `DATABASE_URL_DEV` | ✅ Dev | Neon PostgreSQL for development | - |
-| `DATABASE_URL_PROD` | ✅ Prod | Neon PostgreSQL for production (Replit) | - |
-| `DATABASE_URL` | Fallback | PostgreSQL connection string (fallback) | - |
-| `DB_SSL_DIR` | Legacy | Directory with SSL certificates (Cloud SQL) | - |
-| `DB_SSL_ROOT_CERT` | Legacy | Path to server-ca.pem (Cloud SQL) | - |
-| `DB_SSL_CERT` | Legacy | Path to client-cert.pem (Cloud SQL) | - |
-| `DB_SSL_KEY` | Legacy | Path to client-key.pem (Cloud SQL) | - |
-| `PORT` | No | Node.js server port | 5000 |
-| `NODE_ENV` | No | Environment mode (selects DEV/PROD URL) | development |
-| `SESSION_SECRET` | ✅ Yes | Secret for session encryption | - |
-| `REPLIT_DOMAINS` | Optional | Comma-separated domains for Replit auth | - |
-| `REPL_ID` | Optional | Replit ID for OIDC | - |
-
-## 🎯 Post-Launch Backlog
-
-- Calendar / Gantt view
-- File uploads (enhanced)
-- Summary of the day
-- Email with daily tasks
-- Mobile app
-- Advanced reporting
-- Integration with external tools
-
-## 📄 License
-
-See [LICENSE](./LICENSE) file for details.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📞 Support
-
-For issues and questions:
-1. Check the troubleshooting section
-2. Review server logs
-3. Check documentation files
-4. Open an issue on the repository
-
----
-
-**Built with ❤️ for the construction industry**
+3. Clear browser cache and retry

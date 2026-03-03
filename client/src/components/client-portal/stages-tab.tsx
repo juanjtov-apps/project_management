@@ -34,6 +34,7 @@ interface ProjectStage {
 
 interface StagesTabProps {
   projectId: string;
+  onNavigateToMaterials?: (stageId: string) => void;
 }
 
 const statusConfig = {
@@ -60,7 +61,7 @@ const statusConfig = {
   },
 };
 
-export function StagesTab({ projectId }: StagesTabProps) {
+export function StagesTab({ projectId, onNavigateToMaterials }: StagesTabProps) {
   // Fetch stages (API automatically filters to visible-only for clients)
   const { data: stages = [], isLoading } = useQuery<ProjectStage[]>({
     queryKey: [`/api/v1/stages?projectId=${projectId}`],
@@ -225,12 +226,20 @@ export function StagesTab({ projectId }: StagesTabProps) {
             )}
 
             {upcomingMaterialsDue && (
-              <div className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <Package className="h-4 w-4 text-rose-400" />
-                  <span className="text-sm font-medium text-rose-400">
-                    Materials Due Soon
-                  </span>
+              <div
+                className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/20 hover:border-rose-500/40 transition-colors cursor-pointer group/materials"
+                onClick={() => onNavigateToMaterials?.(upcomingMaterialsDue.id)}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-rose-400" />
+                    <span className="text-sm font-medium text-rose-400">
+                      Materials Due Soon
+                    </span>
+                  </div>
+                  {onNavigateToMaterials && (
+                    <ChevronRight className="h-4 w-4 text-rose-400/50 group-hover/materials:text-rose-400 transition-colors" />
+                  )}
                 </div>
                 <p className="text-white font-semibold">
                   {upcomingMaterialsDue.name}
@@ -344,13 +353,14 @@ export function StagesTab({ projectId }: StagesTabProps) {
                           {/* Materials Due Alert */}
                           {stage.finishMaterialsDueDate && !isComplete && (
                             <div
-                              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
+                              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                                 isMaterialsOverdue
-                                  ? "bg-red-500/10 border border-red-500/20 text-red-400"
+                                  ? "bg-red-500/10 border border-red-500/20 text-red-400 hover:border-red-500/40"
                                   : isMaterialsSoon
-                                    ? "bg-amber-500/10 border border-amber-500/20 text-amber-400"
-                                    : "bg-zinc-800/50 border border-zinc-700 text-zinc-400"
-                              }`}
+                                    ? "bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:border-amber-500/40"
+                                    : "bg-zinc-800/50 border border-zinc-700 text-zinc-400 hover:border-zinc-600"
+                              } ${onNavigateToMaterials ? "cursor-pointer" : ""}`}
+                              onClick={() => onNavigateToMaterials?.(stage.id)}
                             >
                               {isMaterialsOverdue ? (
                                 <AlertTriangle className="h-4 w-4" />
@@ -385,6 +395,9 @@ export function StagesTab({ projectId }: StagesTabProps) {
                                     </span>
                                   )}
                               </span>
+                              {onNavigateToMaterials && (
+                                <ChevronRight className="h-4 w-4 shrink-0 opacity-50" />
+                              )}
                             </div>
                           )}
 

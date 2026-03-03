@@ -26,7 +26,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPhotoSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { DeferredObjectUploader, type DeferredObjectUploaderRef } from "@/components/DeferredObjectUploader";
+import { useAuth } from "@/hooks/useAuth";
+import { ObjectUploader, type ObjectUploaderRef } from "@/components/ObjectUploader";
 import type { Photo, Project, ProjectLog } from "@shared/schema";
 
 interface PhotoUploadData {
@@ -43,14 +44,13 @@ export default function Photos() {
   const [selectedTag, setSelectedTag] = useState("all");
   const [selectedLog, setSelectedLog] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const uploaderRef = useRef<DeferredObjectUploaderRef>(null);
+  const uploaderRef = useRef<ObjectUploaderRef>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: photos = [], isLoading: photosLoading } = useQuery<Photo[]>({
     queryKey: ["/api/photos"],
-    staleTime: 0, // Always refetch to get latest photos and tags
-    gcTime: 0, // Don't cache to ensure fresh data (gcTime replaces cacheTime in v5)
   });
 
   const { data: projects = [] } = useQuery<Project[]>({
@@ -65,17 +65,12 @@ export default function Photos() {
   const uniqueTags = useMemo(() => {
     const tagSet = new Set<string>();
 
-    console.log('📸 Processing photos for tags:', photos.length);
     photos.forEach(photo => {
       if (photo.tags) {
-        console.log(`📸 Photo ${photo.id} has tags:`, photo.tags);
         photo.tags.forEach(tag => tagSet.add(tag));
       }
     });
-    const allTags = Array.from(tagSet).sort();
-    console.log('📸 All unique tags found:', allTags);
-    return allTags;
-
+    return Array.from(tagSet).sort();
   }, [photos]);
 
   // Get logs that have images
@@ -171,7 +166,7 @@ export default function Photos() {
         
         const photoData = {
           projectId: data.formData.projectId,
-          userId: "sample-user-id", // In a real app, this would come from auth
+          userId: (user as any)?.id || "unknown",
           filename: uuid,
           originalName: uuid,
           description: data.formData.description,
@@ -186,7 +181,6 @@ export default function Photos() {
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       setIsUploadDialogOpen(false);
-      uploaderRef.current?.clearFiles();
       form.reset();
       toast({
         title: "Success",
@@ -241,7 +235,7 @@ export default function Photos() {
 
     try {
       // Upload files using deferred uploader
-      const uploadedUrls = await uploaderRef.current?.uploadFiles() || [];
+      const uploadedUrls = await uploaderRef.current?.uploadSelectedFiles() || [];
       
       if (uploadedUrls.length === 0) {
         toast({
@@ -397,19 +391,20 @@ export default function Photos() {
                   
                   <div className="space-y-3">
                     <FormLabel>Select Photos</FormLabel>
-                    <DeferredObjectUploader
+                    <ObjectUploader
                       ref={uploaderRef}
+                      deferUpload={true}
                       maxNumberOfFiles={10}
                       maxFileSize={10485760} // 10MB
                       onGetUploadParameters={handleGetUploadParameters}
-                      buttonClassName="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 border-2 border-dashed border-gray-300 py-8"
+                      buttonClassName="w-full bg-[#1F242C] hover:bg-[#2D333B] text-[#9CA3AF] border-2 border-dashed border-[#2D333B] hover:border-[#4ADE80]/40 py-8 transition-colors duration-200"
                     >
                       <div className="flex flex-col items-center gap-2">
-                        <Upload size={24} />
-                        <span>Select Photos</span>
-                        <span className="text-xs">Up to 10 photos, max 10MB each</span>
+                        <Upload size={24} className="text-[#4ADE80]" />
+                        <span className="font-medium text-[#C9D1D9]">Select Photos</span>
+                        <span className="text-xs text-[#6B7280]">Up to 10 photos, max 10MB each</span>
                       </div>
-                    </DeferredObjectUploader>
+                    </ObjectUploader>
                   </div>
                   
                   <div className="flex gap-3">

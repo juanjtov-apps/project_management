@@ -57,6 +57,16 @@ class StageTemplate(StageTemplateBase):
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
 
 
+# Inline Material Models (for manual stage creation)
+class InlineMaterialItem(BaseModel):
+    """Material item to create alongside a stage."""
+    name: str = Field(..., min_length=1)
+    area_name: Optional[str] = Field(default=None, alias="areaName")
+    spec: Optional[str] = None
+
+    model_config = {"populate_by_name": True, "from_attributes": True}
+
+
 # Project Stage Models
 class ProjectStageBase(BaseModel):
     """Base model for project stages."""
@@ -76,6 +86,7 @@ class ProjectStageBase(BaseModel):
 class ProjectStageCreate(ProjectStageBase):
     """Model for creating a project stage."""
     project_id: str = Field(alias="projectId")
+    materials: Optional[List[InlineMaterialItem]] = None
 
 
 class ProjectStageUpdate(BaseModel):
@@ -89,6 +100,7 @@ class ProjectStageUpdate(BaseModel):
     finish_materials_note: Optional[str] = Field(default=None, alias="finishMaterialsNote")
     material_area_id: Optional[str] = Field(default=None, alias="materialAreaId")
     client_visible: Optional[bool] = Field(default=None, alias="clientVisible")
+    materials: Optional[List[InlineMaterialItem]] = None
 
     model_config = {"populate_by_name": True, "from_attributes": True}
 
@@ -115,5 +127,13 @@ class ApplyTemplateRequest(BaseModel):
 class ReorderStagesRequest(BaseModel):
     """Request model for reordering stages."""
     stage_ids: List[str] = Field(alias="stageIds")
+
+    model_config = {"populate_by_name": True, "from_attributes": True}
+
+
+class ShiftDatesRequest(BaseModel):
+    """Request model for shifting dates of subsequent stages."""
+    after_order_index: int = Field(alias="afterOrderIndex")
+    delta_days: int = Field(alias="deltaDays")
 
     model_config = {"populate_by_name": True, "from_attributes": True}

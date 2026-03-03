@@ -4,12 +4,32 @@ Contains all authentication, user management, and company filtering functionalit
 """
 
 import uuid
+import asyncpg
 import bcrypt
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
-from .connection import db_manager
+from typing import List, Optional, Dict, Any, Tuple
+from .connection import db_manager, get_db_pool
 from ..models.user import User
 from ..utils.data_conversion import to_camel_case, to_snake_case
+
+# Module-level caches for information_schema introspection results.
+# The database schema is stable at runtime, so these are populated once
+# on first access and reused for all subsequent calls.
+
+# Cache for AuthRepository._get_roles_column_info() -> (has_role_name, has_name, has_display_name, role_name_col)
+_roles_column_info_cache: Optional[Tuple[bool, bool, bool, Optional[str]]] = None
+
+# Cache for AuthRepository._has_assigned_project_column() -> bool
+_has_assigned_project_cache: Optional[bool] = None
+
+# Cache for users table column names (used in get_users / get_company_users for legacy role check)
+_users_column_names_cache: Optional[List[str]] = None
+
+# Cache for roles table full column list (used by RoleRepository)
+_roles_table_columns_cache: Optional[List[str]] = None
+
+# Cache for roles table existence check (used by RoleRepository.get_roles)
+_roles_table_exists_cache: Optional[bool] = None
 
 
 class AuthRepository:
@@ -92,12 +112,18 @@ class AuthRepository:
             return self._convert_to_camel_case(user_data)
         return None
     
-    async def _get_roles_column_info(self) -> tuple:
+    async def _get_roles_column_info(self) -> Tuple[bool, bool, bool, Optional[str]]:
         """Get information about which columns exist in the roles table.
-        
+
+        Results are cached at module level since the schema is stable at runtime.
+
         Returns:
             tuple: (has_role_name, has_name, has_display_name, role_name_col)
         """
+        global _roles_column_info_cache
+        if _roles_column_info_cache is not None:
+            return _roles_column_info_cache
+
         columns_query = """
             SELECT column_name
             FROM information_schema.columns
@@ -105,46 +131,62 @@ class AuthRepository:
         """
         columns_result = await db_manager.execute_query(columns_query)
         column_names = [col['column_name'] for col in columns_result] if columns_result else []
-        
+
         has_role_name = 'role_name' in column_names
         has_name = 'name' in column_names
         has_display_name = 'display_name' in column_names
-        
+
         # Determine which column to use for role name
         role_name_col = 'role_name' if has_role_name else 'name' if has_name else None
-        
-        return has_role_name, has_name, has_display_name, role_name_col
+
+        _roles_column_info_cache = (has_role_name, has_name, has_display_name, role_name_col)
+        return _roles_column_info_cache
 
     async def _has_assigned_project_column(self) -> bool:
         """Check if users table has assigned_project_id column.
 
+        Results are cached at module level since the schema is stable at runtime.
         This allows backwards compatibility when the column hasn't been added yet.
         """
+        global _has_assigned_project_cache
+        if _has_assigned_project_cache is not None:
+            return _has_assigned_project_cache
+
         columns_query = """
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = 'users' AND column_name = 'assigned_project_id'
         """
         result = await db_manager.execute_query(columns_query)
-        return len(result) > 0
+        _has_assigned_project_cache = len(result) > 0
+        return _has_assigned_project_cache
 
-    async def get_users(self) -> List[Dict[str, Any]]:
-        """Get all users (without passwords)."""
-        # Dynamically detect roles table schema to handle both 'role_name' and 'name' columns
-        has_role_name, has_name, has_display_name, role_name_col = await self._get_roles_column_info()
+    async def _get_users_column_names(self) -> List[str]:
+        """Get column names for the users table.
 
-        print(f"[DEBUG get_users] Role column info: has_role_name={has_role_name}, has_name={has_name}, has_display_name={has_display_name}, role_name_col={role_name_col}")
+        Results are cached at module level since the schema is stable at runtime.
+        """
+        global _users_column_names_cache
+        if _users_column_names_cache is not None:
+            return _users_column_names_cache
 
-        # Also check if users table has a legacy 'role' text column
         users_columns_query = """
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = 'users'
         """
         users_columns_result = await db_manager.execute_query(users_columns_query)
-        users_column_names = [col['column_name'] for col in users_columns_result] if users_columns_result else []
+        _users_column_names_cache = [col['column_name'] for col in users_columns_result] if users_columns_result else []
+        return _users_column_names_cache
+
+    async def get_users(self) -> List[Dict[str, Any]]:
+        """Get all users (without passwords)."""
+        # Dynamically detect roles table schema to handle both 'role_name' and 'name' columns
+        has_role_name, has_name, has_display_name, role_name_col = await self._get_roles_column_info()
+
+        # Also check if users table has a legacy 'role' text column
+        users_column_names = await self._get_users_column_names()
         has_legacy_role = 'role' in users_column_names
-        print(f"[DEBUG get_users] Users table has legacy 'role' column: {has_legacy_role}")
 
         # Check if assigned_project_id column exists (backwards compatibility)
         has_assigned_project = await self._has_assigned_project_column()
@@ -196,17 +238,11 @@ class AuthRepository:
                 ORDER BY u.first_name, u.last_name
             """
         
-        print(f"[DEBUG get_users] Executing query...")
         rows = await db_manager.execute_query(query)
-        print(f"[DEBUG get_users] Got {len(rows)} rows")
-        
+
         users = []
         for i, row in enumerate(rows):
             user_data = dict(row)
-            
-            # Debug: Print first 3 users' raw data
-            if i < 3:
-                print(f"[DEBUG get_users] Raw user {i+1}: email={user_data.get('email')}, role_id={user_data.get('role_id')}, role_name={user_data.get('role_name')}, company_id={user_data.get('company_id')}, company_name={user_data.get('company_name')}")
 
             # Convert company_id to companyId for frontend compatibility
             if 'company_id' in user_data:
@@ -235,13 +271,9 @@ class AuthRepository:
                 # Fallback to legacy role column from users table
                 user_data['role'] = legacy_role
                 user_data['role_name'] = legacy_role
-                if i < 3:
-                    print(f"[DEBUG get_users] Using legacy_role for user {user_data.get('email')}: {legacy_role}")
             else:
-                # No role info at all
-                if i < 3:
-                    print(f"[DEBUG get_users] WARNING: No role_name or legacy_role for user {user_data.get('email')}")
-            
+                pass  # No role info available
+
             # Add roleId for frontend (primary identifier)
             if 'role_id' in user_data:
                 user_data['roleId'] = user_data['role_id']
@@ -251,11 +283,6 @@ class AuthRepository:
                 del user_data['legacy_role']
             
             final_user = self._convert_to_camel_case(user_data)
-            
-            # Debug: Print converted data for first 3 users
-            if i < 3:
-                print(f"[DEBUG get_users] Converted user {i+1}: role={final_user.get('role')}, roleName={final_user.get('roleName')}")
-            
             users.append(final_user)
         return users
     
@@ -264,16 +291,8 @@ class AuthRepository:
         # Dynamically detect roles table schema to handle both 'role_name' and 'name' columns
         has_role_name, has_name, has_display_name, role_name_col = await self._get_roles_column_info()
 
-        print(f"[DEBUG get_company_users] company_id={company_id}, role_name_col={role_name_col}")
-
-        # Also check if users table has a legacy 'role' text column
-        users_columns_query = """
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name = 'users'
-        """
-        users_columns_result = await db_manager.execute_query(users_columns_query)
-        users_column_names = [col['column_name'] for col in users_columns_result] if users_columns_result else []
+        # Also check if users table has a legacy 'role' text column (cached)
+        users_column_names = await self._get_users_column_names()
         has_legacy_role = 'role' in users_column_names
 
         # Check if assigned_project_id column exists (backwards compatibility)
@@ -326,15 +345,10 @@ class AuthRepository:
             """
         
         rows = await db_manager.execute_query(query, company_id)
-        print(f"[DEBUG get_company_users] Got {len(rows)} rows")
-        
+
         users = []
         for i, row in enumerate(rows):
             user_data = dict(row)
-            
-            # Debug first 3 users
-            if i < 3:
-                print(f"[DEBUG get_company_users] Raw user {i+1}: email={user_data.get('email')}, company_id={user_data.get('company_id')}, company_name={user_data.get('company_name')}")
 
             # Convert company_id to companyId for frontend compatibility
             if 'company_id' in user_data:
@@ -392,9 +406,7 @@ class AuthRepository:
             role_id = int(role_id)
         except (ValueError, TypeError):
             raise ValueError(f"role_id must be a valid integer, got: {role_id}")
-        
-        print(f"[DEBUG create_rbac_user] role_id={role_id}, type={type(role_id)}")
-        
+
         # Validate role_id exists in database (cast to text for comparison)
         role_exists = await db_manager.execute_one(
             "SELECT id FROM roles WHERE id::text = $1::text",
@@ -418,7 +430,7 @@ class AuthRepository:
             password_bytes = data['password'].encode('utf-8')
             password_hash = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
         
-        if not password_hash:
+        if not password_hash and role_id != 4:  # Client role (4) uses magic link, no password
             raise ValueError("Password is required for user creation")
         
         # Get first_name and last_name
@@ -460,8 +472,6 @@ class AuthRepository:
             )
             if existing_root:
                 raise ValueError("A root user already exists. Only ONE root user is allowed.")
-        
-        print(f"[DEBUG create_rbac_user] Inserting user: id={user_id}, email={email}, role_id={role_id}, company_id={company_id}, is_root={is_root}")
 
         if has_assigned_project_col:
             query = f"""
@@ -483,11 +493,7 @@ class AuthRepository:
 
         try:
             row = await db_manager.execute_one(query, *query_params)
-            print(f"[DEBUG create_rbac_user] User created successfully: {dict(row) if row else 'No row returned'}")
         except Exception as e:
-            print(f"[ERROR create_rbac_user] Error inserting user into database: {e}")
-            import traceback
-            traceback.print_exc()
             raise
         
         # Fetch user with role information
@@ -609,11 +615,17 @@ class AuthRepository:
         try:
             # First, unassign tasks assigned to this user
             await db_manager.execute("UPDATE tasks SET assignee_id = NULL WHERE assignee_id = $1", user_id)
-            
+
             # Then delete the user
             result = await db_manager.execute(f"DELETE FROM {self.table_name} WHERE id = $1", user_id)
             return "DELETE 1" in result
         except Exception as e:
+            code = getattr(e, 'sqlstate', None)
+            if code == '23503':  # foreign_key_violation
+                raise ValueError(
+                    "This user has associated records (issues, posts, comments, etc.) and cannot be deleted. "
+                    "Deactivate the user instead, or contact your administrator."
+                )
             print(f"Error deleting user {user_id}: {e}")
             return False
     
@@ -712,9 +724,164 @@ class CompanyRepository:
         return None
     
     async def delete_company(self, company_id: str) -> bool:
-        """Delete a company."""
-        result = await db_manager.execute(f"DELETE FROM {self.table_name} WHERE id = $1", company_id)
-        return "DELETE 1" in result
+        """Delete a company and all related records in proper FK dependency order.
+
+        Uses safe_delete for every table since migrations may not have run and
+        tables/columns may not exist.  Error codes caught:
+          42P01 = undefined_table, 42703 = undefined_column, 42P07 = duplicate_table
+        """
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                async def safe_delete(query: str, *args):
+                    try:
+                        await conn.execute(query, *args)
+                    except Exception as e:
+                        code = getattr(e, 'sqlstate', None) or getattr(e, 'code', None)
+                        if code in ('42P01', '42703', '42P07'):
+                            pass  # table or column doesn't exist — skip
+                        else:
+                            raise
+
+                # Collect IDs for subquery-based deletes
+                project_ids = [r['id'] for r in await conn.fetch(
+                    "SELECT id FROM projects WHERE company_id = $1", company_id
+                )]
+                user_ids = [r['id'] for r in await conn.fetch(
+                    "SELECT id FROM users WHERE company_id = $1", company_id
+                )]
+
+                if project_ids:
+                    # --- client_portal: deepest leaf tables first ---
+                    # Issues (comments/attachments CASCADE from issues)
+                    await safe_delete(
+                        "DELETE FROM client_portal.issue_comments WHERE issue_id IN "
+                        "(SELECT id FROM client_portal.issues WHERE project_id = ANY($1))", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.issue_attachments WHERE issue_id IN "
+                        "(SELECT id FROM client_portal.issues WHERE project_id = ANY($1))", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.issue_audit_log WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.issues WHERE project_id = ANY($1)", project_ids)
+
+                    # Forum (messages/attachments CASCADE from threads)
+                    await safe_delete(
+                        "DELETE FROM client_portal.forum_attachments WHERE message_id IN "
+                        "(SELECT id FROM client_portal.forum_messages WHERE thread_id IN "
+                        "(SELECT id FROM client_portal.forum_threads WHERE project_id = ANY($1)))", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.forum_messages WHERE thread_id IN "
+                        "(SELECT id FROM client_portal.forum_threads WHERE project_id = ANY($1))", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.forum_threads WHERE project_id = ANY($1)", project_ids)
+
+                    # Materials (items CASCADE from areas)
+                    await safe_delete(
+                        "DELETE FROM client_portal.material_items WHERE area_id IN "
+                        "(SELECT id FROM client_portal.material_areas WHERE project_id = ANY($1))", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.material_areas WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.materials WHERE project_id = ANY($1)", project_ids)
+
+                    # Payments — RESTRICT FKs require correct leaf-first order
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_events WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_receipts WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.invoices WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_documents WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_installments WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.payment_schedules WHERE project_id = ANY($1)", project_ids)
+
+                    # Legacy installments (files CASCADE from installments)
+                    await safe_delete(
+                        "DELETE FROM client_portal.installment_files WHERE installment_id IN "
+                        "(SELECT id FROM client_portal.installments WHERE project_id = ANY($1))", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.installments WHERE project_id = ANY($1)", project_ids)
+
+                    # Stages
+                    await safe_delete(
+                        "DELETE FROM client_portal.project_stages WHERE project_id = ANY($1)", project_ids)
+
+                    # Notifications (project-scoped)
+                    await safe_delete(
+                        "DELETE FROM client_portal.notification_settings WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.notifications WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.pm_notifications WHERE project_id = ANY($1)", project_ids)
+
+                    # Client invitations (project-scoped)
+                    await safe_delete(
+                        "DELETE FROM client_portal.client_invitations WHERE project_id = ANY($1)", project_ids)
+
+                    # --- Public schema: project-scoped tables with NO ACTION FKs ---
+                    await safe_delete("DELETE FROM schedule_changes WHERE task_id IN (SELECT id FROM tasks WHERE project_id = ANY($1))", project_ids)
+                    await safe_delete("DELETE FROM time_entries WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM change_orders WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM communications WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM subcontractor_assignments WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM invoices WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM photos WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM project_logs WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM project_health_metrics WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM risk_assessments WHERE project_id = ANY($1)", project_ids)
+                    # Legacy client_* tables
+                    await safe_delete("DELETE FROM client_notification_settings WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM client_issues WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM client_materials WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM client_forum_messages WHERE project_id = ANY($1)", project_ids)
+                    await safe_delete("DELETE FROM client_installments WHERE project_id = ANY($1)", project_ids)
+
+                if user_ids:
+                    # User-scoped client_portal tables
+                    await safe_delete(
+                        "DELETE FROM client_portal.magic_link_tokens WHERE user_id = ANY($1)", user_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.client_invitations WHERE user_id = ANY($1)", user_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.pm_notifications WHERE recipient_user_id = ANY($1)", user_ids)
+                    await safe_delete(
+                        "DELETE FROM client_portal.pm_notification_prefs WHERE recipient_user_id = ANY($1)", user_ids)
+                    # Public user-scoped tables with NO ACTION FKs
+                    await safe_delete("DELETE FROM notifications WHERE user_id = ANY($1)", user_ids)
+
+                # --- Agent schema (CASCADE from conversations handles messages/tool_calls/etc.) ---
+                await safe_delete("DELETE FROM agent.feedback WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM agent.metrics WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM agent.scheduled_jobs WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM agent.conversations WHERE company_id = $1", company_id)
+
+                # --- RBAC tables (most have CASCADE from companies) ---
+                await safe_delete("DELETE FROM project_assignments WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM user_effective_permissions WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM company_users WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM role_permissions WHERE company_id = $1", company_id)
+
+                # --- Public schema: company-scoped ---
+                await safe_delete("DELETE FROM audit_logs WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM user_activities WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM tasks WHERE company_id = $1", company_id)
+                await safe_delete("DELETE FROM projects WHERE company_id = $1", company_id)
+
+                # Sessions (no user_id column — sid/sess/expire only) then users
+                if user_ids:
+                    # Sessions store user data in JSONB 'sess'; delete by matching userId
+                    for uid in user_ids:
+                        await safe_delete("DELETE FROM sessions WHERE sess::jsonb->>'userId' = $1", str(uid))
+                        await safe_delete("DELETE FROM sessions WHERE sess::jsonb->>'id' = $1", str(uid))
+                await safe_delete("DELETE FROM users WHERE company_id = $1", company_id)
+
+                # Finally delete the company
+                result = await conn.execute(f"DELETE FROM {self.table_name} WHERE id = $1", company_id)
+                return "DELETE 1" in result
 
 
 class RoleRepository:
@@ -745,7 +912,46 @@ class RoleRepository:
         """Convert camelCase keys to snake_case for database operations."""
         result = to_snake_case(data)
         return result if isinstance(result, dict) else data
-    
+
+    async def _get_roles_table_columns(self) -> List[str]:
+        """Get column names for the roles table.
+
+        Results are cached at module level since the schema is stable at runtime.
+        """
+        global _roles_table_columns_cache
+        if _roles_table_columns_cache is not None:
+            return _roles_table_columns_cache
+
+        columns_query = """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'roles'
+            ORDER BY ordinal_position
+        """
+        columns_result = await db_manager.execute_query(columns_query)
+        _roles_table_columns_cache = [col['column_name'] for col in columns_result] if columns_result else []
+        return _roles_table_columns_cache
+
+    async def _check_roles_table_exists(self) -> bool:
+        """Check if the roles table exists in the public schema.
+
+        Results are cached at module level since the schema is stable at runtime.
+        """
+        global _roles_table_exists_cache
+        if _roles_table_exists_cache is not None:
+            return _roles_table_exists_cache
+
+        table_exists = await db_manager.execute_one("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                AND table_name = 'roles'
+            )
+        """)
+        _roles_table_exists_cache = bool(table_exists and table_exists[0])
+        return _roles_table_exists_cache
+
     async def _sync_roles_from_users(self) -> None:
         """Sync roles from users table to roles table if roles table is empty."""
         try:
@@ -758,17 +964,10 @@ class RoleRepository:
                 return  # Roles already exist, no need to sync
             
             print("Roles table is empty. Syncing roles from users table...")
-            
-            # Check which columns exist in roles table
-            columns_query = """
-                SELECT column_name
-                FROM information_schema.columns
-                WHERE table_name = 'roles'
-                ORDER BY ordinal_position
-            """
-            columns_result = await db_manager.execute_query(columns_query)
-            column_names = [col['column_name'] for col in columns_result] if columns_result else []
-            
+
+            # Check which columns exist in roles table (cached)
+            column_names = await self._get_roles_table_columns()
+
             has_company_id = 'company_id' in column_names
             has_role_name = 'role_name' in column_names
             has_name = 'name' in column_names
@@ -907,41 +1106,25 @@ class RoleRepository:
     async def get_roles(self) -> List[Dict[str, Any]]:
         """Get all roles. If roles table is empty, sync from users table."""
         try:
-            # Check if roles table exists
-            table_exists = await db_manager.execute_one("""
-                SELECT EXISTS (
-                    SELECT 1 
-                    FROM information_schema.tables 
-                    WHERE table_schema = 'public' 
-                    AND table_name = 'roles'
-                )
-            """)
-            
-            if not table_exists or not table_exists[0]:
+            # Check if roles table exists (cached)
+            if not await self._check_roles_table_exists():
                 print(f"WARNING: Table '{self.table_name}' does not exist. Run migration first.")
                 return []
-            
+
             # Check if roles table has any data
             count_query = f"SELECT COUNT(*) FROM {self.table_name}"
             count_result = await db_manager.execute_one(count_query)
             role_count = count_result[0] if count_result else 0
-            
+
             if role_count == 0:
                 # Try to sync roles from users table if roles table is empty
                 await self._sync_roles_from_users()
-            
-            # Check which columns exist in roles table
+
+            # Check which columns exist in roles table (cached)
             # The simple roles table (from fix_roles_table.py) has: id, role_name, display_name
             # The complex roles table (from create_roles_table.py) has: id, company_id, name, display_name, is_active, etc.
-            columns_query = """
-                SELECT column_name
-                FROM information_schema.columns
-                WHERE table_name = 'roles'
-                ORDER BY ordinal_position
-            """
-            columns_result = await db_manager.execute_query(columns_query)
-            column_names = [col['column_name'] for col in columns_result] if columns_result else []
-            
+            column_names = await self._get_roles_table_columns()
+
             has_company_id = 'company_id' in column_names
             has_is_active = 'is_active' in column_names
             has_role_name = 'role_name' in column_names
@@ -1019,19 +1202,12 @@ class RoleRepository:
     async def create_role(self, role_data: Dict[str, Any], current_user: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Create a new role. Adapts to different roles table schemas."""
         try:
-            # Check which columns exist in roles table
-            columns_query = """
-                SELECT column_name
-                FROM information_schema.columns
-                WHERE table_name = 'roles'
-                ORDER BY ordinal_position
-            """
-            columns_result = await db_manager.execute_query(columns_query)
-            column_names = [col['column_name'] for col in columns_result] if columns_result else []
-            
+            # Check which columns exist in roles table (cached)
+            column_names = await self._get_roles_table_columns()
+
             if not column_names:
                 raise ValueError("Roles table does not exist or has no columns")
-            
+
             has_company_id = 'company_id' in column_names
             has_name = 'name' in column_names
             has_role_name = 'role_name' in column_names
@@ -1041,9 +1217,9 @@ class RoleRepository:
             has_custom_permissions = 'custom_permissions' in column_names
             has_is_active = 'is_active' in column_names
             has_created_at = 'created_at' in column_names
-            
+
             data = self._convert_from_camel_case(role_data)
-            
+
             # Get company_id - required for tables with company_id column
             company_id = data.get('company_id')
             if has_company_id and not company_id and current_user:
@@ -1051,10 +1227,10 @@ class RoleRepository:
                 company_id = current_user.get('companyId') or current_user.get('company_id')
                 if company_id:
                     company_id = str(company_id)
-            
+
             if has_company_id and not company_id:
                 raise ValueError("company_id is required for role creation")
-            
+
             # Determine role name field
             role_name_field = 'name' if has_name else 'role_name' if has_role_name else None
             if not role_name_field:
@@ -1141,19 +1317,12 @@ class RoleRepository:
             except (ValueError, TypeError):
                 raise ValueError(f"Invalid role_id: {role_id} must be an integer")
             
-            # Check which columns exist in roles table
-            columns_query = """
-                SELECT column_name
-                FROM information_schema.columns
-                WHERE table_name = 'roles'
-                ORDER BY ordinal_position
-            """
-            columns_result = await db_manager.execute_query(columns_query)
-            column_names = [col['column_name'] for col in columns_result] if columns_result else []
-            
+            # Check which columns exist in roles table (cached)
+            column_names = await self._get_roles_table_columns()
+
             if not column_names:
                 raise ValueError("Roles table does not exist or has no columns")
-            
+
             has_name = 'name' in column_names
             has_role_name = 'role_name' in column_names
             has_display_name = 'display_name' in column_names
@@ -1161,9 +1330,9 @@ class RoleRepository:
             has_permissions = 'permissions' in column_names
             has_custom_permissions = 'custom_permissions' in column_names
             has_is_active = 'is_active' in column_names
-            
+
             data = self._convert_from_camel_case(role_data)
-            
+
             if not data:
                 return await self.get_role(str(role_id_int))
             
@@ -1269,7 +1438,7 @@ class RoleRepository:
         """Get all available permissions from the database."""
         try:
             query = """
-                SELECT id, name, resource, action, description, category, created_at
+                SELECT id, name, resource, action, description, category
                 FROM permissions
                 ORDER BY category, resource, action
             """

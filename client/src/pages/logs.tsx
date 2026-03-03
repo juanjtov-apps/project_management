@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProjectLogSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { DeferredObjectUploader, type DeferredObjectUploaderRef } from "@/components/DeferredObjectUploader";
+import { useAuth } from "@/hooks/useAuth";
+import { ObjectUploader, type ObjectUploaderRef } from "@/components/ObjectUploader";
+import { getStatusColor } from "@/lib/statusColors";
 import type { ProjectLog, InsertProjectLog, Project } from "@shared/schema";
 
 const getTypeColor = (type: string) => {
@@ -30,21 +32,6 @@ const getTypeColor = (type: string) => {
       return "bg-[var(--pro-orange)]/20 text-[var(--pro-orange)]";
     case "general":
       return "bg-blue-500/20 text-blue-400";
-    default:
-      return "bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)]";
-  }
-};
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "open":
-      return "bg-blue-500/20 text-blue-400";
-    case "in-progress":
-      return "bg-[var(--pro-orange)]/20 text-[var(--pro-orange)]";
-    case "resolved":
-      return "bg-[var(--pro-mint)]/20 text-[var(--pro-mint)]";
-    case "closed":
-      return "bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)]";
     default:
       return "bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)]";
   }
@@ -84,10 +71,11 @@ export default function Logs() {
   const [tagInput, setTagInput] = useState("");
 
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
-  const createUploaderRef = useRef<DeferredObjectUploaderRef>(null);
-  const editUploaderRef = useRef<DeferredObjectUploaderRef>(null);
+  const createUploaderRef = useRef<ObjectUploaderRef>(null);
+  const editUploaderRef = useRef<ObjectUploaderRef>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: logs = [], isLoading: logsLoading } = useQuery<ProjectLog[]>({
     queryKey: ["/api/logs"],
@@ -100,20 +88,22 @@ export default function Logs() {
   // Fetch photos to get existing tags
   const { data: photos = [] } = useQuery<any[]>({
     queryKey: ["/api/photos"],
-    staleTime: 0,
   });
 
-  // Extract unique existing tags from photos
-  const existingTags = photos.reduce((tags: string[], photo) => {
-    if (photo.tags && Array.isArray(photo.tags)) {
-      photo.tags.forEach((tag: string) => {
-        if (tag && !tags.includes(tag)) {
-          tags.push(tag);
-        }
-      });
-    }
-    return tags;
-  }, []).sort();
+  // 8D: Memoize existing tags extraction to avoid reducing on every render
+  const existingTags = useMemo(
+    () => photos.reduce((tags: string[], photo) => {
+      if (photo.tags && Array.isArray(photo.tags)) {
+        photo.tags.forEach((tag: string) => {
+          if (tag && !tags.includes(tag)) {
+            tags.push(tag);
+          }
+        });
+      }
+      return tags;
+    }, []).sort(),
+    [photos]
+  );
   
 
 
@@ -215,7 +205,7 @@ export default function Logs() {
     resolver: zodResolver(insertProjectLogSchema),
     defaultValues: {
       projectId: "",
-      userId: "sample-user-id", // In a real app, this would come from auth
+      userId: (user as any)?.id || "unknown",
       title: "",
       content: "",
       type: "general",
@@ -227,7 +217,7 @@ export default function Logs() {
     resolver: zodResolver(insertProjectLogSchema),
     defaultValues: {
       projectId: "",
-      userId: "sample-user-id",
+      userId: (user as any)?.id || "unknown",
       title: "",
       content: "",
       type: "general",
@@ -236,22 +226,18 @@ export default function Logs() {
   });
 
   const onSubmit = async (data: InsertProjectLog) => {
-    console.log('🚀 Form submission started - uploading photos...');
-    
     try {
       // Upload selected files first
-      const uploadedUrls = await createUploaderRef.current?.uploadFiles() || [];
-      console.log('✅ Photos uploaded successfully:', uploadedUrls);
-      
+      const uploadedUrls = await createUploaderRef.current?.uploadSelectedFiles() || [];
+
       const submissionData = {
         ...data,
         images: [...uploadedImages, ...uploadedUrls] // Combine existing + new
       };
-      
-      console.log('📝 Creating log with images:', submissionData);
+
       createLogMutation.mutate(submissionData);
     } catch (error) {
-      console.error('❌ Photo upload failed:', error);
+      console.error('Photo upload failed:', error);
       toast({
         title: "Upload Error",
         description: "Failed to upload photos. Please try again.",
@@ -262,36 +248,26 @@ export default function Logs() {
 
   const onEditSubmit = async (data: InsertProjectLog) => {
     if (!editingLog) return;
-    
-    console.log('🚀 Edit form submission started - uploading new photos...');
-    
+
     try {
       // Upload new selected files first
-      const newUploadedUrls = await editUploaderRef.current?.uploadFiles() || [];
-      console.log('✅ New photos uploaded successfully:', newUploadedUrls);
-      
+      const newUploadedUrls = await editUploaderRef.current?.uploadSelectedFiles() || [];
+
       // Merge existing images with newly uploaded images
       const existingImages = editingLog.images || [];
       const allImages = [...existingImages, ...uploadedImages, ...newUploadedUrls];
-      
+
       const updateData = {
         ...data,
         images: allImages
       };
-      
-      console.log('📸 Updating log with images:', { 
-        existingCount: existingImages.length, 
-        previouslyUploadedCount: uploadedImages.length,
-        newCount: newUploadedUrls.length, 
-        totalCount: allImages.length 
-      });
-      
+
       updateLogMutation.mutate({
         id: editingLog.id,
         updates: updateData
       });
     } catch (error) {
-      console.error('❌ Photo upload failed during edit:', error);
+      console.error('Photo upload failed during edit:', error);
       toast({
         title: "Upload Error",
         description: "Failed to upload new photos. Please try again.",
@@ -323,42 +299,31 @@ export default function Logs() {
 
   const handleGetUploadParameters = async (file?: any) => {
     try {
-
-      console.log('🔗 Requesting upload URL from server for file:', file?.name || 'unknown');
-      const response = await fetch("/api/v1/objects/upload", { 
-        method: "POST", 
+      const response = await fetch("/api/v1/objects/upload", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({})
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
 
       const data = await response.json();
-      
-      console.log('✅ Got upload URL response:', { 
-        url: data.uploadURL?.substring(0, 100) + '...',
-        fullLength: data.uploadURL?.length 
-      });
-      
 
       if (!data.uploadURL) {
         throw new Error('No upload URL received from server');
       }
-      
 
       const uploadParams = {
         method: "PUT" as const,
         url: data.uploadURL,
         headers: {}
       };
-      
 
       return uploadParams;
     } catch (error) {
-      console.error('❌ Failed to get upload parameters:', error);
+      console.error('Failed to get upload parameters:', error);
       toast({
         title: "Upload Error", 
         description: `Failed to get upload URL: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -369,36 +334,28 @@ export default function Logs() {
   };
 
   const handleUploadComplete = async (result: any) => {
-    console.log('📸 Photo upload complete! Upload result:', result);
-    
     if (result?.successful && result.successful.length > 0) {
       try {
         // Extract URLs from successful uploads - convert to object storage image URLs
         const uploadedUrls = result.successful.map((file: any) => {
           // The uploadURL field contains the presigned URL that was used for upload
           const uploadUrl = file.uploadURL;
-          console.log('🔍 Processing upload URL:', uploadUrl);
-          
+
           // The URL format is: https://storage.googleapis.com/bucket/.private/uploads/object-id
           // Extract object ID from the URL path
           const urlMatch = uploadUrl.match(/\/uploads\/([^?]+)/);
           const objectId = urlMatch ? urlMatch[1] : null;
-          
-          console.log('🔍 Extracted object ID:', objectId);
-          
+
           if (!objectId) {
-            console.error('❌ Could not extract object ID from URL:', uploadUrl);
+            console.error('Could not extract object ID from URL:', uploadUrl);
             return uploadUrl; // fallback to original URL
           }
-          
+
           return `/api/objects/image/${objectId}`;
         });
-        
-        console.log('📸 Converted URLs for display:', uploadedUrls);
-        
+
         // Get current project ID from the appropriate form (create or edit)
         const currentProjectId = isEditDialogOpen ? editForm.watch('projectId') : form.watch('projectId');
-        
 
         // Use selected tags from the new tag system
         const tags = [...selectedTags];
@@ -406,7 +363,6 @@ export default function Logs() {
         if (!tags.includes('log-photo')) {
           tags.push('log-photo');
         }
-        
 
         // Only save photo metadata if we have a project selected
         if (currentProjectId) {
@@ -418,11 +374,8 @@ export default function Logs() {
               description: `Photo uploaded for log`,
               tags: tags
             };
-            
 
-            console.log('📸 Creating photo with data:', photoData);
             const result = await apiRequest("/api/photos", { method: "POST", body: photoData });
-            console.log('📸 Photo creation result:', result);
             return result;
           });
           
@@ -825,8 +778,9 @@ export default function Logs() {
 
                   {/* Streamlined Photo Upload */}
                   <div className="flex items-center gap-4">
-                    <DeferredObjectUploader
+                    <ObjectUploader
                       ref={createUploaderRef}
+                      deferUpload={true}
                       maxNumberOfFiles={5}
                       maxFileSize={10485760} // 10MB
                       onGetUploadParameters={handleGetUploadParameters}
@@ -834,7 +788,7 @@ export default function Logs() {
                     >
                       <Camera size={16} />
                       Select Photos
-                    </DeferredObjectUploader>
+                    </ObjectUploader>
                     <span className="text-sm text-gray-500">Up to 5 files, max 10MB each</span>
                   </div>
                   
@@ -1232,8 +1186,9 @@ export default function Logs() {
 
                   {/* Streamlined Photo Upload */}
                   <div className="flex items-center gap-4">
-                    <DeferredObjectUploader
+                    <ObjectUploader
                       ref={editUploaderRef}
+                      deferUpload={true}
                       maxNumberOfFiles={5}
                       maxFileSize={10485760} // 10MB
                       onGetUploadParameters={handleGetUploadParameters}
@@ -1241,7 +1196,7 @@ export default function Logs() {
                     >
                       <Camera size={16} />
                       Select More Photos
-                    </DeferredObjectUploader>
+                    </ObjectUploader>
                     <span className="text-sm text-gray-500">Up to 5 files, max 10MB each</span>
                   </div>
                   

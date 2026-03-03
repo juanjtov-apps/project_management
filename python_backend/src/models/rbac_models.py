@@ -1,6 +1,12 @@
 """
 RBAC Pydantic Models - Simplified
 Each user belongs to ONE company and has ONE role.
+
+NOTE: Core entity models (Role, RoleCreate, RoleUpdate, Company, Permission,
+RolePermission, User, UserCreate, UserUpdate, UserWithRole) are defined
+canonically in user.py. Do NOT re-define them here.
+
+PlanType enum is defined canonically in base.py.
 """
 
 from typing import List, Optional, Dict, Any
@@ -13,29 +19,6 @@ from enum import Enum
 # ENUMS
 # ============================================================================
 
-class UserRoleEnum(str, Enum):
-    """Default role names"""
-    ADMIN = "admin"
-    PROJECT_MANAGER = "project_manager"
-    OFFICE_MANAGER = "office_manager"
-    CREW = "crew"
-    SUBCONTRACTOR = "subcontractor"
-    CLIENT = "client"
-
-
-class CompanyStatus(str, Enum):
-    """Company status"""
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-
-
-class PlanType(str, Enum):
-    """Company plan types"""
-    BASIC = "basic"
-    PREMIUM = "premium"
-    ENTERPRISE = "enterprise"
-
-
 class AuditAction(str, Enum):
     """Audit log action types"""
     # User Management
@@ -45,24 +28,24 @@ class AuditAction(str, Enum):
     USER_LOGIN = "user_login"
     USER_LOGOUT = "user_logout"
     USER_PASSWORD_CHANGED = "user_password_changed"
-    
+
     # Role Management
     ROLE_ASSIGNED = "role_assigned"
     ROLE_CREATED = "role_created"
     ROLE_UPDATED = "role_updated"
     ROLE_DELETED = "role_deleted"
-    
+
     # Permission Management
     PERMISSION_GRANTED = "permission_granted"
     PERMISSION_REVOKED = "permission_revoked"
-    
+
     # Data Access
     DATA_VIEWED = "data_viewed"
     DATA_EXPORTED = "data_exported"
     DATA_CREATED = "data_created"
     DATA_UPDATED = "data_updated"
     DATA_DELETED = "data_deleted"
-    
+
     # Security Events
     PERMISSION_DENIED = "permission_denied"
     INVALID_LOGIN_ATTEMPT = "invalid_login_attempt"
@@ -79,43 +62,43 @@ class Permissions:
     USERS_CREATE = "users.create"
     USERS_EDIT = "users.edit"
     USERS_DELETE = "users.delete"
-    
+
     # Project Management
     PROJECTS_VIEW = "projects.view"
     PROJECTS_CREATE = "projects.create"
     PROJECTS_EDIT = "projects.edit"
     PROJECTS_DELETE = "projects.delete"
-    
+
     # Task Management
     TASKS_VIEW = "tasks.view"
     TASKS_CREATE = "tasks.create"
     TASKS_EDIT = "tasks.edit"
     TASKS_DELETE = "tasks.delete"
     TASKS_ASSIGN = "tasks.assign"
-    
+
     # Financial
     FINANCIALS_VIEW = "financials.view"
     FINANCIALS_EDIT = "financials.edit"
     INVOICES_CREATE = "invoices.create"
     INVOICES_APPROVE = "invoices.approve"
-    
+
     # Photos & Documents
     PHOTOS_VIEW = "photos.view"
     PHOTOS_UPLOAD = "photos.upload"
     PHOTOS_DELETE = "photos.delete"
-    
+
     # Reports
     REPORTS_VIEW = "reports.view"
     REPORTS_EXPORT = "reports.export"
-    
+
     # Company Settings
     COMPANY_SETTINGS = "company.settings"
     ROLES_MANAGE = "roles.manage"
-    
+
     # Client Portal
     CLIENT_PORTAL_VIEW = "client_portal.view"
     CLIENT_ISSUES_CREATE = "client_portal.issues.create"
-    
+
     # System Admin (Root only)
     SYSTEM_ADMIN = "system.admin"
     COMPANIES_MANAGE = "companies.manage"
@@ -131,187 +114,6 @@ class BaseRBACModel(BaseModel):
 
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
-
-# ============================================================================
-# COMPANY MODELS
-# ============================================================================
-
-class Company(BaseRBACModel):
-    """Company model"""
-    id: str
-    name: str
-    industry: Optional[str] = "construction"
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    website: Optional[str] = None
-    logo: Optional[str] = None
-    domain: Optional[str] = None
-    settings: Optional[Dict[str, Any]] = None
-    plan_type: str = "basic"
-    is_active: bool = True
-
-
-class CompanyCreate(BaseModel):
-    """Company creation model"""
-    name: str
-    industry: Optional[str] = "construction"
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    website: Optional[str] = None
-    logo: Optional[str] = None
-    domain: Optional[str] = None
-    settings: Optional[Dict[str, Any]] = None
-    plan_type: str = "basic"
-
-
-class CompanyUpdate(BaseModel):
-    """Company update model"""
-    name: Optional[str] = None
-    industry: Optional[str] = None
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    website: Optional[str] = None
-    logo: Optional[str] = None
-    domain: Optional[str] = None
-    settings: Optional[Dict[str, Any]] = None
-    plan_type: Optional[str] = None
-    is_active: Optional[bool] = None
-
-
-# ============================================================================
-# ROLE MODELS
-# ============================================================================
-
-class Role(BaseRBACModel):
-    """Role model"""
-    id: int
-    company_id: Optional[str] = None  # null for system roles
-    name: str
-    display_name: str
-    description: Optional[str] = None
-    is_system_role: bool = False
-    is_active: bool = True
-
-
-class RoleCreate(BaseModel):
-    """Role creation model"""
-    company_id: Optional[str] = None
-    name: str
-    display_name: str
-    description: Optional[str] = None
-    is_system_role: bool = False
-
-
-class RoleUpdate(BaseModel):
-    """Role update model"""
-    name: Optional[str] = None
-    display_name: Optional[str] = None
-    description: Optional[str] = None
-    is_active: Optional[bool] = None
-
-
-class RoleWithPermissions(Role):
-    """Role with its permissions"""
-    permissions: List[str] = Field(default_factory=list)
-
-
-# ============================================================================
-# PERMISSION MODELS
-# ============================================================================
-
-class Permission(BaseRBACModel):
-    """Permission model"""
-    id: int
-    name: str
-    resource: str
-    action: str
-    description: Optional[str] = None
-    category: str
-
-
-class PermissionCreate(BaseModel):
-    """Permission creation model"""
-    name: str
-    resource: str
-    action: str
-    description: Optional[str] = None
-    category: str
-
-
-# ============================================================================
-# ROLE-PERMISSION MODELS
-# ============================================================================
-
-class RolePermission(BaseRBACModel):
-    """Role-Permission mapping"""
-    id: int
-    role_id: int
-    permission_id: int
-
-
-class RolePermissionCreate(BaseModel):
-    """Role-Permission creation"""
-    role_id: int
-    permission_id: int
-
-
-# ============================================================================
-# USER MODELS
-# ============================================================================
-
-class UserRBAC(BaseRBACModel):
-    """User model with RBAC fields"""
-    id: str
-    email: Optional[str] = None
-    username: Optional[str] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    name: Optional[str] = None
-    profile_image_url: Optional[str] = None
-    company_id: str
-    role_id: int
-    is_root: bool = False
-    is_active: bool = True
-    last_login_at: Optional[datetime] = None
-
-
-class UserCreate(BaseModel):
-    """User creation model"""
-    email: str
-    username: Optional[str] = None
-    password: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    name: Optional[str] = None
-    profile_image_url: Optional[str] = None
-    company_id: str
-    role_id: int
-    is_root: bool = False
-    is_active: bool = True
-
-
-class UserUpdate(BaseModel):
-    """User update model"""
-    email: Optional[str] = None
-    username: Optional[str] = None
-    password: Optional[str] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    name: Optional[str] = None
-    profile_image_url: Optional[str] = None
-    role_id: Optional[int] = None
-    is_active: Optional[bool] = None
-
-
-class UserWithRole(UserRBAC):
-    """User with role details"""
-    role_name: Optional[str] = None
-    role_display_name: Optional[str] = None
-    permissions: List[str] = Field(default_factory=list)
 
 
 # ============================================================================
@@ -400,7 +202,7 @@ class CompanyUserWithDetails(BaseModel):
     # Role details
     role_name: Optional[str] = None
     role_description: Optional[str] = None
-    
+
     model_config = {"from_attributes": True, "populate_by_name": True}
 
 
@@ -409,7 +211,7 @@ class CompanyUserCreate(BaseModel):
     user_id: str
     role_id: int
     expires_at: Optional[datetime] = None
-    
+
     model_config = {"from_attributes": True, "populate_by_name": True}
 
 
@@ -422,7 +224,7 @@ class EffectivePermissions(BaseModel):
     permissions: List[str] = []
     is_root: bool = False
     is_admin: bool = False
-    
+
     model_config = {"from_attributes": True, "populate_by_name": True}
 
 
@@ -436,7 +238,7 @@ class RoleTemplate(BaseModel):
     is_active: bool = True
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    
+
     model_config = {"from_attributes": True, "populate_by_name": True}
 
 
@@ -446,7 +248,7 @@ class PermissionCategory(BaseModel):
     display_name: str
     description: Optional[str] = None
     permissions: List[str] = []
-    
+
     model_config = {"from_attributes": True, "populate_by_name": True}
 
 

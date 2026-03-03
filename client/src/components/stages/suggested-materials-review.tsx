@@ -108,7 +108,7 @@ export function SuggestedMaterialsReview({
       setSelectedIds(new Set());
       refetch();
       // Invalidate material queries
-      queryClient.invalidateQueries({ queryKey: ["/api/material-items"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-items?project_id=${projectId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/v1/stages"] });
     },
     onError: (error: Error) => {
