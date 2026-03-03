@@ -42,7 +42,7 @@ export default function Photos() {
   const [filterType, setFilterType] = useState<"all" | "project" | "tag" | "log">("all");
   const [selectedProject, setSelectedProject] = useState("all");
   const [selectedTag, setSelectedTag] = useState("all");
-  const [selectedLog, setSelectedLog] = useState("all");
+  const [selectedLogDate, setSelectedLogDate] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const uploaderRef = useRef<ObjectUploaderRef>(null);
   const queryClient = useQueryClient();
@@ -78,6 +78,19 @@ export default function Photos() {
     return logs.filter(log => log.images && log.images.length > 0);
   }, [logs]);
 
+  // Extract all image IDs from all logs (used to scope log tab to log-only photos)
+  const allLogImageIds = useMemo(() => {
+    return logsWithImages.flatMap(log =>
+      (log.images || []).map(url => {
+        if (url.includes('/objects/')) {
+          return url.split('/objects/')[1]?.split('?')[0] || '';
+        }
+        return url.split('/').pop()?.split('?')[0] || '';
+      })
+    ).filter(Boolean);
+  }, [logsWithImages]);
+
+
   // Filter photos based on current selection
   const filteredPhotosData = useMemo(() => {
     let filtered = photos;
@@ -109,38 +122,68 @@ export default function Photos() {
           });
         }
         break;
-      case "log":
-        if (selectedLog !== "all") {
-          // Find photos that are referenced in the selected log
-          const selectedLogData = logs.find(log => log.id === selectedLog);
-          if (selectedLogData && selectedLogData.images) {
-            // Extract photo IDs from log image URLs and match with photos
-            const logImageIds = selectedLogData.images.map(url => {
-              // Extract ID from object storage URL or direct photo reference
+      case "log": {
+        // Always scope to log-only photos when on the Log tab
+        filtered = filtered.filter(photo =>
+          allLogImageIds.some(id =>
+            photo.filename.includes(id) ||
+            photo.id === id ||
+            photo.filename.split('.')[0] === id
+          )
+        );
+
+        // Apply date range or specific date filter
+        if (selectedLogDate !== "all") {
+          const now = new Date();
+          const todayStr = now.toISOString().split("T")[0];
+          let cutoffDate: string | null = null;
+
+          if (selectedLogDate === "today") {
+            cutoffDate = todayStr;
+          } else if (selectedLogDate === "week") {
+            const weekAgo = new Date(now);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            cutoffDate = weekAgo.toISOString().split("T")[0];
+          } else if (selectedLogDate === "30days") {
+            const monthAgo = new Date(now);
+            monthAgo.setDate(monthAgo.getDate() - 30);
+            cutoffDate = monthAgo.toISOString().split("T")[0];
+          } else if (selectedLogDate === "90days") {
+            const qtrAgo = new Date(now);
+            qtrAgo.setDate(qtrAgo.getDate() - 90);
+            cutoffDate = qtrAgo.toISOString().split("T")[0];
+          }
+
+          // Determine which logs match the date range
+          const matchingLogs = logsWithImages.filter(log => {
+            const logDate = new Date(log.createdAt).toISOString().split("T")[0];
+            if (selectedLogDate === "today") return logDate === todayStr;
+            return cutoffDate ? logDate >= cutoffDate : false;
+          });
+
+          const dateImageIds = matchingLogs.flatMap(log =>
+            (log.images || []).map(url => {
               if (url.includes('/objects/')) {
                 return url.split('/objects/')[1]?.split('?')[0] || '';
               }
               return url.split('/').pop()?.split('?')[0] || '';
-            }).filter(Boolean);
-            
-            filtered = filtered.filter(photo => 
-              logImageIds.some(id => 
-                photo.filename.includes(id) || 
-                photo.id === id ||
-                photo.filename.split('.')[0] === id
-              )
-            );
+            })
+          ).filter(Boolean);
 
-          } else {
-            filtered = []; // No photos match if log doesn't exist or has no images
-
-          }
+          filtered = filtered.filter(photo =>
+            dateImageIds.some(id =>
+              photo.filename.includes(id) ||
+              photo.id === id ||
+              photo.filename.split('.')[0] === id
+            )
+          );
         }
         break;
+      }
     }
 
     return filtered;
-  }, [photos, searchTerm, filterType, selectedProject, selectedTag, selectedLog, logs]);
+  }, [photos, searchTerm, filterType, selectedProject, selectedTag, selectedLogDate, logsWithImages, allLogImageIds]);
 
   // Handle upload parameters
   const handleGetUploadParameters = async () => {
@@ -544,20 +587,24 @@ export default function Photos() {
 
             </TabsContent>
             
-            <TabsContent value="log" className="mt-4">
-              <Select value={selectedLog} onValueChange={setSelectedLog}>
+            <TabsContent value="log" className="mt-4 space-y-3">
+              <Select value={selectedLogDate} onValueChange={setSelectedLogDate}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a log" />
+                  <SelectValue placeholder="Select a date range" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Logs</SelectItem>
-                  {logsWithImages.map((log) => (
-                    <SelectItem key={log.id} value={log.id}>
-                      {log.title} ({log.images?.length || 0} photos)
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All Log Photos</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="30days">Last 30 Days</SelectItem>
+                  <SelectItem value="90days">Last 90 Days</SelectItem>
                 </SelectContent>
               </Select>
+              {logsWithImages.length === 0 && (
+                <div className="text-sm text-gray-500 text-center py-4">
+                  No logs with photos found.
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>
