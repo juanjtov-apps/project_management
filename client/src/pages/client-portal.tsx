@@ -188,9 +188,9 @@ export default function ClientPortal() {
   return (
     <div className="space-y-6 p-6 bg-[var(--pro-bg)] min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-[var(--pro-text-primary)]">Client Portal</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--pro-text-primary)]">Client Portal</h1>
           <p className="text-[var(--pro-text-secondary)]">
             Communicate and collaborate on your construction projects
           </p>
@@ -213,11 +213,11 @@ export default function ClientPortal() {
         ) : (
           // Project dropdown + invite button for non-client users
           <div className="flex items-center gap-3">
-            <div className="w-80">
+            <div className="min-w-0 flex-1 sm:flex-none sm:w-80">
               <Select value={selectedProject} onValueChange={setSelectedProject}>
                 <SelectTrigger className="w-full" data-testid="select-project">
                   <div className="flex items-center gap-2">
-                    <Building className="h-4 w-4" />
+                    <Building className="h-4 w-4 shrink-0" />
                     <SelectValue placeholder="Select a project" />
                   </div>
                 </SelectTrigger>
@@ -235,7 +235,9 @@ export default function ClientPortal() {
                 </SelectContent>
               </Select>
             </div>
-            <InviteClientDialog defaultProjectId={selectedProject} />
+            <div className="shrink-0">
+              <InviteClientDialog defaultProjectId={selectedProject} />
+            </div>
           </div>
         )}
       </div>
@@ -273,7 +275,13 @@ export default function ClientPortal() {
           </TabsList>
 
           <TabsContent value="stages">
-            <StagesTab projectId={selectedProject} />
+            <StagesTab
+              projectId={selectedProject}
+              onNavigateToMaterials={(stageId) => {
+                setInitialStageFilter(stageId);
+                setActiveTab("materials");
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="issues">

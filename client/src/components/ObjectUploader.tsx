@@ -10,6 +10,7 @@ export interface UploadResult {
 interface ObjectUploaderProps {
   maxNumberOfFiles?: number;
   maxFileSize?: number;
+  accept?: string; // MIME types to accept (default: "image/*")
   onGetUploadParameters: (file?: any) => Promise<{
     method: "PUT";
     url: string;
@@ -35,6 +36,7 @@ export interface ObjectUploaderRef {
 const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
   maxNumberOfFiles = 5,
   maxFileSize = 10485760, // 10MB default
+  accept = "image/*",
   onGetUploadParameters,
   onComplete,
   onFilesSelected,
@@ -56,9 +58,22 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
         console.warn(`File ${file.name} exceeds size limit`);
         return false;
       }
-      if (!file.type.startsWith('image/')) {
-        console.warn(`File ${file.name} is not an image`);
-        return false;
+      // Validate against accept prop: supports "image/*", ".pdf", ".doc,.docx", etc.
+      if (accept !== "*") {
+        const acceptTypes = accept.split(",").map(t => t.trim());
+        const isValid = acceptTypes.some(type => {
+          if (type.endsWith("/*")) {
+            return file.type.startsWith(type.replace("/*", "/"));
+          }
+          if (type.startsWith(".")) {
+            return file.name.toLowerCase().endsWith(type.toLowerCase());
+          }
+          return file.type === type;
+        });
+        if (!isValid) {
+          console.warn(`File ${file.name} does not match accepted types: ${accept}`);
+          return false;
+        }
       }
       return true;
     });
@@ -195,7 +210,7 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
         ref={fileInputRef}
         type="file"
         multiple
-        accept="image/*"
+        accept={accept}
         style={{ display: 'none' }}
         onChange={(e) => handleFileSelect(e.target.files)}
       />
