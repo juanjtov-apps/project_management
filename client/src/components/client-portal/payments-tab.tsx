@@ -386,9 +386,9 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
     }
   };
 
-  // Auto-create schedule if none exists (1:1 per project) — skip for clients (they can't create)
+  // Auto-create schedule if none exists (1:1 per project)
   useEffect(() => {
-    if (!isLoading && schedules.length === 0 && projectId && !hasInitializedSchedule.current && !createScheduleMutation.isPending && !isClient) {
+    if (!isLoading && schedules.length === 0 && projectId && !hasInitializedSchedule.current && !createScheduleMutation.isPending) {
       // Mark as initialized to prevent duplicate creation
       hasInitializedSchedule.current = true;
       // Automatically create a schedule for this project

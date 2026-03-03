@@ -16,7 +16,8 @@ import ActiveProjects from "@/components/dashboard/active-projects";
 import TodaysTasks from "@/components/dashboard/todays-tasks";
 import ExpiredUpcomingTasks from "@/components/dashboard/expired-upcoming-tasks";
 import MultiProjectOverview from "@/components/dashboard/multi-project-overview";
-
+import CommunicationFeed from "@/components/communications/communication-feed";
+import FinancialHealthDashboard from "@/components/financial/financial-health-dashboard";
 
 export default function Dashboard() {
   const [isMobileFABOpen, setIsMobileFABOpen] = useState(false);
@@ -40,7 +41,7 @@ export default function Dashboard() {
               }}
             >
               <TabsList
-                className="w-full grid grid-cols-2 p-1 rounded-xl"
+                className="w-full grid grid-cols-2 md:grid-cols-4 p-1 rounded-xl"
                 style={{ backgroundColor: '#161B22' }}
               >
                 <TabsTrigger
@@ -58,6 +59,22 @@ export default function Dashboard() {
                   data-testid="tab-tasks"
                 >
                   Task Management
+                </TabsTrigger>
+                <TabsTrigger
+                  value="communications"
+                  className="min-h-[48px] text-[#9CA3AF] data-[state=active]:text-white data-[state=active]:bg-[#1F242C] rounded-lg transition-all"
+                  aria-label="Communications"
+                  data-testid="tab-communications"
+                >
+                  Communications
+                </TabsTrigger>
+                <TabsTrigger
+                  value="financial"
+                  className="min-h-[48px] text-[#9CA3AF] data-[state=active]:text-white data-[state=active]:bg-[#1F242C] rounded-lg transition-all"
+                  aria-label="Financial Health"
+                  data-testid="tab-financial"
+                >
+                  Financial Health
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -80,6 +97,13 @@ export default function Dashboard() {
               <TodaysTasks />
             </TabsContent>
 
+            <TabsContent value="communications" className="space-y-8">
+              <CommunicationFeed />
+            </TabsContent>
+
+            <TabsContent value="financial" className="space-y-8">
+              <FinancialHealthDashboard />
+            </TabsContent>
           </Tabs>
 
           <Sheet open={isMobileFABOpen} onOpenChange={setIsMobileFABOpen}>

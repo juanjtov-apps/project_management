@@ -14,7 +14,19 @@ import {
   Calendar,
   ArrowRight
 } from "lucide-react";
-import { getStatusConfig } from "@/lib/statusColors";
+
+const getStatusConfig = (status: string) => {
+  switch (status) {
+    case "completed":
+      return { color: "#10B981", bgColor: "rgba(16, 185, 129, 0.15)", label: "Complete" };
+    case "delayed":
+      return { color: "#EF4444", bgColor: "rgba(239, 68, 68, 0.15)", label: "Delayed" };
+    case "on-hold":
+      return { color: "#F97316", bgColor: "rgba(249, 115, 22, 0.15)", label: "At Risk" };
+    default:
+      return { color: "#4ADE80", bgColor: "rgba(74, 222, 128, 0.15)", label: "On Track" };
+  }
+};
 
 const statusColors = {
   "On Track": "#4ADE80",
@@ -269,7 +281,7 @@ export default function MultiProjectOverview() {
                     <span
                       className="text-xs px-2 py-0.5 rounded-full font-medium"
                       style={{
-                        backgroundColor: config.bg,
+                        backgroundColor: config.bgColor,
                         color: config.color
                       }}
                     >

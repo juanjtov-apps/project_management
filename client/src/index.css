@@ -323,14 +323,6 @@ input[type="file"] {
     @apply text-sm sm:text-base leading-relaxed;
     color: var(--pro-text-secondary);
   }
-
-  /* Chat message content - inherit color from parent for proper contrast */
-  .message-content,
-  .message-content p,
-  .message-content span,
-  .message-content div {
-    color: inherit;
-  }
   
   a {
     color: var(--pro-mint);

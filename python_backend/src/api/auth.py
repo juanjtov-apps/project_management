@@ -149,34 +149,6 @@ class LogoutResponse(BaseModel):
 # In-memory session store (replace with Redis in production)
 session_store: Dict[str, Dict[str, Any]] = {}
 
-# Maximum number of sessions to keep in memory (LRU-style eviction)
-MAX_SESSION_STORE_SIZE = 10000
-
-
-def _cleanup_expired_sessions() -> int:
-    """Remove expired sessions from the in-memory store. Returns count removed."""
-    now = datetime.now(timezone.utc)
-    expired_keys = [
-        sid for sid, data in session_store.items()
-        if now >= ensure_timezone_aware(data["expires_at"])
-    ]
-    for sid in expired_keys:
-        del session_store[sid]
-    return len(expired_keys)
-
-
-async def start_session_cleanup_task():
-    """Start a background task that periodically cleans up expired sessions."""
-    import asyncio
-    while True:
-        await asyncio.sleep(300)  # Run every 5 minutes
-        try:
-            removed = _cleanup_expired_sessions()
-            if removed > 0:
-                logger.info(f"Session cleanup: removed {removed} expired sessions, {len(session_store)} remaining")
-        except Exception as e:
-            logger.error(f"Session cleanup error: {e}")
-
 # Cache for roles table column info to avoid repeated schema queries
 _roles_column_cache: Dict[str, Any] = {}
 
@@ -211,10 +183,6 @@ async def get_role_column_name(conn) -> str:
 
 def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool]:
     """Get navigation permissions for the user matching frontend sidebar expectations."""
-    # Normalize role to lowercase for case-insensitive comparison
-    # (Database may store "Client", "Company Administrator", etc.)
-    role = (role or '').strip().lower()
-
     # Base permissions for all users
     permissions = {
         "dashboard": True,
@@ -527,14 +495,7 @@ async def login(request: LoginRequest, response: Response):
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid credentials"
                 )
-
-            # Check if user is active
-            if not user_data.get("is_active", True):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Your account has been deactivated. Please contact your administrator."
-                )
-
+            
             # Create session
             session_id = await create_session(user_data["id"], user_data)
             
@@ -629,19 +590,11 @@ async def get_current_user(request: Request):
         
         user_data = session_data["user_data"].copy()
         user_data.pop("password", None)
-
-        # Check if user is still active
-        if not user_data.get("is_active", True):
-            await destroy_session(session_id)
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Your account has been deactivated"
-            )
-
+        
         # Convert company_id to companyId for frontend compatibility
         if 'company_id' in user_data:
             user_data['companyId'] = user_data['company_id']
-
+        
         # Convert is_root to isRoot for frontend compatibility
         if 'is_root' in user_data:
             user_data['isRoot'] = user_data['is_root']
@@ -759,13 +712,6 @@ async def get_current_user_dependency(request: Request) -> Dict[str, Any]:
     
     user_data = session_data["user_data"].copy()
     user_data.pop("password", None)
-
-    # Check if user is still active
-    if not user_data.get("is_active", True):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your account has been deactivated"
-        )
 
     # Ensure both snake_case and camelCase versions are present for compatibility
     if 'company_id' in user_data:
@@ -890,8 +836,7 @@ async def set_organization_context(
 def is_user_admin(user: Dict[str, Any]) -> bool:
     """Check if user has admin privileges."""
     # Check role - try both 'role' and 'role_name' for compatibility
-    # Normalize to lowercase for case-insensitive comparison
-    role = (user.get("role") or user.get("role_name") or "").lower()
+    role = user.get("role") or user.get("role_name")
     if role == "admin":
         return True
 

@@ -15,8 +15,7 @@ class ProjectLogCreateRequest(BaseModel):
     projectId: str = Field(..., description="Project ID")
     title: str = Field(..., min_length=1, description="Log title")
     content: str = Field(..., min_length=1, description="Log content")
-    type: str = Field(default="general", description="Log type")
-    status: str = Field(default="open", description="Log status")
+    logType: str = Field(default="general", description="Log type")
     images: Optional[List[str]] = Field(default=[], description="Array of image URLs")
 
 @router.get("", response_model=List[Dict[str, Any]], summary="Get project logs")
@@ -28,39 +27,38 @@ async def get_logs(
     try:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
+            query = "SELECT * FROM project_logs WHERE 1=1"
             params = []
-            param_idx = 1
-
-            if not is_root_admin(current_user):
-                user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
-
-                query = (
-                    "SELECT pl.* FROM project_logs pl"
-                    " INNER JOIN projects p ON p.id = pl.project_id"
-                    f" WHERE p.company_id = ${param_idx}"
-                )
-                params.append(user_company_id)
-                param_idx += 1
-
-                if projectId:
-                    query += f" AND pl.project_id = ${param_idx}"
-                    params.append(projectId)
-                    param_idx += 1
-
-                query += " ORDER BY pl.created_at DESC"
-            else:
-                query = "SELECT * FROM project_logs WHERE 1=1"
-
-                if projectId:
-                    query += f" AND project_id = ${param_idx}"
-                    params.append(projectId)
-                    param_idx += 1
-
-                query += " ORDER BY created_at DESC"
-
+            
+            if projectId:
+                query += " AND project_id = $1"
+                params.append(projectId)
+            
+            query += " ORDER BY created_at DESC"
+            
             rows = await conn.fetch(query, *params)
             logs = [dict(row) for row in rows]
-
+            
+            # Apply company filtering unless root admin
+            if not is_root_admin(current_user):
+                user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
+                print(f"Logs: User {current_user.get('email')} - filtering by company: {user_company_id}")
+                # Filter by validating associated project company
+                filtered_logs = []
+                for log in logs:
+                    log_project_id = log.get('project_id')
+                    if log_project_id:
+                        project_row = await conn.fetchrow(
+                            "SELECT company_id FROM projects WHERE id = $1",
+                            log_project_id
+                        )
+                        if project_row and str(project_row['company_id']) == user_company_id:
+                            filtered_logs.append(log)
+                logs = filtered_logs
+                print(f"Logs: User {current_user.get('email')} retrieved {len(logs)} logs after company filtering")
+            else:
+                print(f"Logs: Root admin retrieved {len(logs)} logs (no filtering)")
+            
             # Convert to camelCase for frontend
             result = []
             for log in logs:
@@ -78,6 +76,7 @@ async def get_logs(
             
             return result
     except Exception as e:
+        print(f"Error fetching logs: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch project logs"
@@ -115,11 +114,11 @@ async def create_log(
             
             # Create log
             log_id = await conn.fetchval("""
-                INSERT INTO project_logs (project_id, user_id, title, content, type, status, images)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                INSERT INTO project_logs (project_id, user_id, title, content, type, images)
+                VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING id
-            """, log_data.projectId, current_user.get('id'), log_data.title,
-                log_data.content, log_data.type, log_data.status, log_data.images)
+            """, log_data.projectId, current_user.get('id'), log_data.title, 
+                log_data.content, log_data.logType, log_data.images)
             
             # Get created log
             log_row = await conn.fetchrow(
@@ -144,9 +143,9 @@ async def create_log(
                                 VALUES ($1, $2, $3, $4, $5, $6)
                             """, log_data.projectId, current_user.get('id'), 
                                 object_id, image_url, log_data.title, ['log-photo'])
-                    except Exception:
-                        pass
-
+                    except Exception as e:
+                        print(f"Error creating photo record: {e}")
+            
             return {
                 'id': str(log_row['id']),
                 'projectId': log_row['project_id'],
@@ -161,6 +160,7 @@ async def create_log(
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Error creating log: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create project log"
@@ -202,7 +202,7 @@ async def update_log(
                         )
             
             # Update log
-            update_data = log_update.model_dump(exclude_unset=True)
+            update_data = log_update.model_dump(exclude_unset=True, by_alias=True)
             if not update_data:
                 # Return existing log if no updates
                 log_row = await conn.fetchrow(
@@ -241,6 +241,7 @@ async def update_log(
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Error updating log: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update project log"
@@ -284,6 +285,7 @@ async def delete_log(
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Error deleting log: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete project log"

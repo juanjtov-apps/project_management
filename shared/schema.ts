@@ -107,6 +107,7 @@ export const users = pgTable("users", {
   password: text("password"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
+  name: text("name"), // Full name (computed or stored)
   profileImageUrl: varchar("profile_image_url"),
   
   // RBAC fields - Each user has ONE company and ONE role

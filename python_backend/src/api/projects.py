@@ -1,0 +1,193 @@
+"""
+Project API endpoints with authentication and company filtering.
+"""
+from typing import List, Dict, Any
+from fastapi import APIRouter, HTTPException, status, Depends
+from src.models import Project, ProjectCreate, ProjectUpdate
+from src.database.repositories import ProjectRepository
+from src.api.auth import get_current_user_dependency, is_root_admin, get_effective_company_id
+
+router = APIRouter()
+project_repo = ProjectRepository()
+
+
+@router.get("", response_model=List[Project])
+async def get_projects(current_user: Dict[str, Any] = Depends(get_current_user_dependency)):
+    """Get all projects with company filtering."""
+    try:
+        # Get effective company_id (handles root user organization context)
+        effective_company_id = get_effective_company_id(current_user)
+        
+        if effective_company_id:
+            # Filter by specific company (root user with context or regular user)
+            projects = await project_repo.get_by_company(str(effective_company_id))
+            print(f"User {current_user.get('email')} (company {effective_company_id}) retrieved {len(projects)} projects")
+        elif is_root_admin(current_user):
+            # Root admin without context - show all
+            projects = await project_repo.get_all()
+            print(f"Root admin retrieved {len(projects)} projects (all organizations)")
+        else:
+            # User has no company assigned, return empty list
+            projects = []
+            print(f"User {current_user.get('email')} has no company assigned, returning empty project list")
+        
+        return projects
+    except Exception as e:
+        print(f"Error fetching projects: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch projects"
+        )
+
+
+@router.get("/{project_id}", response_model=Project)
+async def get_project(
+    project_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Get project by ID with company scoping."""
+    try:
+        project = await project_repo.get_by_id(project_id)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+        
+        # Verify company access (unless root admin)
+        if not is_root_admin(current_user):
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
+            project_company_id = str(project.get('company_id'))
+            if project_company_id != user_company_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: Project belongs to different company"
+                )
+        
+        return project
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching project {project_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch project"
+        )
+
+
+@router.post("", response_model=Project, status_code=status.HTTP_201_CREATED)
+async def create_project(
+    project: ProjectCreate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Create a new project with authentication and company assignment."""
+    try:
+        user_company_id = current_user.get('companyId') or current_user.get('company_id')
+        if not user_company_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User must be assigned to a company to create projects"
+            )
+        
+        # Assign project to user's company
+        project_data = project.model_dump()
+        project_data['company_id'] = str(user_company_id)
+        
+        print(f"Creating project for user {current_user.get('email')} (company {user_company_id}): {project}")
+        return await project_repo.create(ProjectCreate(**project_data))
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error creating project: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create project"
+        )
+
+
+@router.patch("/{project_id}", response_model=Project)
+async def update_project(
+    project_id: str, 
+    project_update: ProjectUpdate,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Update an existing project with company scoping."""
+    try:
+        # Verify project exists and user has access
+        existing_project = await project_repo.get_by_id(project_id)
+        if not existing_project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+        
+        # Verify company access (unless root admin)
+        if not is_root_admin(current_user):
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
+            project_company_id = str(existing_project.get('company_id'))
+            if project_company_id != user_company_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: Project belongs to different company"
+                )
+        
+        project = await project_repo.update(project_id, project_update)
+        return project
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating project {project_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update project"
+        )
+
+
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_project(
+    project_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_dependency)
+):
+    """Delete a project with company scoping."""
+    try:
+        # Verify project exists and user has access
+        existing_project = await project_repo.get_by_id(project_id)
+        if not existing_project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+        
+        # Verify company access (unless root admin)
+        if not is_root_admin(current_user):
+            user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
+            project_company_id = str(existing_project.get('company_id'))
+            if project_company_id != user_company_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: Project belongs to different company"
+                )
+        
+        success = await project_repo.delete(project_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Error deleting project {project_id}: {error_msg}")
+        
+        # Check for foreign key constraint violation
+        if "foreign key constraint" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete project because it has associated data (tasks, photos, etc.). Please remove all related data first."
+            )
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete project: {error_msg}"
+        )

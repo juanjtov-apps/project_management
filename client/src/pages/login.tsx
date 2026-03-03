@@ -226,24 +226,6 @@ export default function Login() {
               )}
             </Button>
           </form>
-
-          <div className="px-8 pb-6 text-center">
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-[var(--pro-border)]" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-[var(--pro-surface)] px-2 text-[var(--pro-text-secondary)]">or</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setLocation("/auth/request-link")}
-              className="text-sm text-[var(--pro-mint)] hover:text-[var(--pro-mint-dim)] focus:outline-none focus:ring-2 focus:ring-[var(--pro-mint)]/50 rounded px-2 py-1 transition-colors"
-            >
-              Client? Sign in with magic link
-            </button>
-          </div>
         </CardContent>
       </Card>
     </div>

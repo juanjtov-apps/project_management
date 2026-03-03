@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
-import { getIssueStatusColor } from "@/lib/statusColors";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import {
   AlertDialog,
@@ -561,6 +560,10 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
     setIsEditOpen(true);
   };
 
+  const getStatusColor = (status: string) => {
+    return status === "open" ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800";
+  };
+
   const getStatusIcon = (status: string) => {
     return status === "open" ? AlertTriangle : CheckCircle;
   };
@@ -865,6 +868,7 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
         <div className="grid gap-4">
           {issues.map((issue) => {
             const StatusIcon = getStatusIcon(issue.status);
+            console.log(`📸 [Issue ${issue.id}] attachment_count=${issue.attachment_count}, photos=`, issue.photos);
             return (
               <Card key={issue.id} data-testid={`card-issue-${issue.id}`}>
                 <CardHeader>
@@ -887,7 +891,7 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge className={getIssueStatusColor(issue.status)}>
+                      <Badge className={getStatusColor(issue.status)}>
                         <StatusIcon className="h-3 w-3 mr-1" />
                         {issue.status}
                       </Badge>

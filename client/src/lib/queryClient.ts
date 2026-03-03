@@ -73,7 +73,7 @@ async function retryFetch(url: string, options: RequestInit, retries = 5, delay 
       if (i < retries - 1) {
         // Only log on first few attempts to reduce noise
         if (i < 2) {
-          // Backend starting up, retrying connection
+          console.log(`Backend starting up, retrying connection... (attempt ${i + 1}/${retries})`);
         }
         // Use exponential backoff for startup delays
         const backoffDelay = delay * Math.pow(1.5, i);
@@ -205,7 +205,7 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "returnNull" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: 60000,
+      staleTime: 5000,
       retry: false,
       throwOnError: false,
     },

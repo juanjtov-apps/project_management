@@ -78,7 +78,7 @@ CROSS JOIN (VALUES
     (6, 'Appliances & Final', 3, 'Appliance delivery scheduled, final hardware and accessories')
 ) AS items(order_index, name, duration, note)
 WHERE t.name = 'Kitchen Remodel'
-AND NOT EXISTS (SELECT 1 FROM client_portal.stage_template_items sti WHERE sti.template_id = t.id);
+ON CONFLICT DO NOTHING;
 
 -- Seed template items for Bathroom Renovation
 INSERT INTO client_portal.stage_template_items (template_id, order_index, name, default_duration_days, default_materials_note)
@@ -93,7 +93,7 @@ CROSS JOIN (VALUES
     (5, 'Final Details', 2, 'Mirror, towel bars, toilet paper holder, and accessories')
 ) AS items(order_index, name, duration, note)
 WHERE t.name = 'Bathroom Renovation'
-AND NOT EXISTS (SELECT 1 FROM client_portal.stage_template_items sti WHERE sti.template_id = t.id);
+ON CONFLICT DO NOTHING;
 
 -- Seed template items for Full Home Remodel
 INSERT INTO client_portal.stage_template_items (template_id, order_index, name, default_duration_days, default_materials_note)
@@ -109,7 +109,7 @@ CROSS JOIN (VALUES
     (6, 'Final Punch List', 5, 'Touch-ups, cleaning, final walkthrough')
 ) AS items(order_index, name, duration, note)
 WHERE t.name = 'Full Home Remodel'
-AND NOT EXISTS (SELECT 1 FROM client_portal.stage_template_items sti WHERE sti.template_id = t.id);
+ON CONFLICT DO NOTHING;
 
 -- Seed template items for Room Addition
 INSERT INTO client_portal.stage_template_items (template_id, order_index, name, default_duration_days, default_materials_note)
@@ -125,7 +125,7 @@ CROSS JOIN (VALUES
     (6, 'Final Details', 3, 'Final connections and punch list')
 ) AS items(order_index, name, duration, note)
 WHERE t.name = 'Room Addition'
-AND NOT EXISTS (SELECT 1 FROM client_portal.stage_template_items sti WHERE sti.template_id = t.id);
+ON CONFLICT DO NOTHING;
 
 -- Seed template items for ADU Construction
 INSERT INTO client_portal.stage_template_items (template_id, order_index, name, default_duration_days, default_materials_note)
@@ -142,7 +142,7 @@ CROSS JOIN (VALUES
     (7, 'Final Finishes', 5, 'Fixtures, hardware, appliances, final details')
 ) AS items(order_index, name, duration, note)
 WHERE t.name = 'ADU Construction'
-AND NOT EXISTS (SELECT 1 FROM client_portal.stage_template_items sti WHERE sti.template_id = t.id);
+ON CONFLICT DO NOTHING;
 
 -- Update alembic version tracking
 INSERT INTO client_portal.alembic_version(version_num)

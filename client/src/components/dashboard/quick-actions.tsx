@@ -1,26 +1,22 @@
-import { Plus, Camera, ClipboardList, AlertTriangle, FileText, Paintbrush } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Plus, Camera, ClipboardList, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
 
 function QuickActions() {
   const [, setLocation] = useLocation();
-
-  const navigateToWork = (segment: string) => {
-    localStorage.setItem("work.segment", JSON.stringify(segment));
-    setLocation("/work");
-  };
 
   const actions = [
     {
       icon: Plus,
       label: "Add Project",
       isPrimary: true,
-      onClick: () => navigateToWork("projects")
+      onClick: () => setLocation("/projects")
     },
     {
       icon: ClipboardList,
       label: "Add Tasks",
       isPrimary: false,
-      onClick: () => navigateToWork("tasks")
+      onClick: () => setLocation("/tasks")
     },
     {
       icon: Camera,
@@ -29,22 +25,10 @@ function QuickActions() {
       onClick: () => setLocation("/photos")
     },
     {
-      icon: AlertTriangle,
-      label: "Add Issue",
+      icon: UserPlus,
+      label: "Assign Task",
       isPrimary: false,
-      onClick: () => setLocation("/client-portal?tab=issues")
-    },
-    {
-      icon: FileText,
-      label: "Add Log",
-      isPrimary: false,
-      onClick: () => setLocation("/logs")
-    },
-    {
-      icon: Paintbrush,
-      label: "Finish Materials",
-      isPrimary: false,
-      onClick: () => setLocation("/client-portal?tab=materials")
+      onClick: () => setLocation("/subs")
     }
   ];
 
@@ -57,7 +41,7 @@ function QuickActions() {
       <div className="p-5 border-b" style={{ borderColor: '#2D333B' }}>
         <h3 className="text-lg font-semibold text-white">Quick Actions</h3>
       </div>
-      <div className="p-5 grid grid-cols-3 gap-3">
+      <div className="p-5 grid grid-cols-2 gap-3">
         {actions.map((action, index) => {
           const Icon = action.icon;
           return (

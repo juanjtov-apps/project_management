@@ -10,7 +10,6 @@ export interface UploadResult {
 interface ObjectUploaderProps {
   maxNumberOfFiles?: number;
   maxFileSize?: number;
-  accept?: string; // MIME types to accept (default: "image/*")
   onGetUploadParameters: (file?: any) => Promise<{
     method: "PUT";
     url: string;
@@ -36,7 +35,6 @@ export interface ObjectUploaderRef {
 const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
   maxNumberOfFiles = 5,
   maxFileSize = 10485760, // 10MB default
-  accept = "image/*",
   onGetUploadParameters,
   onComplete,
   onFilesSelected,
@@ -58,22 +56,9 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
         console.warn(`File ${file.name} exceeds size limit`);
         return false;
       }
-      // Validate against accept prop: supports "image/*", ".pdf", ".doc,.docx", etc.
-      if (accept !== "*") {
-        const acceptTypes = accept.split(",").map(t => t.trim());
-        const isValid = acceptTypes.some(type => {
-          if (type.endsWith("/*")) {
-            return file.type.startsWith(type.replace("/*", "/"));
-          }
-          if (type.startsWith(".")) {
-            return file.name.toLowerCase().endsWith(type.toLowerCase());
-          }
-          return file.type === type;
-        });
-        if (!isValid) {
-          console.warn(`File ${file.name} does not match accepted types: ${accept}`);
-          return false;
-        }
+      if (!file.type.startsWith('image/')) {
+        console.warn(`File ${file.name} is not an image`);
+        return false;
       }
       return true;
     });
@@ -84,6 +69,7 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
       // Store files for later upload
       setSelectedFiles(validFiles);
       onFilesSelected?.(validFiles);
+      console.log(`📁 Selected ${validFiles.length} files for upload`);
       return;
     }
 
@@ -93,6 +79,7 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
 
     try {
       for (const file of validFiles) {
+        console.log(`📤 Uploading ${file.name}...`);
         setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
 
         // Get upload parameters (includes previewURL and objectPath)
@@ -115,8 +102,9 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
             objectPath: params.objectPath || params.url
           });
           setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
+          console.log(`✅ Uploaded ${file.name} successfully, preview: ${params.previewURL?.substring(0, 50)}...`);
         } else {
-          console.error(`Failed to upload ${file.name}:`, response.statusText);
+          console.error(`❌ Failed to upload ${file.name}:`, response.statusText);
         }
       }
 
@@ -146,6 +134,7 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
 
     try {
       for (const file of selectedFiles) {
+        console.log(`📤 Uploading ${file.name}...`);
         setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
 
         // Get upload parameters (includes previewURL and objectPath)
@@ -167,8 +156,9 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
             objectPath: params.objectPath || params.url
           });
           setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
+          console.log(`✅ Uploaded ${file.name} successfully`);
         } else {
-          console.error(`Failed to upload ${file.name}:`, response.statusText);
+          console.error(`❌ Failed to upload ${file.name}:`, response.statusText);
         }
       }
 
@@ -210,7 +200,7 @@ const ObjectUploader = forwardRef<ObjectUploaderRef, ObjectUploaderProps>(({
         ref={fileInputRef}
         type="file"
         multiple
-        accept={accept}
+        accept="image/*"
         style={{ display: 'none' }}
         onChange={(e) => handleFileSelect(e.target.files)}
       />

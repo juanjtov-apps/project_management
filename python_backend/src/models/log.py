@@ -13,7 +13,7 @@ class ProjectLogBase(BaseModel):
     title: str
     content: str
     created_by: str = Field(alias="createdBy")
-    type: str = Field(default="general")
+    log_type: str = Field(default="general", alias="logType")
 
 
 class ProjectLogCreate(ProjectLogBase):
@@ -25,9 +25,7 @@ class ProjectLogUpdate(BaseModel):
     """Project log update model."""
     title: Optional[str] = None
     content: Optional[str] = None
-    type: Optional[str] = None
-    status: Optional[str] = None
-    images: Optional[list] = None
+    log_type: Optional[str] = Field(default=None, alias="logType")
 
 
 class ProjectLog(BaseEntity, ProjectLogBase):

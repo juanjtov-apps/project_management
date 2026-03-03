@@ -2,9 +2,23 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
-import { getStatusConfig } from "@/lib/statusColors";
 import type { Project } from "@shared/schema";
 import { Building } from "lucide-react";
+
+const getStatusConfig = (status: string) => {
+  switch (status) {
+    case "active":
+      return { bg: "rgba(74, 222, 128, 0.15)", color: "#4ADE80", label: "Active" };
+    case "completed":
+      return { bg: "rgba(16, 185, 129, 0.15)", color: "#10B981", label: "Completed" };
+    case "delayed":
+      return { bg: "rgba(239, 68, 68, 0.15)", color: "#EF4444", label: "Delayed" };
+    case "on-hold":
+      return { bg: "rgba(249, 115, 22, 0.15)", color: "#F97316", label: "On Hold" };
+    default:
+      return { bg: "rgba(156, 163, 175, 0.15)", color: "#9CA3AF", label: status };
+  }
+};
 
 export default function ActiveProjects() {
   const [, setLocation] = useLocation();

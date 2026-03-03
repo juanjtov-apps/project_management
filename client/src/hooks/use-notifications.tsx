@@ -1,11 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/useAuth";
 import type { Notification } from "@shared/schema";
 
-export function useNotifications(userId?: string) {
-  const { user } = useAuth();
-  const resolvedUserId = userId || (user as any)?.id || "unknown";
+export function useNotifications(userId: string = "sample-user-id") {
   const queryClient = useQueryClient();
 
   const {
@@ -13,28 +10,28 @@ export function useNotifications(userId?: string) {
     isLoading,
     error
   } = useQuery<Notification[]>({
-    queryKey: ["/api/notifications", resolvedUserId],
-    queryFn: () => fetch(`/api/notifications?userId=${resolvedUserId}`).then(res => res.json()),
+    queryKey: ["/api/notifications", userId],
+    queryFn: () => fetch(`/api/notifications?userId=${userId}`).then(res => res.json()),
     refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
   });
 
   const markAsReadMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/notifications/${id}/read`, { method: "PATCH", body: {} }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notifications", resolvedUserId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications", userId] });
     },
-    onError: () => {
-      // Mark as read may fail if endpoint is not yet implemented
+    onError: (error) => {
+      console.log("Mark as read error (expected for now):", error);
     },
   });
 
   const markAllAsReadMutation = useMutation({
-    mutationFn: () => apiRequest("/api/notifications/mark-all-read", { method: "PATCH", body: { userId: resolvedUserId } }),
+    mutationFn: () => apiRequest("/api/notifications/mark-all-read", { method: "PATCH", body: { userId } }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notifications", resolvedUserId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications", userId] });
     },
-    onError: () => {
-      // Mark all as read may fail if endpoint is not yet implemented
+    onError: (error) => {
+      console.log("Mark all as read error (expected for now):", error);
     },
   });
 

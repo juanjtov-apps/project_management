@@ -4,9 +4,23 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { getPriorityConfig, formatDueDate } from "@/lib/statusColors";
 import type { Task } from "@shared/schema";
 import { AlertTriangle, Clock, ArrowRight } from "lucide-react";
+
+const getPriorityConfig = (priority: string) => {
+  switch (priority) {
+    case "critical":
+      return { bg: "rgba(239, 68, 68, 0.15)", color: "#EF4444", label: "Critical" };
+    case "high":
+      return { bg: "rgba(249, 115, 22, 0.15)", color: "#F97316", label: "High" };
+    case "medium":
+      return { bg: "rgba(96, 165, 250, 0.15)", color: "#60A5FA", label: "Medium" };
+    case "low":
+      return { bg: "rgba(74, 222, 128, 0.15)", color: "#4ADE80", label: "Low" };
+    default:
+      return { bg: "rgba(156, 163, 175, 0.15)", color: "#9CA3AF", label: priority };
+  }
+};
 
 const getPriorityValue = (priority: string): number => {
   switch (priority) {
@@ -66,6 +80,23 @@ export default function ExpiredUpcomingTasks() {
         status: completed ? "completed" : "pending"
       }
     });
+  };
+
+  const formatDueDate = (dateString: string | Date) => {
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+    const now = new Date();
+    const diffMs = date.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return `${Math.abs(diffDays)} day(s) overdue`;
+    } else if (diffDays === 0) {
+      return "Due today";
+    } else if (diffDays === 1) {
+      return "Due tomorrow";
+    } else {
+      return `Due in ${diffDays} days`;
+    }
   };
 
   const handleTaskClick = (task: Task) => {

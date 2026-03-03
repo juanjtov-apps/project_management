@@ -13,8 +13,6 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import InviteClientDialog from "@/components/onboarding/invite-client-dialog";
-import ClientTour from "@/components/onboarding/client-tour";
 
 // Import components for each tab
 import { IssuesTab } from "@/components/client-portal/issues-tab.tsx";
@@ -27,20 +25,6 @@ export default function ClientPortal() {
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("stages");
   const [initialStageFilter, setInitialStageFilter] = useState<string | undefined>(undefined);
-  const [showTour, setShowTour] = useState(false);
-
-  // Detect showTour param from magic link redirect
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("showTour") === "true") {
-      setShowTour(true);
-      // Clean up the URL param
-      params.delete("showTour");
-      const newSearch = params.toString();
-      const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : "");
-      window.history.replaceState({}, "", newUrl);
-    }
-  }, []);
 
   // Get current user for permissions
   const { data: currentUser } = useQuery<any>({
@@ -65,6 +49,8 @@ export default function ClientPortal() {
     const projectParam = params.get('projectId') || params.get('project');
     const tabParam = params.get('tab');
     const stageIdParam = params.get('stageId');
+
+    console.log('Client Portal URL params:', { projectParam, tabParam, stageIdParam, fullSearch: window.location.search });
 
     if (projectParam) {
       setSelectedProject(projectParam);
@@ -188,9 +174,9 @@ export default function ClientPortal() {
   return (
     <div className="space-y-6 p-6 bg-[var(--pro-bg)] min-h-screen">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--pro-text-primary)]">Client Portal</h1>
+          <h1 className="text-3xl font-bold text-[var(--pro-text-primary)]">Client Portal</h1>
           <p className="text-[var(--pro-text-secondary)]">
             Communicate and collaborate on your construction projects
           </p>
@@ -211,33 +197,28 @@ export default function ClientPortal() {
             )}
           </div>
         ) : (
-          // Project dropdown + invite button for non-client users
-          <div className="flex items-center gap-3">
-            <div className="min-w-0 flex-1 sm:flex-none sm:w-80">
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger className="w-full" data-testid="select-project">
-                  <div className="flex items-center gap-2">
-                    <Building className="h-4 w-4 shrink-0" />
-                    <SelectValue placeholder="Select a project" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      <div className="flex items-center justify-between w-full">
-                        <span>{project.name}</span>
-                        <Badge variant="outline" className="ml-2">
-                          {project.status}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="shrink-0">
-              <InviteClientDialog defaultProjectId={selectedProject} />
-            </div>
+          // Project dropdown for non-client users
+          <div className="w-80">
+            <Select value={selectedProject} onValueChange={setSelectedProject}>
+              <SelectTrigger className="w-full" data-testid="select-project">
+                <div className="flex items-center gap-2">
+                  <Building className="h-4 w-4" />
+                  <SelectValue placeholder="Select a project" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    <div className="flex items-center justify-between w-full">
+                      <span>{project.name}</span>
+                      <Badge variant="outline" className="ml-2">
+                        {project.status}
+                      </Badge>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
       </div>
@@ -260,12 +241,11 @@ export default function ClientPortal() {
             {tabItems.map((tab) => {
               const Icon = tab.icon;
               return (
-                <TabsTrigger
-                  key={tab.value}
-                  value={tab.value}
+                <TabsTrigger 
+                  key={tab.value} 
+                  value={tab.value} 
                   className="flex items-center gap-2"
                   data-testid={`tab-${tab.value}`}
-                  data-tour={`${tab.value}-tab`}
                 >
                   <Icon className={`h-4 w-4 ${tab.color}`} />
                   <span className="hidden sm:inline">{tab.label}</span>
@@ -275,13 +255,7 @@ export default function ClientPortal() {
           </TabsList>
 
           <TabsContent value="stages">
-            <StagesTab
-              projectId={selectedProject}
-              onNavigateToMaterials={(stageId) => {
-                setInitialStageFilter(stageId);
-                setActiveTab("materials");
-              }}
-            />
+            <StagesTab projectId={selectedProject} />
           </TabsContent>
 
           <TabsContent value="issues">
@@ -307,11 +281,6 @@ export default function ClientPortal() {
             </TabsContent>
           )}
         </Tabs>
-      )}
-
-      {/* Guided tour for first-time client users */}
-      {isClient && selectedProject && (
-        <ClientTour forceShow={showTour} />
       )}
     </div>
   );

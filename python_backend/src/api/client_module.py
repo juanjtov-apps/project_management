@@ -92,9 +92,6 @@ class MaterialAreaUpdate(BaseModel):
     description: Optional[str] = None
     sort_order: Optional[int] = None
 
-class MaterialAreaDuplicate(BaseModel):
-    new_name: str
-
 class MaterialItemCreate(BaseModel):
     area_id: str
     project_id: str
@@ -118,7 +115,6 @@ class MaterialItemUpdate(BaseModel):
     status: Optional[str] = None
     stage_id: Optional[str] = None  # Link to project stage
     order_status: Optional[str] = None  # 'pending_to_order' or 'ordered'
-    area_id: Optional[str] = None  # Move item to a different area
 
 class PaymentScheduleCreate(BaseModel):
     project_id: str
@@ -289,7 +285,7 @@ async def notify_pms_and_admins(
         # Get all project managers and admins for this project's company
         # Note: users table only has role_id, not a role text column
         managers = await conn.fetch("""
-            SELECT DISTINCT u.id, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as full_name
+            SELECT DISTINCT u.id, COALESCE(u.name, u.first_name || ' ' || u.last_name) as full_name
             FROM users u
             JOIN roles r ON u.role_id = r.id
             WHERE COALESCE(r.role_name, r.name) IN ('admin', 'project_manager')
@@ -334,7 +330,7 @@ async def notify_office_managers(
         # Also include admins as they may handle invoices too
         # Note: users table only has role_id, not a role text column
         office_managers = await conn.fetch("""
-            SELECT DISTINCT u.id, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as full_name
+            SELECT DISTINCT u.id, COALESCE(u.name, u.first_name || ' ' || u.last_name) as full_name
             FROM users u
             JOIN roles r ON u.role_id = r.id
             WHERE COALESCE(r.role_name, r.name) IN ('office_manager', 'admin')
@@ -416,8 +412,8 @@ async def get_issues(
                 )
             rows = await conn.fetch(
                 """SELECT i.*,
-                   COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as created_by_name,
-                   COALESCE(NULLIF(CONCAT(r.first_name, ' ', r.last_name), ' '), r.email) as resolved_by_name,
+                   COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name), u.email) as created_by_name,
+                   COALESCE(r.name, CONCAT(r.first_name, ' ', r.last_name), r.email) as resolved_by_name,
                    (SELECT COUNT(*) FROM client_portal.issue_comments WHERE issue_id = i.id) as comment_count,
                    (SELECT COUNT(*) FROM client_portal.issue_attachments WHERE issue_id = i.id) as attachment_count,
                    COALESCE(
@@ -434,8 +430,8 @@ async def get_issues(
         else:
             rows = await conn.fetch(
                 """SELECT i.*,
-                   COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as created_by_name,
-                   COALESCE(NULLIF(CONCAT(r.first_name, ' ', r.last_name), ' '), r.email) as resolved_by_name,
+                   COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name), u.email) as created_by_name,
+                   COALESCE(r.name, CONCAT(r.first_name, ' ', r.last_name), r.email) as resolved_by_name,
                    (SELECT COUNT(*) FROM client_portal.issue_comments WHERE issue_id = i.id) as comment_count,
                    (SELECT COUNT(*) FROM client_portal.issue_attachments WHERE issue_id = i.id) as attachment_count,
                    COALESCE(
@@ -584,9 +580,11 @@ async def update_issue(
     # Send notification when issue is closed
     if is_resolving:
         # Build resolver name from available fields
-        first = current_user.get('first_name', '')
-        last = current_user.get('last_name', '')
-        resolver_name = f"{first} {last}".strip()
+        resolver_name = current_user.get('name')
+        if not resolver_name:
+            first = current_user.get('first_name', '')
+            last = current_user.get('last_name', '')
+            resolver_name = f"{first} {last}".strip()
         if not resolver_name:
             resolver_name = current_user.get('email', 'a user')
 
@@ -859,7 +857,7 @@ async def get_issue_history(
                    l.issue_snapshot,
                    l.created_at,
                    l.actor_id,
-                   COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as actor_name
+                   COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name)) as actor_name
                FROM client_portal.issue_audit_log l
                LEFT JOIN public.users u ON l.actor_id = u.id
                WHERE l.issue_id = $1
@@ -1020,7 +1018,7 @@ async def get_materials(
             if project_id not in accessible_projects:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
             rows = await conn.fetch(
-                """SELECT m.*, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as added_by_name
+                """SELECT m.*, u.name as added_by_name
                    FROM client_portal.materials m
                    LEFT JOIN public.users u ON m.added_by = u.id
                    WHERE m.project_id = $1
@@ -1029,7 +1027,7 @@ async def get_materials(
             )
         else:
             rows = await conn.fetch(
-                """SELECT m.*, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as added_by_name
+                """SELECT m.*, u.name as added_by_name
                    FROM client_portal.materials m
                    LEFT JOIN public.users u ON m.added_by = u.id
                    WHERE m.project_id = ANY($1::varchar[])
@@ -1362,17 +1360,11 @@ async def update_material_area(
     pool: asyncpg.Pool = Depends(get_db_pool)
 ):
     """Update a material area."""
-    if is_client_role(current_user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Clients cannot update material areas"
-        )
-
     async with pool.acquire() as conn:
         updates = []
         values = []
         param_count = 1
-
+        
         if update.name is not None:
             updates.append(f"name = ${param_count}")
             values.append(update.name)
@@ -1385,20 +1377,14 @@ async def update_material_area(
             updates.append(f"sort_order = ${param_count}")
             values.append(update.sort_order)
             param_count += 1
-
+        
         if not updates:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
-
+        
         values.append(area_id)
         query = f"UPDATE client_portal.material_areas SET {', '.join(updates)}, updated_at = now() WHERE id = ${param_count} RETURNING *"
-
-        try:
-            row = await conn.fetchrow(query, *values)
-        except UniqueViolationError:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="An area with this name already exists in this project"
-            )
+        
+        row = await conn.fetchrow(query, *values)
         if not row:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Area not found")
         return dict(row)
@@ -1416,108 +1402,6 @@ async def delete_material_area(
             area_id
         )
         return {"success": True}
-
-@router.post("/material-areas/{area_id}/duplicate")
-async def duplicate_material_area(
-    area_id: str,
-    data: MaterialAreaDuplicate,
-    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
-    pool: asyncpg.Pool = Depends(get_db_pool)
-):
-    """Duplicate a material area with all its materials.
-
-    Creates a new area with the given name, copies all material items
-    from the source area. Duplicated materials are renamed as
-    "{original_material_name} - {new_area_name}".
-    """
-    if is_client_role(current_user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Clients cannot duplicate material areas"
-        )
-
-    new_name = data.new_name.strip()
-    if not new_name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New area name is required"
-        )
-
-    async with pool.acquire() as conn:
-        # Fetch original area
-        original_area = await conn.fetchrow(
-            "SELECT * FROM client_portal.material_areas WHERE id = $1",
-            area_id
-        )
-        if not original_area:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Source area not found"
-            )
-
-        project_id = original_area['project_id']
-        await verify_project_access(project_id, current_user, pool)
-
-        async with conn.transaction():
-            # Create the new area
-            try:
-                new_area = await conn.fetchrow(
-                    """INSERT INTO client_portal.material_areas
-                       (project_id, name, description, sort_order, created_by)
-                       VALUES ($1, $2, $3, $4, $5)
-                       RETURNING *""",
-                    project_id,
-                    new_name,
-                    original_area['description'],
-                    original_area['sort_order'] + 1,
-                    current_user['id']
-                )
-            except UniqueViolationError:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"An area named '{new_name}' already exists in this project"
-                )
-
-            # Fetch all materials from the original area
-            original_items = await conn.fetch(
-                """SELECT * FROM client_portal.material_items
-                   WHERE area_id = $1 ORDER BY name""",
-                area_id
-            )
-
-            # Copy each material item with renamed name
-            new_items = []
-            for item in original_items:
-                new_item_name = f"{item['name']} - {new_name}"
-                new_item = await conn.fetchrow(
-                    """INSERT INTO client_portal.material_items
-                       (area_id, project_id, name, spec, product_link, vendor,
-                        quantity, unit_cost, status, added_by, stage_id,
-                        approval_status, is_from_template, order_status)
-                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-                       RETURNING *""",
-                    str(new_area['id']),
-                    project_id,
-                    new_item_name,
-                    item['spec'],
-                    item['product_link'],
-                    item['vendor'],
-                    item['quantity'],
-                    item['unit_cost'],
-                    item['status'],
-                    current_user['id'],
-                    item['stage_id'],
-                    'approved',
-                    False,
-                    'pending_to_order'
-                )
-                new_items.append(dict(new_item))
-
-        return {
-            "area": dict(new_area),
-            "items": new_items,
-            "items_copied": len(new_items)
-        }
 
 # ============================================================================
 # MATERIAL ITEMS ENDPOINTS (Comprehensive Redesign)
@@ -1548,7 +1432,7 @@ async def get_material_items(
         # Filter by stage_id if provided
         if stage_id:
             rows = await conn.fetch(
-                f"""SELECT mi.*, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as added_by_name, ma.name as area_name,
+                f"""SELECT mi.*, u.name as added_by_name, ma.name as area_name,
                           ps.name as stage_name
                    FROM client_portal.material_items mi
                    LEFT JOIN public.users u ON mi.added_by = u.id
@@ -1560,7 +1444,7 @@ async def get_material_items(
             )
         elif area_id:
             rows = await conn.fetch(
-                f"""SELECT mi.*, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as added_by_name, ma.name as area_name,
+                f"""SELECT mi.*, u.name as added_by_name, ma.name as area_name,
                           ps.name as stage_name
                    FROM client_portal.material_items mi
                    LEFT JOIN public.users u ON mi.added_by = u.id
@@ -1572,7 +1456,7 @@ async def get_material_items(
             )
         elif project_id:
             rows = await conn.fetch(
-                f"""SELECT mi.*, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as added_by_name, ma.name as area_name,
+                f"""SELECT mi.*, u.name as added_by_name, ma.name as area_name,
                           ps.name as stage_name
                    FROM client_portal.material_items mi
                    LEFT JOIN public.users u ON mi.added_by = u.id
@@ -1585,7 +1469,7 @@ async def get_material_items(
         else:
             accessible_projects = await get_user_accessible_projects(current_user, pool)
             rows = await conn.fetch(
-                f"""SELECT mi.*, COALESCE(NULLIF(CONCAT(u.first_name, ' ', u.last_name), ' '), u.email) as added_by_name, ma.name as area_name,
+                f"""SELECT mi.*, u.name as added_by_name, ma.name as area_name,
                           ps.name as stage_name
                    FROM client_portal.material_items mi
                    LEFT JOIN public.users u ON mi.added_by = u.id
@@ -1624,19 +1508,6 @@ async def create_material_item(
     await verify_project_access(item.project_id, current_user, pool)
 
     async with pool.acquire() as conn:
-        # Server-side duplicate check
-        exists = await conn.fetchval("""
-            SELECT EXISTS(
-                SELECT 1 FROM client_portal.material_items
-                WHERE area_id = $1 AND LOWER(TRIM(name)) = LOWER(TRIM($2))
-            )
-        """, item.area_id, item.name)
-        if exists:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"A material named '{item.name}' already exists in this area"
-            )
-
         row = await conn.fetchrow(
             """INSERT INTO client_portal.material_items
                (area_id, project_id, name, spec, product_link, vendor, quantity, unit_cost, status, added_by, stage_id, order_status)
@@ -1701,11 +1572,6 @@ async def update_material_item(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Clients cannot assign materials to stages. Contact your project manager."
             )
-        if update.area_id is not None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Clients cannot move materials between areas. Contact your project manager."
-            )
 
     async with pool.acquire() as conn:
         updates = []
@@ -1748,24 +1614,6 @@ async def update_material_item(
             updates.append(f"order_status = ${param_count}")
             values.append(update.order_status)
             param_count += 1
-        if update.area_id is not None:
-            # Validate the target area exists and belongs to the same project
-            item_row = await conn.fetchrow(
-                "SELECT project_id FROM client_portal.material_items WHERE id = $1", item_id
-            )
-            if item_row:
-                target_area = await conn.fetchrow(
-                    "SELECT id FROM client_portal.material_areas WHERE id = $1 AND project_id = $2",
-                    update.area_id, item_row['project_id']
-                )
-                if not target_area:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Target area not found or belongs to a different project"
-                    )
-            updates.append(f"area_id = ${param_count}")
-            values.append(update.area_id)
-            param_count += 1
 
         if not updates:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
@@ -1800,142 +1648,6 @@ async def delete_material_item(
             item_id
         )
         return {"success": True}
-
-# ============================================================================
-# MATERIAL DOCUMENTS ENDPOINTS
-# ============================================================================
-
-class MaterialDocumentCreate(BaseModel):
-    item_id: str
-    project_id: str
-    document_path: str
-    file_name: str
-    mime_type: Optional[str] = None
-
-
-@router.get("/material-documents")
-async def get_material_documents(
-    item_id: str = Query(...),
-    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
-    pool: asyncpg.Pool = Depends(get_db_pool)
-):
-    """Get all documents attached to a material item. Returns fresh signed GET URLs."""
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            """SELECT md.id, md.item_id, md.project_id, md.document_path,
-                      md.file_name, md.mime_type, md.uploaded_by, md.created_at,
-                      u.email as uploaded_by_email
-               FROM client_portal.material_documents md
-               LEFT JOIN public.users u ON u.id = md.uploaded_by
-               WHERE md.item_id = $1
-               ORDER BY md.created_at DESC""",
-            item_id
-        )
-
-        config = get_storage_config()
-        documents = []
-        for row in rows:
-            doc = dict(row)
-            doc["created_at"] = doc["created_at"].isoformat() if doc["created_at"] else None
-            # Generate fresh signed GET URL for downloading
-            download_url = await generate_signed_url(
-                config["bucket_id"],
-                doc["document_path"],
-                method="GET",
-                expires_minutes=60
-            )
-            doc["download_url"] = download_url
-            documents.append(doc)
-
-        return documents
-
-
-@router.post("/material-documents")
-async def create_material_document(
-    data: MaterialDocumentCreate,
-    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
-    pool: asyncpg.Pool = Depends(get_db_pool)
-):
-    """Attach a document to a material item. Both clients and PMs can upload. Max 5 per item."""
-    async with pool.acquire() as conn:
-        # Enforce max 5 documents per item
-        count = await conn.fetchval(
-            "SELECT COUNT(*) FROM client_portal.material_documents WHERE item_id = $1",
-            data.item_id
-        )
-        if count >= 5:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maximum 5 documents per material item. Delete an existing document first."
-            )
-
-        row = await conn.fetchrow(
-            """INSERT INTO client_portal.material_documents
-               (item_id, project_id, document_path, file_name, mime_type, uploaded_by)
-               VALUES ($1, $2, $3, $4, $5, $6)
-               RETURNING id, created_at""",
-            data.item_id,
-            data.project_id,
-            data.document_path,
-            data.file_name,
-            data.mime_type,
-            current_user["id"]
-        )
-
-        return {
-            "id": str(row["id"]),
-            "item_id": data.item_id,
-            "file_name": data.file_name,
-            "created_at": row["created_at"].isoformat() if row["created_at"] else None,
-        }
-
-
-@router.delete("/material-documents/{doc_id}")
-async def delete_material_document(
-    doc_id: str,
-    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
-    pool: asyncpg.Pool = Depends(get_db_pool)
-):
-    """Delete a material document. PMs/admins can delete any, clients can only delete their own."""
-    async with pool.acquire() as conn:
-        doc = await conn.fetchrow(
-            "SELECT uploaded_by FROM client_portal.material_documents WHERE id = $1",
-            doc_id
-        )
-        if not doc:
-            raise HTTPException(status_code=404, detail="Document not found")
-
-        # Clients can only delete their own uploads
-        if is_client_role(current_user) and doc["uploaded_by"] != current_user["id"]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only delete documents you uploaded."
-            )
-
-        await conn.execute(
-            "DELETE FROM client_portal.material_documents WHERE id = $1",
-            doc_id
-        )
-        return {"success": True}
-
-
-@router.get("/material-documents/count")
-async def get_material_document_counts(
-    project_id: str = Query(...),
-    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
-    pool: asyncpg.Pool = Depends(get_db_pool)
-):
-    """Get document counts per material item for a project (for badge display)."""
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            """SELECT item_id, COUNT(*) as doc_count
-               FROM client_portal.material_documents
-               WHERE project_id = $1
-               GROUP BY item_id""",
-            project_id
-        )
-        return {str(row["item_id"]): row["doc_count"] for row in rows}
-
 
 # ============================================================================
 # STATS ENDPOINT
@@ -2015,13 +1727,6 @@ async def create_payment_schedule(
             )
             return dict(row)
         except UniqueViolationError:
-            # Schedule already exists — return it (idempotent get-or-create)
-            row = await conn.fetchrow(
-                "SELECT * FROM client_portal.payment_schedules WHERE project_id = $1 AND LOWER(title) = LOWER($2)",
-                data.project_id, data.title
-            )
-            if row:
-                return dict(row)
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A payment schedule with this title already exists for this project"

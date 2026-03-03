@@ -27,29 +27,42 @@ Browser → Node.js (port 5000) → FastAPI (port 8000) → PostgreSQL
    - All RBAC checks and business logic
    - All API endpoints at `/api/v1/*`
 
-3. **Authentication is entirely in FastAPI**: Sessions are stored in PostgreSQL (not Node.js). The login flow is: frontend → Node proxy → FastAPI `/api/v1/auth/login` → bcrypt validation → DB session (7-day TTL). The `useAuth` hook queries `/api/v1/auth/user` for session state.
+## Database Schemas
 
-## Database
+The database uses two PostgreSQL schemas:
 
-### Two PostgreSQL Schemas
+### `public` Schema (Core Business Logic)
 
-**`public` schema** — Core business: `companies`, `users`, `projects`, `tasks`, `roles`, `permissions`, `role_permissions`, `audit_logs`, `sessions`
+| Table | Purpose |
+|-------|---------|
+| `companies` | Multi-tenant company entities |
+| `users` | User accounts with role assignments |
+| `projects` | Construction projects |
+| `tasks` | Project tasks/punch list items |
+| `roles` | Role definitions (6 templates) |
+| `permissions` | 26 granular permissions |
+| `role_permissions` | Role-to-permission mappings |
+| `audit_logs` | System-wide audit trail |
+| `sessions` | User session management |
 
-**`client_portal` schema** — Client-facing: issues, forum, materials, payments, stages, notifications (see `python_backend/src/database/init_client_portal.py` for full table list)
+### `client_portal` Schema (Client-Facing Features)
 
-### Schema Initialization
+| Feature | Tables |
+|---------|--------|
+| Issues | `issues`, `issue_comments`, `issue_attachments`, `issue_audit_log` |
+| Forum | `forum_threads`, `forum_messages`, `forum_attachments` |
+| Materials | `material_areas`, `material_items`, `material_templates` |
+| Payments | `payment_schedules`, `payment_installments`, `invoices`, `payment_receipts`, `payment_documents` |
+| Stages | `project_stages`, `stage_templates`, `stage_template_items` |
+| Notifications | `pm_notifications`, `pm_notification_prefs` |
 
-Schemas are initialized at FastAPI startup via safe, additive SQL migrations (CREATE TABLE IF NOT EXISTS) inside transactions. See `init_client_portal.py` and `init_agent_schema.py`. These run automatically — no manual migration step needed for new schemas.
-
-### Drizzle (Node.js reference only)
-
-`shared/schema.ts` defines types for the Node.js layer. Push schema changes with `npm run db:push`. Config: `drizzle.config.ts`.
+**Schema initialization:** `python_backend/src/database/init_client_portal.py`
 
 ## Development Commands
 
 ### Start Both Servers
 ```bash
-./start-servers.sh    # Starts both with health checks, port conflict detection, monitoring
+./start-servers.sh
 ```
 
 ### Start Independently
@@ -61,19 +74,16 @@ cd python_backend && python3 main.py
 npm run dev
 ```
 
-### Python Tests
-```bash
-cd python_backend && python -m pytest                    # Run all tests
-cd python_backend && python -m pytest tests/test_api_routes.py  # Single file
-cd python_backend && python -m pytest -k "test_name"     # Single test by name
-```
-pytest.ini: `asyncio_mode = auto`, test discovery in `python_backend/tests/`. Uses `pytest-asyncio` and `httpx` AsyncClient.
-
 ### Other Commands
 ```bash
 npm run build          # Build frontend for production
 npm run check          # TypeScript type checking
 npm run db:push        # Push Drizzle schema changes
+npm run test:db        # Test Node.js database connection
+
+# Python backend
+cd python_backend && pip install -r requirements.txt
+cd python_backend && python test_db_connection.py
 ```
 
 ## Key Directories
@@ -81,23 +91,15 @@ npm run db:push        # Push Drizzle schema changes
 - `client/` - React frontend (Wouter routing, TanStack Query, Radix UI/shadcn)
 - `python_backend/` - FastAPI backend (all business logic)
 - `server/` - Express proxy only (no DB operations)
-- `shared/` - Drizzle schema types (Node.js reference only)
+- `shared/` - Database types (reference only)
 
 ## Backend Structure (python_backend/)
 
-- `src/api/v1/` - Core API routers (auth, projects, tasks, photos, logs, rbac, users, etc.)
-- `src/api/` - Additional routers (company_admin, onboarding, schedule, etc.) imported via try/except in `src/api/v1/__init__.py`
+- `src/api/v1/` - API endpoints (projects, tasks, rbac, users, photos, etc.)
 - `src/models/` - Pydantic models for request/response validation
 - `src/database/repositories.py` - Repository Pattern for all DB access
-- `src/database/auth_repositories.py` - Auth-specific DB queries
-- `src/database/connection.py` - asyncpg connection pool (auto-detects Neon vs Cloud SQL for SSL)
-- `src/services/` - Business logic services (email via Resend, SMS via Twilio, magic links)
-- `src/middleware/` - Security headers, rate limiting, CSRF, request tracking
+- `src/database/connection.py` - asyncpg connection pool
 - `src/core/config.py` - Settings and environment variables
-
-### Router Registration Pattern
-
-Routers in `src/api/v1/__init__.py` use try/except imports for optional modules. Core routers are always included; optional routers (schedule, notifications, agent, etc.) gracefully degrade if their module doesn't exist.
 
 ## Frontend Structure (client/)
 
@@ -105,14 +107,6 @@ Routers in `src/api/v1/__init__.py` use try/except imports for optional modules.
 - `src/components/` - Reusable UI components
 - `src/hooks/useAuth.ts` - Authentication hook (React Query)
 - `src/lib/queryClient.ts` - TanStack Query configuration
-
-### Vite Path Aliases
-- `@` → `client/src`
-- `@shared` → `shared`
-- `@assets` → `attached_assets`
-
-### Tailwind Theme
-Custom construction-themed palette with `pro-*` color tokens, `mint`, `brand`, `navy`. Dark mode via class strategy. Config: `tailwind.config.ts`.
 
 ## Coding Standards
 
@@ -122,8 +116,6 @@ Custom construction-themed palette with `pro-*` color tokens, `mint`, `brand`, `
 - Use Repository Pattern in `repositories.py`
 - Raise `HTTPException` for errors
 - Use Pydantic models for all request/response schemas
-- Early returns for error conditions; happy path last
-- Use descriptive names with auxiliary verbs: `is_active`, `has_permission`
 
 ### TypeScript (Frontend)
 - Strict mode, no `any` types
@@ -131,15 +123,13 @@ Custom construction-themed palette with `pro-*` color tokens, `mint`, `brand`, `
 - Use TanStack Query for data fetching (not useEffect)
 - Fetch relative paths (`/api/v1/...`) - never hardcode localhost:8000
 - Use Wouter for routing (not React Router)
-- **Routing rule**: Both authenticated and unauthenticated Switch blocks in `App.tsx` must define routes for ALL navigable paths (e.g., `/login` must exist in authenticated routes as a redirect to `/dashboard`). After login, a race condition between `setLocation` and React Query state propagation can briefly leave the user on an auth-only URL while authenticated — any unhandled path hits the 404 catch-all.
 
 ## RBAC System
 
-All RBAC operations are in FastAPI (`python_backend/src/api/v1/rbac.py` and `python_backend/src/api/user_management.py`):
+All RBAC operations are in FastAPI (`python_backend/src/api/v1/rbac.py`):
 - 6 role templates: admin, project_manager, office_manager, crew, subcontractor, client
 - 26 granular permissions
 - Row-level security via company_id filtering in every query
-- Frontend uses `ProtectedRoute` component with `requiredPermission` prop
 
 ## Construction Domain Terms
 
@@ -162,23 +152,92 @@ All RBAC operations are in FastAPI (`python_backend/src/api/v1/rbac.py` and `pyt
 - `DATABASE_URL` - Fallback PostgreSQL connection string
 - `SESSION_SECRET` - Secret for session encryption
 
-### Optional
-- `MAGIC_LINK_BASE_URL` - Base URL for client onboarding magic links
-- `RESEND_API_KEY` - Email service (Resend)
-- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` - SMS service
-- `DB_SSL_DIR`, `DB_SSL_ROOT_CERT`, `DB_SSL_CERT`, `DB_SSL_KEY` - Legacy Cloud SQL SSL certs (not actively used; dev and prod use Neon)
+### Optional (Legacy Cloud SQL)
+- `DB_SSL_DIR` - Directory with SSL certificates
+- `DB_SSL_ROOT_CERT`, `DB_SSL_CERT`, `DB_SSL_KEY` - Individual cert paths
+
+**Note:** Development and production both use Neon PostgreSQL. Cloud SQL configuration is retained for legacy compatibility but is not actively used.
 
 ## GCS Photo Upload Pattern
 
-When implementing GCS file uploads with preview, the upload endpoint must return **three values**: `uploadURL` (PUT signed URL), `previewURL` (GET signed URL), and `objectPath` (permanent path for DB storage).
+### The Problem We Solved
 
-**Key rules:**
-- PUT signed URLs cannot be used for GET (previews) — always generate separate GET URLs
-- Frontend must have separate state for preview URLs (display) and object paths (storage)
-- Form submission sends object paths, NOT preview URLs
-- Database stores object paths; retrieval endpoints generate fresh signed URLs
+When implementing photo uploads with Google Cloud Storage signed URLs, we encountered a bug where **photo previews showed errors** before saving. The root cause:
 
-**Reference files:**
-- `python_backend/src/api/objects.py` - Upload endpoint
-- `client/src/components/ObjectUploader.tsx` - Reusable upload component
-- `client/src/components/client-portal/issues-tab.tsx` - Example usage
+1. **PUT signed URLs cannot be used for GET operations** - The upload endpoint returned only a PUT URL for uploading files
+2. **Frontend used the PUT URL as image src** - This fails because PUT URLs are only valid for uploading, not viewing
+3. **URLs expire quickly** - Even if they worked, 15-minute expiry caused stale previews
+
+### Correct Implementation Pattern
+
+When implementing GCS file uploads with preview functionality, always return **three values** from the upload endpoint:
+
+#### Backend (`/api/objects/upload`)
+```python
+@router.post("/upload")
+async def get_upload_url():
+    object_id = str(uuid.uuid4())
+    object_path = get_object_path(object_id, clean_private_dir)
+
+    # PUT URL for uploading (short expiry is fine)
+    upload_url = await generate_signed_url(bucket_id, object_path, method="PUT", expires_minutes=15)
+
+    # GET URL for preview (longer expiry for user interaction time)
+    preview_url = await generate_signed_url(bucket_id, object_path, method="GET", expires_minutes=60)
+
+    return {
+        "uploadURL": upload_url,      # For uploading the file
+        "previewURL": preview_url,    # For displaying preview in UI
+        "objectPath": object_path     # For storing in database
+    }
+```
+
+#### Frontend Upload Handler
+```typescript
+// Separate state for display vs storage
+const [previewUrls, setPreviewUrls] = useState<string[]>([]);  // For <img src>
+const [objectPaths, setObjectPaths] = useState<string[]>([]);  // For API submission
+
+const handleGetUploadParameters = async () => {
+  const response = await apiRequest("/api/objects/upload", { method: "POST" });
+  const data = await response.json();
+  return {
+    method: "PUT" as const,
+    url: data.uploadURL,
+    previewURL: data.previewURL,
+    objectPath: data.objectPath,
+  };
+};
+
+const handleUploadComplete = (results: Array<{ previewURL: string; objectPath: string }>) => {
+  setPreviewUrls([...previewUrls, ...results.map(r => r.previewURL)]);
+  setObjectPaths([...objectPaths, ...results.map(r => r.objectPath)]);
+};
+
+// On form submit, send objectPaths (NOT previewUrls)
+const onSubmit = () => {
+  apiRequest("/api/endpoint", {
+    method: "POST",
+    body: { photos: objectPaths }  // Store paths, not URLs
+  });
+};
+```
+
+#### Database Storage
+- **Store object paths** (e.g., `.private/uploads/uuid`), NOT signed URLs
+- Signed URLs expire; object paths are permanent
+- Generate fresh signed URLs when retrieving photos for display
+
+### Key Files for Reference
+- `python_backend/src/api/objects.py` - Upload endpoint returning all three values
+- `client/src/components/ObjectUploader.tsx` - Reusable upload component with `UploadResult` interface
+- `client/src/components/client-portal/issues-tab.tsx` - Example usage with separate preview/path state
+
+### Checklist for New Photo Upload Features
+- [ ] Backend returns `uploadURL`, `previewURL`, and `objectPath`
+- [ ] Frontend has separate state for preview URLs (display) and object paths (storage)
+- [ ] Form submission sends object paths, not preview URLs
+- [ ] Remove handlers update both preview and path arrays
+- [ ] Reset functions clear both arrays
+- [ ] Backend stores object paths in database
+- [ ] Retrieval endpoint generates fresh signed URLs from stored paths

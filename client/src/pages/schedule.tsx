@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,11 +16,22 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertScheduleChangeSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-import { getPriorityColor } from "@/lib/statusColors";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, addMonths, subMonths } from "date-fns";
 import type { Task, ScheduleChange, InsertScheduleChange, Project } from "@shared/schema";
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case "approved":
+      return "bg-[var(--pro-mint)]/20 text-[var(--pro-mint)]";
+    case "rejected":
+      return "bg-[var(--pro-red)]/20 text-[var(--pro-red)]";
+    case "pending":
+      return "bg-[var(--pro-orange)]/20 text-[var(--pro-orange)]";
+    default:
+      return "bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)]";
+  }
+};
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -43,7 +54,6 @@ export default function Schedule() {
   const [currentView, setCurrentView] = useState<"overview" | "timeline" | "gantt" | "calendar">("overview");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const queryClient = useQueryClient();
-  const { user } = useAuth();
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
@@ -82,7 +92,7 @@ export default function Schedule() {
     resolver: zodResolver(insertScheduleChangeSchema),
     defaultValues: {
       taskId: "",
-      userId: (user as any)?.id || "unknown",
+      userId: "sample-user-id", // In a real app, this would come from auth
       reason: "",
       originalDate: new Date(),
       newDate: new Date(),
@@ -93,7 +103,7 @@ export default function Schedule() {
     resolver: zodResolver(insertScheduleChangeSchema),
     defaultValues: {
       taskId: "",
-      userId: (user as any)?.id || "unknown",
+      userId: "sample-user-id",
       reason: "",
       originalDate: new Date(),
       newDate: new Date(),
@@ -128,88 +138,56 @@ export default function Schedule() {
     setIsEditDialogOpen(true);
   };
 
-  // 8E: Pre-compute Maps for O(1) lookups instead of O(n) .find()
-  const taskMap = useMemo(() => {
-    const map = new Map<string, Task>();
-    tasks.forEach(t => map.set(t.id, t));
-    return map;
-  }, [tasks]);
-
-  const projectMap = useMemo(() => {
-    const map = new Map<string, Project>();
-    projects.forEach(p => map.set(p.id, p));
-    return map;
-  }, [projects]);
-
   const getTaskName = (taskId: string) => {
-    const task = taskMap.get(taskId);
+    const task = tasks.find(t => t.id === taskId);
     return task?.title || "Unknown Task";
   };
 
   const getProjectName = (taskId: string) => {
-    const task = taskMap.get(taskId);
-    const project = task?.projectId ? projectMap.get(task.projectId) : undefined;
+    const task = tasks.find(t => t.id === taskId);
+    const project = projects.find(p => p.id === task?.projectId);
     return project?.name || "Unknown Project";
   };
 
-  // 8D: Memoize derived data computations
-  const tasksWithSchedules = useMemo(
-    () => tasks.filter(task => task.dueDate),
-    [tasks]
-  );
-
-  const upcomingTasks = useMemo(
-    () => tasksWithSchedules
-      .filter(task => new Date(task.dueDate!) >= new Date())
-      .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime()),
-    [tasksWithSchedules]
-  );
+  const tasksWithSchedules = tasks.filter(task => task.dueDate);
+  const upcomingTasks = tasksWithSchedules
+    .filter(task => new Date(task.dueDate!) >= new Date())
+    .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
 
   // Timeline data processing
-  const timelineData = useMemo(
-    () => tasksWithSchedules
-      .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
-      .map(task => ({
-        ...task,
-        project: task.projectId ? projectMap.get(task.projectId) : undefined,
-        daysFromNow: Math.ceil((new Date(task.dueDate!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-      })),
-    [tasksWithSchedules, projectMap]
-  );
+  const timelineData = tasksWithSchedules
+    .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
+    .map(task => ({
+      ...task,
+      project: projects.find(p => p.id === task.projectId),
+      daysFromNow: Math.ceil((new Date(task.dueDate!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    }));
 
   // Calendar data processing
-  const calendarDays = useMemo(
-    () => eachDayOfInterval({
-      start: startOfMonth(currentMonth),
-      end: endOfMonth(currentMonth)
-    }),
-    [currentMonth]
-  );
-
-  // 8E: Pre-compute tasks grouped by date string for O(1) calendar day lookups
-  const tasksByDate = useMemo(() => {
-    const map = new Map<string, Task[]>();
-    tasksWithSchedules.forEach(task => {
-      const dateKey = format(new Date(task.dueDate!), "yyyy-MM-dd");
-      const existing = map.get(dateKey);
-      if (existing) {
-        existing.push(task);
-      } else {
-        map.set(dateKey, [task]);
-      }
-    });
-    return map;
-  }, [tasksWithSchedules]);
+  const calendarDays = eachDayOfInterval({
+    start: startOfMonth(currentMonth),
+    end: endOfMonth(currentMonth)
+  });
 
   const getTasksForDay = (day: Date) => {
-    const dateKey = format(day, "yyyy-MM-dd");
-    return tasksByDate.get(dateKey) || [];
+    return tasksWithSchedules.filter(task => 
+      isSameDay(new Date(task.dueDate!), day)
+    );
   };
 
   const getProjectDeadlinesForDay = (day: Date) => {
     return projects.filter(project => 
       project.dueDate && isSameDay(new Date(project.dueDate), day)
     );
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high": return "bg-brand-coral";
+      case "medium": return "bg-brand-teal";
+      case "low": return "bg-green-500";
+      default: return "bg-gray-500";
+    }
   };
 
   const getCategoryColor = (category: string) => {

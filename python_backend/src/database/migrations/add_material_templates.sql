@@ -17,8 +17,7 @@ CREATE TABLE IF NOT EXISTS client_portal.material_templates (
     material_name varchar(255) NOT NULL,
     material_category varchar(100),     -- Category within area (e.g., "Cabinets", "Appliances")
     sort_order integer DEFAULT 0,
-    created_at timestamptz DEFAULT now(),
-    CONSTRAINT unique_material_template UNIQUE (stage_template_id, stage_name, area_name, material_name)
+    created_at timestamptz DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_material_templates_stage_template
@@ -90,7 +89,7 @@ CROSS JOIN (VALUES
     ('Appliances & Final', 'Kitchen', 'Range Hood', 'Appliances', 6)
 ) AS items(stage_name, area_name, material_name, category, sort_order)
 WHERE t.name = 'Kitchen Remodel'
-ON CONFLICT (stage_template_id, stage_name, area_name, material_name) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- Bathroom Renovation Materials (mapped to existing stage names)
 INSERT INTO client_portal.material_templates (stage_template_id, stage_name, area_name, material_name, material_category, sort_order)
@@ -120,7 +119,7 @@ CROSS JOIN (VALUES
     ('Final Details', 'Bathroom', 'Exhaust Fan', 'Ventilation', 5)
 ) AS items(stage_name, area_name, material_name, category, sort_order)
 WHERE t.name = 'Bathroom Renovation'
-ON CONFLICT (stage_template_id, stage_name, area_name, material_name) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- Full Home Remodel Materials (mapped to existing stage names)
 INSERT INTO client_portal.material_templates (stage_template_id, stage_name, area_name, material_name, material_category, sort_order)
@@ -140,7 +139,7 @@ CROSS JOIN (VALUES
     ('Fixtures & Trim', 'General', 'Window Treatments', 'Window', 3)
 ) AS items(stage_name, area_name, material_name, category, sort_order)
 WHERE t.name = 'Full Home Remodel'
-ON CONFLICT (stage_template_id, stage_name, area_name, material_name) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- Room Addition Materials (mapped to existing stage names)
 INSERT INTO client_portal.material_templates (stage_template_id, stage_name, area_name, material_name, material_category, sort_order)
@@ -163,7 +162,7 @@ CROSS JOIN (VALUES
     ('Interior Finishes', 'General', 'Light Fixtures', 'Lighting', 4)
 ) AS items(stage_name, area_name, material_name, category, sort_order)
 WHERE t.name = 'Room Addition'
-ON CONFLICT (stage_template_id, stage_name, area_name, material_name) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- ADU Construction Materials (mapped to existing stage names)
 INSERT INTO client_portal.material_templates (stage_template_id, stage_name, area_name, material_name, material_category, sort_order)
@@ -207,7 +206,7 @@ CROSS JOIN (VALUES
     ('Final Finishes', 'Bathroom', 'Towel Bars', 'Accessories', 6)
 ) AS items(stage_name, area_name, material_name, category, sort_order)
 WHERE t.name = 'ADU Construction'
-ON CONFLICT (stage_template_id, stage_name, area_name, material_name) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- Update alembic version tracking
 INSERT INTO client_portal.alembic_version(version_num)

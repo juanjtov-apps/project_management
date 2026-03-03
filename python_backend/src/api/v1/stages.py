@@ -16,7 +16,6 @@ from src.models.stage import (
     ProjectStageUpdate,
     ApplyTemplateRequest,
     ReorderStagesRequest,
-    ShiftDatesRequest,
 )
 
 router = APIRouter(prefix="/stages", tags=["stages"])
@@ -199,7 +198,7 @@ async def update_stage(
     if 'status' in update_data and update_data['status']:
         update_data['status'] = update_data['status'].value if hasattr(update_data['status'], 'value') else update_data['status']
 
-    return await project_stage_repo.update(stage_id, update_data, user_id=current_user['id'])
+    return await project_stage_repo.update(stage_id, update_data)
 
 
 @router.delete("/{stage_id}", status_code=status.HTTP_200_OK)
@@ -252,31 +251,6 @@ async def reorder_stages(
         )
 
     return await project_stage_repo.reorder(project_id, request.stage_ids)
-
-
-@router.post("/shift-dates", response_model=List[Dict[str, Any]])
-async def shift_stage_dates(
-    project_id: str = Query(..., alias="projectId"),
-    request: ShiftDatesRequest = Body(...),
-    current_user: Dict[str, Any] = Depends(get_current_user_dependency),
-    pool: asyncpg.Pool = Depends(get_db_pool)
-):
-    """
-    Shift dates of all stages after a given position by a number of days.
-    Used to cascade date adjustments when inserting a stage between existing ones.
-    Only PMs/admins can shift dates.
-    """
-    await verify_project_access(project_id, current_user, pool)
-
-    if is_client_role(current_user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Clients cannot modify stages"
-        )
-
-    return await project_stage_repo.shift_dates(
-        project_id, request.after_order_index, request.delta_days
-    )
 
 
 @router.post("/apply-template", response_model=List[Dict[str, Any]])

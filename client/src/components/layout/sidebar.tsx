@@ -14,7 +14,7 @@ import {
   ClipboardList,
   Shield,
   TrendingUp,
-  CircleUserRound,
+  MessageSquare,
   Users
 } from "lucide-react";
 import {
@@ -37,7 +37,7 @@ const navigation = [
   { name: "Schedule", href: "/schedule", icon: Calendar },
   { name: "Photos", href: "/photos", icon: Camera },
   { name: "Project Logs", href: "/logs", icon: ClipboardList },
-  { name: "Client Portal", href: "/client-portal", icon: CircleUserRound },
+  { name: "Client Portal", href: "/client-portal", icon: MessageSquare },
   { name: "RBAC Admin", href: "/rbac", icon: Shield },
   { name: "Waitlist", href: "/waitlist-admin", icon: Users, rootOnly: true },
 ];

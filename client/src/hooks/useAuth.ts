@@ -19,7 +19,7 @@ export function useAuth() {
     enabled: !startupDelay,
     retry: false, // Disable all retries for auth to prevent cascading failures
     refetchOnMount: false,
-    staleTime: Infinity,
+    staleTime: 0,
     refetchOnWindowFocus: false,
     networkMode: 'always',
     // Add error handling to prevent unhandled rejections

@@ -88,7 +88,7 @@ async def get_project(
         # Verify company access (unless root admin or client - client already checked above)
         if not is_root_admin(current_user) and user_role != 'client':
             user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
-            project_company_id = str(getattr(project, 'company_id', None) or getattr(project, 'companyId', '') or '')
+            project_company_id = str(project.get('company_id'))
             if project_company_id != user_company_id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
