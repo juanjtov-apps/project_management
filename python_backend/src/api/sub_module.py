@@ -399,93 +399,128 @@ async def invite_subcontractor(request: Request, current_user: dict = Depends(ge
         await _verify_project_company(project_id, company_id, pool)
 
     async with pool.acquire() as conn:
-        # Get subcontractor role_id
-        from .auth import get_role_column_name
-        role_col = await get_role_column_name(conn)
-        sub_role_row = await conn.fetchrow(
-            f"SELECT id FROM roles WHERE LOWER({role_col}) = 'subcontractor'" if role_col
-            else "SELECT id FROM roles WHERE id = 5"
-        )
-        sub_role_id = sub_role_row["id"] if sub_role_row else 5
-
-        # CHECK EMAIL FIRST — before creating any records
-        existing_user = await conn.fetchrow("SELECT id, role_id FROM users WHERE email = $1", email)
-        if existing_user:
-            existing_role = None
-            if role_col:
-                role_row = await conn.fetchrow(
-                    f"SELECT {role_col} as rn FROM roles WHERE id = $1", existing_user["role_id"]
-                )
-                existing_role = role_row["rn"].lower() if role_row else None
-            if existing_role and existing_role not in ("subcontractor", "contractor"):
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"User with this email already exists with role '{existing_role}'"
-                )
-
-        # Now safe to create sub company (email conflict already checked)
-        if not sub_company_id and company_name_input:
-            # Check for existing company with same name to prevent duplicates
-            existing_sub = await conn.fetchrow(
-                "SELECT id FROM subcontractors WHERE company_id = $1 AND LOWER(name) = LOWER($2)",
-                company_id, company_name_input,
+        async with conn.transaction():
+            # Get subcontractor role_id
+            from .auth import get_role_column_name
+            role_col = await get_role_column_name(conn)
+            sub_role_row = await conn.fetchrow(
+                f"SELECT id FROM roles WHERE LOWER({role_col}) = 'subcontractor'" if role_col
+                else "SELECT id FROM roles WHERE id = 5"
             )
-            if existing_sub:
-                sub_company_id = str(existing_sub["id"])
-            else:
+            sub_role_id = sub_role_row["id"] if sub_role_row else 5
+
+            # CHECK EMAIL FIRST — before creating any records
+            existing_user = await conn.fetchrow("SELECT id, role_id FROM users WHERE email = $1", email)
+            if existing_user:
+                existing_role = None
+                if role_col:
+                    role_row = await conn.fetchrow(
+                        f"SELECT {role_col} as rn FROM roles WHERE id = $1", existing_user["role_id"]
+                    )
+                    existing_role = role_row["rn"].lower() if role_row else None
+                if existing_role and existing_role not in ("subcontractor", "contractor"):
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"User with this email already exists with role '{existing_role}'"
+                    )
+
+            # Now safe to create sub company (email conflict already checked)
+            logger.info(f"Sub invite: company_name_input={company_name_input}, sub_company_id={sub_company_id}")
+
+            if sub_company_id:
+                # Existing company selected — reactivate and update contact email
+                await conn.execute(
+                    "UPDATE subcontractors SET status = 'active', contact_email = $2, updated_at = NOW() "
+                    "WHERE id = $1",
+                    sub_company_id, email,
+                )
+            elif company_name_input:
+                # Check for existing company with same name to prevent duplicates
+                existing_sub = await conn.fetchrow(
+                    "SELECT id FROM subcontractors WHERE company_id = $1 AND LOWER(name) = LOWER($2)",
+                    company_id, company_name_input,
+                )
+                if existing_sub:
+                    sub_company_id = str(existing_sub["id"])
+                    # Reactivate and update contact email
+                    await conn.execute(
+                        "UPDATE subcontractors SET status = 'active', contact_email = $2, updated_at = NOW() "
+                        "WHERE id = $1",
+                        sub_company_id, email,
+                    )
+                else:
+                    sub_company_id = str(uuid.uuid4())
+                    await conn.execute(
+                        """INSERT INTO subcontractors (id, company_id, name, trade, contact_email)
+                           VALUES ($1, $2, $3, $4, $5)""",
+                        sub_company_id, company_id, company_name_input, trade, email,
+                    )
+
+            # Fallback: create company from user's name if no company info provided
+            if not sub_company_id:
+                fallback_name = f"{first_name} {last_name}".strip() or "Unknown Subcontractor"
                 sub_company_id = str(uuid.uuid4())
                 await conn.execute(
                     """INSERT INTO subcontractors (id, company_id, name, trade, contact_email)
                        VALUES ($1, $2, $3, $4, $5)""",
-                    sub_company_id, company_id, company_name_input, trade, email,
+                    sub_company_id, company_id, fallback_name, trade, email,
+                )
+                logger.info(f"Created fallback sub company '{fallback_name}' for invite (no company name provided)")
+
+            # Create or update user
+            if existing_user:
+                sub_user_id = str(existing_user["id"])
+                if sub_company_id:
+                    await conn.execute(
+                        "UPDATE users SET subcontractor_id = $1, phone = COALESCE($2, phone) WHERE id = $3",
+                        sub_company_id, phone, sub_user_id,
+                    )
+                else:
+                    # Inherit existing user's subcontractor_id if no new company provided
+                    existing_sub_id = await conn.fetchval(
+                        "SELECT subcontractor_id FROM users WHERE id = $1", sub_user_id
+                    )
+                    if existing_sub_id:
+                        sub_company_id = str(existing_sub_id)
+            else:
+                sub_user_id = str(uuid.uuid4())
+                await conn.execute(
+                    """INSERT INTO users (id, email, username, first_name, last_name, role_id,
+                                         company_id, subcontractor_id, phone, is_active, created_at, updated_at)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true,NOW(),NOW())""",
+                    sub_user_id, email, email, first_name, last_name, sub_role_id,
+                    company_id, sub_company_id, phone,
                 )
 
-        # Create or update user
-        if existing_user:
-            sub_user_id = str(existing_user["id"])
+            # Create assignment if not already assigned
+            existing_assignment = await conn.fetchrow(
+                "SELECT id FROM subcontractor_assignments WHERE subcontractor_id = $1 AND project_id = $2",
+                sub_user_id, project_id,
+            )
+            if not existing_assignment:
+                assignment_id = str(uuid.uuid4())
+                await conn.execute(
+                    """INSERT INTO subcontractor_assignments
+                       (id, subcontractor_id, project_id, assigned_by, specialization,
+                        contract_value, sub_company_id, start_date, end_date, status)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active')""",
+                    assignment_id, sub_user_id, project_id,
+                    _get_user_id(current_user), specialization,
+                    _parse_numeric(contract_value), sub_company_id,
+                    _parse_datetime(start_date), _parse_datetime(end_date),
+                )
+
+            # Create invitation record (requires sub_company_id due to FK constraint)
             if sub_company_id:
                 await conn.execute(
-                    "UPDATE users SET subcontractor_id = $1, phone = COALESCE($2, phone) WHERE id = $3",
-                    sub_company_id, phone, sub_user_id,
+                    """INSERT INTO client_portal.sub_invitations
+                       (user_id, subcontractor_id, project_id, company_id, invited_by, welcome_note, status)
+                       VALUES ($1,$2,$3,$4,$5,$6,'pending')""",
+                    sub_user_id, sub_company_id, project_id, company_id,
+                    _get_user_id(current_user), welcome_note,
                 )
-        else:
-            sub_user_id = str(uuid.uuid4())
-            await conn.execute(
-                """INSERT INTO users (id, email, username, first_name, last_name, role_id,
-                                     company_id, subcontractor_id, phone, is_active, created_at, updated_at)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true,NOW(),NOW())""",
-                sub_user_id, email, email, first_name, last_name, sub_role_id,
-                company_id, sub_company_id, phone,
-            )
 
-        # Create assignment if not already assigned
-        existing_assignment = await conn.fetchrow(
-            "SELECT id FROM subcontractor_assignments WHERE subcontractor_id = $1 AND project_id = $2",
-            sub_user_id, project_id,
-        )
-        if not existing_assignment:
-            assignment_id = str(uuid.uuid4())
-            await conn.execute(
-                """INSERT INTO subcontractor_assignments
-                   (id, subcontractor_id, project_id, assigned_by, specialization,
-                    contract_value, sub_company_id, start_date, end_date, status)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active')""",
-                assignment_id, sub_user_id, project_id,
-                _get_user_id(current_user), specialization,
-                _parse_numeric(contract_value), sub_company_id,
-                _parse_datetime(start_date), _parse_datetime(end_date),
-            )
-
-        # Create invitation record
-        await conn.execute(
-            """INSERT INTO client_portal.sub_invitations
-               (user_id, subcontractor_id, project_id, company_id, invited_by, welcome_note, status)
-               VALUES ($1,$2,$3,$4,$5,$6,'pending')""",
-            sub_user_id, sub_company_id or "", project_id, company_id,
-            _get_user_id(current_user), welcome_note,
-        )
-
-        # Generate magic link
+        # Generate magic link (outside transaction — uses own connections)
         await magic_link_svc.invalidate_user_tokens(sub_user_id, purpose="invite")
         raw_token = await magic_link_svc.create_magic_link(sub_user_id, purpose="invite")
         magic_link_url = f"{settings.magic_link_base_url}/auth/magic-link?token={raw_token}"
@@ -506,6 +541,7 @@ async def invite_subcontractor(request: Request, current_user: dict = Depends(ge
             caller_name = current_user.get("name", "Project Manager")
 
     # Send invitation email
+    email_sent = True
     try:
         from ..services.email_service import EmailService
         email_svc = EmailService()
@@ -521,11 +557,14 @@ async def invite_subcontractor(request: Request, current_user: dict = Depends(ge
         )
     except Exception as e:
         logger.warning(f"Failed to send sub invite email: {e}")
+        email_sent = False
 
     return {
-        "message": "Subcontractor invited successfully",
+        "message": "Subcontractor invited successfully" if email_sent
+                  else "Subcontractor created but invitation email failed to send",
         "userId": sub_user_id,
         "subcontractorId": sub_company_id,
+        "emailSent": email_sent,
         "magicLinkUrl": magic_link_url if not settings.is_production else None,
     }
 

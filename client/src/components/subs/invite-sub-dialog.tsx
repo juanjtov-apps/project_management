@@ -137,8 +137,11 @@ export function InviteSubDialog({
 
       if (companyMode === "existing" && data.existingCompanyId) {
         body.existingCompanyId = data.existingCompanyId;
-      } else if (data.companyName) {
-        body.companyName = data.companyName;
+      } else if (data.companyName?.trim()) {
+        body.companyName = data.companyName.trim();
+      } else {
+        // Fallback: use user's name as company name so a sub record is always created
+        body.companyName = `${data.firstName} ${data.lastName}`.trim();
       }
 
       const res = await fetch("/api/v1/sub/invite", {
@@ -153,17 +156,25 @@ export function InviteSubDialog({
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({
         queryKey: ["/api/v1/sub/companies"],
       });
       queryClient.invalidateQueries({
         queryKey: ["/api/v1/rbac/users"],
       });
-      toast({
-        title: "Invitation Sent",
-        description: `${form.getValues("firstName")} ${form.getValues("lastName")} has been invited as a subcontractor.`,
-      });
+      if (data?.emailSent === false) {
+        toast({
+          title: "Subcontractor Created",
+          description: "The user was created but the invitation email failed to send. You may need to resend the invite.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Invitation Sent",
+          description: `${form.getValues("firstName")} ${form.getValues("lastName")} has been invited as a subcontractor.`,
+        });
+      }
       setOpen(false);
       form.reset();
       setCompanyMode("new");

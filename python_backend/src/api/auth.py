@@ -556,7 +556,25 @@ async def login(request: LoginRequest, response: Response):
 
             # Create session
             session_id = await create_session(user_data["id"], user_data)
-            
+
+            # Record login event for analytics (fire-and-forget)
+            try:
+                login_user_id = str(user_data["id"])
+                login_company_id = str(user_data.get("company_id") or "")
+                await conn.execute(
+                    """
+                    INSERT INTO public.analytics_daily_stats
+                        (user_id, company_id, stat_date, login_count, updated_at)
+                    VALUES ($1, $2, CURRENT_DATE, 1, now())
+                    ON CONFLICT (user_id, stat_date) DO UPDATE SET
+                        login_count = analytics_daily_stats.login_count + 1,
+                        updated_at = now()
+                    """,
+                    login_user_id, login_company_id,
+                )
+            except Exception:
+                pass  # Analytics must never block login
+
             # Generate CSRF token for this session
             from ..middleware.security import generate_csrf_token, store_csrf_token
             csrf_token = generate_csrf_token()

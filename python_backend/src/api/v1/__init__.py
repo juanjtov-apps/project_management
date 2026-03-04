@@ -79,6 +79,12 @@ try:
 except ImportError:
     agent_router = None
 
+# Import analytics router (platform usage analytics)
+try:
+    from ...api.analytics import router as analytics_router
+except ImportError:
+    analytics_router = None
+
 def create_v1_router() -> APIRouter:
     """Create and configure the v1 API router."""
     v1_router = APIRouter(prefix="/v1", tags=["v1"])
@@ -153,6 +159,10 @@ def create_v1_router() -> APIRouter:
     # Include agent router for AI chat functionality
     if agent_router:
         v1_router.include_router(agent_router, tags=["agent"])
+
+    # Include analytics router for platform usage tracking
+    if analytics_router:
+        v1_router.include_router(analytics_router, tags=["analytics"])
 
     return v1_router
 
