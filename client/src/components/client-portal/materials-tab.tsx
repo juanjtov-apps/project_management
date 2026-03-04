@@ -17,8 +17,11 @@ import {
 import {
   Plus, Package, ExternalLink, Trash2, ChevronDown, ChevronRight,
   Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle, Layers, Filter, ArrowLeft, GripVertical, Copy, Loader2,
-  CalendarClock, Paperclip, FileText, Upload, Download
+  CalendarClock, Paperclip, FileText, Upload, Download, LayoutGrid, Table2
 } from "lucide-react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { MaterialsTableView } from "./materials-table-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -62,7 +65,7 @@ const materialItemSchema = z.object({
 type AreaFormData = z.infer<typeof areaSchema>;
 type MaterialItemFormData = z.infer<typeof materialItemSchema>;
 
-interface MaterialArea {
+export interface MaterialArea {
   id: string;
   project_id: string;
   name: string;
@@ -75,7 +78,7 @@ interface MaterialArea {
   total_cost: number;
 }
 
-interface MaterialItem {
+export interface MaterialItem {
   id: string;
   area_id: string;
   project_id: string;
@@ -95,7 +98,7 @@ interface MaterialItem {
   stage_name?: string;
 }
 
-interface ProjectStage {
+export interface ProjectStage {
   id: string;
   projectId: string;
   orderIndex: number;
@@ -115,6 +118,7 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
   const [searchQuery, setSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<string>(initialStageFilter || "all");
   const [activeDragItem, setActiveDragItem] = useState<MaterialItem | null>(null);
+  const [viewMode, setViewMode] = useLocalStorage<"card" | "table">("materials-view-mode", "table");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -358,6 +362,15 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
         </div>
 
         <div className="flex items-center gap-2">
+          <SegmentedControl
+            options={[
+              { value: "card", label: "Card View", icon: <LayoutGrid className="h-4 w-4" /> },
+              { value: "table", label: "Table View", icon: <Table2 className="h-4 w-4" /> },
+            ]}
+            value={viewMode}
+            onChange={(v) => setViewMode(v as "card" | "table")}
+          />
+
           {/* Back to Stages button - always visible for PMs */}
           {!isClient && (
             <Button
@@ -449,86 +462,57 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
         </div>
       </div>
 
-      {/* Materials Deadlines */}
+      {/* Materials Deadlines — compact horizontal strip */}
       {hasUnorderedDeadlines && stageDueDates.length > 0 && (
-        <div className="rounded-xl bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border border-zinc-700/50 p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <CalendarClock className="h-5 w-5 text-rose-400" />
-            <h3 className="font-semibold text-white">Materials Deadlines</h3>
+        <div className="flex items-center gap-3 rounded-lg border border-zinc-700/50 bg-zinc-900/60 px-4 py-2.5 overflow-x-auto">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <CalendarClock className="h-4 w-4 text-rose-400" />
+            <span className="text-xs font-medium text-zinc-400">Deadlines</span>
           </div>
-          <div className="space-y-2">
+          <div className="flex items-center gap-2">
             {stageDueDates.map((stage) => {
               const isOverdue = stage.daysUntil !== null && stage.daysUntil < 0;
               const isDueSoon = stage.daysUntil !== null && stage.daysUntil >= 0 && stage.daysUntil <= 7;
-              const orderedCount = stage.totalItems - stage.needsOrdering;
-              const progressPct = stage.totalItems > 0 ? (orderedCount / stage.totalItems) * 100 : 0;
+              const isActive = stageFilter === stage.id;
+
+              const deadlineLabel = isOverdue
+                ? "Overdue"
+                : stage.daysUntil === 0
+                  ? "Today"
+                  : stage.daysUntil === 1
+                    ? "1d"
+                    : `${stage.daysUntil}d`;
 
               return (
-                <div
+                <button
                   key={stage.id}
-                  onClick={() => setStageFilter(stage.id)}
-                  className={`flex items-center gap-4 p-3 rounded-lg border transition-colors cursor-pointer ${
-                    stageFilter === stage.id
-                      ? "bg-zinc-800 border-zinc-600"
-                      : "bg-zinc-900/40 border-zinc-800 hover:bg-zinc-800/50 hover:border-zinc-700"
-                  }`}
+                  onClick={() => setStageFilter(isActive ? "all" : stage.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs whitespace-nowrap transition-colors",
+                    isActive
+                      ? "bg-zinc-700 border-zinc-500 text-white"
+                      : "bg-zinc-900/40 border-zinc-700/60 text-zinc-300 hover:bg-zinc-800 hover:border-zinc-600"
+                  )}
                 >
-                  {/* Urgency indicator */}
-                  <div
-                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                      isOverdue
-                        ? "bg-red-500"
-                        : isDueSoon
-                          ? "bg-amber-500"
-                          : "bg-zinc-500"
-                    }`}
+                  <span
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full shrink-0",
+                      isOverdue ? "bg-red-500" : isDueSoon ? "bg-amber-500" : "bg-zinc-500"
+                    )}
                   />
-
-                  {/* Stage info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-sm font-medium text-white truncate">
-                        {stage.name}
-                      </span>
-                      <span
-                        className={`text-xs shrink-0 ${
-                          isOverdue
-                            ? "text-red-400 font-semibold"
-                            : isDueSoon
-                              ? "text-amber-400"
-                              : "text-zinc-400"
-                        }`}
-                      >
-                        {isOverdue
-                          ? `Overdue (${formatDeadlineDate(stage.finishMaterialsDueDate)})`
-                          : isDueSoon && stage.daysUntil === 0
-                            ? "Due today"
-                            : isDueSoon && stage.daysUntil === 1
-                              ? "Due tomorrow"
-                              : `Due ${formatDeadlineDate(stage.finishMaterialsDueDate)}`}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-1.5 rounded-full bg-zinc-700 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            progressPct === 100
-                              ? "bg-emerald-500"
-                              : isOverdue
-                                ? "bg-red-500"
-                                : "bg-amber-500"
-                          }`}
-                          style={{ width: `${progressPct}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-zinc-400 shrink-0">
-                        {stage.needsOrdering > 0
-                          ? `${stage.needsOrdering} of ${stage.totalItems} need ordering`
-                          : `All ${stage.totalItems} ordered`}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                  <span className="font-medium truncate max-w-[100px]">{stage.name}</span>
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      isOverdue ? "text-red-400" : isDueSoon ? "text-amber-400" : "text-zinc-400"
+                    )}
+                  >
+                    {deadlineLabel}
+                  </span>
+                  <span className="text-zinc-500">
+                    {stage.needsOrdering}/{stage.totalItems}
+                  </span>
+                </button>
               );
             })}
           </div>
@@ -609,7 +593,7 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
         )}
       </div>
 
-      {/* Areas List */}
+      {/* Areas List / Table View */}
       {areasLoading ? (
         <div className="text-center py-8">Loading areas...</div>
       ) : areas.length === 0 ? (
@@ -633,6 +617,15 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
             </div>
           </CardContent>
         </Card>
+      ) : viewMode === "table" ? (
+        <MaterialsTableView
+          items={filteredItems}
+          areas={areas}
+          stages={stages}
+          projectId={projectId}
+          isClient={isClient}
+          docCounts={docCounts}
+        />
       ) : !isClient ? (
         <DndContext
           sensors={sensors}

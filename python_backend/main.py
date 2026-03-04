@@ -91,7 +91,28 @@ async def lifespan(app: FastAPI):
                 logger.warning(f"⚠️ Agent schema initialization error: {e}")
                 print(f"⚠️  Agent schema initialization error: {e}")
                 # Don't fail startup if schema initialization fails
+
+        # Initialize subcontractor module schema (only if DB is connected)
+        if db_connected:
+            try:
+                from src.database.init_subcontractor_schema import init_subcontractor_schema
+                await init_subcontractor_schema()
+                logger.info("✅ Subcontractor module schema verified/initialized")
+                print("✅ Subcontractor module schema verified/initialized")
+            except Exception as e:
+                logger.warning(f"⚠️ Subcontractor module schema initialization error: {e}")
+                print(f"⚠️  Subcontractor module schema initialization error: {e}")
+                # Don't fail startup if schema initialization fails
         
+        # Initialize beta invitations schema (only if DB is connected)
+        if db_connected:
+            try:
+                from src.database.init_beta_schema import init_beta_schema
+                await init_beta_schema()
+                logger.info("Beta invitations schema verified/initialized")
+            except Exception as e:
+                logger.warning(f"Beta invitations schema initialization error: {e}")
+
         # Start session cleanup background task
         import asyncio
         try:

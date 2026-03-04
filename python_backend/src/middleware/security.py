@@ -195,10 +195,10 @@ async def validate_origin(request: Request) -> bool:
         return True
     
     # Skip validation for public endpoints
-    public_paths = ["/api/v1/auth/login", "/api/v1/auth/logout", "/api/waitlist", "/api/v1/onboarding/verify-magic-link", "/api/v1/onboarding/request-magic-link", "/health", "/docs", "/redoc", "/openapi.json"]
+    public_paths = ["/api/v1/auth/login", "/api/v1/auth/logout", "/api/waitlist", "/api/v1/onboarding/verify-magic-link", "/api/v1/onboarding/request-magic-link", "/api/v1/sub/verify-magic-link", "/api/v1/sub/request-magic-link", "/api/v1/beta/complete-setup", "/api/v1/beta/complete-reset", "/health", "/docs", "/redoc", "/openapi.json"]
     if any(request.url.path.startswith(path) for path in public_paths):
         return True
-    
+
     # Get origin and referer
     origin = request.headers.get("origin")
     referer = request.headers.get("referer")
@@ -285,6 +285,10 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             "/api/v1/waitlist",
             "/api/v1/onboarding/verify-magic-link",
             "/api/v1/onboarding/request-magic-link",
+            "/api/v1/sub/verify-magic-link",
+            "/api/v1/sub/request-magic-link",
+            "/api/v1/beta/complete-setup",
+            "/api/v1/beta/complete-reset",
             "/health",
             "/docs",
             "/redoc",

@@ -629,6 +629,108 @@ class AuthRepository:
             print(f"Error deleting user {user_id}: {e}")
             return False
     
+    async def force_delete_user(self, user_id: str) -> bool:
+        """Force-delete a user by cleaning up all FK references first.
+
+        Root admin only. Uses safe_delete to skip tables that may not exist.
+        Error codes caught: 42P01 = undefined_table, 42703 = undefined_column.
+        """
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                async def safe_delete(query: str, *args):
+                    try:
+                        await conn.execute(query, *args)
+                    except Exception as e:
+                        code = getattr(e, 'sqlstate', None) or getattr(e, 'code', None)
+                        if code in ('42P01', '42703', '42P07'):
+                            pass  # table or column doesn't exist — skip
+                        else:
+                            raise
+
+                # --- public schema ---
+                await safe_delete("UPDATE tasks SET assignee_id = NULL WHERE assignee_id = $1", user_id)
+                await safe_delete("DELETE FROM beta_invitations WHERE invited_by = $1", user_id)
+                await safe_delete("DELETE FROM change_orders WHERE approved_by = $1", user_id)
+                await safe_delete("DELETE FROM change_orders WHERE requested_by = $1", user_id)
+                await safe_delete("DELETE FROM communications WHERE from_user_id = $1 OR to_user_id = $1", user_id)
+                await safe_delete("DELETE FROM company_users WHERE user_id = $1", user_id)
+                await safe_delete("DELETE FROM photos WHERE user_id = $1", user_id)
+                await safe_delete("DELETE FROM project_logs WHERE user_id = $1", user_id)
+                await safe_delete("DELETE FROM notifications WHERE user_id = $1", user_id)
+                await safe_delete("DELETE FROM schedule_changes WHERE user_id = $1", user_id)
+                await safe_delete("DELETE FROM time_entries WHERE user_id = $1", user_id)
+                await safe_delete("UPDATE time_entries SET approved_by = NULL WHERE approved_by = $1", user_id)
+                await safe_delete("DELETE FROM user_activities WHERE user_id = $1", user_id)
+                await safe_delete("DELETE FROM user_effective_permissions WHERE user_id = $1", user_id)
+                await safe_delete("DELETE FROM project_assignments WHERE user_id = $1", user_id)
+                await safe_delete("UPDATE project_assignments SET granted_by_user_id = NULL WHERE granted_by_user_id = $1", user_id)
+                await safe_delete("DELETE FROM risk_assessments WHERE assigned_to = $1 OR identified_by = $1", user_id)
+
+                # --- sub module tables ---
+                await safe_delete("DELETE FROM sub_task_documents WHERE uploaded_by = $1", user_id)
+                await safe_delete("UPDATE sub_checklist_items SET completed_by = NULL WHERE completed_by = $1", user_id)
+                await safe_delete("DELETE FROM sub_task_reviews WHERE reviewer_id = $1", user_id)
+                await safe_delete("UPDATE sub_tasks SET assigned_user_id = NULL WHERE assigned_user_id = $1", user_id)
+                await safe_delete("DELETE FROM sub_tasks WHERE created_by = $1", user_id)
+                await safe_delete("DELETE FROM sub_checklist_templates WHERE created_by = $1", user_id)
+                await safe_delete("DELETE FROM subcontractor_assignments WHERE assigned_by = $1 OR subcontractor_id = $1", user_id)
+
+                # --- client_portal schema ---
+                await safe_delete("DELETE FROM client_portal.issue_audit_log WHERE actor_id = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.issue_attachments WHERE uploaded_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.issue_comments WHERE author_id = $1", user_id)
+                await safe_delete("UPDATE client_portal.issues SET assigned_to = NULL WHERE assigned_to = $1", user_id)
+                await safe_delete("UPDATE client_portal.issues SET resolved_by = NULL WHERE resolved_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.issues WHERE created_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.forum_attachments WHERE uploaded_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.forum_messages WHERE author_id = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.forum_threads WHERE created_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.material_documents WHERE uploaded_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.material_items WHERE added_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.material_areas WHERE created_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.materials WHERE added_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.installment_files WHERE uploaded_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.notification_settings WHERE user_id = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.notifications WHERE user_id = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.pm_notification_prefs WHERE recipient_user_id = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.pm_notifications WHERE recipient_user_id = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.payment_documents WHERE uploaded_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.payment_events WHERE actor_id = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.payment_receipts WHERE uploaded_by = $1", user_id)
+                await safe_delete("UPDATE client_portal.payment_installments SET created_by = NULL WHERE created_by = $1", user_id)
+                await safe_delete("UPDATE client_portal.payment_installments SET updated_by = NULL WHERE updated_by = $1", user_id)
+                await safe_delete("UPDATE client_portal.payment_schedules SET created_by = NULL WHERE created_by = $1", user_id)
+                await safe_delete("UPDATE client_portal.payment_schedules SET updated_by = NULL WHERE updated_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.invoices WHERE created_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.project_stages WHERE created_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.client_invitations WHERE invited_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.client_invitations WHERE user_id = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.sub_invitations WHERE invited_by = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.sub_invitations WHERE user_id = $1", user_id)
+                await safe_delete("DELETE FROM client_portal.magic_link_tokens WHERE user_id = $1", user_id)
+
+                # --- agent schema ---
+                await safe_delete("DELETE FROM agent.pending_confirmations WHERE user_id = $1", user_id)
+                await safe_delete("UPDATE agent.tool_calls SET confirmed_by = NULL WHERE confirmed_by = $1", user_id)
+                await safe_delete("DELETE FROM agent.tool_calls WHERE user_id = $1", user_id)
+                await safe_delete("DELETE FROM agent.feedback WHERE user_id = $1", user_id)
+                await safe_delete("UPDATE agent.metrics SET user_id = NULL WHERE user_id = $1", user_id)
+                await safe_delete("DELETE FROM agent.conversations WHERE user_id = $1", user_id)
+
+                # --- legacy public tables ---
+                await safe_delete("DELETE FROM client_forum_messages WHERE author_id = $1", user_id)
+                await safe_delete("DELETE FROM client_issues WHERE created_by = $1", user_id)
+                await safe_delete("DELETE FROM client_materials WHERE added_by = $1", user_id)
+
+                # --- sessions (sid/sess/expire format — no direct FK) ---
+                await safe_delete("DELETE FROM sessions WHERE sess::jsonb->>'userId' = $1", str(user_id))
+                await safe_delete("DELETE FROM sessions WHERE sess::jsonb->>'id' = $1", str(user_id))
+
+                # Finally delete the user
+                result = await conn.execute("DELETE FROM users WHERE id = $1", user_id)
+                return "DELETE 1" in result
+
     async def assign_task(self, task_id: str, assignee_id: Optional[str]) -> Optional[Dict[str, Any]]:
         """Assign a task to a user."""
         query = "UPDATE tasks SET assignee_id = $1 WHERE id = $2 RETURNING *"

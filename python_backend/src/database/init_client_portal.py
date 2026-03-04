@@ -293,6 +293,29 @@ async def init_client_portal_schema():
         async with pool.acquire() as conn:
             await conn.execute(init_sql)
             print("✅ Client Portal schema initialized successfully")
+
+            # Ensure notification constraints include task_submitted type
+            try:
+                await conn.execute("""
+                    ALTER TABLE client_portal.pm_notifications
+                        DROP CONSTRAINT IF EXISTS pm_notifications_type_check;
+                    ALTER TABLE client_portal.pm_notifications
+                        ADD CONSTRAINT pm_notifications_type_check
+                        CHECK (type IN (
+                            'issue_created','message_posted','material_added',
+                            'receipt_uploaded','installment_paid','task_submitted'
+                        ));
+                    ALTER TABLE client_portal.pm_notifications
+                        DROP CONSTRAINT IF EXISTS pm_notifications_source_kind_check;
+                    ALTER TABLE client_portal.pm_notifications
+                        ADD CONSTRAINT pm_notifications_source_kind_check
+                        CHECK (source_kind IN (
+                            'issue','message','material','receipt','payment','task'
+                        ));
+                """)
+            except Exception:
+                pass  # Table may not exist yet if notifications migration hasn't run
+
             return True
     except Exception as e:
         print(f"❌ Error initializing client portal schema: {e}")

@@ -23,6 +23,9 @@ const ClientPortal = React.lazy(() => import("@/pages/client-portal"));
 const RBACAdmin = React.lazy(() => import("@/pages/RBACAdmin"));
 const WaitlistAdmin = React.lazy(() => import("@/pages/waitlist-admin"));
 const ProjectHealth = React.lazy(() => import("@/pages/project-health"));
+const SubPortal = React.lazy(() => import("@/pages/sub-portal"));
+const SubsManagement = React.lazy(() => import("@/pages/subs-management"));
+const OnboardCompany = React.lazy(() => import("@/pages/onboard-company"));
 const MagicLink = React.lazy(() => import("@/pages/magic-link"));
 const RequestMagicLink = React.lazy(() => import("@/pages/request-magic-link"));
 const NotFound = React.lazy(() => import("@/pages/not-found"));
@@ -71,6 +74,8 @@ function MagicLinkOrRedirect() {
     if (role === 'client') {
       const projectId = currentUser?.assignedProjectId;
       setLocation(projectId ? `/client-portal?projectId=${projectId}` : '/client-portal');
+    } else if (role === 'subcontractor' || role === 'contractor') {
+      setLocation('/sub-portal');
     } else {
       setLocation('/dashboard');
     }
@@ -98,6 +103,7 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
         <Switch>
           <Route path="/" component={Landing} />
           <Route path="/login" component={Login} />
+          <Route path="/onboard/company" component={OnboardCompany} />
           <Route path="/auth/magic-link" component={MagicLink} />
           <Route path="/auth/request-link" component={RequestMagicLink} />
           <Route component={RedirectToLogin} />
@@ -112,6 +118,7 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
         <Route path="/" component={Dashboard} />
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/login" component={RedirectToDashboard} />
+        <Route path="/onboard/company" component={RedirectToDashboard} />
         <Route path="/auth/magic-link" component={MagicLinkOrRedirect} />
         <Route path="/auth/request-link" component={RedirectToDashboard} />
         <Route path="/work" component={WorkPage} />
@@ -126,7 +133,16 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
             <ClientPortal />
           </ProtectedRoute>
         </Route>
-        {/* Subs module hidden for MVP - will be re-enabled later */}
+        <Route path="/sub-portal">
+          <ProtectedRoute requiredPermission="subPortal">
+            <SubPortal />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/subs">
+          <ProtectedRoute requiredPermission="subs">
+            <SubsManagement />
+          </ProtectedRoute>
+        </Route>
         <Route path="/rbac">
           <ProtectedRoute requiredPermission="rbacAdmin">
             <RBACAdmin />
@@ -239,14 +255,16 @@ function AuthenticatedLayout({
     enabled: isAuthenticated,
   });
 
-  // Check if user is a client
-  const isClientUser = currentUser?.role?.toLowerCase() === 'client';
+  // Check if user is a client or subcontractor
+  const userRole = (currentUser?.role || '').toLowerCase();
+  const isClientUser = userRole === 'client';
+  const isSubUser = userRole === 'subcontractor' || userRole === 'contractor';
+  const isPortalUser = isClientUser || isSubUser;
   const assignedProjectId = currentUser?.assignedProjectId;
 
   // Redirect clients to client portal on login
   useEffect(() => {
     if (isClientUser && !location.startsWith('/client-portal')) {
-      // Redirect to client portal with their assigned project
       if (assignedProjectId) {
         setLocation(`/client-portal?projectId=${assignedProjectId}`);
       } else {
@@ -255,21 +273,28 @@ function AuthenticatedLayout({
     }
   }, [isClientUser, assignedProjectId, location, setLocation]);
 
+  // Redirect subcontractors to sub portal — strict isolation
+  useEffect(() => {
+    if (isSubUser && !location.startsWith('/sub-portal')) {
+      setLocation('/sub-portal');
+    }
+  }, [isSubUser, location, setLocation]);
+
   return (
     <div className="flex h-screen bg-background">
-      {/* Hide sidebar for client users */}
-      {!isClientUser && (
+      {/* Hide sidebar for client and subcontractor users */}
+      {!isPortalUser && (
         <Sidebar
           isMobileOpen={isMobileMenuOpen}
           onMobileClose={() => setIsMobileMenuOpen(false)}
         />
       )}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Hide mobile menu toggle for clients, agent chat not available for clients */}
+        {/* Hide mobile menu toggle and agent chat for portal users */}
         <Header
-          onToggleMobileMenu={isClientUser ? undefined : () => setIsMobileMenuOpen(true)}
+          onToggleMobileMenu={isPortalUser ? undefined : () => setIsMobileMenuOpen(true)}
           onToggleNotifications={() => setIsNotificationModalOpen(true)}
-          onToggleAgentChat={isClientUser ? undefined : () => setIsAgentChatOpen(true)}
+          onToggleAgentChat={isPortalUser ? undefined : () => setIsAgentChatOpen(true)}
         />
         <div className="flex-1 p-4 md:p-6 overflow-y-auto section-padding" style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
           <Router isAuthenticated={isAuthenticated} isLoading={isLoading} />
@@ -281,8 +306,8 @@ function AuthenticatedLayout({
         onClose={() => setIsNotificationModalOpen(false)}
       />
 
-      {/* Agent chat drawer - not available for client users */}
-      {!isClientUser && (
+      {/* Agent chat drawer - not available for portal users */}
+      {!isPortalUser && (
         <AgentDrawer
           open={isAgentChatOpen}
           onOpenChange={setIsAgentChatOpen}

@@ -228,7 +228,8 @@ def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool
         "subs": False,
         "rbacAdmin": False,
         "clientPortal": False,
-        "clientPortalPayments": False  # New permission for payments tab
+        "clientPortalPayments": False,
+        "subPortal": False  # Subcontractor portal access
     }
     
     # Client Portal access for managers, project_managers, office_managers and admins
@@ -285,7 +286,25 @@ def get_navigation_permissions(role: str, is_root_admin: bool) -> Dict[str, bool
             "clientPortal": True,     # ONLY client portal is accessible
             "clientPortalPayments": True   # Clients can access payments to upload proofs
         })
-    
+
+    if role in ('subcontractor', 'contractor'):
+        # Subcontractor users ONLY see the sub portal - all other modules are hidden
+        permissions.update({
+            "dashboard": False,
+            "projects": False,
+            "tasks": False,
+            "photos": False,
+            "schedule": False,
+            "logs": False,
+            "projectHealth": False,
+            "crew": False,
+            "subs": False,
+            "rbacAdmin": False,
+            "clientPortal": False,
+            "clientPortalPayments": False,
+            "subPortal": True,        # ONLY sub portal is accessible
+        })
+
     return permissions
 
 

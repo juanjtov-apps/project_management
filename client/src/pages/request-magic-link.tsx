@@ -15,22 +15,36 @@ export default function RequestMagicLink() {
 
   const requestMutation = useMutation({
     mutationFn: async (emailAddr: string) => {
-      const res = await fetch("/api/v1/onboarding/request-magic-link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailAddr }),
-        credentials: "include",
-      });
+      // Call both client and sub endpoints in parallel — one will match
+      const [clientRes, subRes] = await Promise.all([
+        fetch("/api/v1/onboarding/request-magic-link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: emailAddr }),
+          credentials: "include",
+        }),
+        fetch("/api/v1/sub/request-magic-link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: emailAddr }),
+          credentials: "include",
+        }),
+      ]);
 
-      if (res.status === 429) {
+      // Check for rate limiting on either
+      if (clientRes.status === 429 || subRes.status === 429) {
         throw new Error("Too many requests. Please try again in a few minutes.");
       }
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+      // If both failed, throw error from the client one
+      if (!clientRes.ok && !subRes.ok) {
+        const data = await clientRes.json().catch(() => ({}));
         throw new Error(data.detail || "Something went wrong");
       }
-      return res.json();
+
+      // Return whichever succeeded
+      const successRes = clientRes.ok ? clientRes : subRes;
+      return successRes.json();
     },
     onSuccess: () => {
       setSubmitted(true);

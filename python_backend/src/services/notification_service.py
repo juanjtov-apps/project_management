@@ -165,6 +165,9 @@ class NotificationService:
         elif source_kind == 'payment':
             # Route to client portal installments/payments tab
             return f"/client-portal?project={project_id}&tab=installments"
+        elif source_kind == 'task':
+            # Route to subs management approvals tab
+            return "/subs?tab=approvals"
 
         # Fallback to project client portal
         return f"/client-portal?project={project_id}"

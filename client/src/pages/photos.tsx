@@ -305,7 +305,7 @@ export default function Photos() {
     setFilterType("all");
     setSelectedProject("all");
     setSelectedTag("all");
-    setSelectedLog("all");
+    setSelectedLogDate("all");
     setSearchTerm("");
   };
 
