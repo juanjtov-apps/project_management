@@ -92,7 +92,7 @@ interface SubDirectoryProps {
 
 export function SubDirectory({ onViewTasks }: SubDirectoryProps = {}) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("active");
   const [selectedSub, setSelectedSub] = useState<SubCompanyEntry | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
