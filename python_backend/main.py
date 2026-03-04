@@ -113,6 +113,15 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.warning(f"Beta invitations schema initialization error: {e}")
 
+        # Initialize analytics schema (only if DB is connected)
+        if db_connected:
+            try:
+                from src.database.init_analytics_schema import init_analytics_schema
+                await init_analytics_schema()
+                logger.info("Analytics schema verified/initialized")
+            except Exception as e:
+                logger.warning(f"Analytics schema initialization error: {e}")
+
         # Start session cleanup background task
         import asyncio
         try:
@@ -123,14 +132,25 @@ async def lifespan(app: FastAPI):
             logger.warning(f"Failed to start session cleanup task: {e}")
             cleanup_task = None
 
+        # Start analytics heartbeat cleanup background task
+        analytics_cleanup_task = None
+        try:
+            from src.api.analytics import start_heartbeat_cleanup_task
+            analytics_cleanup_task = asyncio.create_task(start_heartbeat_cleanup_task())
+            logger.info("Analytics heartbeat cleanup task started")
+        except Exception as e:
+            logger.warning(f"Failed to start analytics cleanup task: {e}")
+
         logger.info("Application startup complete")
         print("Server is ready at http://0.0.0.0:8000")
         print("API documentation at http://0.0.0.0:8000/docs")
         yield
 
-        # Cancel cleanup task on shutdown
+        # Cancel cleanup tasks on shutdown
         if cleanup_task:
             cleanup_task.cancel()
+        if analytics_cleanup_task:
+            analytics_cleanup_task.cancel()
         
     except KeyboardInterrupt:
         logger.info("🛑 Shutdown requested by user")
@@ -169,6 +189,10 @@ if not IS_PRODUCTION:
 # Add request tracking middleware (for request IDs)
 from src.middleware.request_tracking import RequestTrackingMiddleware
 app.add_middleware(RequestTrackingMiddleware)
+
+# Add analytics tracking middleware (counts API actions per user)
+from src.middleware.analytics_tracking import AnalyticsTrackingMiddleware
+app.add_middleware(AnalyticsTrackingMiddleware)
 
 # Setup security middleware
 from src.middleware.security import setup_security_middleware

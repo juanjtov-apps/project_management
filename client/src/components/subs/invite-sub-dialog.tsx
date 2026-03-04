@@ -153,17 +153,25 @@ export function InviteSubDialog({
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({
         queryKey: ["/api/v1/sub/companies"],
       });
       queryClient.invalidateQueries({
         queryKey: ["/api/v1/rbac/users"],
       });
-      toast({
-        title: "Invitation Sent",
-        description: `${form.getValues("firstName")} ${form.getValues("lastName")} has been invited as a subcontractor.`,
-      });
+      if (data?.emailSent === false) {
+        toast({
+          title: "Subcontractor Created",
+          description: "The user was created but the invitation email failed to send. You may need to resend the invite.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Invitation Sent",
+          description: `${form.getValues("firstName")} ${form.getValues("lastName")} has been invited as a subcontractor.`,
+        });
+      }
       setOpen(false);
       form.reset();
       setCompanyMode("new");

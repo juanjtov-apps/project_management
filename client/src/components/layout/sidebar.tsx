@@ -16,7 +16,8 @@ import {
   TrendingUp,
   CircleUserRound,
   Users,
-  HardHat
+  HardHat,
+  BarChart3
 } from "lucide-react";
 import {
   Sheet,
@@ -42,6 +43,7 @@ const navigation = [
   { name: "Subs", href: "/subs", icon: HardHat },
   { name: "RBAC Admin", href: "/rbac", icon: Shield },
   { name: "Waitlist", href: "/waitlist-admin", icon: Users, rootOnly: true },
+  { name: "Analytics", href: "/platform-analytics", icon: BarChart3, rootOnly: true },
 ];
 
 interface SidebarProps {

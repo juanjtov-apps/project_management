@@ -5,6 +5,7 @@ import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { useHeartbeat } from "@/hooks/useHeartbeat";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import NotificationModal from "@/components/notifications/notification-modal";
@@ -28,6 +29,7 @@ const SubsManagement = React.lazy(() => import("@/pages/subs-management"));
 const OnboardCompany = React.lazy(() => import("@/pages/onboard-company"));
 const MagicLink = React.lazy(() => import("@/pages/magic-link"));
 const RequestMagicLink = React.lazy(() => import("@/pages/request-magic-link"));
+const PlatformAnalytics = React.lazy(() => import("@/pages/platform-analytics"));
 const NotFound = React.lazy(() => import("@/pages/not-found"));
 
 function PageLoadingFallback() {
@@ -151,6 +153,9 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
         <Route path="/waitlist-admin">
           <WaitlistAdmin />
         </Route>
+        <Route path="/platform-analytics">
+          <PlatformAnalytics />
+        </Route>
         <Route component={NotFound} />
       </Switch>
     </Suspense>
@@ -254,6 +259,9 @@ function AuthenticatedLayout({
     queryKey: ['/api/v1/auth/user'],
     enabled: isAuthenticated,
   });
+
+  // Track time-in-app via heartbeat (agent vs app time split)
+  useHeartbeat(isAgentChatOpen);
 
   // Check if user is a client or subcontractor
   const userRole = (currentUser?.role || '').toLowerCase();
