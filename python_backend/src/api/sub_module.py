@@ -425,7 +425,16 @@ async def invite_subcontractor(request: Request, current_user: dict = Depends(ge
                     )
 
             # Now safe to create sub company (email conflict already checked)
-            if not sub_company_id and company_name_input:
+            logger.info(f"Sub invite: company_name_input={company_name_input}, sub_company_id={sub_company_id}")
+
+            if sub_company_id:
+                # Existing company selected — reactivate and update contact email
+                await conn.execute(
+                    "UPDATE subcontractors SET status = 'active', contact_email = $2, updated_at = NOW() "
+                    "WHERE id = $1",
+                    sub_company_id, email,
+                )
+            elif company_name_input:
                 # Check for existing company with same name to prevent duplicates
                 existing_sub = await conn.fetchrow(
                     "SELECT id FROM subcontractors WHERE company_id = $1 AND LOWER(name) = LOWER($2)",
@@ -433,6 +442,12 @@ async def invite_subcontractor(request: Request, current_user: dict = Depends(ge
                 )
                 if existing_sub:
                     sub_company_id = str(existing_sub["id"])
+                    # Reactivate and update contact email
+                    await conn.execute(
+                        "UPDATE subcontractors SET status = 'active', contact_email = $2, updated_at = NOW() "
+                        "WHERE id = $1",
+                        sub_company_id, email,
+                    )
                 else:
                     sub_company_id = str(uuid.uuid4())
                     await conn.execute(
@@ -440,6 +455,17 @@ async def invite_subcontractor(request: Request, current_user: dict = Depends(ge
                            VALUES ($1, $2, $3, $4, $5)""",
                         sub_company_id, company_id, company_name_input, trade, email,
                     )
+
+            # Fallback: create company from user's name if no company info provided
+            if not sub_company_id:
+                fallback_name = f"{first_name} {last_name}".strip() or "Unknown Subcontractor"
+                sub_company_id = str(uuid.uuid4())
+                await conn.execute(
+                    """INSERT INTO subcontractors (id, company_id, name, trade, contact_email)
+                       VALUES ($1, $2, $3, $4, $5)""",
+                    sub_company_id, company_id, fallback_name, trade, email,
+                )
+                logger.info(f"Created fallback sub company '{fallback_name}' for invite (no company name provided)")
 
             # Create or update user
             if existing_user:

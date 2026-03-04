@@ -64,6 +64,10 @@ class UserUpdateRequest(BaseModel):
     company_id: Optional[str] = None  # Add this
     is_active: Optional[bool] = None
     assigned_project_id: Optional[str] = None  # For client role users only
+    # Subcontractor transition fields (used when changing role TO subcontractor)
+    sub_company_id: Optional[str] = None
+    sub_company_name: Optional[str] = None
+    sub_trade: Optional[str] = None
 
     model_config = ConfigDict(extra="forbid")  # Explicitly forbid extra fields like "name"
     
@@ -653,14 +657,46 @@ async def update_user(
                 detail="Cannot update root administrator"
             )
         
-        user = await auth_repo.update_user(user_id, user_data.model_dump(exclude_unset=True))
+        # Capture old role_id before update for transition detection
+        old_role_id = user_to_update.get('roleId') or user_to_update.get('role_id')
+
+        # Extract sub transition fields — these are handled separately
+        sub_company_id = user_data.sub_company_id
+        sub_company_name = user_data.sub_company_name
+        sub_trade = user_data.sub_trade
+
+        basic_update = user_data.model_dump(
+            exclude_unset=True,
+            exclude={'sub_company_id', 'sub_company_name', 'sub_trade'},
+        )
+
+        user = await auth_repo.update_user(user_id, basic_update)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
+
+        # Handle role transition side effects if role_id actually changed
+        new_role_id = user_data.role_id
+        if new_role_id and str(old_role_id) != str(new_role_id):
+            from .role_transitions import handle_role_transition
+
+            await handle_role_transition(
+                user_id=user_id,
+                old_role_id=int(old_role_id) if old_role_id else None,
+                new_role_id=int(new_role_id),
+                user_info=user_to_update,
+                current_user=current_user,
+                sub_company_id=sub_company_id,
+                sub_company_name=sub_company_name,
+                sub_trade=sub_trade,
+            )
+            # Re-fetch to include updated subcontractor_id etc.
+            user = await auth_repo.get_user(user_id)
+
         return user
-        
+
     except HTTPException:
         raise
     except Exception as e:

@@ -137,8 +137,11 @@ export function InviteSubDialog({
 
       if (companyMode === "existing" && data.existingCompanyId) {
         body.existingCompanyId = data.existingCompanyId;
-      } else if (data.companyName) {
-        body.companyName = data.companyName;
+      } else if (data.companyName?.trim()) {
+        body.companyName = data.companyName.trim();
+      } else {
+        // Fallback: use user's name as company name so a sub record is always created
+        body.companyName = `${data.firstName} ${data.lastName}`.trim();
       }
 
       const res = await fetch("/api/v1/sub/invite", {

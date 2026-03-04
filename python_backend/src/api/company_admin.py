@@ -243,9 +243,9 @@ async def assign_user_role(
         print(f"Assigning role '{request.role}' to user {user_id} by {current_user.get('email')}")
         
         async with pool.acquire() as conn:
-            # Get target user
+            # Get target user (include role_id for transition detection)
             target_user = await conn.fetchrow(
-                "SELECT id, company_id, email FROM users WHERE id = $1",
+                "SELECT id, company_id, email, role_id FROM users WHERE id = $1",
                 user_id
             )
         
@@ -339,14 +339,26 @@ async def assign_user_role(
             
             # Update user role_id (primary field)
             if role_id:
+                old_role_id = target_user["role_id"]
                 await conn.execute(
                     "UPDATE users SET role_id = $1, updated_at = NOW() WHERE id = $2",
                     role_id, user_id
                 )
                 print(f"✅ Updated user {user_id} with role_id {role_id}")
+
+                # Handle role transition side effects if role actually changed
+                if old_role_id and int(old_role_id) != int(role_id):
+                    from .role_transitions import handle_role_transition
+                    await handle_role_transition(
+                        user_id=str(user_id),
+                        old_role_id=int(old_role_id),
+                        new_role_id=int(role_id),
+                        user_info=target_user_dict,
+                        current_user=current_user,
+                    )
             else:
                 raise HTTPException(
-                    status_code=400, 
+                    status_code=400,
                     detail=f"Role '{request.role}' not found in roles table"
                 )
             

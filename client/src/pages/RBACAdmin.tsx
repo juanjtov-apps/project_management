@@ -89,6 +89,13 @@ interface UserProfile {
   password?: string; // For edit form only
   assigned_project_id?: string; // For client role users
   assignedProjectId?: string; // camelCase alias
+  subcontractor_id?: string; // Existing sub company link
+  subcontractorId?: string; // camelCase alias
+  // Edit dialog state for role transition to subcontractor
+  sub_company_id?: string;
+  sub_company_name?: string;
+  sub_trade?: string;
+  sub_company_mode?: 'existing' | 'new';
 }
 
 export default function RBACAdmin() {
@@ -140,6 +147,19 @@ export default function RBACAdmin() {
   // Fetch projects for client role assignment
   const { data: projects = [] } = useQuery<any[]>({
     queryKey: ['/api/projects'],
+    enabled: hasRBACAccess,
+  });
+
+  // Fetch sub companies for subcontractor role transition
+  const { data: subCompanies = [] } = useQuery<any[]>({
+    queryKey: ['/api/v1/sub/companies', { status: 'active' }],
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/v1/sub/companies?status=active', { credentials: 'include' });
+        if (!res.ok) return [];
+        return res.json();
+      } catch { return []; }
+    },
     enabled: hasRBACAccess,
   });
 
@@ -226,8 +246,17 @@ export default function RBACAdmin() {
         updateData.assigned_project_id = data.assigned_project_id;
       }
 
-      return apiRequest(`/api/rbac/users/${id}`, { 
-        method: 'PATCH', 
+      // Include subcontractor transition fields
+      if (data.sub_company_id) {
+        updateData.sub_company_id = data.sub_company_id;
+      }
+      if (data.sub_company_name) {
+        updateData.sub_company_name = data.sub_company_name;
+        updateData.sub_trade = data.sub_trade || null;
+      }
+
+      return apiRequest(`/api/rbac/users/${id}`, {
+        method: 'PATCH',
         body: updateData
       });
     },
@@ -244,6 +273,8 @@ export default function RBACAdmin() {
     mutationFn: ({ id, force }: { id: string; force?: boolean }) =>
       apiRequest(`/api/rbac/users/${id}${force ? '?force=true' : ''}`, { method: 'DELETE' }),
     onSuccess: (_data, { id: deletedUserId }) => {
+      setOpenMenuUserId(null);
+      setDeleteConfirmUser(null);
       queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
         if (!old) return old;
         return old.filter((user: any) => user.id !== deletedUserId);
@@ -251,6 +282,7 @@ export default function RBACAdmin() {
       toast({ title: 'Success', description: 'User deleted successfully' });
     },
     onError: (error: any) => {
+      setOpenMenuUserId(null);
       console.error('Delete user error:', error);
       toast({ title: 'Error', description: error.message || 'Failed to delete user', variant: 'destructive' });
     }
@@ -311,12 +343,15 @@ export default function RBACAdmin() {
   // ========================================================================
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [originalRoleId, setOriginalRoleId] = useState<string>('');
 
   // ========================================================================
   // USER MANAGEMENT STATE - Lifted to RBACAdmin level so UserManagement can
   // be a plain render function (not a component) to avoid unmount/remount
   // ========================================================================
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [openMenuUserId, setOpenMenuUserId] = useState<string | null>(null);
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<any | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
   const [newUser, setNewUser] = useState({
@@ -346,6 +381,7 @@ export default function RBACAdmin() {
       return response.json();
     },
     onSuccess: (_data, { userId, isActive }) => {
+      setOpenMenuUserId(null);
       queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
         if (!old) return old;
         return old.map((user: any) =>
@@ -356,6 +392,7 @@ export default function RBACAdmin() {
       toast({ title: 'Success', description: `User ${isActive ? 'activated' : 'deactivated'} successfully` });
     },
     onError: (error: any) => {
+      setOpenMenuUserId(null);
       console.error('Toggle user status error:', error);
       toast({ title: 'Error', description: error.message || 'Failed to update user status', variant: 'destructive' });
     }
@@ -861,7 +898,7 @@ export default function RBACAdmin() {
                               </div>
 
                               {/* Kebab Menu */}
-                              <DropdownMenu>
+                              <DropdownMenu open={openMenuUserId === user.id} onOpenChange={(open) => setOpenMenuUserId(open ? user.id : null)}>
                                 <DropdownMenuTrigger asChild>
                                   <button
                                     className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[var(--pro-surface-highlight)] -mr-2"
@@ -873,6 +910,7 @@ export default function RBACAdmin() {
                                 <DropdownMenuContent align="end" className="w-48 bg-[var(--pro-surface)] border-[var(--pro-border)]">
                                   <DropdownMenuItem
                                     onClick={() => {
+                                      setOpenMenuUserId(null);
                                       toggleUserStatus.mutate({
                                         userId: user.id,
                                         isActive: !isActive
@@ -885,9 +923,8 @@ export default function RBACAdmin() {
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
                                   <DropdownMenuItem
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
+                                    onClick={() => {
+                                      setOpenMenuUserId(null);
 
                                       let roleId = user.role_id?.toString();
                                       if (!roleId && user.role && roles && roles.length > 0) {
@@ -936,6 +973,7 @@ export default function RBACAdmin() {
                                       };
 
                                       setEditingUser(mappedUser);
+                                      setOriginalRoleId(roleId || '');
                                       setIsEditUserDialogOpen(true);
                                     }}
                                     className="min-h-[44px] text-[var(--pro-blue)]"
@@ -945,52 +983,16 @@ export default function RBACAdmin() {
                                     Edit User
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <DropdownMenuItem
-                                        onSelect={(e) => e.preventDefault()}
-                                        className="min-h-[44px] text-[var(--pro-red)]"
-                                      >
-                                        <Trash2 className="w-4 h-4 mr-2" />
-                                        Delete User
-                                      </DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent className="bg-[var(--pro-surface)] border-[var(--pro-border)]" aria-describedby={undefined}>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle className="text-[var(--pro-text-primary)]">Delete User</AlertDialogTitle>
-                                        <AlertDialogDescription className="text-[var(--pro-text-secondary)]">
-                                          Are you sure you want to delete user "{displayName}"? This action cannot be undone.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <div className="flex items-start gap-2 px-1 py-2">
-                                        <Checkbox
-                                          id={`force-delete-${user.id}`}
-                                          checked={forceDelete}
-                                          onCheckedChange={(checked) => setForceDelete(checked === true)}
-                                          className="mt-0.5"
-                                        />
-                                        <label
-                                          htmlFor={`force-delete-${user.id}`}
-                                          className="text-sm text-[var(--pro-text-secondary)] cursor-pointer select-none"
-                                        >
-                                          Force delete — permanently remove this user and all their associated records (issues, comments, photos, etc.)
-                                        </label>
-                                      </div>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel className="min-h-[44px]" onClick={() => setForceDelete(false)}>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() => {
-                                            deleteUserMutation.mutate({ id: user.id, force: forceDelete });
-                                            setForceDelete(false);
-                                          }}
-                                          className={`min-h-[44px] ${forceDelete ? 'bg-red-700 hover:bg-red-800' : 'bg-[var(--pro-red)] hover:bg-[var(--pro-red)]/90'}`}
-                                          disabled={deleteUserMutation.isPending}
-                                        >
-                                          {deleteUserMutation.isPending ? 'Deleting...' : forceDelete ? 'Force Delete' : 'Delete'}
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setOpenMenuUserId(null);
+                                      setDeleteConfirmUser({ ...user, displayName });
+                                    }}
+                                    className="min-h-[44px] text-[var(--pro-red)]"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete User
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -1067,7 +1069,7 @@ export default function RBACAdmin() {
                           </div>
 
                           {/* Kebab Menu */}
-                          <DropdownMenu>
+                          <DropdownMenu open={openMenuUserId === user.id} onOpenChange={(open) => setOpenMenuUserId(open ? user.id : null)}>
                             <DropdownMenuTrigger asChild>
                               <button
                                 className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[var(--pro-surface-highlight)] -mr-2"
@@ -1080,6 +1082,7 @@ export default function RBACAdmin() {
                             <DropdownMenuContent align="end" className="w-48 bg-[var(--pro-surface)] border-[var(--pro-border)]">
                               <DropdownMenuItem
                                 onClick={() => {
+                                  setOpenMenuUserId(null);
                                   toggleUserStatus.mutate({
                                     userId: user.id,
                                     isActive: !isActive
@@ -1092,9 +1095,8 @@ export default function RBACAdmin() {
                               </DropdownMenuItem>
                               <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
                               <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
+                                onClick={() => {
+                                  setOpenMenuUserId(null);
 
                                   let roleId = user.role_id?.toString();
                                   if (!roleId && user.role && roles && roles.length > 0) {
@@ -1152,36 +1154,17 @@ export default function RBACAdmin() {
                                 Edit User
                               </DropdownMenuItem>
                               <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem
-                                    onSelect={(e) => e.preventDefault()}
-                                    className="min-h-[44px] text-[var(--pro-red)]"
-                                    data-testid={`button-delete-${user.id}`}
-                                  >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Delete User
-                                  </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent className="bg-[var(--pro-surface)] border-[var(--pro-border)]" aria-describedby={undefined}>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle className="text-[var(--pro-text-primary)]">Delete User</AlertDialogTitle>
-                                    <AlertDialogDescription className="text-[var(--pro-text-secondary)]">
-                                      Are you sure you want to delete user "{displayName}"? This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel className="min-h-[44px]">Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => deleteUserMutation.mutate({ id: user.id })}
-                                      className="min-h-[44px] bg-[var(--pro-red)] hover:bg-[var(--pro-red)]/90"
-                                      disabled={deleteUserMutation.isPending}
-                                    >
-                                      {deleteUserMutation.isPending ? 'Deleting...' : 'Delete'}
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setOpenMenuUserId(null);
+                                  setDeleteConfirmUser({ ...user, displayName });
+                                }}
+                                className="min-h-[44px] text-[var(--pro-red)]"
+                                data-testid={`button-delete-${user.id}`}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete User
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -1199,6 +1182,47 @@ export default function RBACAdmin() {
             </Card>
           )}
         </div>
+
+        {/* Shared Delete Confirmation Dialog */}
+        <AlertDialog open={!!deleteConfirmUser} onOpenChange={(open) => { if (!open) { setDeleteConfirmUser(null); setForceDelete(false); } }}>
+          <AlertDialogContent className="bg-[var(--pro-surface)] border-[var(--pro-border)]" aria-describedby={undefined}>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-[var(--pro-text-primary)]">Delete User</AlertDialogTitle>
+              <AlertDialogDescription className="text-[var(--pro-text-secondary)]">
+                Are you sure you want to delete user "{deleteConfirmUser?.displayName || deleteConfirmUser?.email || ''}"? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="flex items-start gap-2 px-1 py-2">
+              <Checkbox
+                id="force-delete-confirm"
+                checked={forceDelete}
+                onCheckedChange={(checked) => setForceDelete(checked === true)}
+                className="mt-0.5"
+              />
+              <label
+                htmlFor="force-delete-confirm"
+                className="text-sm text-[var(--pro-text-secondary)] cursor-pointer select-none"
+              >
+                Force delete — permanently remove this user and all their associated records (issues, comments, photos, etc.)
+              </label>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="min-h-[44px]" onClick={() => { setDeleteConfirmUser(null); setForceDelete(false); }}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (deleteConfirmUser) {
+                    deleteUserMutation.mutate({ id: deleteConfirmUser.id, force: forceDelete });
+                  }
+                  setForceDelete(false);
+                }}
+                className={`min-h-[44px] ${forceDelete ? 'bg-red-700 hover:bg-red-800' : 'bg-[var(--pro-red)] hover:bg-[var(--pro-red)]/90'}`}
+                disabled={deleteUserMutation.isPending}
+              >
+                {deleteUserMutation.isPending ? 'Deleting...' : forceDelete ? 'Force Delete' : 'Delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   };
@@ -2527,9 +2551,27 @@ export default function RBACAdmin() {
           </div>
           <div>
             <Label htmlFor="edit_role">Role</Label>
-            <Select 
-              value={editingUser?.role_id?.toString() || ''} 
-              onValueChange={(value) => setEditingUser(editingUser ? {...editingUser, role_id: value} : null)}
+            <Select
+              value={editingUser?.role_id?.toString() || ''}
+              onValueChange={(value) => {
+                if (!editingUser) return;
+                const updated: UserProfile = { ...editingUser, role_id: value };
+                // Initialize sub company fields when transitioning TO subcontractor
+                if (value === '6' && originalRoleId !== '6') {
+                  updated.sub_company_mode = subCompanies.length > 0 ? 'existing' : 'new';
+                  updated.sub_company_id = '';
+                  updated.sub_company_name = '';
+                  updated.sub_trade = '';
+                }
+                // Clear sub fields when switching away from subcontractor
+                if (value !== '6') {
+                  updated.sub_company_id = undefined;
+                  updated.sub_company_name = undefined;
+                  updated.sub_trade = undefined;
+                  updated.sub_company_mode = undefined;
+                }
+                setEditingUser(updated);
+              }}
             >
               <SelectTrigger id="edit_role">
                 <SelectValue placeholder="Select role" />
@@ -2549,6 +2591,86 @@ export default function RBACAdmin() {
               </SelectContent>
             </Select>
           </div>
+          {/* Role transition warning */}
+          {editingUser?.role_id?.toString() !== originalRoleId && originalRoleId && (
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs space-y-1">
+              {originalRoleId === '6' && (
+                <p className="text-amber-700 dark:text-amber-300">Subcontractor company link will be removed and active assignments terminated.</p>
+              )}
+              {originalRoleId === '4' && (
+                <p className="text-amber-700 dark:text-amber-300">Client portal access will be removed and project assignment cleared.</p>
+              )}
+              {editingUser?.role_id?.toString() === '6' && (
+                <p className="text-amber-700 dark:text-amber-300">User will be linked to the selected subcontractor company.</p>
+              )}
+              {editingUser?.role_id?.toString() === '4' && (
+                <p className="text-amber-700 dark:text-amber-300">A client portal invitation will be created. Select a project below.</p>
+              )}
+              <p className="text-amber-600 dark:text-amber-400 font-medium">User will be logged out and must re-login with new permissions.</p>
+            </div>
+          )}
+          {/* Subcontractor Company - ONLY when transitioning TO subcontractor role */}
+          {editingUser?.role_id?.toString() === '6' && originalRoleId !== '6' && (
+            <div className="space-y-3">
+              <Label className="font-medium">Subcontractor Company *</Label>
+              {subCompanies.length > 0 && (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`flex-1 px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                      editingUser.sub_company_mode === 'existing'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background border-input hover:bg-accent'
+                    }`}
+                    onClick={() => setEditingUser({ ...editingUser, sub_company_mode: 'existing' })}
+                  >
+                    Existing Company
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                      editingUser.sub_company_mode === 'new'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background border-input hover:bg-accent'
+                    }`}
+                    onClick={() => setEditingUser({ ...editingUser, sub_company_mode: 'new' })}
+                  >
+                    New Company
+                  </button>
+                </div>
+              )}
+              {editingUser.sub_company_mode === 'existing' && subCompanies.length > 0 ? (
+                <Select
+                  value={editingUser.sub_company_id || ''}
+                  onValueChange={(v) => setEditingUser({ ...editingUser, sub_company_id: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select existing sub company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subCompanies.map((sc: any) => (
+                      <SelectItem key={sc.id} value={sc.id}>
+                        {sc.companyName || sc.company_name}{sc.trade ? ` (${sc.trade})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Company name *"
+                    value={editingUser.sub_company_name || ''}
+                    onChange={(e) => setEditingUser({ ...editingUser, sub_company_name: e.target.value })}
+                  />
+                  <Input
+                    placeholder="Trade (e.g. Electrical, Plumbing)"
+                    value={editingUser.sub_trade || ''}
+                    onChange={(e) => setEditingUser({ ...editingUser, sub_trade: e.target.value })}
+                  />
+                </div>
+              )}
+            </div>
+          )}
           {/* Project Assignment - ONLY for Client role (roleId === '4') */}
           {editingUser?.role_id?.toString() === '4' && (
             <div>
@@ -2612,6 +2734,18 @@ export default function RBACAdmin() {
                   return;
                 }
 
+                // Validate sub company info required for subcontractor role transition
+                if (editingUser.role_id?.toString() === '6' && originalRoleId !== '6') {
+                  if (editingUser.sub_company_mode === 'existing' && !editingUser.sub_company_id) {
+                    toast({ title: 'Error', description: 'Please select a subcontractor company', variant: 'destructive' });
+                    return;
+                  }
+                  if (editingUser.sub_company_mode === 'new' && !editingUser.sub_company_name?.trim()) {
+                    toast({ title: 'Error', description: 'Company name is required for new subcontractor', variant: 'destructive' });
+                    return;
+                  }
+                }
+
                 const updatePayload: any = {
                   email: editingUser.email,
                   username: editingUser.email,
@@ -2628,6 +2762,15 @@ export default function RBACAdmin() {
                 // Include assigned_project_id for client users
                 if (editingUser.role_id?.toString() === '4') {
                   updatePayload.assigned_project_id = editingUser.assigned_project_id || null;
+                }
+                // Include subcontractor transition data
+                if (editingUser.role_id?.toString() === '6' && originalRoleId !== '6') {
+                  if (editingUser.sub_company_mode === 'existing' && editingUser.sub_company_id) {
+                    updatePayload.sub_company_id = editingUser.sub_company_id;
+                  } else if (editingUser.sub_company_name) {
+                    updatePayload.sub_company_name = editingUser.sub_company_name;
+                    updatePayload.sub_trade = editingUser.sub_trade || null;
+                  }
                 }
 
                 try {
@@ -2669,6 +2812,11 @@ export default function RBACAdmin() {
                     );
                   });
                   
+                  // Invalidate sub companies cache if role transition involves subcontractor
+                  if (originalRoleId === '6' || editingUser.role_id?.toString() === '6') {
+                    queryClient.invalidateQueries({ queryKey: ['/api/v1/sub/companies'] });
+                  }
+
                   setIsEditUserDialogOpen(false);
                   setEditingUser(null);
 

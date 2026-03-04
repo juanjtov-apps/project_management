@@ -506,6 +506,10 @@ class AuthRepository:
         if not data:
             return await self.get_user(user_id)
         
+        # Remove transition-specific fields handled at the endpoint level
+        for key in ('sub_company_id', 'sub_company_name', 'sub_trade'):
+            data.pop(key, None)
+
         # Handle role_id - if role name is provided, look up role_id
         role_id = data.get('role_id')
         if not role_id and data.get('role'):
