@@ -613,12 +613,31 @@ class AuthRepository:
     async def delete_user(self, user_id: str) -> bool:
         """Delete a user with cascade handling."""
         try:
+            # Capture subcontractor_id before deletion so we can deactivate orphaned companies
+            sub_row = await db_manager.execute_one(
+                "SELECT subcontractor_id FROM users WHERE id = $1", user_id
+            )
+            sub_company_id = sub_row.get("subcontractor_id") if sub_row else None
+
             # First, unassign tasks assigned to this user
             await db_manager.execute("UPDATE tasks SET assignee_id = NULL WHERE assignee_id = $1", user_id)
 
             # Then delete the user
             result = await db_manager.execute(f"DELETE FROM {self.table_name} WHERE id = $1", user_id)
-            return "DELETE 1" in result
+            deleted = "DELETE 1" in result
+
+            # Deactivate orphaned subcontractor company if no other users reference it
+            if deleted and sub_company_id:
+                remaining = await db_manager.execute_one(
+                    "SELECT COUNT(*) as cnt FROM users WHERE subcontractor_id = $1", sub_company_id
+                )
+                if remaining and remaining["cnt"] == 0:
+                    await db_manager.execute(
+                        "UPDATE subcontractors SET status = 'inactive', updated_at = NOW() WHERE id = $1",
+                        sub_company_id,
+                    )
+
+            return deleted
         except Exception as e:
             code = getattr(e, 'sqlstate', None)
             if code == '23503':  # foreign_key_violation
@@ -727,9 +746,28 @@ class AuthRepository:
                 await safe_delete("DELETE FROM sessions WHERE sess::jsonb->>'userId' = $1", str(user_id))
                 await safe_delete("DELETE FROM sessions WHERE sess::jsonb->>'id' = $1", str(user_id))
 
+                # Capture subcontractor_id before deletion
+                sub_row = await conn.fetchrow(
+                    "SELECT subcontractor_id FROM users WHERE id = $1", user_id
+                )
+                sub_company_id = sub_row["subcontractor_id"] if sub_row and sub_row["subcontractor_id"] else None
+
                 # Finally delete the user
                 result = await conn.execute("DELETE FROM users WHERE id = $1", user_id)
-                return "DELETE 1" in result
+                deleted = "DELETE 1" in result
+
+                # Deactivate orphaned subcontractor company if no other users reference it
+                if deleted and sub_company_id:
+                    remaining = await conn.fetchval(
+                        "SELECT COUNT(*) FROM users WHERE subcontractor_id = $1", sub_company_id
+                    )
+                    if remaining == 0:
+                        await conn.execute(
+                            "UPDATE subcontractors SET status = 'inactive', updated_at = NOW() WHERE id = $1",
+                            sub_company_id,
+                        )
+
+                return deleted
 
     async def assign_task(self, task_id: str, assignee_id: Optional[str]) -> Optional[Dict[str, Any]]:
         """Assign a task to a user."""

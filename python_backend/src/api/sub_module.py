@@ -171,6 +171,7 @@ def _row_to_dict(row) -> dict:
 
 @router.get("/companies")
 async def list_sub_companies(
+    status_filter: str = Query("active", alias="status"),
     current_user: dict = Depends(get_current_user_dependency),
 ):
     """List all subcontractor companies for the GC."""
@@ -179,19 +180,35 @@ async def list_sub_companies(
     pool = await get_db_pool()
 
     async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            """SELECT s.id, s.name as company_name, s.trade, s.contact_email, s.contact_phone,
-                      s.address, s.license_number, s.license_expiry, s.insurance_provider,
-                      s.insurance_policy_number, s.insurance_expiry,
-                      s.overall_performance_score as performance_score,
-                      s.status, s.notes, s.created_at, s.updated_at, s.company_id,
-                      (SELECT COUNT(*) FROM subcontractor_assignments sa
-                       WHERE sa.sub_company_id = s.id AND sa.status = 'active') as active_assignments
-               FROM subcontractors s
-               WHERE s.company_id = $1
-               ORDER BY s.name""",
-            company_id,
-        )
+        if status_filter == "all":
+            rows = await conn.fetch(
+                """SELECT s.id, s.name as company_name, s.trade, s.contact_email, s.contact_phone,
+                          s.address, s.license_number, s.license_expiry, s.insurance_provider,
+                          s.insurance_policy_number, s.insurance_expiry,
+                          s.overall_performance_score as performance_score,
+                          s.status, s.notes, s.created_at, s.updated_at, s.company_id,
+                          (SELECT COUNT(*) FROM subcontractor_assignments sa
+                           WHERE sa.sub_company_id = s.id AND sa.status = 'active') as active_assignments
+                   FROM subcontractors s
+                   WHERE s.company_id = $1
+                   ORDER BY s.name""",
+                company_id,
+            )
+        else:
+            rows = await conn.fetch(
+                """SELECT s.id, s.name as company_name, s.trade, s.contact_email, s.contact_phone,
+                          s.address, s.license_number, s.license_expiry, s.insurance_provider,
+                          s.insurance_policy_number, s.insurance_expiry,
+                          s.overall_performance_score as performance_score,
+                          s.status, s.notes, s.created_at, s.updated_at, s.company_id,
+                          (SELECT COUNT(*) FROM subcontractor_assignments sa
+                           WHERE sa.sub_company_id = s.id AND sa.status = 'active') as active_assignments
+                   FROM subcontractors s
+                   WHERE s.company_id = $1 AND s.status = $2
+                   ORDER BY s.name""",
+                company_id,
+                status_filter,
+            )
     return [_row_to_dict(r) for r in rows]
 
 

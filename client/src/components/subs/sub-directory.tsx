@@ -97,9 +97,9 @@ export function SubDirectory({ onViewTasks }: SubDirectoryProps = {}) {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
   const { data: companies = [], isLoading } = useQuery<SubCompanyEntry[]>({
-    queryKey: ["/api/v1/sub/companies"],
+    queryKey: ["/api/v1/sub/companies", statusFilter],
     queryFn: async () => {
-      const res = await fetch("/api/v1/sub/companies", {
+      const res = await fetch(`/api/v1/sub/companies?status=${statusFilter}`, {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch sub companies");
