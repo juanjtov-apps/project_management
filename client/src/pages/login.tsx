@@ -241,7 +241,7 @@ export default function Login() {
               onClick={() => setLocation("/auth/request-link")}
               className="text-sm text-[var(--pro-mint)] hover:text-[var(--pro-mint-dim)] focus:outline-none focus:ring-2 focus:ring-[var(--pro-mint)]/50 rounded px-2 py-1 transition-colors"
             >
-              Client? Sign in with magic link
+              Client or Sub? Sign in with magic link
             </button>
           </div>
         </CardContent>

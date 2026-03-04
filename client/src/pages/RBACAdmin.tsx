@@ -21,7 +21,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { BottomNavigation } from '@/components/ui/bottom-navigation';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Users, Shield, Building, UserCheck, UserCheck2, UserX, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, MoreVertical, Home, FolderKanban, ListTodo, Palette } from 'lucide-react';
+import { Users, Shield, Building, UserCheck, UserCheck2, UserX, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, MoreVertical, Home, FolderKanban, ListTodo, Palette, Mail, Send, KeyRound } from 'lucide-react';
 import CompanyBrandingForm from '@/components/onboarding/company-branding-form';
 
 interface Permission {
@@ -158,6 +158,7 @@ export default function RBACAdmin() {
   // Filter data based on admin level with field name compatibility
   // Use string comparison to handle type mismatches between string and number IDs
   const [showInactiveUsers, setShowInactiveUsers] = useState(false);
+  const [forceDelete, setForceDelete] = useState(false);
   const currentUserCompanyId = String(currentUser?.company_id || currentUser?.companyId || '');
   const filteredCompanies = isRootAdmin ? companies : companies.filter(c => String(c.id) === currentUserCompanyId);
   const filteredUsers = (isRootAdmin ? users : users.filter(u => {
@@ -240,8 +241,9 @@ export default function RBACAdmin() {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/rbac/users/${id}`, { method: 'DELETE' }),
-    onSuccess: (_data, deletedUserId) => {
+    mutationFn: ({ id, force }: { id: string; force?: boolean }) =>
+      apiRequest(`/api/rbac/users/${id}${force ? '?force=true' : ''}`, { method: 'DELETE' }),
+    onSuccess: (_data, { id: deletedUserId }) => {
       queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
         if (!old) return old;
         return old.filter((user: any) => user.id !== deletedUserId);
@@ -960,14 +962,31 @@ export default function RBACAdmin() {
                                           Are you sure you want to delete user "{displayName}"? This action cannot be undone.
                                         </AlertDialogDescription>
                                       </AlertDialogHeader>
+                                      <div className="flex items-start gap-2 px-1 py-2">
+                                        <Checkbox
+                                          id={`force-delete-${user.id}`}
+                                          checked={forceDelete}
+                                          onCheckedChange={(checked) => setForceDelete(checked === true)}
+                                          className="mt-0.5"
+                                        />
+                                        <label
+                                          htmlFor={`force-delete-${user.id}`}
+                                          className="text-sm text-[var(--pro-text-secondary)] cursor-pointer select-none"
+                                        >
+                                          Force delete — permanently remove this user and all their associated records (issues, comments, photos, etc.)
+                                        </label>
+                                      </div>
                                       <AlertDialogFooter>
-                                        <AlertDialogCancel className="min-h-[44px]">Cancel</AlertDialogCancel>
+                                        <AlertDialogCancel className="min-h-[44px]" onClick={() => setForceDelete(false)}>Cancel</AlertDialogCancel>
                                         <AlertDialogAction
-                                          onClick={() => deleteUserMutation.mutate(user.id)}
-                                          className="min-h-[44px] bg-[var(--pro-red)] hover:bg-[var(--pro-red)]/90"
+                                          onClick={() => {
+                                            deleteUserMutation.mutate({ id: user.id, force: forceDelete });
+                                            setForceDelete(false);
+                                          }}
+                                          className={`min-h-[44px] ${forceDelete ? 'bg-red-700 hover:bg-red-800' : 'bg-[var(--pro-red)] hover:bg-[var(--pro-red)]/90'}`}
                                           disabled={deleteUserMutation.isPending}
                                         >
-                                          {deleteUserMutation.isPending ? 'Deleting...' : 'Delete'}
+                                          {deleteUserMutation.isPending ? 'Deleting...' : forceDelete ? 'Force Delete' : 'Delete'}
                                         </AlertDialogAction>
                                       </AlertDialogFooter>
                                     </AlertDialogContent>
@@ -1154,7 +1173,7 @@ export default function RBACAdmin() {
                                   <AlertDialogFooter>
                                     <AlertDialogCancel className="min-h-[44px]">Cancel</AlertDialogCancel>
                                     <AlertDialogAction
-                                      onClick={() => deleteUserMutation.mutate(user.id)}
+                                      onClick={() => deleteUserMutation.mutate({ id: user.id })}
                                       className="min-h-[44px] bg-[var(--pro-red)] hover:bg-[var(--pro-red)]/90"
                                       disabled={deleteUserMutation.isPending}
                                     >
@@ -1404,11 +1423,15 @@ export default function RBACAdmin() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isEditCompanyDialogOpen, setIsEditCompanyDialogOpen] = useState(false);
     const [editingCompany, setEditingCompany] = useState<Company | null>(null);
-    const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
+    const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
     const [isViewUsersDialogOpen, setIsViewUsersDialogOpen] = useState(false);
     const [showOnlyWithUsers, setShowOnlyWithUsers] = useState(false);
     const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
     const [isDeleteConfirmDialogOpen, setIsDeleteConfirmDialogOpen] = useState(false);
+    const [isInviteAdminDialogOpen, setIsInviteAdminDialogOpen] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
+    const [resetEmail, setResetEmail] = useState('');
     const [newCompany, setNewCompany] = useState({
       name: '',
       domain: '',
@@ -1421,20 +1444,19 @@ export default function RBACAdmin() {
       const counts: { [key: string]: number } = {};
       if (users && Array.isArray(users)) {
         users.forEach((user: UserProfile) => {
-          // Try multiple field variations for company identification
           const companyName = user.company_name || user.companyName;
           const companyId = user.company_id || user.companyId;
-          
-          if (companyName) {
-            counts[companyName] = (counts[companyName] || 0) + 1;
-          }
-          
-          // Also count by company ID for backup matching
+
+          // Use companyId as primary match, fall back to companyName
           if (companyId && companies) {
             const company = companies.find((c: Company) => c.id.toString() === companyId.toString());
             if (company) {
               counts[company.name] = (counts[company.name] || 0) + 1;
+              return;
             }
+          }
+          if (companyName) {
+            counts[companyName] = (counts[companyName] || 0) + 1;
           }
         });
       }
@@ -1490,6 +1512,48 @@ export default function RBACAdmin() {
       }
     });
 
+    // Beta invite admin mutation
+    const inviteAdminMutation = useMutation({
+      mutationFn: async (email: string) => {
+        const res = await apiRequest('/api/v1/beta/invite', { method: 'POST', body: { email } });
+        return res.json();
+      },
+      onSuccess: (data) => {
+        setIsInviteAdminDialogOpen(false);
+        setInviteEmail('');
+        toast({
+          title: 'Invitation Sent',
+          description: data.emailSent
+            ? `An invitation email has been sent to ${data.email}`
+            : `Invitation created for ${data.email} but email delivery failed. Check logs for the invite URL.`,
+        });
+      },
+      onError: (error: any) => {
+        toast({ title: 'Error', description: error.message || 'Failed to send invitation', variant: 'destructive' });
+      },
+    });
+
+    // Beta reset password mutation
+    const resetPasswordMutation = useMutation({
+      mutationFn: async (email: string) => {
+        const res = await apiRequest('/api/v1/beta/reset-password', { method: 'POST', body: { email } });
+        return res.json();
+      },
+      onSuccess: (data) => {
+        setIsResetPasswordDialogOpen(false);
+        setResetEmail('');
+        toast({
+          title: 'Reset Link Sent',
+          description: data.emailSent
+            ? `A password reset email has been sent to ${data.email}`
+            : `Reset created for ${data.email} but email delivery failed.`,
+        });
+      },
+      onError: (error: any) => {
+        toast({ title: 'Error', description: error.message || 'Failed to send reset link', variant: 'destructive' });
+      },
+    });
+
     // Fetch users for selected company
     const { data: companyUsers = [], isLoading: companyUsersLoading } = useQuery<any[]>({
       queryKey: [`/api/rbac/companies/${selectedCompanyId}/users`],
@@ -1516,6 +1580,14 @@ export default function RBACAdmin() {
                 Only show companies with users
               </Label>
             </div>
+            <Button variant="outline" onClick={() => setIsResetPasswordDialogOpen(true)}>
+              <KeyRound className="w-4 h-4 mr-2" />
+              Reset Password
+            </Button>
+            <Button variant="outline" onClick={() => setIsInviteAdminDialogOpen(true)}>
+              <Send className="w-4 h-4 mr-2" />
+              Invite Admin
+            </Button>
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -1631,6 +1703,117 @@ export default function RBACAdmin() {
             </Dialog>
           </div>
         </div>
+
+        {/* Invite Admin Dialog */}
+        <Dialog open={isInviteAdminDialogOpen} onOpenChange={(open) => { setIsInviteAdminDialogOpen(open); if (!open) setInviteEmail(''); }}>
+          <DialogContent aria-describedby={undefined}>
+            <DialogHeader>
+              <DialogTitle>Invite Company Admin</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Send a beta invitation to a new company admin. They'll receive an email
+              with a link to set up their company and create their account.
+            </p>
+            <div className="space-y-4 pt-2">
+              <div>
+                <Label htmlFor="invite_email">Email Address</Label>
+                <div className="relative mt-1">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="invite_email"
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="admin@company.com"
+                    className="pl-10"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && inviteEmail.includes('@')) {
+                        e.preventDefault();
+                        inviteAdminMutation.mutate(inviteEmail);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setIsInviteAdminDialogOpen(false); setInviteEmail(''); }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => inviteAdminMutation.mutate(inviteEmail)}
+                disabled={inviteAdminMutation.isPending || !inviteEmail.includes('@')}
+              >
+                {inviteAdminMutation.isPending ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    Sending...
+                  </div>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send Invitation
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reset Password Dialog */}
+        <Dialog open={isResetPasswordDialogOpen} onOpenChange={(open) => { setIsResetPasswordDialogOpen(open); if (!open) setResetEmail(''); }}>
+          <DialogContent aria-describedby={undefined}>
+            <DialogHeader>
+              <DialogTitle>Reset Admin Password</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Send a password reset link to an existing admin. The link expires in 1 hour.
+            </p>
+            <div className="space-y-4 pt-2">
+              <div>
+                <Label htmlFor="reset_email">Admin Email Address</Label>
+                <div className="relative mt-1">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="reset_email"
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="admin@company.com"
+                    className="pl-10"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && resetEmail.includes('@')) {
+                        e.preventDefault();
+                        resetPasswordMutation.mutate(resetEmail);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setIsResetPasswordDialogOpen(false); setResetEmail(''); }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => resetPasswordMutation.mutate(resetEmail)}
+                disabled={resetPasswordMutation.isPending || !resetEmail.includes('@')}
+              >
+                {resetPasswordMutation.isPending ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    Sending...
+                  </div>
+                ) : (
+                  <>
+                    <KeyRound className="w-4 h-4 mr-2" />
+                    Send Reset Link
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Edit Company Dialog */}
         <Dialog open={isEditCompanyDialogOpen} onOpenChange={setIsEditCompanyDialogOpen}>
@@ -1926,7 +2109,7 @@ export default function RBACAdmin() {
                         size="sm" 
                         variant="outline"
                         onClick={() => {
-                          setSelectedCompanyId(Number(company.id));
+                          setSelectedCompanyId(company.id);
                           setIsViewUsersDialogOpen(true);
                         }}
                       >

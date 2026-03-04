@@ -18,12 +18,23 @@ export default function MagicLink() {
 
   const verifyMutation = useMutation({
     mutationFn: async (magicToken: string) => {
-      const res = await fetch("/api/v1/onboarding/verify-magic-link", {
+      // Try client portal verify first, then sub portal verify
+      let res = await fetch("/api/v1/onboarding/verify-magic-link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: magicToken }),
         credentials: "include",
       });
+
+      // If client verify fails, try sub verify
+      if (!res.ok) {
+        res = await fetch("/api/v1/sub/verify-magic-link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: magicToken }),
+          credentials: "include",
+        });
+      }
 
       // Capture CSRF token
       const csrf = res.headers.get("X-CSRF-Token");
@@ -40,11 +51,15 @@ export default function MagicLink() {
     onSuccess: async (data) => {
       setVerifyState("success");
       // Use hard navigation to avoid React routing race condition.
-      // The session cookie is already set by the verify-magic-link response,
-      // so the target page will load fresh and fetch auth state normally.
+      // Redirect based on user role
       setTimeout(() => {
-        const showTour = data.isFirstLogin ? "?showTour=true" : "";
-        window.location.href = `/client-portal${showTour}`;
+        const role = (data.role || data.role_name || "").toLowerCase();
+        if (role === "subcontractor" || role === "contractor") {
+          window.location.href = "/sub-portal";
+        } else {
+          const showTour = data.isFirstLogin ? "?showTour=true" : "";
+          window.location.href = `/client-portal${showTour}`;
+        }
       }, 1000);
     },
     onError: (error: Error) => {

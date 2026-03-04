@@ -673,16 +673,21 @@ async def update_user(
 @router.delete("/rbac/users/{user_id}")
 async def delete_user(
     user_id: str,
+    force: bool = False,
     current_user: Dict[str, Any] = Depends(get_current_user_dependency)
 ):
-    """Delete a user with authorization checks."""
+    """Delete a user with authorization checks.
+
+    Pass ?force=true to force-delete a user who has associated records.
+    Force-delete is restricted to root administrators only.
+    """
     try:
         if not is_user_admin(current_user):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin privileges required"
             )
-        
+
         # Get the user to be deleted to check company restrictions
         user_to_delete = await auth_repo.get_user(user_id)
         if not user_to_delete:
@@ -690,40 +695,49 @@ async def delete_user(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
-        
+
         # Prevent deleting root admin
         if is_root_admin(user_to_delete):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Cannot delete root administrator"
             )
-        
+
         # Company admin can only delete users in their own company
         if not is_root_admin(current_user):
             user_company_id = current_user.get('companyId') or current_user.get('company_id')
             target_user_company_id = user_to_delete.get('companyId') or user_to_delete.get('company_id')
-            
+
             if target_user_company_id != user_company_id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Company admins can only delete users within their own company"
                 )
-        
-        try:
-            success = await auth_repo.delete_user(user_id)
-        except ValueError as e:
-            raise HTTPException(status_code=409, detail=str(e))
+
+        if force:
+            if not is_root_admin(current_user):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only root administrators can force-delete users"
+                )
+            success = await auth_repo.force_delete_user(user_id)
+        else:
+            try:
+                success = await auth_repo.delete_user(user_id)
+            except ValueError as e:
+                raise HTTPException(status_code=409, detail=str(e))
 
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to delete user"
             )
-        
+
         admin_type = "root admin" if is_root_admin(current_user) else "company admin"
-        logger.info(f"User deleted by {current_user.get('email')} ({admin_type})")
+        delete_type = "force-deleted" if force else "deleted"
+        logger.info(f"User {delete_type} by {current_user.get('email')} ({admin_type})")
         return {"message": "User deleted successfully"}
-        
+
     except HTTPException:
         raise
     except Exception as e:

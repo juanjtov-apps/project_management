@@ -46,6 +46,9 @@ MIGRATIONS = [
     "add_material_order_status.sql",
     "add_material_documents.sql",
 
+    # Notification types
+    "add_task_submitted_notification.sql",
+
     # Seed data
     "seed_production_templates.sql",
 ]

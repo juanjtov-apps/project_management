@@ -61,6 +61,18 @@ try:
 except ImportError:
     onboarding_router = None
 
+# Import subcontractor module router
+try:
+    from ...api.sub_module import router as sub_module_router
+except ImportError:
+    sub_module_router = None
+
+# Import beta admin router (company invitation flow)
+try:
+    from ...api.beta_admin import router as beta_admin_router
+except ImportError:
+    beta_admin_router = None
+
 # Import agent chat router
 try:
     from ...agent.api.chat import router as agent_router
@@ -129,6 +141,14 @@ def create_v1_router() -> APIRouter:
     # Include onboarding router for client magic link auth
     if onboarding_router:
         v1_router.include_router(onboarding_router, tags=["onboarding"])
+
+    # Include subcontractor module router
+    if sub_module_router:
+        v1_router.include_router(sub_module_router, tags=["subcontractor-module"])
+
+    # Include beta admin router for company invitation flow
+    if beta_admin_router:
+        v1_router.include_router(beta_admin_router, tags=["beta-admin"])
 
     # Include agent router for AI chat functionality
     if agent_router:

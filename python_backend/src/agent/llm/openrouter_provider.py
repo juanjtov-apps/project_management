@@ -128,6 +128,9 @@ class OpenRouterProvider(LLMProviderBase):
                     }
                     return
 
+                # Accumulate tool calls across streaming chunks
+                pending_tool_calls: Dict[int, Dict[str, Any]] = {}
+
                 async for line in response.aiter_lines():
                     if not line or not line.startswith("data: "):
                         continue
@@ -154,30 +157,50 @@ class OpenRouterProvider(LLMProviderBase):
                                 "content": delta["content"]
                             }
 
-                        # Handle tool calls
+                        # Handle tool calls - accumulate across chunks
                         if "tool_calls" in delta:
                             for tool_call in delta["tool_calls"]:
+                                idx = tool_call.get("index", 0)
+
+                                if idx not in pending_tool_calls:
+                                    pending_tool_calls[idx] = {
+                                        "id": tool_call.get("id", ""),
+                                        "name": "",
+                                        "arguments": "",
+                                    }
+
                                 if "function" in tool_call:
                                     func = tool_call["function"]
                                     if "name" in func:
-                                        # Parse arguments if present
-                                        args = {}
-                                        if "arguments" in func and func["arguments"]:
-                                            try:
-                                                args = json.loads(func["arguments"])
-                                            except json.JSONDecodeError:
-                                                args = {"raw": func["arguments"]}
+                                        pending_tool_calls[idx]["name"] = func["name"]
+                                    if "arguments" in func:
+                                        pending_tool_calls[idx]["arguments"] += func["arguments"]
 
-                                        yield {
-                                            "type": "tool_use",
-                                            "id": tool_call.get("id", ""),
-                                            "name": func["name"],
-                                            "input": args
-                                        }
+                                # Update id if present in later chunks
+                                if "id" in tool_call and tool_call["id"]:
+                                    pending_tool_calls[idx]["id"] = tool_call["id"]
 
-                        # Check for finish reason
+                        # Check for finish reason - emit accumulated tool calls
                         finish_reason = choices[0].get("finish_reason")
                         if finish_reason:
+                            for idx in sorted(pending_tool_calls.keys()):
+                                tc = pending_tool_calls[idx]
+                                if tc["name"]:
+                                    args = {}
+                                    if tc["arguments"]:
+                                        try:
+                                            args = json.loads(tc["arguments"])
+                                        except json.JSONDecodeError:
+                                            args = {"raw": tc["arguments"]}
+
+                                    yield {
+                                        "type": "tool_use",
+                                        "id": tc["id"],
+                                        "name": tc["name"],
+                                        "input": args,
+                                    }
+                            pending_tool_calls.clear()
+
                             yield {"type": "stop", "reason": finish_reason}
 
                     except json.JSONDecodeError as e:

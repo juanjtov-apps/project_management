@@ -219,6 +219,15 @@ class AgentOrchestrator:
                                 "type": "error",
                                 "data": {"message": str(e)}
                             }
+                            # Feed error back to LLM so it can try a different approach
+                            messages.append({
+                                "role": "assistant",
+                                "content": f"I attempted to use the {tool_name} tool.",
+                            })
+                            messages.append({
+                                "role": "user",
+                                "content": f"[TOOL ERROR] Permission denied: {str(e)}. Try a different approach.",
+                            })
 
                         except Exception as e:
                             logger.error(f"Tool execution error: {e}")
@@ -230,6 +239,15 @@ class AgentOrchestrator:
                                     "error": str(e),
                                 }
                             }
+                            # Feed error back to LLM so it can self-correct and retry
+                            messages.append({
+                                "role": "assistant",
+                                "content": f"I attempted to use the {tool_name} tool.",
+                            })
+                            messages.append({
+                                "role": "user",
+                                "content": f"[TOOL ERROR] The {tool_name} tool failed: {str(e)}. Please retry with correct parameters.",
+                            })
 
                     elif chunk_type == "stop":
                         # LLM finished
