@@ -1,6 +1,8 @@
 import { Camera, CheckCircle, AlertTriangle, Users, Building, Plus, Upload, Edit } from "lucide-react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { formatDistanceToNow, format, isToday, isYesterday, parseISO } from "date-fns";
+import { format, isToday, isYesterday, parseISO } from "date-fns";
+import { formatRelativeTime } from "@/lib/statusColors";
 
 interface ActivityItem {
   id: string;
@@ -31,14 +33,6 @@ export default function RecentActivity() {
       case 'user_created': return Users;
       case 'task_updated': return Edit;
       default: return CheckCircle;
-    }
-  };
-
-  const formatRelativeTime = (dateString: string) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch {
-      return 'Recently';
     }
   };
 
@@ -73,7 +67,11 @@ export default function RecentActivity() {
     return groups;
   };
 
-  const groupedActivities = groupActivitiesByDay(activities);
+  // 8D: Memoize grouped activities to avoid re-computing on every render
+  const groupedActivities = useMemo(
+    () => groupActivitiesByDay(activities),
+    [activities]
+  );
 
   if (isLoading) {
     return (
@@ -137,7 +135,7 @@ export default function RecentActivity() {
                         key={activity.id}
                         className="w-full flex items-start space-x-3 p-3 rounded-lg transition-colors text-left hover:bg-[#1F242C]"
                         onClick={() => {
-                          console.log('Navigate to:', activity.entity_type, activity.entity_id);
+                          // TODO: Navigate to entity detail view
                         }}
                         data-testid={`activity-item-${activity.id}`}
                       >

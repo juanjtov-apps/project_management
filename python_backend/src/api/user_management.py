@@ -25,12 +25,13 @@ class UserCreateRequest(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
-    password: str
+    password: Optional[str] = None  # Optional for client role (magic link auth)
     role_id: int  # Changed from role: str - must be a valid role ID
     company_id: Optional[str] = None  # Required for non-root users, validated in endpoint
     is_active: bool = True
     assigned_project_id: Optional[str] = None  # For client role users only
-    
+    welcome_note: Optional[str] = None  # For client invite email
+
     @field_validator('first_name', 'last_name')
     @classmethod
     def validate_names(cls, v):
@@ -38,17 +39,19 @@ class UserCreateRequest(BaseModel):
         if v is None:
             return v
         return validate_name(v, "name")
-    
+
     @field_validator('email')
     @classmethod
     def validate_email(cls, v):
         """Validate email format"""
         return validate_email_format(v)
-    
+
     @field_validator('password')
     @classmethod
     def validate_password(cls, v):
-        """Validate password strength"""
+        """Validate password strength — skip for None (client role)"""
+        if v is None:
+            return v
         return validate_password_strength(v)
 
 class UserUpdateRequest(BaseModel):
@@ -61,6 +64,10 @@ class UserUpdateRequest(BaseModel):
     company_id: Optional[str] = None  # Add this
     is_active: Optional[bool] = None
     assigned_project_id: Optional[str] = None  # For client role users only
+    # Subcontractor transition fields (used when changing role TO subcontractor)
+    sub_company_id: Optional[str] = None
+    sub_company_name: Optional[str] = None
+    sub_trade: Optional[str] = None
 
     model_config = ConfigDict(extra="forbid")  # Explicitly forbid extra fields like "name"
     
@@ -492,6 +499,111 @@ async def create_user(
 
         user = await auth_repo.create_rbac_user(user_data.model_dump())
         logger.info(f"User created with company restrictions enforced")
+
+        # For client role (4): trigger onboarding invite (magic link + email)
+        email_sent = False
+        if user_data.role_id == 4:
+            try:
+                from ..database.connection import get_db_pool
+                from ..services.magic_link_service import MagicLinkService
+                from ..services.email_service import EmailService
+                from ..core.config import settings
+                import uuid as uuid_mod
+
+                pool = await get_db_pool()
+                magic_link_svc = MagicLinkService(pool)
+                email_svc = EmailService()
+
+                created_user_id = user.get("id") or user.get("userId")
+
+                async with pool.acquire() as conn:
+                    # Create invitation record
+                    caller_id = str(current_user.get("id") or current_user.get("userId") or "")
+                    await conn.execute(
+                        """
+                        INSERT INTO client_portal.client_invitations
+                        (id, user_id, project_id, company_id, invited_by, welcome_note, status)
+                        VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+                        """,
+                        str(uuid_mod.uuid4()),
+                        str(created_user_id),
+                        user_data.assigned_project_id or "",
+                        str(user_data.company_id),
+                        caller_id,
+                        user_data.welcome_note,
+                    )
+
+                    # Invalidate any previous tokens and generate new one
+                    await magic_link_svc.invalidate_user_tokens(str(created_user_id), purpose="invite")
+                    raw_token = await magic_link_svc.create_magic_link(str(created_user_id), purpose="invite")
+                    magic_link_url = f"{settings.magic_link_base_url}/auth/magic-link?token={raw_token}"
+
+                    # Fetch company branding
+                    company_row = await conn.fetchrow(
+                        "SELECT name, COALESCE(logo_url, logo) as logo_url, brand_color, sender_name FROM companies WHERE id = $1",
+                        str(user_data.company_id),
+                    )
+                    company_name = company_row["name"] if company_row else "Your Contractor"
+                    company_logo_path = company_row["logo_url"] if company_row else None
+                    brand_color = (company_row["brand_color"] if company_row else None) or "#2563eb"
+                    sender_name = company_row["sender_name"] if company_row else None
+
+                    # Fetch project name
+                    project_name = "Your Project"
+                    if user_data.assigned_project_id:
+                        project_row = await conn.fetchrow(
+                            "SELECT name FROM projects WHERE id = $1", user_data.assigned_project_id
+                        )
+                        project_name = project_row["name"] if project_row else "Your Project"
+
+                # Get caller's name
+                caller_name = f"{current_user.get('first_name', '')} {current_user.get('last_name', '')}".strip()
+                if not caller_name:
+                    caller_name = current_user.get("name", "Your Project Manager")
+
+                # Resolve GCS object path to a signed URL for the email
+                from .onboarding import _resolve_logo_url
+                company_logo_url = await _resolve_logo_url(company_logo_path)
+
+                # Send invitation email
+                email_sent = await email_svc.send_client_invite_email(
+                    to_email=user_data.email,
+                    client_first_name=user_data.first_name,
+                    company_name=company_name,
+                    company_logo_url=company_logo_url,
+                    brand_color=brand_color,
+                    pm_name=caller_name,
+                    project_name=project_name,
+                    magic_link_url=magic_link_url,
+                    welcome_note=user_data.welcome_note,
+                    sender_name=sender_name,
+                )
+
+                if email_sent:
+                    from datetime import datetime, timezone
+                    async with pool.acquire() as conn:
+                        await conn.execute(
+                            """
+                            UPDATE client_portal.client_invitations
+                            SET email_sent_at = $1
+                            WHERE id = (
+                                SELECT id FROM client_portal.client_invitations
+                                WHERE user_id = $2 AND status = 'pending'
+                                ORDER BY created_at DESC LIMIT 1
+                            )
+                            """,
+                            datetime.now(timezone.utc),
+                            str(created_user_id),
+                        )
+
+                logger.info(f"Client onboarding invite sent: email={email_sent}")
+            except Exception as invite_err:
+                logger.error(f"Failed to send client invite (user was still created): {invite_err}", exc_info=True)
+
+        # Include invite status in response for client role
+        if user_data.role_id == 4:
+            user["emailSent"] = email_sent
+
         return user
         
     except HTTPException:
@@ -545,14 +657,46 @@ async def update_user(
                 detail="Cannot update root administrator"
             )
         
-        user = await auth_repo.update_user(user_id, user_data.model_dump(exclude_unset=True))
+        # Capture old role_id before update for transition detection
+        old_role_id = user_to_update.get('roleId') or user_to_update.get('role_id')
+
+        # Extract sub transition fields — these are handled separately
+        sub_company_id = user_data.sub_company_id
+        sub_company_name = user_data.sub_company_name
+        sub_trade = user_data.sub_trade
+
+        basic_update = user_data.model_dump(
+            exclude_unset=True,
+            exclude={'sub_company_id', 'sub_company_name', 'sub_trade'},
+        )
+
+        user = await auth_repo.update_user(user_id, basic_update)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
+
+        # Handle role transition side effects if role_id actually changed
+        new_role_id = user_data.role_id
+        if new_role_id and str(old_role_id) != str(new_role_id):
+            from .role_transitions import handle_role_transition
+
+            await handle_role_transition(
+                user_id=user_id,
+                old_role_id=int(old_role_id) if old_role_id else None,
+                new_role_id=int(new_role_id),
+                user_info=user_to_update,
+                current_user=current_user,
+                sub_company_id=sub_company_id,
+                sub_company_name=sub_company_name,
+                sub_trade=sub_trade,
+            )
+            # Re-fetch to include updated subcontractor_id etc.
+            user = await auth_repo.get_user(user_id)
+
         return user
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -565,16 +709,21 @@ async def update_user(
 @router.delete("/rbac/users/{user_id}")
 async def delete_user(
     user_id: str,
+    force: bool = False,
     current_user: Dict[str, Any] = Depends(get_current_user_dependency)
 ):
-    """Delete a user with authorization checks."""
+    """Delete a user with authorization checks.
+
+    Pass ?force=true to force-delete a user who has associated records.
+    Force-delete is restricted to root administrators only.
+    """
     try:
         if not is_user_admin(current_user):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin privileges required"
             )
-        
+
         # Get the user to be deleted to check company restrictions
         user_to_delete = await auth_repo.get_user(user_id)
         if not user_to_delete:
@@ -582,36 +731,49 @@ async def delete_user(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
-        
+
         # Prevent deleting root admin
         if is_root_admin(user_to_delete):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Cannot delete root administrator"
             )
-        
+
         # Company admin can only delete users in their own company
         if not is_root_admin(current_user):
             user_company_id = current_user.get('companyId') or current_user.get('company_id')
             target_user_company_id = user_to_delete.get('companyId') or user_to_delete.get('company_id')
-            
+
             if target_user_company_id != user_company_id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Company admins can only delete users within their own company"
                 )
-        
-        success = await auth_repo.delete_user(user_id)
+
+        if force:
+            if not is_root_admin(current_user):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only root administrators can force-delete users"
+                )
+            success = await auth_repo.force_delete_user(user_id)
+        else:
+            try:
+                success = await auth_repo.delete_user(user_id)
+            except ValueError as e:
+                raise HTTPException(status_code=409, detail=str(e))
+
         if not success:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete user"
             )
-        
+
         admin_type = "root admin" if is_root_admin(current_user) else "company admin"
-        logger.info(f"User deleted by {current_user.get('email')} ({admin_type})")
+        delete_type = "force-deleted" if force else "deleted"
+        logger.info(f"User {delete_type} by {current_user.get('email')} ({admin_type})")
         return {"message": "User deleted successfully"}
-        
+
     except HTTPException:
         raise
     except Exception as e:

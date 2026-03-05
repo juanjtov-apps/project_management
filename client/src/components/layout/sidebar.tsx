@@ -14,8 +14,10 @@ import {
   ClipboardList,
   Shield,
   TrendingUp,
-  MessageSquare,
-  Users
+  CircleUserRound,
+  Users,
+  HardHat,
+  BarChart3
 } from "lucide-react";
 import {
   Sheet,
@@ -37,9 +39,11 @@ const navigation = [
   { name: "Schedule", href: "/schedule", icon: Calendar },
   { name: "Photos", href: "/photos", icon: Camera },
   { name: "Project Logs", href: "/logs", icon: ClipboardList },
-  { name: "Client Portal", href: "/client-portal", icon: MessageSquare },
+  { name: "Client Portal", href: "/client-portal", icon: CircleUserRound },
+  { name: "Subs", href: "/subs", icon: HardHat },
   { name: "RBAC Admin", href: "/rbac", icon: Shield },
   { name: "Waitlist", href: "/waitlist-admin", icon: Users, rootOnly: true },
+  { name: "Analytics", href: "/platform-analytics", icon: BarChart3, rootOnly: true },
 ];
 
 interface SidebarProps {
@@ -67,6 +71,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
     'Photos': 'photos',
     'Project Logs': 'logs',
     'Client Portal': 'clientPortal',
+    'Subs': 'subs',
     'RBAC Admin': 'rbacAdmin'
   };
 

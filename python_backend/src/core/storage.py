@@ -92,7 +92,7 @@ async def _generate_signed_url_sidecar(
 ) -> Optional[str]:
     """Generate signed URL using Replit sidecar (production only)."""
     try:
-        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)).isoformat() + "Z"
+        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + "Z"
         request_data = {
             "bucket_name": bucket_name,
             "object_name": object_name,

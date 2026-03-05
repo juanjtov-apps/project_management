@@ -1,12 +1,11 @@
 [project]
-name = "repl-nix-workspace"
+name = "proesphere"
 version = "0.1.0"
-description = "Add your description here"
+description = "Construction project management system"
 requires-python = ">=3.11"
 dependencies = [
     "asyncpg>=0.30.0",
     "fastapi>=0.116.1",
-    "psycopg2-binary>=2.9.10",
     "pydantic-settings>=2.10.1",
     "pydantic>=2.11.7",
     "python-dotenv>=1.1.1",

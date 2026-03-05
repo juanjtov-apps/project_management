@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stage Template → Materials Flow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f9fb; padding: 40px 20px; color: #1a1a2e; }
+  h1 { text-align: center; font-size: 22px; font-weight: 600; margin-bottom: 32px; color: #1a1a2e; }
+  .flow { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 0; }
+
+  .step { display: flex; align-items: flex-start; gap: 16px; }
+  .step-marker { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+  .dot { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: #fff; }
+  .line { width: 2px; height: 32px; background: #d1d5db; }
+  .card { background: #fff; border-radius: 10px; padding: 16px 20px; flex: 1; border: 1px solid #e5e7eb; }
+  .card h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .card p { font-size: 13px; color: #555; line-height: 1.5; }
+  .card code { background: #f1f3f5; padding: 1px 5px; border-radius: 4px; font-size: 12px; color: #6366f1; }
+  .tag { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; padding: 2px 8px; border-radius: 4px; margin-bottom: 6px; }
+
+  .c-fe { background: #ede9fe; color: #7c3aed; }
+  .c-be { background: #e0f2fe; color: #0369a1; }
+  .c-db { background: #fef3c7; color: #b45309; }
+  .c-ui { background: #dcfce7; color: #16a34a; }
+
+  .dot-fe { background: #7c3aed; }
+  .dot-be { background: #0369a1; }
+  .dot-db { background: #b45309; }
+  .dot-ui { background: #16a34a; }
+
+  .sub { margin-top: 10px; padding: 10px 14px; background: #f8f9fb; border-radius: 8px; font-size: 12px; color: #444; line-height: 1.6; }
+  .sub strong { color: #1a1a2e; }
+  .arrow { text-align: center; color: #9ca3af; font-size: 18px; padding: 4px 0; }
+</style>
+</head>
+<body>
+
+<h1>Stage Template → Finish Materials Flow</h1>
+
+<div class="flow">
+
+  <!-- Step 1 -->
+  <div class="step">
+    <div class="step-marker"><div class="dot dot-fe">1</div><div class="line"></div></div>
+    <div class="card">
+      <span class="tag c-fe">Frontend</span>
+      <h3>PM Clicks "Apply Template"</h3>
+      <p>Selects a template &amp; optional start date. POSTs to <code>/api/v1/stages/apply-template</code></p>
+      <div class="sub">
+        Sends: <strong>templateId</strong>, <strong>projectId</strong>, <strong>startDate</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="step">
+    <div class="step-marker"><div class="dot dot-be">2</div><div class="line"></div></div>
+    <div class="card">
+      <span class="tag c-be">Backend</span>
+      <h3>Validate &amp; Fetch Template Items</h3>
+      <p>Checks user access, confirms no stages exist yet, loads <code>stage_template_items</code> for the template.</p>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="step">
+    <div class="step-marker"><div class="dot dot-db">3</div><div class="line"></div></div>
+    <div class="card">
+      <span class="tag c-db">Database</span>
+      <h3>Create Project Stages</h3>
+      <p>Loops through template items and inserts into <code>project_stages</code>.</p>
+      <div class="sub">
+        For each stage:<br>
+        &bull; <strong>planned_start</strong> = previous stage end + 1 day<br>
+        &bull; <strong>planned_end</strong> = start + duration_days<br>
+        &bull; <strong>materials_due</strong> = start − 7 days
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4 -->
+  <div class="step">
+    <div class="step-marker"><div class="dot dot-db">4</div><div class="line"></div></div>
+    <div class="card">
+      <span class="tag c-db">Database</span>
+      <h3>Create Material Areas &amp; Items</h3>
+      <p>Fetches <code>material_templates</code> linked to the stage template, then:</p>
+      <div class="sub">
+        <strong>a)</strong> Creates <code>material_areas</code> (e.g. "Kitchen", "Bathroom")<br>
+        <strong>b)</strong> Creates <code>material_items</code> linked to their matching stage<br>
+        <strong>c)</strong> All items set to <strong>approval_status = 'pending'</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 5 -->
+  <div class="step">
+    <div class="step-marker"><div class="dot dot-ui">5</div><div class="line"></div></div>
+    <div class="card">
+      <span class="tag c-ui">Frontend</span>
+      <h3>PM Reviews Suggested Materials</h3>
+      <p>A review dialog opens automatically. PM approves or rejects each material via <code>/api/v1/materials/approve-bulk</code>.</p>
+      <div class="sub">
+        &bull; <strong>Approved</strong> → visible to clients<br>
+        &bull; <strong>Rejected</strong> → hidden from clients
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

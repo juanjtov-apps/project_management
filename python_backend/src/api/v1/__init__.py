@@ -5,7 +5,7 @@ All v1 API endpoints are organized here with proper versioning.
 from fastapi import APIRouter
 
 # Import all v1 routers
-from . import auth, projects, tasks, photos, logs, rbac, users, dashboard, activities, objects, companies, client_module, pm_notifications, communications, change_orders, time_entries, invoices, stages, materials
+from . import auth, projects, tasks, photos, logs, rbac, users, dashboard, activities, objects, companies, client_module, pm_notifications, stages, materials
 
 # Import company_admin router from main api (not v1)
 try:
@@ -37,12 +37,6 @@ try:
 except ImportError:
     schedule_router = None
 
-# Import notifications router
-try:
-    from ...api.notifications import router as notifications_router
-except ImportError:
-    notifications_router = None
-
 # Import testnotify router (test endpoints)
 try:
     from ...api.testnotify import router as testnotify_router
@@ -60,6 +54,36 @@ try:
     from ...api.dashboard_stats import router as dashboard_stats_router
 except ImportError:
     dashboard_stats_router = None
+
+# Import onboarding router (client magic link auth)
+try:
+    from ...api.onboarding import router as onboarding_router
+except ImportError:
+    onboarding_router = None
+
+# Import subcontractor module router
+try:
+    from ...api.sub_module import router as sub_module_router
+except ImportError:
+    sub_module_router = None
+
+# Import beta admin router (company invitation flow)
+try:
+    from ...api.beta_admin import router as beta_admin_router
+except ImportError:
+    beta_admin_router = None
+
+# Import agent chat router
+try:
+    from ...agent.api.chat import router as agent_router
+except ImportError:
+    agent_router = None
+
+# Import analytics router (platform usage analytics)
+try:
+    from ...api.analytics import router as analytics_router
+except ImportError:
+    analytics_router = None
 
 def create_v1_router() -> APIRouter:
     """Create and configure the v1 API router."""
@@ -79,20 +103,12 @@ def create_v1_router() -> APIRouter:
     v1_router.include_router(objects.router, tags=["objects"])
     v1_router.include_router(client_module.router, tags=["client-portal"])
     v1_router.include_router(pm_notifications.router, tags=["pm-notifications"])
-    v1_router.include_router(communications.router, tags=["communications"])
-    v1_router.include_router(change_orders.router, tags=["change-orders"])
-    v1_router.include_router(time_entries.router, tags=["time-entries"])
-    v1_router.include_router(invoices.router, tags=["invoices"])
     v1_router.include_router(stages.router, tags=["stages"])
     v1_router.include_router(materials.router, tags=["materials"])
 
     # Include schedule router for schedule changes
     if schedule_router:
         v1_router.include_router(schedule_router, tags=["schedule"])
-
-    # Include notifications router
-    if notifications_router:
-        v1_router.include_router(notifications_router, tags=["notifications"])
 
     # Include testnotify router (test endpoints)
     if testnotify_router:
@@ -127,6 +143,26 @@ def create_v1_router() -> APIRouter:
     # Include waitlist router (public endpoint)
     if waitlist_router:
         v1_router.include_router(waitlist_router, tags=["waitlist"])
-    
+
+    # Include onboarding router for client magic link auth
+    if onboarding_router:
+        v1_router.include_router(onboarding_router, tags=["onboarding"])
+
+    # Include subcontractor module router
+    if sub_module_router:
+        v1_router.include_router(sub_module_router, tags=["subcontractor-module"])
+
+    # Include beta admin router for company invitation flow
+    if beta_admin_router:
+        v1_router.include_router(beta_admin_router, tags=["beta-admin"])
+
+    # Include agent router for AI chat functionality
+    if agent_router:
+        v1_router.include_router(agent_router, tags=["agent"])
+
+    # Include analytics router for platform usage tracking
+    if analytics_router:
+        v1_router.include_router(analytics_router, tags=["analytics"])
+
     return v1_router
 

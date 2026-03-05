@@ -4,9 +4,24 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
+  DndContext,
+  DragOverlay,
+  DragStartEvent,
+  DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  useDraggable,
+} from "@dnd-kit/core";
+import {
   Plus, Package, ExternalLink, Trash2, ChevronDown, ChevronRight,
-  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle, Layers, Filter, ArrowLeft
+  Pencil, Check, X, DollarSign, Search, Building2, AlertTriangle, Layers, Filter, ArrowLeft, GripVertical, Copy, Loader2,
+  CalendarClock, Paperclip, FileText, Upload, Download, LayoutGrid, Table2
 } from "lucide-react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { MaterialsTableView } from "./materials-table-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -50,7 +65,7 @@ const materialItemSchema = z.object({
 type AreaFormData = z.infer<typeof areaSchema>;
 type MaterialItemFormData = z.infer<typeof materialItemSchema>;
 
-interface MaterialArea {
+export interface MaterialArea {
   id: string;
   project_id: string;
   name: string;
@@ -63,7 +78,7 @@ interface MaterialArea {
   total_cost: number;
 }
 
-interface MaterialItem {
+export interface MaterialItem {
   id: string;
   area_id: string;
   project_id: string;
@@ -83,12 +98,13 @@ interface MaterialItem {
   stage_name?: string;
 }
 
-interface ProjectStage {
+export interface ProjectStage {
   id: string;
   projectId: string;
   orderIndex: number;
   name: string;
   status: string;
+  finishMaterialsDueDate?: string;
 }
 
 interface MaterialsTabProps {
@@ -101,8 +117,19 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
   const [isCreateAreaOpen, setIsCreateAreaOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<string>(initialStageFilter || "all");
+  const [activeDragItem, setActiveDragItem] = useState<MaterialItem | null>(null);
+  const [viewMode, setViewMode] = useLocalStorage<"card" | "table">("materials-view-mode", "table");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Drag-and-drop sensors with activation distance to prevent accidental drags
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   // Update filter when initialStageFilter changes (from URL)
   useEffect(() => {
@@ -134,6 +161,12 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
   // Get project stages for filtering
   const { data: stages = [] } = useQuery<ProjectStage[]>({
     queryKey: [`/api/v1/stages?projectId=${projectId}`],
+    enabled: !!projectId,
+  });
+
+  // Get document counts per material item (for badge display)
+  const { data: docCounts = {} } = useQuery<Record<string, number>>({
+    queryKey: [`/api/material-documents/count?project_id=${projectId}`],
     enabled: !!projectId,
   });
 
@@ -173,6 +206,95 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
     createAreaMutation.mutate(data);
   };
 
+  // Move item between areas mutation (optimistic)
+  const moveItemMutation = useMutation({
+    mutationFn: async ({ itemId, newAreaId }: { itemId: string; newAreaId: string }) => {
+      const response = await apiRequest(`/api/material-items/${itemId}`, {
+        method: "PATCH",
+        body: { area_id: newAreaId },
+      });
+      return response.json();
+    },
+    onMutate: async ({ itemId, newAreaId }) => {
+      await queryClient.cancelQueries({
+        queryKey: [`/api/material-items?project_id=${projectId}`],
+      });
+      const previousItems = queryClient.getQueryData<MaterialItem[]>(
+        [`/api/material-items?project_id=${projectId}`]
+      );
+      if (previousItems) {
+        queryClient.setQueryData<MaterialItem[]>(
+          [`/api/material-items?project_id=${projectId}`],
+          previousItems.map((item) =>
+            item.id === itemId ? { ...item, area_id: newAreaId } : item
+          )
+        );
+      }
+      return { previousItems };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(
+          [`/api/material-items?project_id=${projectId}`],
+          context.previousItems
+        );
+      }
+      toast({
+        title: "Move Failed",
+        description: "Failed to move material to the new area. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/material-items?project_id=${projectId}`],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/material-areas?project_id=${projectId}`],
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Material Moved",
+        description: "Material has been moved to the new area.",
+      });
+    },
+  });
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const draggedItemId = event.active.id as string;
+    const item = allItems.find((i) => i.id === draggedItemId);
+    if (item) {
+      setActiveDragItem(item);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragItem(null);
+
+    if (!over) return;
+
+    const itemId = active.id as string;
+    const targetAreaId = over.id as string;
+
+    const draggedItem = allItems.find((i) => i.id === itemId);
+    if (!draggedItem) return;
+
+    // Only move if dropped on a different area
+    if (draggedItem.area_id === targetAreaId) return;
+
+    // Verify the target is actually an area
+    const targetArea = areas.find((a: MaterialArea) => a.id === targetAreaId);
+    if (!targetArea) return;
+
+    moveItemMutation.mutate({ itemId, newAreaId: targetAreaId });
+  };
+
+  const handleDragCancel = () => {
+    setActiveDragItem(null);
+  };
+
   // Filter items based on search and stage filter
   const filteredItems = allItems.filter(item => {
     const matchesSearch =
@@ -196,6 +318,38 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
     return sum + (qty * cost);
   }, 0);
 
+  // Compute materials deadline data grouped by stage urgency
+  const getDaysUntil = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(dateStr);
+    target.setHours(0, 0, 0, 0);
+    return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const formatDeadlineDate = (dateStr?: string) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  const stageDueDates = stages
+    .filter((s) => s.finishMaterialsDueDate && s.status !== "COMPLETE")
+    .map((s) => {
+      const stageItems = allItems.filter((i) => i.stage_id === s.id);
+      const needsOrdering = stageItems.filter((i) => i.order_status === "pending_to_order").length;
+      const daysUntil = getDaysUntil(s.finishMaterialsDueDate);
+      return { ...s, needsOrdering, totalItems: stageItems.length, daysUntil };
+    })
+    .filter((s) => s.totalItems > 0)
+    .sort(
+      (a, b) =>
+        new Date(a.finishMaterialsDueDate!).getTime() -
+        new Date(b.finishMaterialsDueDate!).getTime()
+    );
+
+  const hasUnorderedDeadlines = stageDueDates.some((s) => s.needsOrdering > 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -208,6 +362,15 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
         </div>
 
         <div className="flex items-center gap-2">
+          <SegmentedControl
+            options={[
+              { value: "card", label: "Card View", icon: <LayoutGrid className="h-4 w-4" /> },
+              { value: "table", label: "Table View", icon: <Table2 className="h-4 w-4" /> },
+            ]}
+            value={viewMode}
+            onChange={(v) => setViewMode(v as "card" | "table")}
+          />
+
           {/* Back to Stages button - always visible for PMs */}
           {!isClient && (
             <Button
@@ -299,6 +462,63 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
         </div>
       </div>
 
+      {/* Materials Deadlines — compact horizontal strip */}
+      {hasUnorderedDeadlines && stageDueDates.length > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-zinc-700/50 bg-zinc-900/60 px-4 py-2.5 overflow-x-auto">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <CalendarClock className="h-4 w-4 text-rose-400" />
+            <span className="text-xs font-medium text-zinc-400">Deadlines</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {stageDueDates.map((stage) => {
+              const isOverdue = stage.daysUntil !== null && stage.daysUntil < 0;
+              const isDueSoon = stage.daysUntil !== null && stage.daysUntil >= 0 && stage.daysUntil <= 7;
+              const isActive = stageFilter === stage.id;
+
+              const deadlineLabel = isOverdue
+                ? "Overdue"
+                : stage.daysUntil === 0
+                  ? "Today"
+                  : stage.daysUntil === 1
+                    ? "1d"
+                    : `${stage.daysUntil}d`;
+
+              return (
+                <button
+                  key={stage.id}
+                  onClick={() => setStageFilter(isActive ? "all" : stage.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs whitespace-nowrap transition-colors",
+                    isActive
+                      ? "bg-zinc-700 border-zinc-500 text-white"
+                      : "bg-zinc-900/40 border-zinc-700/60 text-zinc-300 hover:bg-zinc-800 hover:border-zinc-600"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full shrink-0",
+                      isOverdue ? "bg-red-500" : isDueSoon ? "bg-amber-500" : "bg-zinc-500"
+                    )}
+                  />
+                  <span className="font-medium truncate max-w-[100px]">{stage.name}</span>
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      isOverdue ? "text-red-400" : isDueSoon ? "text-amber-400" : "text-zinc-400"
+                    )}
+                  >
+                    {deadlineLabel}
+                  </span>
+                  <span className="text-zinc-500">
+                    {stage.needsOrdering}/{stage.totalItems}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -373,7 +593,7 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
         )}
       </div>
 
-      {/* Areas List */}
+      {/* Areas List / Table View */}
       {areasLoading ? (
         <div className="text-center py-8">Loading areas...</div>
       ) : areas.length === 0 ? (
@@ -397,6 +617,53 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
             </div>
           </CardContent>
         </Card>
+      ) : viewMode === "table" ? (
+        <MaterialsTableView
+          items={filteredItems}
+          areas={areas}
+          stages={stages}
+          projectId={projectId}
+          isClient={isClient}
+          docCounts={docCounts}
+        />
+      ) : !isClient ? (
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <div className="space-y-3">
+            {areas.map((area) => (
+              <MaterialAreaSection
+                key={area.id}
+                area={area}
+                items={filteredItems.filter(item => item.area_id === area.id)}
+                projectId={projectId}
+                isClient={isClient}
+                stages={stages}
+                isDragActive={!!activeDragItem}
+                docCounts={docCounts}
+              />
+            ))}
+          </div>
+
+          <DragOverlay>
+            {activeDragItem ? (
+              <div className="bg-background border rounded-lg p-3 shadow-xl opacity-90 max-w-md">
+                <div className="flex items-center gap-2">
+                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <h4 className="font-medium text-sm">{activeDragItem.name}</h4>
+                    {activeDragItem.spec && (
+                      <p className="text-xs text-muted-foreground">{activeDragItem.spec}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       ) : (
         <div className="space-y-3">
           {areas.map((area) => (
@@ -407,6 +674,8 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
               projectId={projectId}
               isClient={isClient}
               stages={stages}
+              isDragActive={false}
+              docCounts={docCounts}
             />
           ))}
         </div>
@@ -421,9 +690,15 @@ interface MaterialAreaSectionProps {
   projectId: string;
   isClient?: boolean;
   stages?: ProjectStage[];
+  isDragActive?: boolean;
+  docCounts?: Record<string, number>;
 }
 
-function MaterialAreaSection({ area, items, projectId, isClient = false, stages = [] }: MaterialAreaSectionProps) {
+function MaterialAreaSection({ area, items, projectId, isClient = false, stages = [], isDragActive = false, docCounts = {} }: MaterialAreaSectionProps) {
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: area.id,
+  });
+
   const [isOpen, setIsOpen] = useState(true);
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -432,6 +707,10 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
   const [duplicateName, setDuplicateName] = useState("");
   const [pendingFormData, setPendingFormData] = useState<MaterialItemFormData | null>(null);
+  const [isEditingAreaName, setIsEditingAreaName] = useState(false);
+  const [editAreaName, setEditAreaName] = useState(area.name);
+  const [isDuplicateAreaDialogOpen, setIsDuplicateAreaDialogOpen] = useState(false);
+  const [duplicateAreaName, setDuplicateAreaName] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -567,6 +846,66 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
     },
   });
 
+  // Rename area mutation
+  const renameAreaMutation = useMutation({
+    mutationFn: async (newName: string) => {
+      const response = await apiRequest(`/api/material-areas/${area.id}`, {
+        method: "PATCH",
+        body: { name: newName },
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/material-areas?project_id=${projectId}`] });
+      toast({
+        title: "Area Renamed",
+        description: "Material area has been renamed successfully.",
+      });
+      setIsEditingAreaName(false);
+    },
+    onError: (error: Error) => {
+      const isDuplicate = error.message.includes("already exists");
+      toast({
+        title: isDuplicate ? "Name Already Taken" : "Error",
+        description: isDuplicate
+          ? "An area with this name already exists in this project."
+          : "Failed to rename area. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Duplicate area mutation
+  const duplicateAreaMutation = useMutation({
+    mutationFn: async (newName: string) => {
+      const response = await apiRequest(`/api/material-areas/${area.id}/duplicate`, {
+        method: "POST",
+        body: { new_name: newName },
+      });
+      return response.json();
+    },
+    onSuccess: (data: { area?: { name: string }; items_copied: number }) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/material-areas?project_id=${projectId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-items?project_id=${projectId}`] });
+      toast({
+        title: "Area Duplicated",
+        description: `Created "${data.area?.name || duplicateAreaName}" with ${data.items_copied} material(s).`,
+      });
+      setIsDuplicateAreaDialogOpen(false);
+      setDuplicateAreaName("");
+    },
+    onError: (error: Error) => {
+      const isDuplicate = error.message.includes("already exists");
+      toast({
+        title: isDuplicate ? "Name Already Taken" : "Error",
+        description: isDuplicate
+          ? "An area with this name already exists. Please choose a different name."
+          : "Failed to duplicate area. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleDeleteItem = (itemId: string) => {
     setItemToDelete(itemId);
   };
@@ -579,7 +918,7 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
   };
 
   const handleDeleteArea = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent collapsible toggle
+    e.stopPropagation();
     setIsDeleteAreaDialogOpen(true);
   };
 
@@ -588,10 +927,61 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
     setIsDeleteAreaDialogOpen(false);
   };
 
+  const handleEditAreaName = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditAreaName(area.name);
+    setIsEditingAreaName(true);
+  };
+
+  const handleSaveAreaName = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const trimmed = editAreaName.trim();
+    if (!trimmed) {
+      toast({ title: "Error", description: "Area name cannot be empty.", variant: "destructive" });
+      return;
+    }
+    if (trimmed === area.name) {
+      setIsEditingAreaName(false);
+      return;
+    }
+    renameAreaMutation.mutate(trimmed);
+  };
+
+  const handleCancelEditAreaName = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditingAreaName(false);
+    setEditAreaName(area.name);
+  };
+
+  const handleDuplicateArea = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDuplicateAreaName(`${area.name} - Copy`);
+    setIsDuplicateAreaDialogOpen(true);
+  };
+
+  const confirmDuplicateArea = () => {
+    const trimmed = duplicateAreaName.trim();
+    if (!trimmed) {
+      toast({ title: "Error", description: "Area name cannot be empty.", variant: "destructive" });
+      return;
+    }
+    duplicateAreaMutation.mutate(trimmed);
+  };
+
   return (
-    <Card>
+    <Card
+      ref={setDroppableRef}
+      className={`transition-all duration-200 ${
+        isDragActive ? "ring-2 ring-dashed ring-muted-foreground/30" : ""
+      } ${
+        isOver ? "ring-2 ring-primary bg-primary/5 scale-[1.01]" : ""
+      }`}
+    >
+      {isOver && !isOpen && (
+        <div className="text-xs text-primary text-center py-1 animate-pulse">Drop here</div>
+      )}
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <div className="flex items-center justify-between p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4">
           <CollapsibleTrigger asChild>
             <div className="flex items-center gap-3 flex-1 cursor-pointer hover:bg-accent/50 transition-colors rounded-lg p-2 -m-2">
               {isOpen ? (
@@ -600,14 +990,43 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
               )}
               <div className="flex-1">
-                <h3 className="font-semibold text-lg">{area.name}</h3>
-                {area.description && (
-                  <p className="text-sm text-muted-foreground">{area.description}</p>
+                {isEditingAreaName ? (
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <Input
+                      value={editAreaName}
+                      onChange={(e) => setEditAreaName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveAreaName(e as unknown as React.MouseEvent);
+                        if (e.key === "Escape") handleCancelEditAreaName(e as unknown as React.MouseEvent);
+                      }}
+                      className="h-8 text-lg font-semibold"
+                      autoFocus
+                      data-testid={`input-edit-area-name-${area.id}`}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSaveAreaName}
+                      disabled={renameAreaMutation.isPending}
+                    >
+                      <Check className="h-4 w-4 text-green-600" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={handleCancelEditAreaName}>
+                      <X className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <h3 className="font-semibold text-lg">{area.name}</h3>
+                    {area.description && (
+                      <p className="text-sm text-muted-foreground">{area.description}</p>
+                    )}
+                  </>
                 )}
               </div>
             </div>
           </CollapsibleTrigger>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 pl-10 sm:pl-0">
             <Badge variant="outline" className="text-xs">
               {items.length} {items.length === 1 ? 'item' : 'items'}
             </Badge>
@@ -615,14 +1034,34 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
               ${areaCost.toFixed(2)}
             </div>
             {!isClient && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDeleteArea}
-                data-testid={`button-delete-area-${area.id}`}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleEditAreaName}
+                  title="Rename area"
+                  data-testid={`button-edit-area-${area.id}`}
+                >
+                  <Pencil className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDuplicateArea}
+                  title="Duplicate area with all materials"
+                  data-testid={`button-duplicate-area-${area.id}`}
+                >
+                  <Copy className="h-4 w-4 text-muted-foreground" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDeleteArea}
+                  data-testid={`button-delete-area-${area.id}`}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -640,6 +1079,7 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
                     projectId={projectId}
                     isClient={isClient}
                     stages={stages}
+                    docCount={docCounts[item.id] || 0}
                   />
                 ))}
               </div>
@@ -825,6 +1265,60 @@ function MaterialAreaSection({ area, items, projectId, isClient = false, stages 
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Duplicate Area Dialog */}
+      <Dialog open={isDuplicateAreaDialogOpen} onOpenChange={setIsDuplicateAreaDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Duplicate Area</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              This will create a new area with copies of all {items.length} material{items.length !== 1 ? 's' : ''} from <strong>"{area.name}"</strong>.
+              Each material name will have the new area name appended.
+            </p>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">New Area Name</label>
+              <Input
+                value={duplicateAreaName}
+                onChange={(e) => setDuplicateAreaName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") confirmDuplicateArea();
+                }}
+                placeholder="Enter name for the duplicated area"
+                autoFocus
+                data-testid={`input-duplicate-area-name-${area.id}`}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setIsDuplicateAreaDialogOpen(false)}
+                disabled={duplicateAreaMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDuplicateArea}
+                disabled={duplicateAreaMutation.isPending || !duplicateAreaName.trim()}
+                data-testid={`button-confirm-duplicate-area-${area.id}`}
+              >
+                {duplicateAreaMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Duplicating...
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Create Duplicate
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Item Confirmation Dialog */}
       <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
         <AlertDialogContent>
@@ -887,12 +1381,35 @@ interface MaterialItemRowProps {
   projectId: string;
   isClient?: boolean;
   stages?: ProjectStage[];
+  docCount?: number;
 }
 
-function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages = [] }: MaterialItemRowProps) {
+interface MaterialDocument {
+  id: string;
+  item_id: string;
+  file_name: string;
+  mime_type?: string;
+  download_url?: string;
+  uploaded_by: string;
+  uploaded_by_email?: string;
+  created_at?: string;
+}
+
+function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages = [], docCount = 0 }: MaterialItemRowProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showDocs, setShowDocs] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDraggableRef,
+    isDragging,
+  } = useDraggable({
+    id: item.id,
+    disabled: isClient || isEditing,
+  });
 
   const editForm = useForm<MaterialItemFormData>({
     resolver: zodResolver(materialItemSchema),
@@ -963,6 +1480,96 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages =
       });
     },
   });
+
+  // Document queries and mutations
+  const { data: documents = [], isLoading: docsLoading } = useQuery<MaterialDocument[]>({
+    queryKey: [`/api/material-documents?item_id=${item.id}`],
+    enabled: showDocs,
+  });
+
+  const uploadDocMutation = useMutation({
+    mutationFn: async (params: { documentPath: string; fileName: string; mimeType: string }) => {
+      const response = await apiRequest("/api/material-documents", {
+        method: "POST",
+        body: {
+          item_id: item.id,
+          project_id: projectId,
+          document_path: params.documentPath,
+          file_name: params.fileName,
+          mime_type: params.mimeType,
+        },
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/material-documents?item_id=${item.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-documents/count?project_id=${projectId}`] });
+      toast({ title: "Document Uploaded", description: "Document attached to material." });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Upload Failed",
+        description: error?.message || "Failed to attach document.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteDocMutation = useMutation({
+    mutationFn: async (docId: string) => {
+      const response = await apiRequest(`/api/material-documents/${docId}`, { method: "DELETE" });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/material-documents?item_id=${item.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/material-documents/count?project_id=${projectId}`] });
+      toast({ title: "Document Deleted" });
+    },
+  });
+
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+
+  const handleDocFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (10MB max)
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Maximum file size is 50MB.", variant: "destructive" });
+      e.target.value = "";
+      return;
+    }
+
+    setIsUploadingDoc(true);
+    try {
+      // Step 1: Get signed upload URL from GCS
+      const uploadParams = await apiRequest("/api/v1/objects/upload", { method: "POST" });
+      const { uploadURL, objectPath } = await uploadParams.json();
+
+      // Step 2: Upload file to GCS via signed PUT URL
+      const uploadResponse = await fetch(uploadURL, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Failed to upload file to storage");
+      }
+
+      // Step 3: Create document record in database
+      uploadDocMutation.mutate({
+        documentPath: objectPath,
+        fileName: file.name,
+        mimeType: file.type,
+      });
+    } catch (error) {
+      toast({ title: "Upload Failed", description: "Could not upload document.", variant: "destructive" });
+    } finally {
+      setIsUploadingDoc(false);
+      e.target.value = "";
+    }
+  };
 
   const totalCost = (parseFloat(item.quantity || "0") || 1) * (item.unit_cost || 0);
 
@@ -1145,10 +1752,26 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages =
   }
 
   return (
-    <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg" data-testid={`item-row-${item.id}`}>
-      <div className="flex-1 space-y-1">
-        <div className="flex items-start justify-between">
-          <div>
+    <div
+      ref={setDraggableRef}
+      className={`flex items-start gap-3 p-3 bg-muted/30 rounded-lg transition-opacity ${
+        isDragging ? "opacity-30" : ""
+      }`}
+      data-testid={`item-row-${item.id}`}
+    >
+      {!isClient && (
+        <div
+          {...attributes}
+          {...listeners}
+          className="flex items-center justify-center w-6 h-6 mt-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors rounded"
+          title="Drag to move to another area"
+        >
+          <GripVertical className="h-4 w-4" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0 space-y-1">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <div className="min-w-0">
             <h4 className="font-medium">{item.name}</h4>
             {item.spec && (
               <p className="text-sm text-muted-foreground">{item.spec}</p>
@@ -1174,9 +1797,9 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages =
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
             {/* Order Status Toggle */}
-            <div className="flex rounded-md border border-border overflow-hidden">
+            <div className="flex rounded-md border border-border overflow-hidden shrink-0">
               <button
                 onClick={() => {
                   if (item.order_status === 'ordered') {
@@ -1210,39 +1833,57 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages =
                 Ordered
               </button>
             </div>
-            {item.product_link && (
+            {/* Icon buttons grouped together so they never split across lines */}
+            <div className="flex items-center">
+              {item.product_link && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  data-testid={`button-link-${item.id}`}
+                >
+                  <a href={item.product_link} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
-                asChild
-                data-testid={`button-link-${item.id}`}
+                onClick={() => setShowDocs(!showDocs)}
+                className="relative"
+                title="Documents"
+                data-testid={`button-docs-${item.id}`}
               >
-                <a href={item.product_link} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                </a>
+                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                {docCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-cyan-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {docCount}
+                  </span>
+                )}
               </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEditing(true)}
-              data-testid={`button-edit-${item.id}`}
-            >
-              <Pencil className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            </Button>
-            {!isClient && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onDelete(item.id)}
-                data-testid={`button-delete-${item.id}`}
+                onClick={() => setIsEditing(true)}
+                data-testid={`button-edit-${item.id}`}
               >
-                <Trash2 className="h-4 w-4 text-destructive" />
+                <Pencil className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               </Button>
-            )}
+              {!isClient && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onDelete(item.id)}
+                  data-testid={`button-delete-${item.id}`}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-x-4 gap-y-1 flex-wrap text-sm text-muted-foreground">
           {item.vendor && <span>📦 {item.vendor}</span>}
           {item.quantity && <span>Qty: {item.quantity}</span>}
           {item.unit_cost !== null && item.unit_cost !== undefined && (
@@ -1254,6 +1895,74 @@ function MaterialItemRow({ item, onDelete, projectId, isClient = false, stages =
             </span>
           )}
         </div>
+
+        {/* Documents Panel */}
+        {showDocs && (
+          <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Documents {documents.length > 0 && `(${documents.length}/5)`}
+              </span>
+              {documents.length < 5 && (
+                <label className="inline-flex items-center gap-1.5 px-2 py-1 text-xs text-cyan-600 dark:text-cyan-400 hover:bg-muted rounded cursor-pointer transition-colors">
+                  <Upload className="h-3 w-3" />
+                  {isUploadingDoc ? "Uploading..." : "Upload"}
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                    onChange={handleDocFileSelect}
+                    disabled={isUploadingDoc}
+                  />
+                </label>
+              )}
+            </div>
+
+            {docsLoading ? (
+              <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Loading documents...
+              </div>
+            ) : documents.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-1">
+                No documents attached. Upload installation manuals, layouts, or specs.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-center gap-2 p-2 bg-background rounded border border-border/50 text-xs min-w-0"
+                  >
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="flex-1 truncate font-medium min-w-0">{doc.file_name}</span>
+                    <div className="flex items-center gap-2 shrink-0 ml-auto">
+                      {doc.download_url && (
+                        <a
+                          href={doc.download_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-cyan-600 dark:text-cyan-400 hover:underline"
+                          title="Download"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      <button
+                        onClick={() => deleteDocMutation.mutate(doc.id)}
+                        className="text-destructive hover:text-destructive/80"
+                        title="Delete document"
+                        disabled={deleteDocMutation.isPending}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

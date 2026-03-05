@@ -77,25 +77,29 @@ async def list_company_users(
         if is_root:
             # Root admin sees all users
             query = """
-                SELECT 
-                    id, email, name, role, company_id,
-                    COALESCE(is_active, true) as is_active,
-                    created_at, last_login_at
-                FROM users
-                ORDER BY created_at DESC
+                SELECT
+                    u.id, u.email, u.first_name, u.last_name,
+                    COALESCE(r.name, r.role_name, 'user') as role, u.company_id,
+                    COALESCE(u.is_active, true) as is_active,
+                    u.created_at, u.last_login_at
+                FROM users u
+                LEFT JOIN roles r ON u.role_id = r.id
+                ORDER BY u.created_at DESC
                 OFFSET $1 LIMIT $2
             """
             params = [skip, limit]
         else:
             # Company admin sees only their company's users
             query = """
-                SELECT 
-                    id, email, name, role, company_id,
-                    COALESCE(is_active, true) as is_active,
-                    created_at, last_login_at
-                FROM users
-                WHERE company_id = $1
-                ORDER BY created_at DESC
+                SELECT
+                    u.id, u.email, u.first_name, u.last_name,
+                    COALESCE(r.name, r.role_name, 'user') as role, u.company_id,
+                    COALESCE(u.is_active, true) as is_active,
+                    u.created_at, u.last_login_at
+                FROM users u
+                LEFT JOIN roles r ON u.role_id = r.id
+                WHERE u.company_id = $1
+                ORDER BY u.created_at DESC
                 OFFSET $2 LIMIT $3
             """
             params = [company_id, skip, limit]
@@ -106,7 +110,7 @@ async def list_company_users(
             {
                 "id": row["id"],
                 "email": row["email"] or "",
-                "name": row["name"] or "Unknown",
+                "name": f"{row['first_name'] or ''} {row['last_name'] or ''}".strip() or "Unknown",
                 "role": row["role"] or "user",
                 "company_id": row["company_id"] or "",
                 "is_active": row["is_active"],
@@ -176,30 +180,26 @@ async def invite_user(
         
         # Create user
         user_id = str(uuid.uuid4())
-        name = f"{request.first_name} {request.last_name}".strip()
-        
+
         await conn.execute("""
-            INSERT INTO users (id, email, name, first_name, last_name, password, role_id, company_id, is_active, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, NOW(), NOW())
-        """, user_id, request.email, name, request.first_name, request.last_name, hashed_password, role_id, company_id)
-        
+            INSERT INTO users (id, email, first_name, last_name, password, role_id, company_id, is_active, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW(), NOW())
+        """, user_id, request.email, request.first_name, request.last_name, hashed_password, role_id, company_id)
+
         # Fetch the created user with role information
         user = await conn.fetchrow("""
-            SELECT u.id, u.email, u.name, u.company_id, u.is_active, u.created_at, u.last_login_at,
+            SELECT u.id, u.email, u.first_name, u.last_name, u.company_id, u.is_active, u.created_at, u.last_login_at,
                    COALESCE(r.name, r.role_name, 'user') as role
             FROM users u
             LEFT JOIN roles r ON u.role_id = r.id
             WHERE u.id = $1
         """, user_id
         )
-        
-        # TODO: Implement secure invite email delivery with one-time token
-        # SECURITY: Never log passwords - implement email/SMS delivery or one-time link system
-        
+
         return {
             "id": user["id"],
             "email": user["email"],
-            "name": user["name"],
+            "name": f"{user['first_name'] or ''} {user['last_name'] or ''}".strip(),
             "role": user["role"],
             "company_id": user["company_id"],
             "is_active": user["is_active"],
@@ -243,9 +243,9 @@ async def assign_user_role(
         print(f"Assigning role '{request.role}' to user {user_id} by {current_user.get('email')}")
         
         async with pool.acquire() as conn:
-            # Get target user
+            # Get target user (include role_id for transition detection)
             target_user = await conn.fetchrow(
-                "SELECT id, company_id, email FROM users WHERE id = $1",
+                "SELECT id, company_id, email, role_id FROM users WHERE id = $1",
                 user_id
             )
         
@@ -339,14 +339,26 @@ async def assign_user_role(
             
             # Update user role_id (primary field)
             if role_id:
+                old_role_id = target_user["role_id"]
                 await conn.execute(
                     "UPDATE users SET role_id = $1, updated_at = NOW() WHERE id = $2",
                     role_id, user_id
                 )
                 print(f"✅ Updated user {user_id} with role_id {role_id}")
+
+                # Handle role transition side effects if role actually changed
+                if old_role_id and int(old_role_id) != int(role_id):
+                    from .role_transitions import handle_role_transition
+                    await handle_role_transition(
+                        user_id=str(user_id),
+                        old_role_id=int(old_role_id),
+                        new_role_id=int(role_id),
+                        user_info=target_user_dict,
+                        current_user=current_user,
+                    )
             else:
                 raise HTTPException(
-                    status_code=400, 
+                    status_code=400,
                     detail=f"Role '{request.role}' not found in roles table"
                 )
             
@@ -354,7 +366,7 @@ async def assign_user_role(
             # Build query based on which columns exist in roles table
             if has_role_name:
                 user = await conn.fetchrow("""
-                    SELECT u.id, u.email, u.name, u.company_id, u.is_active, u.created_at,
+                    SELECT u.id, u.email, u.first_name, u.last_name, u.company_id, u.is_active, u.created_at,
                            r.role_name,
                            r.display_name as role_display_name
                     FROM users u
@@ -363,7 +375,7 @@ async def assign_user_role(
                 """, user_id)
             elif has_name:
                 user = await conn.fetchrow("""
-                    SELECT u.id, u.email, u.name, u.company_id, u.is_active, u.created_at,
+                    SELECT u.id, u.email, u.first_name, u.last_name, u.company_id, u.is_active, u.created_at,
                            r.name as role_name,
                            r.display_name as role_display_name
                     FROM users u
@@ -373,7 +385,7 @@ async def assign_user_role(
             else:
                 # Fallback if neither column exists
                 user = await conn.fetchrow("""
-                    SELECT u.id, u.email, u.name, u.company_id, u.is_active, u.created_at,
+                    SELECT u.id, u.email, u.first_name, u.last_name, u.company_id, u.is_active, u.created_at,
                            'user' as role_name,
                            NULL as role_display_name
                     FROM users u
@@ -386,7 +398,7 @@ async def assign_user_role(
             return {
                 "id": str(user["id"]),
                 "email": user["email"],
-                "name": user.get("name") or "",
+                "name": f"{user.get('first_name') or ''} {user.get('last_name') or ''}".strip() or "",
                 "role": user.get("role_name") or "user",  # Use role name from roles table
                 "company_id": str(user["company_id"]) if user.get("company_id") else None,
                 "is_active": user.get("is_active", True),
@@ -443,7 +455,22 @@ async def suspend_user(
             "UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1",
             user_id
         )
-        
+
+        # Invalidate all active sessions for the suspended user
+        await conn.execute(
+            "DELETE FROM sessions WHERE sess->>'id' = $1",
+            user_id
+        )
+
+        # Clear from in-memory session store
+        from .auth import session_store
+        sessions_to_remove = [
+            sid for sid, data in session_store.items()
+            if str(data.get("userId")) == str(user_id)
+        ]
+        for sid in sessions_to_remove:
+            del session_store[sid]
+
         return {"success": True, "message": f"User {user_id} has been suspended"}
 
 @router.put("/users/{user_id}/activate")

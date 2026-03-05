@@ -1,5 +1,5 @@
 """
-Tower Flow FastAPI Application - Restructured Version
+Proesphere FastAPI Application
 """
 import os
 import sys
@@ -79,12 +79,78 @@ async def lifespan(app: FastAPI):
                 logger.warning(f"⚠️ Client portal schema initialization error: {e}")
                 print(f"⚠️  Client portal schema initialization error: {e}")
                 # Don't fail startup if schema initialization fails
+
+        # Initialize agent schema (only if DB is connected)
+        if db_connected:
+            try:
+                from src.database.init_agent_schema import init_agent_schema
+                await init_agent_schema()
+                logger.info("✅ Agent schema verified/initialized")
+                print("✅ Agent schema verified/initialized")
+            except Exception as e:
+                logger.warning(f"⚠️ Agent schema initialization error: {e}")
+                print(f"⚠️  Agent schema initialization error: {e}")
+                # Don't fail startup if schema initialization fails
+
+        # Initialize subcontractor module schema (only if DB is connected)
+        if db_connected:
+            try:
+                from src.database.init_subcontractor_schema import init_subcontractor_schema
+                await init_subcontractor_schema()
+                logger.info("✅ Subcontractor module schema verified/initialized")
+                print("✅ Subcontractor module schema verified/initialized")
+            except Exception as e:
+                logger.warning(f"⚠️ Subcontractor module schema initialization error: {e}")
+                print(f"⚠️  Subcontractor module schema initialization error: {e}")
+                # Don't fail startup if schema initialization fails
         
-        logger.info("🎯 Application startup complete")
-        print("🎯 Application startup complete")
-        print("🌐 Server is ready at http://0.0.0.0:8000")
-        print("📋 API documentation at http://0.0.0.0:8000/docs")
+        # Initialize beta invitations schema (only if DB is connected)
+        if db_connected:
+            try:
+                from src.database.init_beta_schema import init_beta_schema
+                await init_beta_schema()
+                logger.info("Beta invitations schema verified/initialized")
+            except Exception as e:
+                logger.warning(f"Beta invitations schema initialization error: {e}")
+
+        # Initialize analytics schema (only if DB is connected)
+        if db_connected:
+            try:
+                from src.database.init_analytics_schema import init_analytics_schema
+                await init_analytics_schema()
+                logger.info("Analytics schema verified/initialized")
+            except Exception as e:
+                logger.warning(f"Analytics schema initialization error: {e}")
+
+        # Start session cleanup background task
+        import asyncio
+        try:
+            from src.api.auth import start_session_cleanup_task
+            cleanup_task = asyncio.create_task(start_session_cleanup_task())
+            logger.info("Session cleanup task started")
+        except Exception as e:
+            logger.warning(f"Failed to start session cleanup task: {e}")
+            cleanup_task = None
+
+        # Start analytics heartbeat cleanup background task
+        analytics_cleanup_task = None
+        try:
+            from src.api.analytics import start_heartbeat_cleanup_task
+            analytics_cleanup_task = asyncio.create_task(start_heartbeat_cleanup_task())
+            logger.info("Analytics heartbeat cleanup task started")
+        except Exception as e:
+            logger.warning(f"Failed to start analytics cleanup task: {e}")
+
+        logger.info("Application startup complete")
+        print("Server is ready at http://0.0.0.0:8000")
+        print("API documentation at http://0.0.0.0:8000/docs")
         yield
+
+        # Cancel cleanup tasks on shutdown
+        if cleanup_task:
+            cleanup_task.cancel()
+        if analytics_cleanup_task:
+            analytics_cleanup_task.cancel()
         
     except KeyboardInterrupt:
         logger.info("🛑 Shutdown requested by user")
@@ -124,9 +190,18 @@ if not IS_PRODUCTION:
 from src.middleware.request_tracking import RequestTrackingMiddleware
 app.add_middleware(RequestTrackingMiddleware)
 
+# Add analytics tracking middleware (counts API actions per user)
+from src.middleware.analytics_tracking import AnalyticsTrackingMiddleware
+app.add_middleware(AnalyticsTrackingMiddleware)
+
 # Setup security middleware
 from src.middleware.security import setup_security_middleware
 setup_security_middleware(app)
+
+# Client route guard — defense-in-depth layer that restricts client-role users
+# to a whitelist of API endpoints (blocks access to admin/PM routes at middleware level)
+from src.middleware.client_route_guard import ClientRouteGuardMiddleware
+app.add_middleware(ClientRouteGuardMiddleware)
 
 # Add CORS middleware - allow development and production origins with credentials support
 # Production domains include Replit deployment URLs

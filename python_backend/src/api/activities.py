@@ -168,7 +168,15 @@ async def get_activities(request: Request, current_user: Dict[str, Any] = Depend
                 activities.append(dict(project))
             
             # Sort all activities by date and return top 20
-            activities.sort(key=lambda x: x['created_at'], reverse=True)
+            # Normalize created_at to naive UTC for consistent comparison
+            def _sort_key(x):
+                dt = x.get('created_at')
+                if dt is None:
+                    return datetime.min
+                if hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
+                    return dt.replace(tzinfo=None)
+                return dt
+            activities.sort(key=_sort_key, reverse=True)
             return activities[:20]
             
     except Exception as e:

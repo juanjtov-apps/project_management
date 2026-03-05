@@ -1,4 +1,4 @@
-import { Bell, Menu, LogOut, User as UserIcon, Settings, Search, ChevronRight } from "lucide-react";
+import { Bell, Menu, LogOut, User as UserIcon, Settings, Search, ChevronRight, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,10 +17,11 @@ import OrganizationSelector from "@/components/organization-selector";
 interface HeaderProps {
   onToggleMobileMenu?: () => void;
   onToggleNotifications: () => void;
+  onToggleAgentChat?: () => void;
   pageTitle?: string;
 }
 
-export default function Header({ onToggleMobileMenu, onToggleNotifications, pageTitle = "Dashboard" }: HeaderProps) {
+export default function Header({ onToggleMobileMenu, onToggleNotifications, onToggleAgentChat, pageTitle = "Dashboard" }: HeaderProps) {
   const { user } = useAuth() as { user: User | undefined };
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -32,20 +33,9 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
     window.addEventListener('dialog:open', handleDialogOpen);
     window.addEventListener('dialog:close', handleDialogClose);
 
-    const checkDialogs = () => {
-      const hasOpenDialog = document.querySelector('[role="dialog"][data-state="open"]') !== null;
-      setIsDialogOpen(hasOpenDialog);
-    };
-
-    const observer = new MutationObserver(checkDialogs);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-state'] });
-
-    checkDialogs();
-
     return () => {
       window.removeEventListener('dialog:open', handleDialogOpen);
       window.removeEventListener('dialog:close', handleDialogClose);
-      observer.disconnect();
     };
   }, []);
 
@@ -64,7 +54,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
 
   const getUserInitials = (user: User | undefined) => {
     if (!user) return "U";
-    const name = user.firstName || (user as any).first_name || user.name || user.email || "User";
+    const name = user.firstName || (user as any).first_name || user.email || "User";
     const parts = name.split(" ");
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -128,6 +118,20 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
             </div>
           )}
 
+          {onToggleAgentChat && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="min-w-[48px] min-h-[48px] p-0 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C] focus:outline-none focus:ring-2"
+              style={{ '--tw-ring-color': '#4ADE80' } as any}
+              onClick={onToggleAgentChat}
+              aria-label="AI Assistant"
+              data-testid="button-agent-chat"
+            >
+              <MessageSquare className="h-5 w-5" />
+            </Button>
+          )}
+
           <Button
             variant="ghost"
             size="icon"
@@ -177,7 +181,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
                   </div>
                   <div className="hidden md:block text-left min-w-0">
                     <div className="text-sm font-medium text-white truncate">
-                      {user?.firstName || (user as any)?.first_name || user?.name || "User"}
+                      {user?.firstName || (user as any)?.first_name || "User"}
                     </div>
                     <div className="text-xs capitalize truncate" style={{ color: '#9CA3AF' }}>
                       {(user as any)?.role?.replace(/_/g, ' ') || 'User'}
@@ -198,7 +202,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, page
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium text-white">
-                    {user?.firstName || (user as any)?.first_name || user?.name || user?.email || "User"}
+                    {user?.firstName || (user as any)?.first_name || user?.email || "User"}
                   </p>
                   <p className="text-xs" style={{ color: '#9CA3AF' }}>
                     {user?.email}

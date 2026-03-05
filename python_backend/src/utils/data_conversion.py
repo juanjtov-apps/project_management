@@ -2,27 +2,34 @@
 Data conversion utilities for camelCase/snake_case transformation.
 """
 import re
+from uuid import UUID
 from typing import Dict, Any, List, Union
 
 
+def _convert_value(value: Any) -> Any:
+    """Convert a value, handling UUIDs and nested structures."""
+    if isinstance(value, UUID):
+        return str(value)
+    elif isinstance(value, dict):
+        return to_camel_case(value)
+    elif isinstance(value, list):
+        return [_convert_value(item) for item in value]
+    return value
+
+
 def to_camel_case(data: Union[Dict[str, Any], str]) -> Union[Dict[str, Any], str]:
-    """Convert snake_case to camelCase."""
+    """Convert snake_case to camelCase and UUID objects to strings."""
     if isinstance(data, str):
         components = data.split('_')
         return components[0] + ''.join(word.capitalize() for word in components[1:])
-    
+
     if isinstance(data, dict):
         converted = {}
         for key, value in data.items():
             camel_key = to_camel_case(key) if isinstance(key, str) else key
-            if isinstance(value, dict):
-                converted[camel_key] = to_camel_case(value)
-            elif isinstance(value, list):
-                converted[camel_key] = [to_camel_case(item) if isinstance(item, dict) else item for item in value]
-            else:
-                converted[camel_key] = value
+            converted[camel_key] = _convert_value(value)
         return converted
-    
+
     return data
 
 

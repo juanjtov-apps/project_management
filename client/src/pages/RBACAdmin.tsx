@@ -21,7 +21,8 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { BottomNavigation } from '@/components/ui/bottom-navigation';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Users, Shield, Building, UserCheck, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, MoreVertical, Home, FolderKanban, ListTodo } from 'lucide-react';
+import { Users, Shield, Building, UserCheck, UserCheck2, UserX, Settings, Plus, Edit, Trash2, Eye, Key, AlertCircle, ChevronDown, ChevronRight, ToggleLeft, ToggleRight, MoreVertical, Home, FolderKanban, ListTodo, Palette, Mail, Send, KeyRound } from 'lucide-react';
+import CompanyBrandingForm from '@/components/onboarding/company-branding-form';
 
 interface Permission {
   id: string;
@@ -30,7 +31,6 @@ interface Permission {
   category: string;
   resource_type: string;
   action: string;
-  created_at: string;
 }
 
 interface Role {
@@ -64,7 +64,6 @@ interface Company {
 
 interface UserProfile {
   id: string;
-  name: string;
   email: string;
   first_name?: string;
   firstName?: string; // camelCase alias
@@ -90,6 +89,13 @@ interface UserProfile {
   password?: string; // For edit form only
   assigned_project_id?: string; // For client role users
   assignedProjectId?: string; // camelCase alias
+  subcontractor_id?: string; // Existing sub company link
+  subcontractorId?: string; // camelCase alias
+  // Edit dialog state for role transition to subcontractor
+  sub_company_id?: string;
+  sub_company_name?: string;
+  sub_trade?: string;
+  sub_company_mode?: 'existing' | 'new';
 }
 
 export default function RBACAdmin() {
@@ -116,19 +122,6 @@ export default function RBACAdmin() {
   const isCompanyAdmin = currentUser?.role === 'admin';
   const hasRBACAccess = isRootAdmin || isCompanyAdmin;
 
-  // Debug logging for RBAC access
-  React.useEffect(() => {
-    console.log('🔐 RBAC Access Debug:', {
-      currentUser,
-      isRoot: currentUser?.isRoot,
-      is_root: currentUser?.is_root,
-      role: currentUser?.role,
-      isRootAdmin,
-      isCompanyAdmin,
-      hasRBACAccess
-    });
-  }, [currentUser, isRootAdmin, isCompanyAdmin, hasRBACAccess]);
-
   const { data: roles = [], isLoading: rolesLoading, error: rolesError } = useQuery<Role[]>({
     queryKey: ['/api/rbac/roles'],
     enabled: hasRBACAccess,
@@ -141,35 +134,6 @@ export default function RBACAdmin() {
     return role.name || role.roleName || role.role_name || '';
   };
 
-  // Debug logging for roles
-  React.useEffect(() => {
-    console.log('🔍 Roles Query State:', {
-      rolesLoading,
-      rolesError: rolesError ? String(rolesError) : null,
-      rolesCount: roles?.length || 0,
-      hasRBACAccess,
-      roles: roles
-    });
-    
-    if (rolesError) {
-      console.error('❌ Roles query error:', rolesError);
-      console.error('❌ Error details:', JSON.stringify(rolesError, null, 2));
-    }
-    if (roles && roles.length > 0) {
-      console.log(`✅ Loaded ${roles.length} roles:`, roles.map(r => ({ 
-        id: r.id, 
-        name: getRoleName(r), 
-        company_id: r.company_id,
-        is_template: r.is_template,
-      })));
-    } else if (!rolesLoading && roles.length === 0) {
-      console.warn('⚠️ No roles found - check backend endpoint /api/v1/rbac/roles');
-      console.warn('⚠️ hasRBACAccess:', hasRBACAccess);
-      console.warn('⚠️ rolesLoading:', rolesLoading);
-      console.warn('⚠️ rolesError:', rolesError);
-    }
-  }, [roles, rolesLoading, rolesError, hasRBACAccess]);
-
   const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
     queryKey: ['/api/companies'],
     enabled: hasRBACAccess,
@@ -180,20 +144,22 @@ export default function RBACAdmin() {
     enabled: hasRBACAccess,
   });
 
-  // Debug logging for users query
-  React.useEffect(() => {
-    console.log('👥 Users Query Debug:', {
-      usersLoading,
-      usersError: usersError ? String(usersError) : null,
-      usersCount: users?.length || 0,
-      users: users?.slice(0, 3), // First 3 users for debugging
-      hasRBACAccess
-    });
-  }, [users, usersLoading, usersError, hasRBACAccess]);
-
   // Fetch projects for client role assignment
   const { data: projects = [] } = useQuery<any[]>({
     queryKey: ['/api/projects'],
+    enabled: hasRBACAccess,
+  });
+
+  // Fetch sub companies for subcontractor role transition
+  const { data: subCompanies = [] } = useQuery<any[]>({
+    queryKey: ['/api/v1/sub/companies', { status: 'active' }],
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/v1/sub/companies?status=active', { credentials: 'include' });
+        if (!res.ok) return [];
+        return res.json();
+      } catch { return []; }
+    },
     enabled: hasRBACAccess,
   });
 
@@ -211,20 +177,31 @@ export default function RBACAdmin() {
 
   // Filter data based on admin level with field name compatibility
   // Use string comparison to handle type mismatches between string and number IDs
+  const [showInactiveUsers, setShowInactiveUsers] = useState(false);
+  const [forceDelete, setForceDelete] = useState(false);
   const currentUserCompanyId = String(currentUser?.company_id || currentUser?.companyId || '');
   const filteredCompanies = isRootAdmin ? companies : companies.filter(c => String(c.id) === currentUserCompanyId);
-  const filteredUsers = isRootAdmin ? users : users.filter(u => {
+  const filteredUsers = (isRootAdmin ? users : users.filter(u => {
     const userCompanyId = String(u.company_id || u.companyId || '');
     return userCompanyId === currentUserCompanyId;
-  });
+  })).filter(u => showInactiveUsers || u.is_active || u.isActive);
   const filteredRoles = isRootAdmin ? roles : roles.filter(r => !r.company_id || String(r.company_id) === currentUserCompanyId);
 
   // Mutations
   const createUserMutation = useMutation({
-    mutationFn: (userData: any) => apiRequest('/api/rbac/users', { method: 'POST', body: userData }),
-    onSuccess: () => {
+    mutationFn: async (userData: any) => {
+      const response = await apiRequest('/api/rbac/users', { method: 'POST', body: userData });
+      return response.json();
+    },
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
-      toast({ title: 'Success', description: 'User created successfully' });
+      if (data?.emailSent === true) {
+        toast({ title: 'Client Invited', description: `Invitation email sent to ${data.email || 'client'}` });
+      } else if (data?.emailSent === false) {
+        toast({ title: 'Client Created', description: 'User created but invitation email failed to send. You can re-send from Client Portal.', variant: 'destructive' });
+      } else {
+        toast({ title: 'Success', description: 'User created successfully' });
+      }
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -269,8 +246,17 @@ export default function RBACAdmin() {
         updateData.assigned_project_id = data.assigned_project_id;
       }
 
-      return apiRequest(`/api/rbac/users/${id}`, { 
-        method: 'PATCH', 
+      // Include subcontractor transition fields
+      if (data.sub_company_id) {
+        updateData.sub_company_id = data.sub_company_id;
+      }
+      if (data.sub_company_name) {
+        updateData.sub_company_name = data.sub_company_name;
+        updateData.sub_trade = data.sub_trade || null;
+      }
+
+      return apiRequest(`/api/rbac/users/${id}`, {
+        method: 'PATCH',
         body: updateData
       });
     },
@@ -284,12 +270,19 @@ export default function RBACAdmin() {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/rbac/users/${id}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+    mutationFn: ({ id, force }: { id: string; force?: boolean }) =>
+      apiRequest(`/api/rbac/users/${id}${force ? '?force=true' : ''}`, { method: 'DELETE' }),
+    onSuccess: (_data, { id: deletedUserId }) => {
+      setOpenMenuUserId(null);
+      setDeleteConfirmUser(null);
+      queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
+        if (!old) return old;
+        return old.filter((user: any) => user.id !== deletedUserId);
+      });
       toast({ title: 'Success', description: 'User deleted successfully' });
     },
     onError: (error: any) => {
+      setOpenMenuUserId(null);
       console.error('Delete user error:', error);
       toast({ title: 'Error', description: error.message || 'Failed to delete user', variant: 'destructive' });
     }
@@ -346,35 +339,111 @@ export default function RBACAdmin() {
   // Move updateCompanyMutation to inside CompanyManagement component where state is defined
 
   // ========================================================================
-  // EDIT USER DIALOG STATE - Lifted to RBACAdmin level to persist across
-  // UserManagement remounts (which happen when query data changes)
+  // EDIT USER DIALOG STATE - At RBACAdmin level to persist across re-renders
   // ========================================================================
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
-  const [editDialogKey, setEditDialogKey] = useState(0);
-  const editSessionRef = React.useRef(0);
-  const editCloseTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const editBlockCloseUntilRef = React.useRef(0);
+  const [originalRoleId, setOriginalRoleId] = useState<string>('');
 
-  // Component functions
-  const UserManagement = () => {
-    const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-    // NOTE: Edit dialog state has been LIFTED to RBACAdmin level (above) to prevent
-    // state loss when UserManagement remounts due to query data changes
-    // Initialize with all companies expanded - will be populated when usersByCompany is computed
-    const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
-    const [newUser, setNewUser] = useState({
-      email: '',
-      first_name: '',
-      last_name: '',
-      company_id: '',
-      role_id: '',
-      password: '',
-      confirm_password: '',
-      assigned_project_id: ''
+  // ========================================================================
+  // USER MANAGEMENT STATE - Lifted to RBACAdmin level so UserManagement can
+  // be a plain render function (not a component) to avoid unmount/remount
+  // ========================================================================
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [openMenuUserId, setOpenMenuUserId] = useState<string | null>(null);
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<any | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
+  const [newUser, setNewUser] = useState({
+    email: '',
+    first_name: '',
+    last_name: '',
+    company_id: '',
+    role_id: '',
+    password: '',
+    confirm_password: '',
+    assigned_project_id: ''
+  });
+
+  // Toggle user active status
+  const toggleUserStatus = useMutation({
+    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+      const endpoint = isActive
+        ? `/api/company-admin/users/${userId}/activate`
+        : `/api/company-admin/users/${userId}/suspend`;
+      const response = await apiRequest(endpoint, {
+        method: 'PUT'
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to update user status');
+      }
+      return response.json();
+    },
+    onSuccess: (_data, { userId, isActive }) => {
+      setOpenMenuUserId(null);
+      queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
+        if (!old) return old;
+        return old.map((user: any) =>
+          user.id === userId ? { ...user, is_active: isActive } : user
+        );
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
+      toast({ title: 'Success', description: `User ${isActive ? 'activated' : 'deactivated'} successfully` });
+    },
+    onError: (error: any) => {
+      setOpenMenuUserId(null);
+      console.error('Toggle user status error:', error);
+      toast({ title: 'Error', description: error.message || 'Failed to update user status', variant: 'destructive' });
+    }
+  });
+
+  // Group filtered users by company, including companies with no users
+  const usersByCompany = React.useMemo(() => {
+    const grouped: { [key: string]: UserProfile[] } = {};
+
+    // First, initialize all companies with empty arrays
+    filteredCompanies.forEach((company: Company) => {
+      grouped[company.name] = [];
     });
 
+    // Then add users to their respective companies with proper company name mapping
+    filteredUsers.forEach((user: UserProfile) => {
+      const userCompanyId = String(user.company_id || user.companyId || '');
+      const company = companies.find(c => String(c.id) === userCompanyId);
+      // Check both snake_case and camelCase variants for company_name
+      const userCompanyName = user.company_name || user.companyName;
+      const companyKey = company?.name || userCompanyName || 'Unassigned';
+
+      if (!grouped[companyKey]) {
+        grouped[companyKey] = [];
+      }
+      grouped[companyKey].push(user);
+    });
+
+    return grouped;
+  }, [filteredUsers, filteredCompanies, companies]);
+
+  // Auto-expand all companies on first load and preserve state on refetch
+  React.useEffect(() => {
+    if (Object.keys(usersByCompany).length > 0 && expandedCompanies.size === 0) {
+      // Initialize all companies as expanded only if expandedCompanies is empty
+      setExpandedCompanies(new Set(Object.keys(usersByCompany)));
+    }
+  }, [usersByCompany]);
+
+  const toggleCompanyExpansion = (companyName: string) => {
+    const newExpanded = new Set(expandedCompanies);
+    if (newExpanded.has(companyName)) {
+      newExpanded.delete(companyName);
+    } else {
+      newExpanded.add(companyName);
+    }
+    setExpandedCompanies(newExpanded);
+  };
+
+  // Plain render function (NOT a component) — avoids unstable component identity
+  const renderUserManagement = () => {
     // Password validation helper
     const validatePassword = (password: string) => {
       return {
@@ -384,97 +453,25 @@ export default function RBACAdmin() {
         hasDigit: /\d/.test(password),
       };
     };
-    
+
     const passwordChecks = validatePassword(newUser.password);
     const isPasswordValid = Object.values(passwordChecks).every(Boolean);
     const passwordsMatch = newUser.password === newUser.confirm_password && newUser.confirm_password.length > 0;
-    
+
     // Form validation - use currentUserCompanyId from outer scope
     // Client role (roleId === '4') also requires assigned_project_id
     const isClientRole = newUser.role_id === '4';
     const hasRequiredProjectForClient = !isClientRole || (isClientRole && newUser.assigned_project_id);
 
+    const hasCompany = isRootAdmin ? !!newUser.company_id : !!currentUserCompanyId;
     const isFormValid =
       newUser.email &&
       newUser.first_name &&
       newUser.last_name &&
       newUser.role_id &&
-      currentUserCompanyId &&
-      isPasswordValid &&
-      passwordsMatch &&
+      hasCompany &&
+      (isClientRole || (isPasswordValid && passwordsMatch)) &&
       hasRequiredProjectForClient;
-
-    // Toggle user active status
-    const toggleUserStatus = useMutation({
-      mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
-        const endpoint = isActive 
-          ? `/api/company-admin/users/${userId}/activate`
-          : `/api/company-admin/users/${userId}/suspend`;
-        const response = await apiRequest(endpoint, {
-          method: 'PUT'
-        });
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(errorText || 'Failed to update user status');
-        }
-        return response.json();
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
-        toast({ title: 'Success', description: 'User status updated successfully' });
-      },
-      onError: (error: any) => {
-        console.error('Toggle user status error:', error);
-        toast({ title: 'Error', description: error.message || 'Failed to update user status', variant: 'destructive' });
-      }
-    });
-
-    // NOTE: updateUserMutation moved back to RBACAdmin level since Edit User Dialog
-    // is now rendered at that level
-
-    // Group filtered users by company, including companies with no users
-    const usersByCompany = React.useMemo(() => {
-      const grouped: { [key: string]: UserProfile[] } = {};
-      
-      // First, initialize all companies with empty arrays
-      filteredCompanies.forEach((company: Company) => {
-        grouped[company.name] = [];
-      });
-      
-      // Then add users to their respective companies with proper company name mapping
-      filteredUsers.forEach((user: UserProfile) => {
-        const userCompanyId = String(user.company_id || user.companyId || '');
-        const company = companies.find(c => String(c.id) === userCompanyId);
-        // Check both snake_case and camelCase variants for company_name
-        const userCompanyName = user.company_name || user.companyName;
-        const companyKey = company?.name || userCompanyName || 'Unassigned';
-        
-        if (!grouped[companyKey]) {
-          grouped[companyKey] = [];
-        }
-        grouped[companyKey].push(user);
-      });
-      
-      return grouped;
-    }, [filteredUsers, filteredCompanies, companies]);
-
-    // Auto-expand all companies on first load and preserve state on refetch
-    React.useEffect(() => {
-      if (Object.keys(usersByCompany).length > 0 && expandedCompanies.size === 0) {
-        // Initialize all companies as expanded only if expandedCompanies is empty
-        setExpandedCompanies(new Set(Object.keys(usersByCompany)));
-      }
-    }, [usersByCompany]);
-
-    const toggleCompanyExpansion = (companyName: string) => {
-      const newExpanded = new Set(expandedCompanies);
-      if (newExpanded.has(companyName)) {
-        newExpanded.delete(companyName);
-      } else {
-        newExpanded.add(companyName);
-      }
-      setExpandedCompanies(newExpanded);
-    };
 
     return (
       <div className="space-y-6">
@@ -483,9 +480,14 @@ export default function RBACAdmin() {
             <h3 className="text-2xl font-semibold">User Management</h3>
             <p className="text-muted-foreground">Manage users across all companies</p>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+            if (!open) {
+              setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '', confirm_password: '', assigned_project_id: '' });
+            }
+            setIsCreateDialogOpen(open);
+          }}>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={() => setNewUser(prev => ({ ...prev, company_id: '' }))}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add User
               </Button>
@@ -494,10 +496,58 @@ export default function RBACAdmin() {
               <DialogHeader>
                 <DialogTitle>Create New User</DialogTitle>
               </DialogHeader>
-              <form onSubmit={(e) => { 
-                e.preventDefault(); 
+              <form onSubmit={(e) => {
+                e.preventDefault();
                 document.getElementById('create-user-button')?.click();
               }} className="space-y-4">
+                {/* Role selector first — determines which fields are shown */}
+                <div>
+                  <Label htmlFor="role">Role *</Label>
+                  <Select value={newUser.role_id} onValueChange={(value) => setNewUser({ ...newUser, role_id: value, password: '', confirm_password: '' })}>
+                    <SelectTrigger id="role">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(() => {
+                        if (rolesLoading) {
+                          return <SelectItem value="loading" disabled>Loading roles...</SelectItem>;
+                        }
+
+                        if (!roles || roles.length === 0) {
+                          return <SelectItem value="none" disabled>No roles available</SelectItem>;
+                        }
+
+                        const rolesToShow = roles;
+
+                        if (rolesToShow.length === 0) {
+                          return <SelectItem value="none" disabled>No roles available</SelectItem>;
+                        }
+
+                        return rolesToShow
+                          .filter((role: Role) => {
+                            if (getRoleName(role) === 'Platform Administrator' && !isRootAdmin) {
+                              return false;
+                            }
+                            return true;
+                          })
+                          .map((role: Role) => (
+                            <SelectItem key={role.id} value={role.id.toString()}>
+                              {getRoleName(role) || role.displayName || role.display_name} {String(role.company_id) === '0' ? '(Platform)' : '(Standard)'}
+                            </SelectItem>
+                          ));
+                      })()}
+                    </SelectContent>
+                  </Select>
+                  {!newUser.role_id && (
+                    <p className="text-xs text-red-500 mt-1">Role is required</p>
+                  )}
+                </div>
+                {/* Client role info banner */}
+                {isClientRole && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                    Client users sign in via magic link — no password needed. An invitation email will be sent automatically.
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="first_name">First Name</Label>
@@ -525,115 +575,99 @@ export default function RBACAdmin() {
                     onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                   />
                 </div>
+                {/* Password fields — hidden for client role (magic link auth) */}
+                {!isClientRole && (
+                  <>
+                    <div>
+                      <Label htmlFor="password">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={newUser.password}
+                        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                        placeholder="Enter password"
+                      />
+                      <div className="mt-2 text-xs space-y-1">
+                        <p className={passwordChecks.minLength ? "text-green-600" : "text-gray-400"}>
+                          {passwordChecks.minLength ? "✓" : "○"} At least 8 characters
+                        </p>
+                        <p className={passwordChecks.hasUppercase ? "text-green-600" : "text-gray-400"}>
+                          {passwordChecks.hasUppercase ? "✓" : "○"} One uppercase letter
+                        </p>
+                        <p className={passwordChecks.hasLowercase ? "text-green-600" : "text-gray-400"}>
+                          {passwordChecks.hasLowercase ? "✓" : "○"} One lowercase letter
+                        </p>
+                        <p className={passwordChecks.hasDigit ? "text-green-600" : "text-gray-400"}>
+                          {passwordChecks.hasDigit ? "✓" : "○"} One digit
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="confirm_password">Confirm Password *</Label>
+                      <Input
+                        id="confirm_password"
+                        type="password"
+                        value={newUser.confirm_password}
+                        onChange={(e) => setNewUser({ ...newUser, confirm_password: e.target.value })}
+                        placeholder="Re-enter password"
+                      />
+                      {newUser.confirm_password && (
+                        <p className={`mt-1 text-xs ${passwordsMatch ? "text-green-600" : "text-red-500"}`}>
+                          {passwordsMatch ? "✓ Passwords match" : "✗ Passwords do not match"}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+                {/* Company assignment */}
                 <div>
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    placeholder="Enter password"
-                  />
-                  <div className="mt-2 text-xs space-y-1">
-                    <p className={passwordChecks.minLength ? "text-green-600" : "text-gray-400"}>
-                      {passwordChecks.minLength ? "✓" : "○"} At least 8 characters
-                    </p>
-                    <p className={passwordChecks.hasUppercase ? "text-green-600" : "text-gray-400"}>
-                      {passwordChecks.hasUppercase ? "✓" : "○"} One uppercase letter
-                    </p>
-                    <p className={passwordChecks.hasLowercase ? "text-green-600" : "text-gray-400"}>
-                      {passwordChecks.hasLowercase ? "✓" : "○"} One lowercase letter
-                    </p>
-                    <p className={passwordChecks.hasDigit ? "text-green-600" : "text-gray-400"}>
-                      {passwordChecks.hasDigit ? "✓" : "○"} One digit
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="confirm_password">Confirm Password *</Label>
-                  <Input
-                    id="confirm_password"
-                    type="password"
-                    value={newUser.confirm_password}
-                    onChange={(e) => setNewUser({ ...newUser, confirm_password: e.target.value })}
-                    placeholder="Re-enter password"
-                  />
-                  {newUser.confirm_password && (
-                    <p className={`mt-1 text-xs ${passwordsMatch ? "text-green-600" : "text-red-500"}`}>
-                      {passwordsMatch ? "✓ Passwords match" : "✗ Passwords do not match"}
-                    </p>
-                  )}
-                </div>
-                {/* Company is auto-assigned - no selection needed */}
-                <div>
-                  <Label>Company</Label>
-                  <div className="p-2 bg-gray-50 rounded border text-sm text-gray-600">
-                    {(() => {
-                      // Display current user's company (auto-assigned)
-                      if (companiesLoading) return 'Loading company...';
-                      if (!companies.length) return 'No companies available';
-                      
-                      // Try both company_id and companyId for compatibility
-                      const userCompanyId = currentUser?.company_id || currentUser?.companyId;
-                      const matchedCompany = companies.find(c => c.id.toString() === userCompanyId?.toString());
-                      return matchedCompany?.name || `Company ID ${userCompanyId} not found`;
-                    })()}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {isRootAdmin ? 'Users will be assigned to your company' : 'User will be assigned to your company'}
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="role">Role *</Label>
-                  <Select value={newUser.role_id} onValueChange={(value) => setNewUser({ ...newUser, role_id: value })}>
-                    <SelectTrigger id="role">
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(() => {
-                        if (rolesLoading) {
-                          return <SelectItem value="loading" disabled>Loading roles...</SelectItem>;
-                        }
-                        
-                        if (!roles || roles.length === 0) {
-                          return <SelectItem value="none" disabled>No roles available</SelectItem>;
-                        }
-                        
-                        // DEBUG: Log all roles and filter details
-                        console.log('🔍 Create User - All roles:', roles);
-                        console.log('🔍 Create User - Current company ID:', currentUserCompanyId);
-                        console.log('🔍 Create User - Roles count:', roles.length);
-                        
-                        // Show ALL roles for now - we can filter later if needed
-                        // This ensures roles are visible while we debug
-                        const rolesToShow = roles;
-                        
-                        if (rolesToShow.length === 0) {
-                          return <SelectItem value="none" disabled>No roles available</SelectItem>;
-                        }
-                        
-                        return rolesToShow
-                          .filter((role: Role) => {
-                            // Only root admin can assign Platform Administrator role
-                            if (getRoleName(role) === 'Platform Administrator' && !isRootAdmin) {
-                              return false;
-                            }
-                            return true;
-                          })
-                          .map((role: Role) => (
-                            <SelectItem key={role.id} value={role.id.toString()}>
-                              {getRoleName(role) || role.displayName || role.display_name} {String(role.company_id) === '0' ? '(Platform)' : '(Standard)'}
-                            </SelectItem>
-                          ));
-                      })()}
-                    </SelectContent>
-                  </Select>
-                  {!newUser.role_id && (
-                    <p className="text-xs text-red-500 mt-1">Role is required</p>
+                  <Label>Company {isRootAdmin ? '*' : ''}</Label>
+                  {isRootAdmin ? (
+                    <>
+                      <Select
+                        value={newUser.company_id}
+                        onValueChange={(value) => setNewUser({ ...newUser, company_id: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select company" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {companiesLoading ? (
+                            <SelectItem value="loading" disabled>Loading companies...</SelectItem>
+                          ) : companies.length === 0 ? (
+                            <SelectItem value="none" disabled>No companies available</SelectItem>
+                          ) : (
+                            companies.map((company: Company) => (
+                              <SelectItem key={company.id} value={company.id.toString()}>
+                                {company.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Select which company this user belongs to
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="p-2 bg-gray-50 rounded border text-sm text-gray-600">
+                        {(() => {
+                          if (companiesLoading) return 'Loading company...';
+                          if (!companies.length) return 'No companies available';
+                          const userCompanyId = currentUser?.company_id || currentUser?.companyId;
+                          const matchedCompany = companies.find(c => c.id.toString() === userCompanyId?.toString());
+                          return matchedCompany?.name || `Company ID ${userCompanyId} not found`;
+                        })()}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        User will be assigned to your company
+                      </p>
+                    </>
                   )}
                 </div>
                 {/* Project Assignment - Only shown for Client role (roleId === '4') */}
-                {newUser.role_id === '4' && (
+                {isClientRole && (
                   <div>
                     <Label htmlFor="assigned_project">Assigned Project *</Label>
                     <Select
@@ -671,8 +705,10 @@ export default function RBACAdmin() {
                 <Button 
                   id="create-user-button"
                   onClick={() => {
-                    // Auto-assign company - always use current user's company
-                    const companyId = currentUser?.company_id || currentUser?.companyId;
+                    // Root admin: use selected company; non-root: use current user's company
+                    const companyId = isRootAdmin
+                      ? newUser.company_id
+                      : (currentUser?.company_id || currentUser?.companyId);
                     const effectiveCompanyId = companyId?.toString() || '';
                     
                     // Parse role_id safely - ensure it's a valid number
@@ -700,20 +736,22 @@ export default function RBACAdmin() {
                       last_name: newUser.last_name.trim(),
                       company_id: effectiveCompanyId,
                       role_id: roleIdNum,
-                      password: newUser.password,
                       is_active: true
                     };
+
+                    // Include password only for non-client roles
+                    if (roleIdNum !== 4) {
+                      userPayload.password = newUser.password;
+                    }
 
                     // Include assigned_project_id only for client role
                     if (roleIdNum === 4 && newUser.assigned_project_id) {
                       userPayload.assigned_project_id = newUser.assigned_project_id;
                     }
 
-                    console.log('[Create User] Sending payload:', userPayload);
-
                     // Creating user with validated data
                     createUserMutation.mutate(userPayload, {
-                      onSuccess: () => {
+                      onSuccess: (response: any) => {
                         setIsCreateDialogOpen(false);
                         setNewUser({ email: '', first_name: '', last_name: '', company_id: '', role_id: '', password: '', confirm_password: '', assigned_project_id: '' });
                       }
@@ -721,7 +759,7 @@ export default function RBACAdmin() {
                   }}
                   disabled={!isFormValid || createUserMutation.isPending}
                 >
-                  {createUserMutation.isPending ? 'Creating...' : 'Create User'}
+                  {createUserMutation.isPending ? 'Creating...' : (isClientRole ? 'Create & Send Invite' : 'Create User')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -730,6 +768,29 @@ export default function RBACAdmin() {
           {/* NOTE: Edit User Dialog has been moved to RBACAdmin level to prevent 
               flicker caused by UserManagement remounting */}
         </div>
+
+        {/* Filter: show/hide inactive users */}
+        {(() => {
+          const allUsers = isRootAdmin ? users : users.filter(u => {
+            const uid = String(u.company_id || u.companyId || '');
+            return uid === currentUserCompanyId;
+          });
+          const inactiveCount = allUsers.filter(u => !(u.is_active || u.isActive)).length;
+          if (inactiveCount === 0) return null;
+          return (
+            <button
+              onClick={() => setShowInactiveUsers(prev => !prev)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                showInactiveUsers
+                  ? 'bg-[var(--pro-mint)]/15 text-[var(--pro-mint)] border border-[var(--pro-mint)]/30'
+                  : 'bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)] border border-[var(--pro-border)]'
+              }`}
+            >
+              <Eye className="w-3 h-3" />
+              {showInactiveUsers ? 'Hide' : 'Show'} inactive ({inactiveCount})
+            </button>
+          );
+        })()}
 
         <div className="space-y-4">
           {usersLoading ? (
@@ -748,34 +809,51 @@ export default function RBACAdmin() {
                     open={expandedCompanies.has(companyName)}
                     onOpenChange={() => toggleCompanyExpansion(companyName)}
                   >
-                    <CollapsibleTrigger asChild>
-                      <button className="w-full min-h-[56px] px-4 py-3 flex items-center justify-between hover:bg-[var(--pro-surface-highlight)] transition-colors">
-                        <div className="flex items-center gap-3">
-                          <Building className="w-5 h-5 text-[var(--pro-mint)]" />
-                          <div className="text-left">
-                            <h3 className="text-sm font-semibold text-[var(--pro-text-primary)]">{companyName}</h3>
-                            <p className="text-xs text-[var(--pro-text-secondary)]">
-                              {companyUsers.length} user{companyUsers.length !== 1 ? 's' : ''}
-                            </p>
+                    <div className="flex items-center min-h-[56px]">
+                      <CollapsibleTrigger asChild>
+                        <button className="flex-1 min-h-[56px] px-4 py-3 flex items-center justify-between hover:bg-[var(--pro-surface-highlight)] transition-colors">
+                          <div className="flex items-center gap-3">
+                            <Building className="w-5 h-5 text-[var(--pro-mint)]" />
+                            <div className="text-left">
+                              <h3 className="text-sm font-semibold text-[var(--pro-text-primary)]">{companyName}</h3>
+                              <p className="text-xs text-[var(--pro-text-secondary)]">
+                                {companyUsers.length} user{companyUsers.length !== 1 ? 's' : ''}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 text-xs font-medium bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)] rounded-full">
-                            {companyUsers.length}
-                          </span>
-                          <ChevronRight
-                            className={`w-5 h-5 text-[var(--pro-text-secondary)] transition-transform duration-200 ${
-                              expandedCompanies.has(companyName) ? 'rotate-90' : ''
-                            }`}
-                          />
-                        </div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 text-xs font-medium bg-[var(--pro-surface-highlight)] text-[var(--pro-text-secondary)] rounded-full">
+                              {companyUsers.length}
+                            </span>
+                            <ChevronRight
+                              className={`w-5 h-5 text-[var(--pro-text-secondary)] transition-transform duration-200 ${
+                                expandedCompanies.has(companyName) ? 'rotate-90' : ''
+                              }`}
+                            />
+                          </div>
+                        </button>
+                      </CollapsibleTrigger>
+                      <button
+                        className="min-w-[44px] min-h-[44px] mr-2 flex items-center justify-center rounded-lg hover:bg-[var(--pro-mint)]/20 transition-colors"
+                        aria-label={`Add user to ${companyName}`}
+                        title={`Add user to ${companyName}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const company = companies.find(c => c.name === companyName);
+                          if (company) {
+                            setNewUser(prev => ({ ...prev, company_id: company.id.toString() }));
+                          }
+                          setIsCreateDialogOpen(true);
+                        }}
+                      >
+                        <Plus className="w-4 h-4 text-[var(--pro-mint)]" />
                       </button>
-                    </CollapsibleTrigger>
+                    </div>
                     <CollapsibleContent>
                       <div className="divide-y divide-[var(--pro-border)]">
                         {companyUsers.map((user: UserProfile) => {
                           // Get user initials
-                          const displayName = user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
+                          const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
                           const initials = displayName
                             .split(' ')
                             .map(n => n[0])
@@ -819,20 +897,8 @@ export default function RBACAdmin() {
                                 </div>
                               </div>
 
-                              {/* Active Status Toggle */}
-                              <Switch
-                                checked={isActive}
-                                onCheckedChange={(checked) => {
-                                  toggleUserStatus.mutate({
-                                    userId: user.id,
-                                    isActive: checked
-                                  });
-                                }}
-                                className="data-[state=checked]:bg-[var(--pro-mint)] flex-shrink-0"
-                              />
-
                               {/* Kebab Menu */}
-                              <DropdownMenu>
+                              <DropdownMenu open={openMenuUserId === user.id} onOpenChange={(open) => setOpenMenuUserId(open ? user.id : null)}>
                                 <DropdownMenuTrigger asChild>
                                   <button
                                     className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[var(--pro-surface-highlight)] -mr-2"
@@ -843,17 +909,23 @@ export default function RBACAdmin() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48 bg-[var(--pro-surface)] border-[var(--pro-border)]">
                                   <DropdownMenuItem
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
+                                    onClick={() => {
+                                      setOpenMenuUserId(null);
+                                      toggleUserStatus.mutate({
+                                        userId: user.id,
+                                        isActive: !isActive
+                                      });
+                                    }}
+                                    className={`min-h-[44px] ${isActive ? 'text-[var(--pro-text-secondary)]' : 'text-[var(--pro-mint)]'}`}
+                                  >
+                                    {isActive ? <UserX className="w-4 h-4 mr-2" /> : <UserCheck2 className="w-4 h-4 mr-2" />}
+                                    {isActive ? 'Deactivate User' : 'Activate User'}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setOpenMenuUserId(null);
 
-                                      if (editCloseTimerRef.current) {
-                                        clearTimeout(editCloseTimerRef.current);
-                                        editCloseTimerRef.current = null;
-                                      }
-                                      editSessionRef.current += 1;
-
-                                      const nameParts = (user.name || '').split(' ');
                                       let roleId = user.role_id?.toString();
                                       if (!roleId && user.role && roles && roles.length > 0) {
                                         const roleNameMap: Record<string, string> = {
@@ -888,8 +960,8 @@ export default function RBACAdmin() {
 
                                       const mappedUser = {
                                         ...user,
-                                        first_name: user.first_name || user.firstName || nameParts[0] || '',
-                                        last_name: user.last_name || user.lastName || nameParts.slice(1).join(' ') || '',
+                                        first_name: user.first_name || user.firstName || '',
+                                        last_name: user.last_name || user.lastName || '',
                                         company_id: (user.company_id || user.companyId)?.toString() || '',
                                         role_id: roleId || '',
                                         role: user.role || '',
@@ -901,6 +973,7 @@ export default function RBACAdmin() {
                                       };
 
                                       setEditingUser(mappedUser);
+                                      setOriginalRoleId(roleId || '');
                                       setIsEditUserDialogOpen(true);
                                     }}
                                     className="min-h-[44px] text-[var(--pro-blue)]"
@@ -910,35 +983,16 @@ export default function RBACAdmin() {
                                     Edit User
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <DropdownMenuItem
-                                        onSelect={(e) => e.preventDefault()}
-                                        className="min-h-[44px] text-[var(--pro-red)]"
-                                      >
-                                        <Trash2 className="w-4 h-4 mr-2" />
-                                        Delete User
-                                      </DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent className="bg-[var(--pro-surface)] border-[var(--pro-border)]" aria-describedby={undefined}>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle className="text-[var(--pro-text-primary)]">Delete User</AlertDialogTitle>
-                                        <AlertDialogDescription className="text-[var(--pro-text-secondary)]">
-                                          Are you sure you want to delete user "{displayName}"? This action cannot be undone.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel className="min-h-[44px]">Cancel</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() => deleteUserMutation.mutate(user.id)}
-                                          className="min-h-[44px] bg-[var(--pro-red)] hover:bg-[var(--pro-red)]/90"
-                                          disabled={deleteUserMutation.isPending}
-                                        >
-                                          {deleteUserMutation.isPending ? 'Deleting...' : 'Delete'}
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setOpenMenuUserId(null);
+                                      setDeleteConfirmUser({ ...user, displayName });
+                                    }}
+                                    className="min-h-[44px] text-[var(--pro-red)]"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete User
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -970,10 +1024,10 @@ export default function RBACAdmin() {
                   <div className="divide-y divide-[var(--pro-border)]">
                     {companyUsers.map((user: UserProfile) => {
                       // Get user initials
-                      const displayName = user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
+                      const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
                       const initials = displayName
                         .split(' ')
-                        .map(n => n[0])
+                        .map((n: string) => n[0])
                         .join('')
                         .slice(0, 2)
                         .toUpperCase();
@@ -1014,20 +1068,8 @@ export default function RBACAdmin() {
                             </div>
                           </div>
 
-                          {/* Active Status Toggle */}
-                          <Switch
-                            checked={isActive}
-                            onCheckedChange={(checked) => {
-                              toggleUserStatus.mutate({
-                                userId: user.id,
-                                isActive: checked
-                              });
-                            }}
-                            className="data-[state=checked]:bg-[var(--pro-mint)] flex-shrink-0"
-                          />
-
                           {/* Kebab Menu */}
-                          <DropdownMenu>
+                          <DropdownMenu open={openMenuUserId === user.id} onOpenChange={(open) => setOpenMenuUserId(open ? user.id : null)}>
                             <DropdownMenuTrigger asChild>
                               <button
                                 className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[var(--pro-surface-highlight)] -mr-2"
@@ -1039,17 +1081,23 @@ export default function RBACAdmin() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48 bg-[var(--pro-surface)] border-[var(--pro-border)]">
                               <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
+                                onClick={() => {
+                                  setOpenMenuUserId(null);
+                                  toggleUserStatus.mutate({
+                                    userId: user.id,
+                                    isActive: !isActive
+                                  });
+                                }}
+                                className={`min-h-[44px] ${isActive ? 'text-[var(--pro-text-secondary)]' : 'text-[var(--pro-mint)]'}`}
+                              >
+                                {isActive ? <UserX className="w-4 h-4 mr-2" /> : <UserCheck2 className="w-4 h-4 mr-2" />}
+                                {isActive ? 'Deactivate User' : 'Activate User'}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setOpenMenuUserId(null);
 
-                                  if (editCloseTimerRef.current) {
-                                    clearTimeout(editCloseTimerRef.current);
-                                    editCloseTimerRef.current = null;
-                                  }
-                                  editSessionRef.current += 1;
-
-                                  const nameParts = (user.name || '').split(' ');
                                   let roleId = user.role_id?.toString();
                                   if (!roleId && user.role && roles && roles.length > 0) {
                                     const roleNameMap: Record<string, string> = {
@@ -1084,8 +1132,8 @@ export default function RBACAdmin() {
 
                                   const mappedUser = {
                                     ...user,
-                                    first_name: user.first_name || user.firstName || nameParts[0] || '',
-                                    last_name: user.last_name || user.lastName || nameParts.slice(1).join(' ') || '',
+                                    first_name: user.first_name || user.firstName || '',
+                                    last_name: user.last_name || user.lastName || '',
                                     company_id: (user.company_id || user.companyId)?.toString() || '',
                                     role_id: roleId || '',
                                     role: user.role || '',
@@ -1106,36 +1154,17 @@ export default function RBACAdmin() {
                                 Edit User
                               </DropdownMenuItem>
                               <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem
-                                    onSelect={(e) => e.preventDefault()}
-                                    className="min-h-[44px] text-[var(--pro-red)]"
-                                    data-testid={`button-delete-${user.id}`}
-                                  >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Delete User
-                                  </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent className="bg-[var(--pro-surface)] border-[var(--pro-border)]" aria-describedby={undefined}>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle className="text-[var(--pro-text-primary)]">Delete User</AlertDialogTitle>
-                                    <AlertDialogDescription className="text-[var(--pro-text-secondary)]">
-                                      Are you sure you want to delete user "{displayName}"? This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel className="min-h-[44px]">Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => deleteUserMutation.mutate(user.id)}
-                                      className="min-h-[44px] bg-[var(--pro-red)] hover:bg-[var(--pro-red)]/90"
-                                      disabled={deleteUserMutation.isPending}
-                                    >
-                                      {deleteUserMutation.isPending ? 'Deleting...' : 'Delete'}
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setOpenMenuUserId(null);
+                                  setDeleteConfirmUser({ ...user, displayName });
+                                }}
+                                className="min-h-[44px] text-[var(--pro-red)]"
+                                data-testid={`button-delete-${user.id}`}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete User
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -1153,6 +1182,47 @@ export default function RBACAdmin() {
             </Card>
           )}
         </div>
+
+        {/* Shared Delete Confirmation Dialog */}
+        <AlertDialog open={!!deleteConfirmUser} onOpenChange={(open) => { if (!open) { setDeleteConfirmUser(null); setForceDelete(false); } }}>
+          <AlertDialogContent className="bg-[var(--pro-surface)] border-[var(--pro-border)]" aria-describedby={undefined}>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-[var(--pro-text-primary)]">Delete User</AlertDialogTitle>
+              <AlertDialogDescription className="text-[var(--pro-text-secondary)]">
+                Are you sure you want to delete user "{deleteConfirmUser?.displayName || deleteConfirmUser?.email || ''}"? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="flex items-start gap-2 px-1 py-2">
+              <Checkbox
+                id="force-delete-confirm"
+                checked={forceDelete}
+                onCheckedChange={(checked) => setForceDelete(checked === true)}
+                className="mt-0.5"
+              />
+              <label
+                htmlFor="force-delete-confirm"
+                className="text-sm text-[var(--pro-text-secondary)] cursor-pointer select-none"
+              >
+                Force delete — permanently remove this user and all their associated records (issues, comments, photos, etc.)
+              </label>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="min-h-[44px]" onClick={() => { setDeleteConfirmUser(null); setForceDelete(false); }}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (deleteConfirmUser) {
+                    deleteUserMutation.mutate({ id: deleteConfirmUser.id, force: forceDelete });
+                  }
+                  setForceDelete(false);
+                }}
+                className={`min-h-[44px] ${forceDelete ? 'bg-red-700 hover:bg-red-800' : 'bg-[var(--pro-red)] hover:bg-[var(--pro-red)]/90'}`}
+                disabled={deleteUserMutation.isPending}
+              >
+                {deleteUserMutation.isPending ? 'Deleting...' : forceDelete ? 'Force Delete' : 'Delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   };
@@ -1377,11 +1447,15 @@ export default function RBACAdmin() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isEditCompanyDialogOpen, setIsEditCompanyDialogOpen] = useState(false);
     const [editingCompany, setEditingCompany] = useState<Company | null>(null);
-    const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
+    const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
     const [isViewUsersDialogOpen, setIsViewUsersDialogOpen] = useState(false);
     const [showOnlyWithUsers, setShowOnlyWithUsers] = useState(false);
     const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
     const [isDeleteConfirmDialogOpen, setIsDeleteConfirmDialogOpen] = useState(false);
+    const [isInviteAdminDialogOpen, setIsInviteAdminDialogOpen] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
+    const [resetEmail, setResetEmail] = useState('');
     const [newCompany, setNewCompany] = useState({
       name: '',
       domain: '',
@@ -1394,20 +1468,19 @@ export default function RBACAdmin() {
       const counts: { [key: string]: number } = {};
       if (users && Array.isArray(users)) {
         users.forEach((user: UserProfile) => {
-          // Try multiple field variations for company identification
           const companyName = user.company_name || user.companyName;
           const companyId = user.company_id || user.companyId;
-          
-          if (companyName) {
-            counts[companyName] = (counts[companyName] || 0) + 1;
-          }
-          
-          // Also count by company ID for backup matching
+
+          // Use companyId as primary match, fall back to companyName
           if (companyId && companies) {
             const company = companies.find((c: Company) => c.id.toString() === companyId.toString());
             if (company) {
               counts[company.name] = (counts[company.name] || 0) + 1;
+              return;
             }
+          }
+          if (companyName) {
+            counts[companyName] = (counts[companyName] || 0) + 1;
           }
         });
       }
@@ -1463,6 +1536,48 @@ export default function RBACAdmin() {
       }
     });
 
+    // Beta invite admin mutation
+    const inviteAdminMutation = useMutation({
+      mutationFn: async (email: string) => {
+        const res = await apiRequest('/api/v1/beta/invite', { method: 'POST', body: { email } });
+        return res.json();
+      },
+      onSuccess: (data) => {
+        setIsInviteAdminDialogOpen(false);
+        setInviteEmail('');
+        toast({
+          title: 'Invitation Sent',
+          description: data.emailSent
+            ? `An invitation email has been sent to ${data.email}`
+            : `Invitation created for ${data.email} but email delivery failed. Check logs for the invite URL.`,
+        });
+      },
+      onError: (error: any) => {
+        toast({ title: 'Error', description: error.message || 'Failed to send invitation', variant: 'destructive' });
+      },
+    });
+
+    // Beta reset password mutation
+    const resetPasswordMutation = useMutation({
+      mutationFn: async (email: string) => {
+        const res = await apiRequest('/api/v1/beta/reset-password', { method: 'POST', body: { email } });
+        return res.json();
+      },
+      onSuccess: (data) => {
+        setIsResetPasswordDialogOpen(false);
+        setResetEmail('');
+        toast({
+          title: 'Reset Link Sent',
+          description: data.emailSent
+            ? `A password reset email has been sent to ${data.email}`
+            : `Reset created for ${data.email} but email delivery failed.`,
+        });
+      },
+      onError: (error: any) => {
+        toast({ title: 'Error', description: error.message || 'Failed to send reset link', variant: 'destructive' });
+      },
+    });
+
     // Fetch users for selected company
     const { data: companyUsers = [], isLoading: companyUsersLoading } = useQuery<any[]>({
       queryKey: [`/api/rbac/companies/${selectedCompanyId}/users`],
@@ -1489,6 +1604,14 @@ export default function RBACAdmin() {
                 Only show companies with users
               </Label>
             </div>
+            <Button variant="outline" onClick={() => setIsResetPasswordDialogOpen(true)}>
+              <KeyRound className="w-4 h-4 mr-2" />
+              Reset Password
+            </Button>
+            <Button variant="outline" onClick={() => setIsInviteAdminDialogOpen(true)}>
+              <Send className="w-4 h-4 mr-2" />
+              Invite Admin
+            </Button>
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -1604,6 +1727,117 @@ export default function RBACAdmin() {
             </Dialog>
           </div>
         </div>
+
+        {/* Invite Admin Dialog */}
+        <Dialog open={isInviteAdminDialogOpen} onOpenChange={(open) => { setIsInviteAdminDialogOpen(open); if (!open) setInviteEmail(''); }}>
+          <DialogContent aria-describedby={undefined}>
+            <DialogHeader>
+              <DialogTitle>Invite Company Admin</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Send a beta invitation to a new company admin. They'll receive an email
+              with a link to set up their company and create their account.
+            </p>
+            <div className="space-y-4 pt-2">
+              <div>
+                <Label htmlFor="invite_email">Email Address</Label>
+                <div className="relative mt-1">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="invite_email"
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="admin@company.com"
+                    className="pl-10"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && inviteEmail.includes('@')) {
+                        e.preventDefault();
+                        inviteAdminMutation.mutate(inviteEmail);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setIsInviteAdminDialogOpen(false); setInviteEmail(''); }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => inviteAdminMutation.mutate(inviteEmail)}
+                disabled={inviteAdminMutation.isPending || !inviteEmail.includes('@')}
+              >
+                {inviteAdminMutation.isPending ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    Sending...
+                  </div>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send Invitation
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reset Password Dialog */}
+        <Dialog open={isResetPasswordDialogOpen} onOpenChange={(open) => { setIsResetPasswordDialogOpen(open); if (!open) setResetEmail(''); }}>
+          <DialogContent aria-describedby={undefined}>
+            <DialogHeader>
+              <DialogTitle>Reset Admin Password</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Send a password reset link to an existing admin. The link expires in 1 hour.
+            </p>
+            <div className="space-y-4 pt-2">
+              <div>
+                <Label htmlFor="reset_email">Admin Email Address</Label>
+                <div className="relative mt-1">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="reset_email"
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="admin@company.com"
+                    className="pl-10"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && resetEmail.includes('@')) {
+                        e.preventDefault();
+                        resetPasswordMutation.mutate(resetEmail);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setIsResetPasswordDialogOpen(false); setResetEmail(''); }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => resetPasswordMutation.mutate(resetEmail)}
+                disabled={resetPasswordMutation.isPending || !resetEmail.includes('@')}
+              >
+                {resetPasswordMutation.isPending ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    Sending...
+                  </div>
+                ) : (
+                  <>
+                    <KeyRound className="w-4 h-4 mr-2" />
+                    Send Reset Link
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Edit Company Dialog */}
         <Dialog open={isEditCompanyDialogOpen} onOpenChange={setIsEditCompanyDialogOpen}>
@@ -1743,11 +1977,11 @@ export default function RBACAdmin() {
                           <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                               <span className="text-sm font-medium">
-                                {user.name?.[0] || user.email?.[0]?.toUpperCase()}
+                                {(user.first_name || user.email)?.[0]?.toUpperCase()}
                               </span>
                             </div>
                             <div>
-                              <p className="font-medium">{user.name || 'No name'}</p>
+                              <p className="font-medium">{`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'No name'}</p>
                               <p className="text-sm text-muted-foreground">{user.email}</p>
                             </div>
                           </div>
@@ -1899,7 +2133,7 @@ export default function RBACAdmin() {
                         size="sm" 
                         variant="outline"
                         onClick={() => {
-                          setSelectedCompanyId(Number(company.id));
+                          setSelectedCompanyId(company.id);
                           setIsViewUsersDialogOpen(true);
                         }}
                       >
@@ -2239,14 +2473,6 @@ export default function RBACAdmin() {
     <Dialog 
       open={isEditUserDialogOpen}
       onOpenChange={(open) => {
-        const now = Date.now();
-        const blockedUntil = editBlockCloseUntilRef.current;
-        
-        // Block close if we're in the critical period after update
-        if (!open && now < blockedUntil) {
-          return;
-        }
-        
         // Allow closing manually (via cancel button or X)
         if (!open && !updateUserMutation.isPending) {
           setIsEditUserDialogOpen(false);
@@ -2325,9 +2551,27 @@ export default function RBACAdmin() {
           </div>
           <div>
             <Label htmlFor="edit_role">Role</Label>
-            <Select 
-              value={editingUser?.role_id?.toString() || ''} 
-              onValueChange={(value) => setEditingUser(editingUser ? {...editingUser, role_id: value} : null)}
+            <Select
+              value={editingUser?.role_id?.toString() || ''}
+              onValueChange={(value) => {
+                if (!editingUser) return;
+                const updated: UserProfile = { ...editingUser, role_id: value };
+                // Initialize sub company fields when transitioning TO subcontractor
+                if (value === '6' && originalRoleId !== '6') {
+                  updated.sub_company_mode = subCompanies.length > 0 ? 'existing' : 'new';
+                  updated.sub_company_id = '';
+                  updated.sub_company_name = '';
+                  updated.sub_trade = '';
+                }
+                // Clear sub fields when switching away from subcontractor
+                if (value !== '6') {
+                  updated.sub_company_id = undefined;
+                  updated.sub_company_name = undefined;
+                  updated.sub_trade = undefined;
+                  updated.sub_company_mode = undefined;
+                }
+                setEditingUser(updated);
+              }}
             >
               <SelectTrigger id="edit_role">
                 <SelectValue placeholder="Select role" />
@@ -2336,31 +2580,97 @@ export default function RBACAdmin() {
                 {rolesLoading ? (
                   <SelectItem value="loading" disabled>Loading roles...</SelectItem>
                 ) : roles && roles.length > 0 ? (
-                  (() => {
-                    // DEBUG: Log all roles and filter details
-                    console.log('🔍 Edit User - All roles:', roles);
-                    console.log('🔍 Edit User - Current company ID:', currentUserCompanyId);
-                    console.log('🔍 Edit User - Roles count:', roles.length);
-                    
-                    // Show ALL roles for now - we can filter later if needed
-                    const rolesToShow = roles;
-                    
-                    if (rolesToShow.length === 0) {
-                      return <SelectItem value="none" disabled>No roles available</SelectItem>;
-                    }
-                    
-                    return rolesToShow.map((role: Role) => (
-                      <SelectItem key={role.id} value={role.id.toString()}>
-                        {getRoleName(role) || role.displayName || role.display_name} {String(role.company_id) === '0' ? '(Platform)' : '(Standard)'}
-                      </SelectItem>
-                    ));
-                  })()
+                  roles.map((role: Role) => (
+                    <SelectItem key={role.id} value={role.id.toString()}>
+                      {getRoleName(role) || role.displayName || role.display_name} {String(role.company_id) === '0' ? '(Platform)' : '(Standard)'}
+                    </SelectItem>
+                  ))
                 ) : (
                   <SelectItem value="none" disabled>No roles available</SelectItem>
                 )}
               </SelectContent>
             </Select>
           </div>
+          {/* Role transition warning */}
+          {editingUser?.role_id?.toString() !== originalRoleId && originalRoleId && (
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs space-y-1">
+              {originalRoleId === '6' && (
+                <p className="text-amber-700 dark:text-amber-300">Subcontractor company link will be removed and active assignments terminated.</p>
+              )}
+              {originalRoleId === '4' && (
+                <p className="text-amber-700 dark:text-amber-300">Client portal access will be removed and project assignment cleared.</p>
+              )}
+              {editingUser?.role_id?.toString() === '6' && (
+                <p className="text-amber-700 dark:text-amber-300">User will be linked to the selected subcontractor company.</p>
+              )}
+              {editingUser?.role_id?.toString() === '4' && (
+                <p className="text-amber-700 dark:text-amber-300">A client portal invitation will be created. Select a project below.</p>
+              )}
+              <p className="text-amber-600 dark:text-amber-400 font-medium">User will be logged out and must re-login with new permissions.</p>
+            </div>
+          )}
+          {/* Subcontractor Company - ONLY when transitioning TO subcontractor role */}
+          {editingUser?.role_id?.toString() === '6' && originalRoleId !== '6' && (
+            <div className="space-y-3">
+              <Label className="font-medium">Subcontractor Company *</Label>
+              {subCompanies.length > 0 && (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`flex-1 px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                      editingUser.sub_company_mode === 'existing'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background border-input hover:bg-accent'
+                    }`}
+                    onClick={() => setEditingUser({ ...editingUser, sub_company_mode: 'existing' })}
+                  >
+                    Existing Company
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                      editingUser.sub_company_mode === 'new'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background border-input hover:bg-accent'
+                    }`}
+                    onClick={() => setEditingUser({ ...editingUser, sub_company_mode: 'new' })}
+                  >
+                    New Company
+                  </button>
+                </div>
+              )}
+              {editingUser.sub_company_mode === 'existing' && subCompanies.length > 0 ? (
+                <Select
+                  value={editingUser.sub_company_id || ''}
+                  onValueChange={(v) => setEditingUser({ ...editingUser, sub_company_id: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select existing sub company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subCompanies.map((sc: any) => (
+                      <SelectItem key={sc.id} value={sc.id}>
+                        {sc.companyName || sc.company_name}{sc.trade ? ` (${sc.trade})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Company name *"
+                    value={editingUser.sub_company_name || ''}
+                    onChange={(e) => setEditingUser({ ...editingUser, sub_company_name: e.target.value })}
+                  />
+                  <Input
+                    placeholder="Trade (e.g. Electrical, Plumbing)"
+                    value={editingUser.sub_trade || ''}
+                    onChange={(e) => setEditingUser({ ...editingUser, sub_trade: e.target.value })}
+                  />
+                </div>
+              )}
+            </div>
+          )}
           {/* Project Assignment - ONLY for Client role (roleId === '4') */}
           {editingUser?.role_id?.toString() === '4' && (
             <div>
@@ -2424,6 +2734,18 @@ export default function RBACAdmin() {
                   return;
                 }
 
+                // Validate sub company info required for subcontractor role transition
+                if (editingUser.role_id?.toString() === '6' && originalRoleId !== '6') {
+                  if (editingUser.sub_company_mode === 'existing' && !editingUser.sub_company_id) {
+                    toast({ title: 'Error', description: 'Please select a subcontractor company', variant: 'destructive' });
+                    return;
+                  }
+                  if (editingUser.sub_company_mode === 'new' && !editingUser.sub_company_name?.trim()) {
+                    toast({ title: 'Error', description: 'Company name is required for new subcontractor', variant: 'destructive' });
+                    return;
+                  }
+                }
+
                 const updatePayload: any = {
                   email: editingUser.email,
                   username: editingUser.email,
@@ -2441,6 +2763,15 @@ export default function RBACAdmin() {
                 if (editingUser.role_id?.toString() === '4') {
                   updatePayload.assigned_project_id = editingUser.assigned_project_id || null;
                 }
+                // Include subcontractor transition data
+                if (editingUser.role_id?.toString() === '6' && originalRoleId !== '6') {
+                  if (editingUser.sub_company_mode === 'existing' && editingUser.sub_company_id) {
+                    updatePayload.sub_company_id = editingUser.sub_company_id;
+                  } else if (editingUser.sub_company_name) {
+                    updatePayload.sub_company_name = editingUser.sub_company_name;
+                    updatePayload.sub_trade = editingUser.sub_trade || null;
+                  }
+                }
 
                 try {
                   await updateUserMutation.mutateAsync({
@@ -2448,11 +2779,7 @@ export default function RBACAdmin() {
                     data: updatePayload
                   });
                   
-                  // Block trailing close events for a short period
-                  const blockDurationMs = 1200;
-                  editBlockCloseUntilRef.current = Date.now() + blockDurationMs;
-                  
-                  // Update cache immediately
+                  // Update cache immediately with all edited fields
                   const roleId = editingUser.role_id;
                   const roleName = roleId === '1' ? 'Admin' :
                                  roleId === '2' ? 'Office Manager' :
@@ -2464,20 +2791,35 @@ export default function RBACAdmin() {
                               roleId === '3' ? 'project_manager' :
                               roleId === '4' ? 'client' :
                               roleId === '5' ? 'crew' : 'subcontractor';
-                  
+
                   queryClient.setQueryData(['/api/rbac/users'], (old: any) => {
                     if (!old) return old;
-                    return old.map((user: any) => 
-                      user.id === editingUser.id 
-                        ? { ...user, role_id: roleId, role: role, role_name: roleName }
+                    return old.map((user: any) =>
+                      user.id === editingUser.id
+                        ? {
+                            ...user,
+                            first_name: editingUser.first_name,
+                            last_name: editingUser.last_name,
+                            email: editingUser.email,
+                            is_active: editingUser.is_active,
+                            role_id: roleId,
+                            role: role,
+                            role_name: roleName,
+                            assigned_project_id: editingUser.assigned_project_id,
+                            name: `${editingUser.first_name || ''} ${editingUser.last_name || ''}`.trim(),
+                          }
                         : user
                     );
                   });
                   
+                  // Invalidate sub companies cache if role transition involves subcontractor
+                  if (originalRoleId === '6' || editingUser.role_id?.toString() === '6') {
+                    queryClient.invalidateQueries({ queryKey: ['/api/v1/sub/companies'] });
+                  }
+
                   setIsEditUserDialogOpen(false);
                   setEditingUser(null);
-                  editCloseTimerRef.current = null;
-                  
+
                 } catch (error) {
                   console.error('Update failed:', error);
                 }
@@ -2501,9 +2843,11 @@ export default function RBACAdmin() {
         { value: 'companies', label: 'Companies', icon: <Building className="w-4 h-4" /> },
         { value: 'permissions', label: 'Permissions', icon: <Key className="w-4 h-4" /> },
         { value: 'modules', label: 'Modules', icon: <Settings className="w-4 h-4" /> },
+        { value: 'branding', label: 'Branding', icon: <Palette className="w-4 h-4" /> },
       ]
     : [
         { value: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
+        { value: 'branding', label: 'Branding', icon: <Palette className="w-4 h-4" /> },
       ];
 
   // Bottom navigation items
@@ -2568,11 +2912,12 @@ export default function RBACAdmin() {
 
       {/* Content Area */}
       <main className="p-4">
-        {activeTab === 'users' && <UserManagement />}
+        {activeTab === 'users' && renderUserManagement()}
         {activeTab === 'roles' && isRootAdmin && <RoleManagement />}
         {activeTab === 'companies' && isRootAdmin && <CompanyManagement />}
         {activeTab === 'permissions' && isRootAdmin && <PermissionsOverview />}
         {activeTab === 'modules' && isRootAdmin && <ModulesManagement />}
+        {activeTab === 'branding' && <CompanyBrandingForm />}
       </main>
 
       {/* Bottom Navigation */}
