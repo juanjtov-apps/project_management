@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+
+# Block authenticated app routes
+Disallow: /dashboard
+Disallow: /work
+Disallow: /projects
+Disallow: /tasks
+Disallow: /schedule
+Disallow: /photos
+Disallow: /logs
+Disallow: /client-portal
+Disallow: /sub-portal
+Disallow: /subs
+Disallow: /rbac
+Disallow: /waitlist-admin
+Disallow: /platform-analytics
+Disallow: /project-health
+Disallow: /api/
+
+Sitemap: https://proesphere.com/sitemap.xml
