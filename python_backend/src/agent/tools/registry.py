@@ -174,6 +174,13 @@ def register_default_tools():
     # Import dynamic query tool for flexible database access
     from .dynamic.dynamic_query_tool import DynamicQueryTool
 
+    # Import write/action tools
+    from .actions.create_task import CreateTaskTool
+    from .actions.update_task_status import UpdateTaskStatusTool
+    from .actions.update_project_status import UpdateProjectStatusTool
+    from .actions.create_daily_log import CreateDailyLogTool
+    from .actions.send_notification import SendNotificationTool
+
     # Register DynamicQueryTool early (position 2) so LLM considers it first for queries
     tool_registry.register(GetProjectsTool())
     tool_registry.register(DynamicQueryTool())  # Primary tool for flexible queries
@@ -183,6 +190,13 @@ def register_default_tools():
     tool_registry.register(GetMaterialsTool())
     tool_registry.register(GetIssuesTool())
     tool_registry.register(GetInstallmentsTool())
+
+    # Write/action tools
+    tool_registry.register(CreateTaskTool())
+    tool_registry.register(UpdateTaskStatusTool())
+    tool_registry.register(UpdateProjectStatusTool())
+    tool_registry.register(CreateDailyLogTool())
+    tool_registry.register(SendNotificationTool())
 
     tool_registry._initialized = True
     logger.info(f"Registered {len(tool_registry)} tools")

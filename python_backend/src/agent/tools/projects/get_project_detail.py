@@ -502,10 +502,10 @@ class GetProjectDetailTool(BaseTool):
             project_obj = await project_repo.get_by_id(project_id)
             if project_obj:
                 project_data = self._to_dict(project_obj)
-                # Verify company access
-                if company_id and project_data.get("companyId") != company_id:
+                # Verify company access (mandatory for multi-tenant isolation)
+                if not company_id or project_data.get("companyId") != company_id:
                     return {
-                        "error": "Access denied to this project",
+                        "error": "Project not found or access denied",
                         "projectId": project_id,
                     }
         elif project_name:

@@ -151,6 +151,8 @@ export const projects = pgTable("projects", {
   clientEmail: varchar("client_email"),
   clientPhone: varchar("client_phone"),
   coverPhotoId: varchar("cover_photo_id"),
+  aiInsightText: text("ai_insight_text"),
+  aiInsightUpdatedAt: timestamp("ai_insight_updated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (table) => [

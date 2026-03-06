@@ -122,6 +122,19 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.warning(f"Analytics schema initialization error: {e}")
 
+        # Seed progress + AI insights for existing projects
+        if db_connected:
+            try:
+                from src.services.progress_service import recompute_all_project_progress
+                from src.services.insight_service import seed_missing_insights
+                await recompute_all_project_progress()
+                await seed_missing_insights()
+                logger.info("✅ Project progress and insights seeded")
+                print("✅ Project progress and insights seeded")
+            except Exception as e:
+                logger.warning(f"⚠️ Progress/insight seeding error: {e}")
+                print(f"⚠️  Progress/insight seeding error: {e}")
+
         # Start session cleanup background task
         import asyncio
         try:

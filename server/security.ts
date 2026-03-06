@@ -26,10 +26,10 @@ export function setupSecurityMiddleware(app: express.Express) {
       // Production: Very strict CSP
       "default-src 'self'; " +
       "script-src 'self' 'nonce-" + res.locals.nonce + "'; " +
-      "style-src 'self' 'unsafe-inline'; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "img-src 'self' data: https: https://secure.gravatar.com https://www.gravatar.com https://gravatar.com; " +
-      "font-src 'self' data:; " +
-      "connect-src 'self' http://localhost:8000 https://storage.googleapis.com; " +
+      "font-src 'self' data: https://fonts.gstatic.com; " +
+      "connect-src 'self' http://localhost:8000 https://storage.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com; " +
       "object-src 'none'; " +
       "base-uri 'self'; " +
       "form-action 'self'; " +
@@ -39,10 +39,10 @@ export function setupSecurityMiddleware(app: express.Express) {
       // Development: Relaxed for dev tools and Replit environment
       "default-src 'self'; " +
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://replit.com https://*.replit.dev blob: ws: wss:; " +
-      "style-src 'self' 'unsafe-inline' https://replit.com https://*.replit.dev; " +
+      "style-src 'self' 'unsafe-inline' https://replit.com https://*.replit.dev https://fonts.googleapis.com; " +
       "img-src 'self' data: https: blob: https://replit.com https://*.replit.dev https://secure.gravatar.com https://www.gravatar.com https://gravatar.com; " +
-      "font-src 'self' data: https://replit.com https://*.replit.dev; " +
-      "connect-src 'self' http://localhost:8000 ws: wss: https://replit.com https://*.replit.dev https://storage.googleapis.com; " +
+      "font-src 'self' data: https://replit.com https://*.replit.dev https://fonts.gstatic.com; " +
+      "connect-src 'self' http://localhost:8000 ws: wss: https://replit.com https://*.replit.dev https://storage.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com; " +
       "worker-src 'self' blob: data:; " +
       "frame-src 'self' https://replit.com https://*.replit.dev; " +
       "object-src 'none'; " +
@@ -55,7 +55,7 @@ export function setupSecurityMiddleware(app: express.Express) {
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     
     // Permissions Policy
-    res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+    res.setHeader("Permissions-Policy", "geolocation=(), microphone=(self), camera=()");
     
     next();
   });

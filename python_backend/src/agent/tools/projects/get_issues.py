@@ -84,11 +84,16 @@ class GetIssuesTool(BaseTool):
         query_params = []
         param_count = 1
 
-        # Filter by company (through projects table since issues doesn't have company_id)
-        if company_id:
-            query += f" AND p.company_id = ${param_count}"
-            query_params.append(str(company_id))
-            param_count += 1
+        # Filter by company (mandatory for multi-tenant isolation)
+        if not company_id:
+            return {
+                "error": "Company context required",
+                "issues": [],
+                "summary": {},
+            }
+        query += f" AND p.company_id = ${param_count}"
+        query_params.append(str(company_id))
+        param_count += 1
 
         # Filter by project
         if project_id:

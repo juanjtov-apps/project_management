@@ -22,6 +22,8 @@ class ProjectBase(BaseModel):
     due_date: Optional[datetime] = Field(default=None, alias="dueDate")
     company_id: Optional[str] = Field(default=None, alias="companyId")
     cover_photo_id: Optional[str] = Field(default=None, alias="coverPhotoId")
+    ai_insight_text: Optional[str] = Field(default=None, alias="aiInsightText")
+    ai_insight_updated_at: Optional[datetime] = Field(default=None, alias="aiInsightUpdatedAt")
     
     model_config = {"populate_by_name": True}
     

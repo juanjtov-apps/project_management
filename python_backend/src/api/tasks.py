@@ -1,12 +1,14 @@
 """
 Task API endpoints with authentication and company filtering.
 """
+import asyncio
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, status, Query, Depends, Request
 from src.models import Task, TaskCreate, TaskUpdate, Project
 from src.database.repositories import TaskRepository, ProjectRepository
 from src.database.auth_repositories import auth_repo
 from src.api.auth import get_current_user_dependency, is_root_admin, get_effective_company_id
+from src.services.insight_service import regenerate_project_insight
 
 router = APIRouter()
 task_repo = TaskRepository()
@@ -142,7 +144,13 @@ async def create_task(
             task_data['assignee_id'] = None
         
         print(f"Creating task for user {current_user.get('email')}: {task}")
-        return await task_repo.create(TaskCreate(**task_data))
+        result = await task_repo.create(TaskCreate(**task_data))
+
+        # Refresh insight for the project (task count changed)
+        if task.project_id:
+            asyncio.create_task(regenerate_project_insight(task.project_id))
+
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -174,6 +182,13 @@ async def update_task(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Task not found"
             )
+
+        # Refresh insight if task belongs to a project
+        task_dict = task.model_dump() if hasattr(task, 'model_dump') else {}
+        pid = task_dict.get('projectId') or task_dict.get('project_id')
+        if pid:
+            asyncio.create_task(regenerate_project_insight(str(pid)))
+
         return task
     except HTTPException:
         raise
@@ -235,13 +250,24 @@ async def delete_task(
         if not is_root_admin(current_user):
             user_company_id = str(current_user.get('companyId') or current_user.get('company_id'))
             await verify_task_company_access(task_id, user_company_id)
-        
+
+        # Get project_id before deleting for insight refresh
+        existing_task = await task_repo.get_by_id(task_id)
+        task_project_id = None
+        if existing_task:
+            td = existing_task.model_dump() if hasattr(existing_task, 'model_dump') else {}
+            task_project_id = td.get('projectId') or td.get('project_id')
+
         success = await task_repo.delete(task_id)
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Task not found"
             )
+
+        # Refresh insight for the project (task count changed)
+        if task_project_id:
+            asyncio.create_task(regenerate_project_insight(str(task_project_id)))
     except HTTPException:
         raise
     except Exception as e:

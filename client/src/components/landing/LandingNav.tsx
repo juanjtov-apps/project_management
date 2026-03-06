@@ -1,0 +1,40 @@
+import { useState, useEffect } from "react";
+
+interface LandingNavProps {
+  onSignIn: () => void;
+  onGetStarted: () => void;
+}
+
+export function LandingNav({ onSignIn, onGetStarted }: LandingNavProps) {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 60);
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  return (
+    <nav className={`landing-nav${scrolled ? " scrolled" : ""}`}>
+      <a href="/" className="ln-logo">
+        <svg width="28" height="28" viewBox="0 0 52 52" fill="none">
+          <path d="M26 3L47 13V26C47 37.6 37.6 47 26 47C14.4 47 5 37.6 5 26V13L26 3Z" stroke="rgba(0,194,120,0.55)" strokeWidth="1.1" fill="rgba(0,194,120,0.05)" />
+          <circle cx="26" cy="26" r="3.8" fill="#00C278" />
+        </svg>
+        <span className="ln-logo-name">Proesphere</span>
+      </a>
+      <ul className="ln-links">
+        <li><a href="#platform">Platform</a></li>
+        <li><a href="#ai">AI</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+      </ul>
+      <div className="ln-right">
+        <button className="ln-signin" onClick={onSignIn}>Sign in</button>
+        <button className="ln-cta" onClick={onGetStarted}>
+          Get started
+          <svg width="12" height="9" viewBox="0 0 12 9" fill="none"><path d="M1 4.5H11M7.5 1L11 4.5L7.5 8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      </div>
+    </nav>
+  );
+}

@@ -2,6 +2,7 @@
 Agent orchestrator - manages the agentic loop for processing user requests.
 """
 
+import json
 import time
 import logging
 from typing import Dict, Any, List, AsyncIterator, Optional
@@ -144,6 +145,7 @@ class AgentOrchestrator:
                         tool_call_count += 1
                         tool_name = chunk.get("name")
                         tool_input = chunk.get("input", {})
+                        tool_call_id = chunk.get("id", f"call_{tool_call_count}")
 
                         yield {
                             "type": "tool_start",
@@ -164,11 +166,20 @@ class AgentOrchestrator:
                                     "message": f"Tool '{tool_name}' not permitted: {validation['reason']}"
                                 }
                             }
+                            # Send proper tool result so LLM knows the call failed
+                            messages.append({
+                                "role": "assistant",
+                                "content": None,
+                                "tool_calls": [{"id": tool_call_id, "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_input)}}],
+                            })
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call_id,
+                                "content": f"Permission denied: {validation['reason']}",
+                            })
                             continue
 
                         if validation["requires_confirmation"]:
-                            # Create pending confirmation
-                            # For now, we'll skip this and just note it
                             yield {
                                 "type": "confirmation_required",
                                 "data": {
@@ -176,6 +187,16 @@ class AgentOrchestrator:
                                     "message": f"Tool '{tool_name}' requires confirmation"
                                 }
                             }
+                            messages.append({
+                                "role": "assistant",
+                                "content": None,
+                                "tool_calls": [{"id": tool_call_id, "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_input)}}],
+                            })
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call_id,
+                                "content": "Action requires user confirmation. Please inform the user that this action needs their approval before proceeding.",
+                            })
                             continue
 
                         # Execute tool
@@ -203,15 +224,17 @@ class AgentOrchestrator:
                                 }
                             }
 
-                            # Add tool result to messages for next iteration
-                            # Frame as system information to make it clear this is actual data
+                            # Add tool call + result in proper OpenAI format
+                            # so the LLM recognizes its tool was executed
                             messages.append({
                                 "role": "assistant",
-                                "content": f"I'll query the database using the {tool_name} tool.",
+                                "content": None,
+                                "tool_calls": [{"id": tool_call_id, "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_input)}}],
                             })
                             messages.append({
-                                "role": "user",
-                                "content": f"[ACTUAL DATABASE RESULTS - DO NOT FABRICATE OR MODIFY THIS DATA]\nTool '{tool_name}' returned the following REAL data from the database:\n{self._summarize_result(result)}\n[END DATABASE RESULTS - Only report what appears above]",
+                                "role": "tool",
+                                "tool_call_id": tool_call_id,
+                                "content": self._summarize_result(result),
                             })
 
                         except PermissionDenied as e:
@@ -219,14 +242,15 @@ class AgentOrchestrator:
                                 "type": "error",
                                 "data": {"message": str(e)}
                             }
-                            # Feed error back to LLM so it can try a different approach
                             messages.append({
                                 "role": "assistant",
-                                "content": f"I attempted to use the {tool_name} tool.",
+                                "content": None,
+                                "tool_calls": [{"id": tool_call_id, "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_input)}}],
                             })
                             messages.append({
-                                "role": "user",
-                                "content": f"[TOOL ERROR] Permission denied: {str(e)}. Try a different approach.",
+                                "role": "tool",
+                                "tool_call_id": tool_call_id,
+                                "content": f"Permission denied: {str(e)}",
                             })
 
                         except Exception as e:
@@ -239,14 +263,15 @@ class AgentOrchestrator:
                                     "error": str(e),
                                 }
                             }
-                            # Feed error back to LLM so it can self-correct and retry
                             messages.append({
                                 "role": "assistant",
-                                "content": f"I attempted to use the {tool_name} tool.",
+                                "content": None,
+                                "tool_calls": [{"id": tool_call_id, "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_input)}}],
                             })
                             messages.append({
-                                "role": "user",
-                                "content": f"[TOOL ERROR] The {tool_name} tool failed: {str(e)}. Please retry with correct parameters.",
+                                "role": "tool",
+                                "tool_call_id": tool_call_id,
+                                "content": f"Error: {str(e)}",
                             })
 
                     elif chunk_type == "stop":

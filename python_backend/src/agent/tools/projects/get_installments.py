@@ -73,6 +73,17 @@ class GetInstallmentsTool(BaseTool):
                 "installments": [],
             }
 
+        # Verify project belongs to user's company
+        company_id = context.get("company_id")
+        from ..security import verify_project_access
+        if not await verify_project_access(project_id, company_id):
+            return {
+                "error": "Project not found or access denied",
+                "projectId": project_id,
+                "installments": [],
+                "summary": {},
+            }
+
         # Build query to get installments with schedule info
         # Using actual column names from the database schema
         query = """

@@ -2,20 +2,25 @@
  * Message list component for displaying chat messages.
  */
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { User, Bot, Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
 import type { AgentMessage } from "@/hooks/useAgentChat";
 import { ToolStatus } from "./ToolStatus";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { parseResponse } from "./ResponseParser";
+import { CascadeGrid } from "./CascadeGrid";
+import { ActionButtons } from "./ActionButtons";
+import { WorkflowTags } from "./WorkflowTags";
 
 interface MessageListProps {
   messages: AgentMessage[];
   isLoading: boolean;
   conversationId: string | null;
+  onSendMessage?: (message: string) => void;
 }
 
-export function MessageList({ messages, isLoading, conversationId }: MessageListProps) {
+export function MessageList({ messages, isLoading, conversationId, onSendMessage }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,7 +83,7 @@ export function MessageList({ messages, isLoading, conversationId }: MessageList
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
       {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} conversationId={conversationId} />
+        <MessageBubble key={message.id} message={message} conversationId={conversationId} onSendMessage={onSendMessage} />
       ))}
 
       {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
@@ -106,11 +111,22 @@ export function MessageList({ messages, isLoading, conversationId }: MessageList
 interface MessageBubbleProps {
   message: AgentMessage;
   conversationId: string | null;
+  onSendMessage?: (message: string) => void;
 }
 
-function MessageBubble({ message, conversationId }: MessageBubbleProps) {
+function MessageBubble({ message, conversationId, onSendMessage }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const isAssistant = message.role === "assistant";
+
+  // Parse structured blocks from assistant messages (only when not streaming)
+  const parsed = useMemo(() => {
+    if (!isAssistant || !message.content || message.isStreaming) return null;
+    return parseResponse(message.content);
+  }, [isAssistant, message.content, message.isStreaming]);
+
+  // Use parsed text if available, otherwise raw content
+  const displayContent = parsed?.text || message.content;
+  const hasStructuredContent = parsed && (parsed.cascade || parsed.actions || parsed.tags);
 
   return (
     <div className={`group flex items-start gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
@@ -126,17 +142,19 @@ function MessageBubble({ message, conversationId }: MessageBubbleProps) {
       </div>
 
       <div className={`flex flex-col gap-2 max-w-[80%] ${isUser ? "items-end" : "items-start"}`}>
-        {/* Tool calls */}
-        {message.toolCalls && message.toolCalls.length > 0 && (
+        {/* Tool calls — only show while actively running */}
+        {message.toolCalls && message.toolCalls.filter(tc => tc.status === "running" || tc.status === "pending").length > 0 && (
           <div className="w-full space-y-2">
-            {message.toolCalls.map((toolCall, idx) => (
-              <ToolStatus key={`${toolCall.tool}-${idx}`} toolCall={toolCall} />
-            ))}
+            {message.toolCalls
+              .filter(tc => tc.status === "running" || tc.status === "pending")
+              .map((toolCall, idx) => (
+                <ToolStatus key={`${toolCall.tool}-${idx}`} toolCall={toolCall} />
+              ))}
           </div>
         )}
 
         {/* Message content */}
-        {message.content && (
+        {displayContent && (
           <div
             className={`px-4 py-2 rounded-2xl ${
               isUser ? "rounded-tr-sm" : "rounded-tl-sm"
@@ -147,7 +165,7 @@ function MessageBubble({ message, conversationId }: MessageBubbleProps) {
             }}
           >
             <div className="message-content text-sm whitespace-pre-wrap break-words">
-              <FormattedContent content={message.content} />
+              <FormattedContent content={displayContent} />
             </div>
 
             {message.isStreaming && (
@@ -155,6 +173,17 @@ function MessageBubble({ message, conversationId }: MessageBubbleProps) {
                 className="inline-block w-2 h-4 ml-1 animate-pulse"
                 style={{ backgroundColor: isUser ? '#0F1115' : '#4ADE80' }}
               />
+            )}
+          </div>
+        )}
+
+        {/* Structured response blocks (assistant only, after streaming completes) */}
+        {hasStructuredContent && (
+          <div className="w-full">
+            {parsed.tags && <WorkflowTags tags={parsed.tags} />}
+            {parsed.cascade && <CascadeGrid cascade={parsed.cascade} />}
+            {parsed.actions && onSendMessage && (
+              <ActionButtons actions={parsed.actions} onAction={onSendMessage} />
             )}
           </div>
         )}

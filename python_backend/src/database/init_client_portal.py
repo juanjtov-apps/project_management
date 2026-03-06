@@ -264,6 +264,51 @@ async def init_client_portal_schema():
     CREATE INDEX IF NOT EXISTS idx_invite_user ON client_portal.client_invitations(user_id);
     CREATE INDEX IF NOT EXISTS idx_invite_status ON client_portal.client_invitations(status);
 
+    -- MATERIAL AREAS TABLE
+    CREATE TABLE IF NOT EXISTS client_portal.material_areas(
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        project_id varchar NOT NULL,
+        name text NOT NULL,
+        description text,
+        sort_order integer DEFAULT 0,
+        created_by varchar NOT NULL,
+        created_at timestamptz DEFAULT now(),
+        updated_at timestamptz DEFAULT now(),
+        CONSTRAINT fk_area_project FOREIGN KEY(project_id)
+            REFERENCES public.projects(id) ON DELETE CASCADE,
+        CONSTRAINT fk_area_creator FOREIGN KEY(created_by)
+            REFERENCES public.users(id) ON DELETE RESTRICT,
+        CONSTRAINT unique_area_name UNIQUE(project_id, name)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_material_areas_project ON client_portal.material_areas(project_id);
+
+    -- MATERIAL ITEMS TABLE
+    CREATE TABLE IF NOT EXISTS client_portal.material_items(
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        area_id uuid NOT NULL,
+        project_id varchar NOT NULL,
+        name text NOT NULL,
+        spec text,
+        product_link text,
+        vendor text,
+        quantity text,
+        unit_cost numeric,
+        status text DEFAULT 'pending',
+        added_by varchar NOT NULL,
+        created_at timestamptz DEFAULT now(),
+        updated_at timestamptz DEFAULT now(),
+        CONSTRAINT fk_item_area FOREIGN KEY(area_id)
+            REFERENCES client_portal.material_areas(id) ON DELETE CASCADE,
+        CONSTRAINT fk_item_project FOREIGN KEY(project_id)
+            REFERENCES public.projects(id) ON DELETE CASCADE,
+        CONSTRAINT fk_item_user FOREIGN KEY(added_by)
+            REFERENCES public.users(id) ON DELETE RESTRICT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_material_items_area ON client_portal.material_items(area_id);
+    CREATE INDEX IF NOT EXISTS idx_material_items_project ON client_portal.material_items(project_id);
+
     -- MATERIAL DOCUMENTS TABLE
     CREATE TABLE IF NOT EXISTS client_portal.material_documents(
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -315,6 +360,15 @@ async def init_client_portal_schema():
                 """)
             except Exception:
                 pass  # Table may not exist yet if notifications migration hasn't run
+
+            # Add AI insight columns to projects (additive, idempotent)
+            try:
+                await conn.execute("""
+                    ALTER TABLE projects ADD COLUMN IF NOT EXISTS ai_insight_text text;
+                    ALTER TABLE projects ADD COLUMN IF NOT EXISTS ai_insight_updated_at timestamptz;
+                """)
+            except Exception:
+                pass  # Columns may already exist
 
             return True
     except Exception as e:

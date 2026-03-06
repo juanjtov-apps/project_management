@@ -87,10 +87,11 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
 
   const NavigationRail = () => (
     <div 
-      className="flex flex-col h-full transition-all duration-300 ease-in-out" 
-      style={{ 
+      className="flex flex-col h-full"
+      style={{
         backgroundColor: '#0F1115',
-        width: isExpanded ? '200px' : '60px'
+        width: isExpanded ? '220px' : '52px',
+        transition: 'width 0.28s cubic-bezier(0.25,1,0.5,1)',
       }}
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
@@ -227,11 +228,13 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   return (
     <>
       <aside 
-        className="hidden lg:flex flex-col border-r transition-all duration-300 ease-in-out"
-        style={{ 
+        className="hidden lg:flex flex-col border-r"
+        style={{
           backgroundColor: '#0F1115',
           borderColor: '#2D333B',
-          width: isExpanded ? '200px' : '60px'
+          width: isExpanded ? '220px' : '52px',
+          boxShadow: isExpanded ? '4px 0 30px rgba(0,0,0,0.35)' : 'none',
+          transition: 'width 0.28s cubic-bezier(0.25,1,0.5,1), box-shadow 0.28s cubic-bezier(0.25,1,0.5,1)',
         }}
         onMouseEnter={() => setIsExpanded(true)}
         onMouseLeave={() => setIsExpanded(false)}

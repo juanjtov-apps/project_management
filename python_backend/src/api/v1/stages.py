@@ -2,6 +2,7 @@
 Project Stages API endpoints.
 Manages project construction stages and stage templates.
 """
+import asyncio
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, status, Depends, Query, Body
 from pydantic import BaseModel, Field
@@ -18,6 +19,8 @@ from src.models.stage import (
     ReorderStagesRequest,
     ShiftDatesRequest,
 )
+from src.services.progress_service import recompute_project_progress
+from src.services.insight_service import regenerate_project_insight
 
 router = APIRouter(prefix="/stages", tags=["stages"])
 
@@ -163,7 +166,13 @@ async def create_stage(
     # Convert Pydantic model to dict
     stage_data = stage.model_dump(by_alias=False)
 
-    return await project_stage_repo.create(stage_data, current_user['id'])
+    result = await project_stage_repo.create(stage_data, current_user['id'])
+
+    # Recompute progress and refresh insight (new stage changes total)
+    asyncio.create_task(recompute_project_progress(stage.project_id))
+    asyncio.create_task(regenerate_project_insight(stage.project_id))
+
+    return result
 
 
 @router.patch("/{stage_id}", response_model=Dict[str, Any])
@@ -199,7 +208,14 @@ async def update_stage(
     if 'status' in update_data and update_data['status']:
         update_data['status'] = update_data['status'].value if hasattr(update_data['status'], 'value') else update_data['status']
 
-    return await project_stage_repo.update(stage_id, update_data, user_id=current_user['id'])
+    result = await project_stage_repo.update(stage_id, update_data, user_id=current_user['id'])
+
+    # Recompute progress and refresh insight when stage changes
+    project_id = stage['projectId']
+    asyncio.create_task(recompute_project_progress(project_id))
+    asyncio.create_task(regenerate_project_insight(project_id))
+
+    return result
 
 
 @router.delete("/{stage_id}", status_code=status.HTTP_200_OK)
@@ -228,7 +244,13 @@ async def delete_stage(
             detail="Clients cannot delete stages"
         )
 
+    project_id = stage['projectId']
     success = await project_stage_repo.delete(stage_id)
+
+    # Recompute progress and refresh insight (stage removed changes total)
+    asyncio.create_task(recompute_project_progress(project_id))
+    asyncio.create_task(regenerate_project_insight(project_id))
+
     return {"success": success, "message": "Stage deleted successfully"}
 
 
@@ -274,9 +296,14 @@ async def shift_stage_dates(
             detail="Clients cannot modify stages"
         )
 
-    return await project_stage_repo.shift_dates(
+    result = await project_stage_repo.shift_dates(
         project_id, request.after_order_index, request.delta_days
     )
+
+    # Refresh insight after schedule shift
+    asyncio.create_task(regenerate_project_insight(project_id))
+
+    return result
 
 
 @router.post("/apply-template", response_model=List[Dict[str, Any]])
@@ -314,12 +341,18 @@ async def apply_template(
             detail=f"Project already has {existing_count} stages. Delete existing stages first or add stages manually."
         )
 
-    return await project_stage_repo.apply_template(
+    result = await project_stage_repo.apply_template(
         request.project_id,
         request.template_id,
         current_user['id'],
         request.start_date
     )
+
+    # Recompute progress and refresh insight (bulk stage creation)
+    asyncio.create_task(recompute_project_progress(request.project_id))
+    asyncio.create_task(regenerate_project_insight(request.project_id))
+
+    return result
 
 
 @router.get("/count/{project_id}", response_model=Dict[str, int])

@@ -56,7 +56,18 @@ class GetStagesTool(BaseTool):
     ) -> Dict[str, Any]:
         """Execute the get_stages tool."""
         project_id = params.get("project_id")
+        company_id = context.get("company_id")
         status_filter = params.get("status_filter")
+
+        # Verify project belongs to user's company
+        from ..security import verify_project_access
+        if not await verify_project_access(project_id, company_id):
+            return {
+                "error": "Project not found or access denied",
+                "projectId": project_id,
+                "stages": [],
+                "summary": {},
+            }
 
         # Build query
         query = """

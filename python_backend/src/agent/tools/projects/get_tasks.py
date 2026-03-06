@@ -112,6 +112,17 @@ class GetTasksTool(BaseTool):
         company_id = context.get("company_id")
         project_id = params.get("project_id")
 
+        # Verify project belongs to user's company
+        if project_id:
+            from ..security import verify_project_access
+            if not await verify_project_access(project_id, company_id):
+                return {
+                    "error": "Project not found or access denied",
+                    "projectId": project_id,
+                    "tasks": [],
+                    "summary": {},
+                }
+
         # Get tasks as dicts
         tasks = await self._get_tasks(company_id, project_id)
 
