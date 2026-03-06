@@ -160,7 +160,7 @@ export function AgentChat({ projectId, onClose, conversationId: initialConversat
             <ConfirmationCard
               key={confirmation.id}
               confirmation={confirmation}
-              onConfirm={() => confirmOperation(confirmation.id, "confirm")}
+              onConfirm={(modifiedParams) => confirmOperation(confirmation.id, "confirm", modifiedParams)}
               onReject={() => confirmOperation(confirmation.id, "reject")}
             />
           ))}
@@ -225,32 +225,156 @@ export function AgentChat({ projectId, onClose, conversationId: initialConversat
 
 interface ConfirmationCardProps {
   confirmation: PendingConfirmation;
-  onConfirm: () => void;
+  onConfirm: (modifiedParams?: Record<string, unknown>) => void;
   onReject: () => void;
 }
 
+// Field definitions per tool for the editable confirmation card
+const TOOL_FIELDS: Record<string, Array<{
+  key: string;
+  label: string;
+  type: "text" | "number" | "date" | "select";
+  options?: string[];
+}>> = {
+  create_installment: [
+    { key: "name", label: "Name", type: "text" },
+    { key: "amount", label: "Amount ($)", type: "number" },
+    { key: "due_date", label: "Due Date", type: "date" },
+    { key: "status", label: "Status", type: "select", options: ["planned", "payable"] },
+  ],
+  create_task: [
+    { key: "name", label: "Title", type: "text" },
+    { key: "priority", label: "Priority", type: "select", options: ["low", "medium", "high", "critical"] },
+    { key: "due_date", label: "Due Date", type: "date" },
+  ],
+  create_issue: [
+    { key: "title", label: "Title", type: "text" },
+    { key: "priority", label: "Priority", type: "select", options: ["low", "medium", "high", "critical"] },
+    { key: "category", label: "Category", type: "select", options: ["safety", "quality", "schedule", "budget", "design", "other"] },
+  ],
+  create_stage: [
+    { key: "name", label: "Name", type: "text" },
+    { key: "planned_start_date", label: "Start Date", type: "date" },
+    { key: "planned_end_date", label: "End Date", type: "date" },
+  ],
+  update_project_status: [
+    { key: "status", label: "Status", type: "select", options: ["active", "on_hold", "completed", "cancelled"] },
+  ],
+  update_payment_status: [
+    { key: "status", label: "Status", type: "select", options: ["planned", "payable", "paid"] },
+  ],
+  update_issue_status: [
+    { key: "status", label: "Status", type: "select", options: ["open", "in_progress", "resolved", "closed"] },
+  ],
+};
+
 function ConfirmationCard({ confirmation, onConfirm, onReject }: ConfirmationCardProps) {
+  const fields = TOOL_FIELDS[confirmation.toolName];
+  const [editedValues, setEditedValues] = useState<Record<string, unknown>>(
+    () => ({ ...(confirmation.input || {}) })
+  );
+
+  const handleFieldChange = (key: string, value: unknown) => {
+    setEditedValues(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleConfirm = () => {
+    // Build modified params: only include fields that changed from original
+    const original = confirmation.input || {};
+    const modified: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(editedValues)) {
+      if (value !== original[key]) {
+        modified[key] = value;
+      }
+    }
+    onConfirm(Object.keys(modified).length > 0 ? modified : undefined);
+  };
+
+  const inputStyle = {
+    backgroundColor: '#0F1115',
+    border: '1px solid #2D333B',
+    color: '#E5E7EB',
+    borderRadius: '6px',
+    padding: '4px 8px',
+    fontSize: '13px',
+    width: '100%',
+    outline: 'none',
+  };
+
   return (
     <div
       className="p-3 rounded-lg"
       style={{ backgroundColor: '#161B22', border: '1px solid #FBBF24' }}
     >
-      <div className="flex items-start gap-2 mb-2">
+      <div className="flex items-start gap-2 mb-3">
         <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#FBBF24' }} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-white">
             Confirmation Required
           </p>
-          <p className="text-sm" style={{ color: '#9CA3AF' }}>
+          <p className="text-xs mt-0.5" style={{ color: '#9CA3AF' }}>
             {confirmation.operationSummary}
           </p>
-          {confirmation.impactAssessment && (
-            <p className="text-xs mt-1" style={{ color: '#6B7280' }}>
-              {confirmation.impactAssessment}
-            </p>
-          )}
         </div>
       </div>
+
+      {/* Editable fields */}
+      {fields && fields.length > 0 ? (
+        <div className="space-y-2 mb-3 ml-6">
+          {fields.map(field => {
+            const value = editedValues[field.key];
+            return (
+              <div key={field.key} className="flex items-center gap-2">
+                <label className="text-xs w-20 flex-shrink-0 text-right" style={{ color: '#9CA3AF' }}>
+                  {field.label}
+                </label>
+                {field.type === "select" ? (
+                  <select
+                    value={String(value || "")}
+                    onChange={e => handleFieldChange(field.key, e.target.value)}
+                    style={inputStyle}
+                    className="cursor-pointer"
+                  >
+                    {!value && <option value="">—</option>}
+                    {field.options?.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                ) : field.type === "number" ? (
+                  <input
+                    type="number"
+                    value={value !== undefined && value !== null ? String(value) : ""}
+                    onChange={e => handleFieldChange(field.key, e.target.value ? Number(e.target.value) : "")}
+                    style={inputStyle}
+                    step="0.01"
+                  />
+                ) : field.type === "date" ? (
+                  <input
+                    type="date"
+                    value={String(value || "")}
+                    onChange={e => handleFieldChange(field.key, e.target.value)}
+                    style={{ ...inputStyle, colorScheme: 'dark' }}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={String(value || "")}
+                    onChange={e => handleFieldChange(field.key, e.target.value)}
+                    style={inputStyle}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        confirmation.impactAssessment && (
+          <p className="text-xs mt-1 mb-3 ml-6" style={{ color: '#6B7280' }}>
+            {confirmation.impactAssessment}
+          </p>
+        )
+      )}
+
       <div className="flex items-center gap-2 justify-end">
         <Button
           variant="ghost"
@@ -263,7 +387,7 @@ function ConfirmationCard({ confirmation, onConfirm, onReject }: ConfirmationCar
         </Button>
         <Button
           size="sm"
-          onClick={onConfirm}
+          onClick={handleConfirm}
           style={{ backgroundColor: '#4ADE80', color: '#0F1115' }}
         >
           <Check className="w-3 h-3 mr-1" />

@@ -102,11 +102,15 @@ class GetProjectDetailTool(BaseTool):
         rows = await db_manager.execute_query(query, project_id)
         return [dict(row) for row in rows]
 
-    async def _get_project_issues(self, project_id: str) -> List[Dict[str, Any]]:
+    async def _get_project_issues(self, project_id: str, role: str = "") -> List[Dict[str, Any]]:
         """Get open issues for a project."""
-        query = """
+        visibility_filter = ""
+        if role == "client":
+            visibility_filter = " AND (visibility IN ('public', 'client') OR visibility IS NULL)"
+
+        query = f"""
             SELECT * FROM client_portal.issues
-            WHERE project_id = $1 AND status != 'closed'
+            WHERE project_id = $1 AND status != 'closed'{visibility_filter}
             ORDER BY created_at DESC
             LIMIT 10
         """
@@ -300,12 +304,16 @@ class GetProjectDetailTool(BaseTool):
             "overdueInstallments": overdue_installments[:5],  # Limit to 5
         }
 
-    async def _get_issues_summary(self, project_id: str) -> Dict[str, Any]:
+    async def _get_issues_summary(self, project_id: str, role: str = "") -> Dict[str, Any]:
         """Get issues summary with priority breakdown and overdue tracking."""
-        query = """
+        visibility_filter = ""
+        if role == "client":
+            visibility_filter = " AND (visibility IN ('public', 'client') OR visibility IS NULL)"
+
+        query = f"""
             SELECT id, title, description, status, priority, due_date, assigned_to, created_at
             FROM client_portal.issues
-            WHERE project_id = $1 AND status != 'closed'
+            WHERE project_id = $1 AND status != 'closed'{visibility_filter}
             ORDER BY
                 CASE priority
                     WHEN 'critical' THEN 1
@@ -518,25 +526,29 @@ class GetProjectDetailTool(BaseTool):
                 "projectName": project_name,
             }
 
-        # Get project ID for subsequent queries
+        # Get project ID and user role for subsequent queries
         proj_id = project_data.get("id")
+        user_role = context.get("role", "")
+        PAYMENT_ROLES = {"admin", "office_manager", "client"}
 
         # Build response
-        result = {
-            "project": {
-                "id": project_data.get("id"),
-                "name": project_data.get("name"),
-                "description": project_data.get("description"),
-                "location": project_data.get("location"),
-                "status": project_data.get("status"),
-                "progress": project_data.get("progress"),
-                "dueDate": str(project_data.get("dueDate")) if project_data.get("dueDate") else None,
-                "budget": project_data.get("budget"),
-                "actualCost": project_data.get("actualCost"),
-                "clientName": project_data.get("clientName"),
-                "clientEmail": project_data.get("clientEmail"),
-            },
+        project_info = {
+            "id": project_data.get("id"),
+            "name": project_data.get("name"),
+            "description": project_data.get("description"),
+            "location": project_data.get("location"),
+            "status": project_data.get("status"),
+            "progress": project_data.get("progress"),
+            "dueDate": str(project_data.get("dueDate")) if project_data.get("dueDate") else None,
+            "clientName": project_data.get("clientName"),
+            "clientEmail": project_data.get("clientEmail"),
         }
+        # Only include financial fields for roles with payment access
+        if user_role in PAYMENT_ROLES:
+            project_info["budget"] = project_data.get("budget")
+            project_info["actualCost"] = project_data.get("actualCost")
+
+        result = {"project": project_info}
 
         # Include tasks if requested
         include_tasks = params.get("include_tasks", True)
@@ -569,11 +581,12 @@ class GetProjectDetailTool(BaseTool):
         # Always include current stage summary with rich context
         result["currentStage"] = await self._get_active_stage_summary(proj_id)
 
-        # Always include payment summary
-        result["payments"] = await self._get_payment_summary(proj_id)
+        # Include payment summary only for roles with payment access
+        if user_role in PAYMENT_ROLES:
+            result["payments"] = await self._get_payment_summary(proj_id)
 
         # Always include issues summary with priority breakdown
-        result["issues"] = await self._get_issues_summary(proj_id)
+        result["issues"] = await self._get_issues_summary(proj_id, user_role)
 
         # Include materials summary (always, but can be expanded with include_materials)
         result["materials"] = await self._get_materials_summary(proj_id)
@@ -585,7 +598,7 @@ class GetProjectDetailTool(BaseTool):
             result["materials"]["items"] = self._serialize_list(materials[:30])
 
         # Keep legacy openIssues for backward compatibility
-        issues = await self._get_project_issues(proj_id)
+        issues = await self._get_project_issues(proj_id, user_role)
         result["openIssues"] = {
             "items": self._serialize_list(issues),
             "count": len(issues),

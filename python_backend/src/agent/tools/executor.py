@@ -2,6 +2,7 @@
 Tool execution engine for running agent tools.
 """
 
+import asyncio
 import time
 import logging
 from typing import Dict, Any, Optional
@@ -110,6 +111,15 @@ class ToolExecutor:
                 f"Tool '{tool_name}' executed successfully in {execution_time_ms}ms"
             )
 
+            # Increment analytics action count for agent tool executions
+            if message_id and conversation_id:
+                asyncio.create_task(
+                    _increment_agent_action(
+                        context.get("user_id", ""),
+                        context.get("company_id", ""),
+                    )
+                )
+
             return result
 
         except Exception as e:
@@ -191,6 +201,31 @@ class ToolExecutor:
             "reason": None,
             "tool": tool,
         }
+
+
+async def _increment_agent_action(user_id: str, company_id: str):
+    """Increment analytics action count for an agent tool execution."""
+    if not user_id:
+        return
+    try:
+        from src.database.connection import get_db_pool
+
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO public.analytics_daily_stats
+                    (user_id, company_id, stat_date, action_count, updated_at)
+                VALUES ($1, $2, CURRENT_DATE, 1, now())
+                ON CONFLICT (user_id, stat_date) DO UPDATE SET
+                    action_count = analytics_daily_stats.action_count + 1,
+                    updated_at = now()
+                """,
+                user_id,
+                company_id,
+            )
+    except Exception as e:
+        logger.debug(f"Agent action count increment error: {e}")
 
 
 # Global executor instance

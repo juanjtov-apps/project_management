@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { Check } from "lucide-react";
+import { useLocation } from "wouter";
 import type { ActionItem } from "./ResponseParser";
 
 interface ActionButtonsProps {
@@ -13,11 +14,16 @@ interface ActionButtonsProps {
 
 export function ActionButtons({ actions, onAction }: ActionButtonsProps) {
   const [confirmed, setConfirmed] = useState(false);
+  const [, setLocation] = useLocation();
 
-  const handleClick = (prompt: string) => {
+  const handleClick = (action: ActionItem) => {
     if (confirmed) return;
     setConfirmed(true);
-    onAction(prompt);
+    if (action.navigateTo) {
+      setLocation(action.navigateTo);
+    } else {
+      onAction(action.prompt);
+    }
   };
 
   if (confirmed) {
@@ -36,7 +42,7 @@ export function ActionButtons({ actions, onAction }: ActionButtonsProps) {
       {actions.map((action, idx) => (
         <button
           key={idx}
-          onClick={() => handleClick(action.prompt)}
+          onClick={() => handleClick(action)}
           className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
           style={{
             backgroundColor: idx === 0 ? "#4ADE80" : "#1F242C",

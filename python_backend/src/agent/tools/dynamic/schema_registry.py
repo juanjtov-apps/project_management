@@ -51,7 +51,7 @@ TABLE_CONFIGS: Dict[str, TableConfig] = {
     ),
     "payment_installments": TableConfig(
         table_name="client_portal.payment_installments",
-        read_permissions=["admin", "project_manager", "office_manager", "client"],
+        read_permissions=["admin", "office_manager", "client"],
         all_columns=[
             "id", "name", "description", "amount", "currency",
             "due_date", "status", "project_id", "schedule_id",
@@ -63,7 +63,7 @@ TABLE_CONFIGS: Dict[str, TableConfig] = {
     ),
     "payment_schedules": TableConfig(
         table_name="client_portal.payment_schedules",
-        read_permissions=["admin", "project_manager", "office_manager", "client"],
+        read_permissions=["admin", "office_manager", "client"],
         all_columns=[
             "id", "project_id", "title", "notes", "created_at"
         ],
@@ -139,7 +139,7 @@ TABLE_CONFIGS: Dict[str, TableConfig] = {
     ),
     "invoices": TableConfig(
         table_name="client_portal.invoices",
-        read_permissions=["admin", "project_manager", "office_manager", "client"],
+        read_permissions=["admin", "office_manager", "client"],
         all_columns=[
             "id", "project_id", "installment_id", "invoice_no",
             "issue_date", "amount", "tax", "total", "currency",

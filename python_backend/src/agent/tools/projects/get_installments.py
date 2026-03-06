@@ -53,7 +53,7 @@ class GetInstallmentsTool(BaseTool):
 
     @property
     def permissions(self) -> List[str]:
-        return ["admin", "project_manager", "office_manager", "client"]
+        return ["admin", "office_manager", "client"]
 
     @property
     def safety_level(self) -> SafetyLevel:

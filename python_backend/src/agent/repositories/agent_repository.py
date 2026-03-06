@@ -281,6 +281,17 @@ class AgentRepository:
 
         return self._convert_to_camel_case(dict(row))
 
+    async def get_tool_call(
+        self,
+        tool_call_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Get a tool call record by ID."""
+        query = "SELECT * FROM agent.tool_calls WHERE id = $1"
+        row = await db_manager.execute_one(query, tool_call_id)
+        if row:
+            return self._convert_to_camel_case(dict(row))
+        return None
+
     async def update_tool_call(
         self,
         tool_call_id: str,

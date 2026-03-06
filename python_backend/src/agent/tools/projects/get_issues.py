@@ -120,6 +120,13 @@ class GetIssuesTool(BaseTool):
         if assigned_to:
             issues = [i for i in issues if str(i.get("assigned_to")) == str(assigned_to)]
 
+        # Client visibility filter — clients only see public/client issues
+        if context.get("role") == "client":
+            issues = [
+                i for i in issues
+                if i.get("visibility") in ("public", "client", None)
+            ]
+
         # Urgent only filter (critical/high priority AND open)
         if params.get("urgent_only"):
             issues = [

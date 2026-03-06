@@ -28,6 +28,7 @@ export interface PendingConfirmation {
   operationSummary: string;
   impactAssessment?: string;
   expiresAt: string;
+  input?: Record<string, unknown>;
 }
 
 interface UseAgentChatOptions {
@@ -44,7 +45,7 @@ interface UseAgentChatReturn {
   pendingConfirmations: PendingConfirmation[];
   activeToolCall: ToolCall | null;
   sendMessage: (message: string) => Promise<void>;
-  confirmOperation: (confirmationId: string, action: "confirm" | "reject") => Promise<void>;
+  confirmOperation: (confirmationId: string, action: "confirm" | "reject", modifiedParams?: Record<string, unknown>) => Promise<void>;
   clearMessages: () => void;
   setConversationId: (id: string | null) => void;
 }
@@ -209,6 +210,29 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
                     ? { ...msg, content: msg.content + data.content }
                     : msg
                 ));
+              } else if (data.confirmation_id) {
+                // Confirmation required — clear the active tool spinner
+                setActiveToolCall(null);
+                setPendingConfirmations(prev => [...prev, {
+                  id: data.confirmation_id,
+                  toolName: data.tool_name || data.tool,
+                  operationSummary: data.operation_summary || data.message,
+                  impactAssessment: data.impact_assessment,
+                  expiresAt: data.expires_at,
+                  input: data.input,
+                }]);
+                // Update the tool call status in the message
+                setMessages(prev => prev.map(msg => {
+                  if (msg.id !== assistantMessageId) return msg;
+                  const toolCalls = msg.toolCalls || [];
+                  const idx = toolCalls.findIndex(tc => tc.tool === (data.tool_name || data.tool) && tc.status === "running");
+                  if (idx >= 0) {
+                    const newToolCalls = [...toolCalls];
+                    newToolCalls[idx] = { ...newToolCalls[idx], status: "success" };
+                    return { ...msg, toolCalls: newToolCalls };
+                  }
+                  return msg;
+                }));
               } else if (data.tool !== undefined && data.input !== undefined && data.result === undefined) {
                 // Tool start
                 const toolCall: ToolCall = {
@@ -243,15 +267,6 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
                   }
                   return msg;
                 }));
-              } else if (data.confirmation_id || data.tool_name) {
-                // Confirmation required
-                setPendingConfirmations(prev => [...prev, {
-                  id: data.confirmation_id || data.id,
-                  toolName: data.tool_name || data.tool,
-                  operationSummary: data.operation_summary || data.message,
-                  impactAssessment: data.impact_assessment,
-                  expiresAt: data.expires_at,
-                }]);
               } else if (data.conversation_id !== undefined) {
                 // Done event
                 setConversationId(data.conversation_id);
@@ -312,19 +327,25 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
 
   const confirmOperation = useCallback(async (
     confirmationId: string,
-    action: "confirm" | "reject"
+    action: "confirm" | "reject",
+    modifiedParams?: Record<string, unknown>
   ) => {
     try {
+      const body: Record<string, unknown> = {
+        confirmation_id: confirmationId,
+        action,
+      };
+      if (modifiedParams && Object.keys(modifiedParams).length > 0) {
+        body.modified_params = modifiedParams;
+      }
+
       const response = await fetch("/api/v1/agent/confirm", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({
-          confirmation_id: confirmationId,
-          action,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -332,10 +353,34 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
         throw new Error(errorData.detail || `Error: ${response.status}`);
       }
 
+      const data = await response.json();
+
       // Remove from pending confirmations
       setPendingConfirmations(prev =>
         prev.filter(c => c.id !== confirmationId)
       );
+
+      // Add result as a new assistant message
+      if (action === "confirm" && data.result) {
+        const content = data.result.success
+          ? (data.result.result?.message || "Operation completed successfully.")
+          : `Operation failed: ${data.result.error}`;
+        setMessages(prev => [...prev, {
+          id: `confirm-result-${Date.now()}`,
+          role: "assistant" as const,
+          content,
+          timestamp: new Date(),
+          isStreaming: false,
+        }]);
+      } else if (action === "reject") {
+        setMessages(prev => [...prev, {
+          id: `confirm-reject-${Date.now()}`,
+          role: "assistant" as const,
+          content: "Operation cancelled.",
+          timestamp: new Date(),
+          isStreaming: false,
+        }]);
+      }
     } catch (error) {
       onError?.((error as Error).message || "Failed to process confirmation");
     }

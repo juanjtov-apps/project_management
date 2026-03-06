@@ -26,11 +26,14 @@ class TestGetInstallmentsProperties:
         assert get_installments_tool.name == "get_installments"
 
     def test_tool_permissions(self, get_installments_tool):
-        """Verify client can access payments."""
-        assert "client" in get_installments_tool.permissions
+        """Verify only admin, office_manager, and client can access payments."""
         assert "admin" in get_installments_tool.permissions
-        # Crew should NOT have access
+        assert "office_manager" in get_installments_tool.permissions
+        assert "client" in get_installments_tool.permissions
+        # PM, crew, and subcontractor should NOT have access
+        assert "project_manager" not in get_installments_tool.permissions
         assert "crew" not in get_installments_tool.permissions
+        assert "subcontractor" not in get_installments_tool.permissions
 
 
 class TestGetInstallmentsExecution:
@@ -43,7 +46,10 @@ class TestGetInstallmentsExecution:
         """Test 1: Returns installments for a project."""
         with patch(
             "src.agent.tools.projects.get_installments.db_manager"
-        ) as mock_db:
+        ) as mock_db, patch(
+            "src.agent.tools.security.verify_project_access",
+            new_callable=AsyncMock, return_value={"id": "project-123", "name": "Test"},
+        ):
             mock_db.execute_query = AsyncMock(return_value=sample_installments)
 
             result = await get_installments_tool.execute(
@@ -79,7 +85,10 @@ class TestGetInstallmentsExecution:
         """Test 3: Amount totals are calculated correctly."""
         with patch(
             "src.agent.tools.projects.get_installments.db_manager"
-        ) as mock_db:
+        ) as mock_db, patch(
+            "src.agent.tools.security.verify_project_access",
+            new_callable=AsyncMock, return_value={"id": "project-123", "name": "Test"},
+        ):
             mock_db.execute_query = AsyncMock(return_value=sample_installments)
 
             result = await get_installments_tool.execute(
@@ -118,7 +127,10 @@ class TestGetInstallmentsExecution:
 
         with patch(
             "src.agent.tools.projects.get_installments.db_manager"
-        ) as mock_db:
+        ) as mock_db, patch(
+            "src.agent.tools.security.verify_project_access",
+            new_callable=AsyncMock, return_value={"id": "project-123", "name": "Test"},
+        ):
             mock_db.execute_query = AsyncMock(return_value=installments)
 
             result = await get_installments_tool.execute(
@@ -137,7 +149,10 @@ class TestGetInstallmentsExecution:
         """Test 5: Client role has permission to access."""
         with patch(
             "src.agent.tools.projects.get_installments.db_manager"
-        ) as mock_db:
+        ) as mock_db, patch(
+            "src.agent.tools.security.verify_project_access",
+            new_callable=AsyncMock, return_value={"id": "project-123", "name": "Test"},
+        ):
             mock_db.execute_query = AsyncMock(return_value=sample_installments)
 
             result = await get_installments_tool.execute(

@@ -18,6 +18,7 @@ export interface CascadeBlock {
 export interface ActionItem {
   label: string;
   prompt: string;
+  navigateTo?: string;
 }
 
 export interface TagItem {
@@ -84,6 +85,7 @@ export function parseResponse(content: string): ParsedResponse {
         actions = parsed.actions.slice(0, 2).map((item: Record<string, unknown>) => ({
           label: String(item.label || ""),
           prompt: String(item.prompt || ""),
+          navigateTo: item.navigateTo ? String(item.navigateTo) : undefined,
         }));
         text = text.replace(/```(?:json)?\s*\n?[\s\S]*?```/i, "").trim();
       }

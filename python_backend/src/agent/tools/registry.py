@@ -180,6 +180,16 @@ def register_default_tools():
     from .actions.update_project_status import UpdateProjectStatusTool
     from .actions.create_daily_log import CreateDailyLogTool
     from .actions.send_notification import SendNotificationTool
+    from .actions.create_issue import CreateIssueTool
+    from .actions.update_issue_status import UpdateIssueStatusTool
+    from .actions.assign_task import AssignTaskTool
+    from .actions.update_payment_status import UpdatePaymentStatusTool
+    from .actions.create_stage import CreateStageTool
+    from .actions.update_stage import UpdateStageTool
+    from .actions.create_material_item import CreateMaterialItemTool
+    from .actions.delete_task import DeleteTaskTool
+    from .actions.create_installment import CreateInstallmentTool
+    from .actions.update_installment import UpdateInstallmentTool
 
     # Register DynamicQueryTool early (position 2) so LLM considers it first for queries
     tool_registry.register(GetProjectsTool())
@@ -197,6 +207,16 @@ def register_default_tools():
     tool_registry.register(UpdateProjectStatusTool())
     tool_registry.register(CreateDailyLogTool())
     tool_registry.register(SendNotificationTool())
+    tool_registry.register(CreateIssueTool())
+    tool_registry.register(UpdateIssueStatusTool())
+    tool_registry.register(AssignTaskTool())
+    tool_registry.register(UpdatePaymentStatusTool())
+    tool_registry.register(CreateStageTool())
+    tool_registry.register(UpdateStageTool())
+    tool_registry.register(CreateMaterialItemTool())
+    tool_registry.register(DeleteTaskTool())
+    tool_registry.register(CreateInstallmentTool())
+    tool_registry.register(UpdateInstallmentTool())
 
     tool_registry._initialized = True
     logger.info(f"Registered {len(tool_registry)} tools")

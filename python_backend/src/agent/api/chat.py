@@ -53,6 +53,10 @@ class ConfirmationAction(BaseModel):
     confirmation_id: str
     action: str = Field(..., pattern="^(confirm|reject)$")
     notes: Optional[str] = None
+    modified_params: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Optional modified parameters from the editable confirmation card."
+    )
 
 
 class FeedbackRequest(BaseModel):
@@ -241,7 +245,11 @@ async def process_confirmation(
     request: ConfirmationAction,
     current_user: Dict[str, Any] = Depends(get_current_user_dependency),
 ):
-    """Process a confirmation action (confirm or reject a pending operation)."""
+    """Process a confirmation action (confirm or reject a pending operation).
+
+    If action is 'confirm', executes the tool with the original (or modified) params
+    and returns the result.
+    """
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
@@ -266,16 +274,71 @@ async def process_confirmation(
             detail=f"Confirmation already {confirmation['status']}"
         )
 
-    # Process the confirmation
+    # Update confirmation status
     updated = await agent_repo.update_confirmation_status(
         confirmation_id=request.confirmation_id,
         status="confirmed" if request.action == "confirm" else "rejected",
         confirmed_by=user_context["user_id"],
     )
 
+    result = None
+
+    if request.action == "confirm":
+        # Get the tool call to retrieve tool_input
+        tool_call = await agent_repo.get_tool_call(confirmation["toolCallId"])
+
+        if tool_call:
+            tool_name = tool_call["toolName"]
+            tool_input = tool_call["toolInput"]
+            if isinstance(tool_input, str):
+                tool_input = json.loads(tool_input)
+
+            # Merge modified params over original if provided
+            if request.modified_params:
+                tool_input.update(request.modified_params)
+
+            # Execute the tool
+            try:
+                from ..tools.executor import tool_executor
+
+                exec_result = await tool_executor.execute(
+                    tool_name=tool_name,
+                    params=tool_input,
+                    context=user_context,
+                    message_id=tool_call["messageId"],
+                    conversation_id=confirmation["conversationId"],
+                )
+                result = {"success": True, "result": exec_result}
+
+                # Update tool_call with result
+                await agent_repo.update_tool_call(
+                    tool_call["id"],
+                    tool_output=exec_result,
+                    execution_status="success",
+                )
+
+                # Save assistant message with the result
+                result_message = exec_result.get("message", "Operation completed successfully.")
+                await agent_repo.save_message(
+                    conversation_id=confirmation["conversationId"],
+                    role="assistant",
+                    content=result_message,
+                )
+
+            except Exception as e:
+                logger.error(f"Tool execution after confirmation failed: {e}")
+                result = {"success": False, "error": str(e)}
+
+                await agent_repo.update_tool_call(
+                    tool_call["id"],
+                    execution_status="failed",
+                    error_message=str(e),
+                )
+
     return {
         "confirmation": updated,
         "action": request.action,
+        "result": result,
     }
 
 

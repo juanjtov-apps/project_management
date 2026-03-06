@@ -4,6 +4,7 @@ Agent orchestrator - manages the agentic loop for processing user requests.
 
 import json
 import time
+import uuid
 import logging
 from typing import Dict, Any, List, AsyncIterator, Optional
 
@@ -180,11 +181,40 @@ class AgentOrchestrator:
                             continue
 
                         if validation["requires_confirmation"]:
+                            # Persist tool_call to DB
+                            tool_call_record = await agent_repo.save_tool_call(
+                                message_id=user_message["id"],
+                                conversation_id=conversation_id,
+                                user_id=user_context["user_id"],
+                                tool_name=tool_name,
+                                tool_input=tool_input,
+                                safety_level="requires_confirmation",
+                                project_id=project_id or user_context.get("project_id"),
+                                execution_status="pending",
+                                confirmation_required=True,
+                            )
+
+                            # Build human-readable summary
+                            operation_summary = self._build_operation_summary(tool_name, tool_input)
+
+                            # Persist pending_confirmation to DB
+                            confirmation = await agent_repo.create_pending_confirmation(
+                                tool_call_id=tool_call_record["id"],
+                                conversation_id=conversation_id,
+                                user_id=user_context["user_id"],
+                                tool_name=tool_name,
+                                operation_summary=operation_summary,
+                            )
+
                             yield {
                                 "type": "confirmation_required",
                                 "data": {
+                                    "confirmation_id": confirmation["id"],
+                                    "tool_name": tool_name,
                                     "tool": tool_name,
-                                    "message": f"Tool '{tool_name}' requires confirmation"
+                                    "input": tool_input,
+                                    "operation_summary": operation_summary,
+                                    "message": f"Tool '{tool_name}' requires confirmation",
                                 }
                             }
                             messages.append({
@@ -260,7 +290,7 @@ class AgentOrchestrator:
                                 "data": {
                                     "tool": tool_name,
                                     "success": False,
-                                    "error": str(e),
+                                    "error": "Operation could not be completed",
                                 }
                             }
                             messages.append({
@@ -271,7 +301,7 @@ class AgentOrchestrator:
                             messages.append({
                                 "role": "tool",
                                 "tool_call_id": tool_call_id,
-                                "content": f"Error: {str(e)}",
+                                "content": f"The {tool_name} operation could not be completed. Please inform the user that you encountered an issue and offer to try again or take an alternative approach. Do not show technical details.",
                             })
 
                     elif chunk_type == "stop":
@@ -343,6 +373,55 @@ class AgentOrchestrator:
                 "tool_calls": len(tool_calls_made),
             }
         }
+
+    def _build_operation_summary(self, tool_name: str, tool_input: Dict[str, Any]) -> str:
+        """Build a human-readable summary for the confirmation card title."""
+        name = tool_input.get("name") or tool_input.get("title") or ""
+
+        if tool_name == "create_task":
+            summary = f"Create task '{name}'" if name else "Create task"
+            if tool_input.get("priority"):
+                summary += f" ({tool_input['priority']} priority)"
+        elif tool_name == "create_issue":
+            summary = f"Report issue '{name}'" if name else "Report issue"
+            if tool_input.get("priority"):
+                summary += f" ({tool_input['priority']} priority)"
+        elif tool_name == "create_installment":
+            amount = tool_input.get("amount", 0)
+            summary = f"Create installment '{name}'" if name else "Create installment"
+            if amount:
+                summary += f" (${amount:,.2f})"
+            if tool_input.get("due_date"):
+                summary += f", due {tool_input['due_date']}"
+        elif tool_name == "create_stage":
+            summary = f"Add stage '{name}'" if name else "Add stage"
+            if tool_input.get("planned_start_date") and tool_input.get("planned_end_date"):
+                summary += f" ({tool_input['planned_start_date']} to {tool_input['planned_end_date']})"
+        elif tool_name == "delete_task":
+            summary = "Delete task"
+        elif tool_name == "update_project_status":
+            summary = f"Update project status to '{tool_input.get('status', '?')}'"
+        elif tool_name == "update_payment_status":
+            summary = f"Update payment status to '{tool_input.get('status', '?')}'"
+        elif tool_name == "update_issue_status":
+            summary = f"Update issue status to '{tool_input.get('status', '?')}'"
+        elif tool_name == "update_installment":
+            changes = []
+            if tool_input.get("name"):
+                changes.append(f"rename to '{tool_input['name']}'")
+            if tool_input.get("amount"):
+                changes.append(f"amount ${tool_input['amount']:,.2f}")
+            if tool_input.get("status"):
+                changes.append(f"status to '{tool_input['status']}'")
+            if tool_input.get("next_milestone") is True:
+                changes.append("mark as next milestone")
+            if tool_input.get("due_date"):
+                changes.append(f"due {tool_input['due_date']}")
+            summary = f"Update installment: {', '.join(changes)}" if changes else "Update installment"
+        else:
+            summary = tool_name.replace("_", " ").title()
+
+        return summary
 
     def _summarize_result(self, result: Dict[str, Any], max_length: int = 8000) -> str:
         """Summarize a tool result for inclusion in context.

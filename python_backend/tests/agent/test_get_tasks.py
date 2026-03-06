@@ -42,7 +42,10 @@ class TestGetTasksExecution:
         """Test 1: Returns tasks filtered by project."""
         with patch(
             "src.agent.tools.projects.get_tasks.db_manager"
-        ) as mock_db:
+        ) as mock_db, patch(
+            "src.agent.tools.security.verify_project_access",
+            new_callable=AsyncMock, return_value={"id": "project-123", "name": "Test"},
+        ):
             mock_db.execute_query = AsyncMock(return_value=[
                 dict(t) for t in sample_tasks
             ])
