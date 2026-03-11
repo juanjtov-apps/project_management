@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useQuery } from "@tanstack/react-query";
 import {
   Calendar,
@@ -39,21 +40,21 @@ interface StagesTabProps {
 
 const statusConfig = {
   NOT_STARTED: {
-    label: "Upcoming",
+    labelKey: "stages.upcoming",
     color: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
     dotColor: "bg-zinc-600",
     ringColor: "ring-zinc-500/20",
     icon: Clock,
   },
   ACTIVE: {
-    label: "In Progress",
+    labelKey: "stages.inProgress",
     color: "bg-amber-500/20 text-amber-400 border-amber-500/30",
     dotColor: "bg-amber-500",
     ringColor: "ring-amber-500/30",
     icon: Sparkles,
   },
   COMPLETE: {
-    label: "Completed",
+    labelKey: "stages.completed",
     color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
     dotColor: "bg-emerald-500",
     ringColor: "ring-emerald-500/20",
@@ -62,6 +63,8 @@ const statusConfig = {
 };
 
 export function StagesTab({ projectId, onNavigateToMaterials }: StagesTabProps) {
+  const { t } = useTranslation('clientPortal');
+
   // Fetch stages (API automatically filters to visible-only for clients)
   const { data: stages = [], isLoading } = useQuery<ProjectStage[]>({
     queryKey: [`/api/v1/stages?projectId=${projectId}`],
@@ -134,11 +137,10 @@ export function StagesTab({ projectId, onNavigateToMaterials }: StagesTabProps) 
             <Layers className="h-8 w-8 text-zinc-500" />
           </div>
           <h3 className="text-lg font-medium text-[var(--pro-text-primary)] mb-2">
-            No Stages Available
+            {t('stages.noStagesAvailable')}
           </h3>
           <p className="text-[var(--pro-text-secondary)] max-w-md mx-auto">
-            Your project manager hasn't set up stages for this project yet.
-            Check back soon for your project timeline!
+            {t('stages.noStagesAvailableDesc')}
           </p>
         </CardContent>
       </Card>
@@ -163,10 +165,10 @@ export function StagesTab({ projectId, onNavigateToMaterials }: StagesTabProps) 
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-white">
-                  Project Timeline
+                  {t('stages.projectTimeline')}
                 </h2>
                 <p className="text-sm text-zinc-400">
-                  {completedStages} of {stages.length} stages complete
+                  {t('stages.stagesComplete', { completed: completedStages, total: stages.length })}
                 </p>
               </div>
             </div>
@@ -212,14 +214,13 @@ export function StagesTab({ projectId, onNavigateToMaterials }: StagesTabProps) 
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="h-4 w-4 text-amber-400" />
                   <span className="text-sm font-medium text-amber-400">
-                    Currently Active
+                    {t('stages.currentlyActive')}
                   </span>
                 </div>
                 <p className="text-white font-semibold">{activeStage.name}</p>
                 {activeStage.plannedEndDate && (
                   <p className="text-sm text-zinc-400 mt-1">
-                    Expected completion:{" "}
-                    {formatDateShort(activeStage.plannedEndDate)}
+                    {t('stages.expectedCompletion', { date: formatDateShort(activeStage.plannedEndDate) })}
                   </p>
                 )}
               </div>
@@ -234,7 +235,7 @@ export function StagesTab({ projectId, onNavigateToMaterials }: StagesTabProps) 
                   <div className="flex items-center gap-2">
                     <Package className="h-4 w-4 text-rose-400" />
                     <span className="text-sm font-medium text-rose-400">
-                      Materials Due Soon
+                      {t('stages.materialsDueSoon')}
                     </span>
                   </div>
                   {onNavigateToMaterials && (
@@ -245,15 +246,14 @@ export function StagesTab({ projectId, onNavigateToMaterials }: StagesTabProps) 
                   {upcomingMaterialsDue.name}
                 </p>
                 <p className="text-sm text-zinc-400 mt-1">
-                  Materials due{" "}
-                  {formatDateShort(upcomingMaterialsDue.finishMaterialsDueDate)}
+                  {t('stages.materialsDue', { date: formatDateShort(upcomingMaterialsDue.finishMaterialsDueDate) })}
                   {(() => {
                     const days = getDaysUntil(
                       upcomingMaterialsDue.finishMaterialsDueDate
                     );
-                    if (days === 0) return " (today!)";
-                    if (days === 1) return " (tomorrow)";
-                    if (days && days <= 7) return ` (${days} days left)`;
+                    if (days === 0) return ` (${t('stages.today')})`;
+                    if (days === 1) return ` (${t('stages.tomorrow')})`;
+                    if (days && days <= 7) return ` (${t('stages.daysLeft', { count: days })})`;
                     return "";
                   })()}
                 </p>
@@ -323,11 +323,11 @@ export function StagesTab({ projectId, onNavigateToMaterials }: StagesTabProps) 
                               className={`${config.color} border`}
                             >
                               <StatusIcon className="h-3 w-3 mr-1" />
-                              {config.label}
+                              {t(config.labelKey)}
                             </Badge>
                             {isActive && (
                               <span className="text-xs text-amber-400 font-medium">
-                                You are here
+                                {t('stages.youAreHere')}
                               </span>
                             )}
                           </div>
@@ -369,29 +369,29 @@ export function StagesTab({ projectId, onNavigateToMaterials }: StagesTabProps) 
                               )}
                               <span>
                                 <span className="font-medium">
-                                  Finish materials due:
+                                  {t('stages.finishMaterialsDue')}
                                 </span>{" "}
                                 {formatDate(stage.finishMaterialsDueDate)}
                                 {isMaterialsOverdue && (
                                   <span className="ml-1 font-semibold">
-                                    (overdue!)
+                                    ({t('stages.overdue')})
                                   </span>
                                 )}
                                 {isMaterialsSoon &&
                                   daysUntilMaterials === 0 && (
                                     <span className="ml-1 font-semibold">
-                                      (today!)
+                                      ({t('stages.today')})
                                     </span>
                                   )}
                                 {isMaterialsSoon &&
                                   daysUntilMaterials === 1 && (
-                                    <span className="ml-1">(tomorrow)</span>
+                                    <span className="ml-1">({t('stages.tomorrow')})</span>
                                   )}
                                 {isMaterialsSoon &&
                                   daysUntilMaterials &&
                                   daysUntilMaterials > 1 && (
                                     <span className="ml-1">
-                                      ({daysUntilMaterials} days)
+                                      ({t('stages.daysLeft', { count: daysUntilMaterials })})
                                     </span>
                                   )}
                               </span>

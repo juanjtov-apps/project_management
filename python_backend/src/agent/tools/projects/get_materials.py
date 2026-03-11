@@ -74,6 +74,18 @@ class GetMaterialsTool(BaseTool):
     ) -> Dict[str, Any]:
         """Execute the get_materials tool."""
         project_id = params.get("project_id")
+        company_id = context.get("company_id")
+
+        # Verify project belongs to user's company
+        from ..security import verify_project_access
+        if not await verify_project_access(project_id, company_id):
+            return {
+                "error": "Project not found or access denied",
+                "projectId": project_id,
+                "materials": [],
+                "materialsByArea": {},
+                "summary": {},
+            }
 
         # Build query
         query = """
@@ -134,7 +146,7 @@ class GetMaterialsTool(BaseTool):
 
             due_date = row_dict.get("finish_materials_due_date")
             material = {
-                "id": row_dict.get("id"),
+                "id": str(row_dict.get("id")) if row_dict.get("id") else None,
                 "name": row_dict.get("name"),
                 "spec": row_dict.get("spec"),
                 "productLink": row_dict.get("product_link"),

@@ -1,54 +1,76 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useMemo, useEffect } from 'react';
 import { useGSAP, usePrefersReducedMotion, useIsMobile } from '@/hooks/useGSAP';
 import { Zap, Package, CheckCircle2, Sparkles, MessageSquare, AlertTriangle } from 'lucide-react';
+import { useTranslation } from "react-i18next";
 
-// Scenario data for cycling demos
-const SCENARIOS = [
-  {
-    userPrompt: "What materials need to be ordered for the electrical phase?",
-    aiResponse: "I've analyzed the electrical phase schedule for Brookfield Estates. Here's what you need to order by Nov 28 to stay on track...",
-    panelTitle: "Materials Required",
-    panelSubtitle: "Electrical Phase — Rough-In",
-    panelIcon: "zap",
-    items: [
-      { name: "200A Service Panel", quantity: "1 unit" },
-      { name: "14/2 Romex Wire", quantity: "500 ft" },
-      { name: "Outlet Boxes", quantity: "24 units" },
-      { name: "LED Light Fixtures", quantity: "12 units" },
-      { name: "Smart Dimmer Switches", quantity: "8 units" }
-    ],
-    footerLabel: "Order by",
-    footerDate: "Nov 28",
-    deliveryDate: "Dec 2"
-  },
-  {
-    userPrompt: "What's the status on the kitchen remodel punch list?",
-    aiResponse: "I've reviewed the punch list for the Miller Kitchen Remodel. Here are the remaining items before final walkthrough...",
-    panelTitle: "Punch List Items",
-    panelSubtitle: "Miller Kitchen — Final Phase",
-    panelIcon: "alert",
-    items: [
-      { name: "Cabinet door alignment", quantity: "2 items" },
-      { name: "Backsplash grout touch-up", quantity: "1 area" },
-      { name: "Under-cabinet lighting", quantity: "3 fixtures" },
-      { name: "Drawer soft-close adjust", quantity: "4 drawers" },
-      { name: "Final paint touch-ups", quantity: "Complete" }
-    ],
-    footerLabel: "Walkthrough",
-    footerDate: "Dec 8",
-    deliveryDate: "Dec 10"
-  }
-];
+interface ScenarioItem {
+  name: string;
+  quantity: string;
+}
+
+interface Scenario {
+  userPrompt: string;
+  aiResponse: string;
+  panelTitle: string;
+  panelSubtitle: string;
+  panelIcon: string;
+  items: ScenarioItem[];
+  footerLabel: string;
+  footerDate: string;
+  deliveryDate: string;
+}
 
 export function AgentChatDemo() {
   const containerRef = useRef<HTMLDivElement>(null);
   const scenarioIndexRef = useRef(0);
   const prefersReducedMotion = usePrefersReducedMotion();
   const isMobile = useIsMobile(1024);
+  const { t, i18n } = useTranslation('landing');
+
+  const scenarios: Scenario[] = useMemo(() => [
+    {
+      userPrompt: t('agentDemo.s1.userPrompt'),
+      aiResponse: t('agentDemo.s1.aiResponse'),
+      panelTitle: t('agentDemo.s1.panelTitle'),
+      panelSubtitle: t('agentDemo.s1.panelSubtitle'),
+      panelIcon: "zap",
+      items: [
+        { name: t('agentDemo.s1.item1Name'), quantity: t('agentDemo.s1.item1Qty') },
+        { name: t('agentDemo.s1.item2Name'), quantity: t('agentDemo.s1.item2Qty') },
+        { name: t('agentDemo.s1.item3Name'), quantity: t('agentDemo.s1.item3Qty') },
+        { name: t('agentDemo.s1.item4Name'), quantity: t('agentDemo.s1.item4Qty') },
+        { name: t('agentDemo.s1.item5Name'), quantity: t('agentDemo.s1.item5Qty') }
+      ],
+      footerLabel: t('agentDemo.s1.footerLabel'),
+      footerDate: t('agentDemo.s1.footerDate'),
+      deliveryDate: t('agentDemo.s1.deliveryDate')
+    },
+    {
+      userPrompt: t('agentDemo.s2.userPrompt'),
+      aiResponse: t('agentDemo.s2.aiResponse'),
+      panelTitle: t('agentDemo.s2.panelTitle'),
+      panelSubtitle: t('agentDemo.s2.panelSubtitle'),
+      panelIcon: "alert",
+      items: [
+        { name: t('agentDemo.s2.item1Name'), quantity: t('agentDemo.s2.item1Qty') },
+        { name: t('agentDemo.s2.item2Name'), quantity: t('agentDemo.s2.item2Qty') },
+        { name: t('agentDemo.s2.item3Name'), quantity: t('agentDemo.s2.item3Qty') },
+        { name: t('agentDemo.s2.item4Name'), quantity: t('agentDemo.s2.item4Qty') },
+        { name: t('agentDemo.s2.item5Name'), quantity: t('agentDemo.s2.item5Qty') }
+      ],
+      footerLabel: t('agentDemo.s2.footerLabel'),
+      footerDate: t('agentDemo.s2.footerDate'),
+      deliveryDate: t('agentDemo.s2.deliveryDate')
+    }
+  ], [t]);
+
+  // Use ref so GSAP callbacks always get latest translated data
+  const scenariosRef = useRef(scenarios);
+  scenariosRef.current = scenarios;
 
   // Function to update DOM content with new scenario
   const updateScenarioContent = useCallback((index: number) => {
-    const scenario = SCENARIOS[index];
+    const scenario = scenariosRef.current[index];
     if (!containerRef.current) return;
 
     // Update user message
@@ -101,6 +123,11 @@ export function AgentChatDemo() {
     if (deliveryDate) deliveryDate.textContent = scenario.deliveryDate;
   }, []);
 
+  // Immediately update DOM-manipulated text when language changes
+  useEffect(() => {
+    updateScenarioContent(scenarioIndexRef.current);
+  }, [i18n.language, updateScenarioContent]);
+
   useGSAP((gsap) => {
     if (prefersReducedMotion) {
       gsap.set([
@@ -127,7 +154,7 @@ export function AgentChatDemo() {
       defaults: { ease: 'power3.out' },
       onRepeat: () => {
         // Cycle to next scenario
-        scenarioIndexRef.current = (scenarioIndexRef.current + 1) % SCENARIOS.length;
+        scenarioIndexRef.current = (scenarioIndexRef.current + 1) % scenariosRef.current.length;
         updateScenarioContent(scenarioIndexRef.current);
       }
     });
@@ -197,7 +224,7 @@ export function AgentChatDemo() {
   }, { scope: containerRef, dependencies: [prefersReducedMotion, updateScenarioContent] });
 
   // Get initial scenario data
-  const initialScenario = SCENARIOS[0];
+  const initialScenario = scenarios[0];
 
   return (
     <div
@@ -226,7 +253,7 @@ export function AgentChatDemo() {
           <div className="flex items-center gap-2">
             <MessageSquare className="w-3.5 h-3.5" style={{ color: '#4ADE80' }} />
             <span className="text-xs font-medium" style={{ color: '#9CA3AF' }}>
-              Proesphere AI
+              {t('agentDemo.proesphereAI')}
             </span>
           </div>
         </div>
@@ -285,7 +312,7 @@ export function AgentChatDemo() {
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-3.5 h-3.5" style={{ color: '#4ADE80' }} />
                 <span className="text-xs font-medium" style={{ color: '#4ADE80' }}>
-                  AI Analysis
+                  {t('agentDemo.aiAnalysis')}
                 </span>
               </div>
               <p className="ai-message-text text-sm leading-relaxed" style={{ color: '#E5E7EB' }}>
@@ -336,7 +363,7 @@ export function AgentChatDemo() {
           >
             <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#4ADE80' }} />
             <span className="text-xs font-medium" style={{ color: '#4ADE80' }}>
-              Ready
+              {t('agentDemo.ready')}
             </span>
           </div>
         </div>
@@ -392,7 +419,7 @@ export function AgentChatDemo() {
               style={{ backgroundColor: '#2D333B' }}
             />
             <span className="text-xs" style={{ color: '#9CA3AF' }}>
-              Delivery <span className="delivery-date" style={{ color: '#4ADE80' }}>{initialScenario.deliveryDate}</span>
+              {t('agentDemo.delivery')} <span className="delivery-date" style={{ color: '#4ADE80' }}>{initialScenario.deliveryDate}</span>
             </span>
           </div>
         </div>

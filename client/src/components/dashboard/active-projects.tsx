@@ -2,12 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import { getStatusConfig } from "@/lib/statusColors";
 import type { Project } from "@shared/schema";
 import { Building } from "lucide-react";
 
 export default function ActiveProjects() {
   const [, setLocation] = useLocation();
+  const { t } = useTranslation('dashboard');
   
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -22,7 +24,7 @@ export default function ActiveProjects() {
         style={{ backgroundColor: '#161B22', border: '1px solid #2D333B' }}
       >
         <div className="p-5 border-b" style={{ borderColor: '#2D333B' }}>
-          <h3 className="text-lg font-semibold text-white">Active Projects</h3>
+          <h3 className="text-lg font-semibold text-white">{t('activeProjects.title')}</h3>
         </div>
         <div className="p-5">
           <div className="space-y-4">
@@ -44,7 +46,7 @@ export default function ActiveProjects() {
       data-testid="active-projects"
     >
       <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#2D333B' }}>
-        <h3 className="text-lg font-semibold text-white">Active Projects</h3>
+        <h3 className="text-lg font-semibold text-white">{t('activeProjects.title')}</h3>
         <Button
           variant="ghost"
           className="text-sm font-medium"
@@ -52,15 +54,15 @@ export default function ActiveProjects() {
           onClick={() => setLocation("/projects")}
           data-testid="view-all-active-projects"
         >
-          View All
+          {t('activeProjects.viewAll')}
         </Button>
       </div>
       <div className="p-5">
         {activeProjects.length === 0 ? (
           <div className="text-center py-8">
             <Building className="mx-auto mb-3 h-12 w-12" style={{ color: '#9CA3AF' }} />
-            <p className="text-white font-medium mb-1">No active projects</p>
-            <p className="text-sm" style={{ color: '#9CA3AF' }}>Create your first project to get started</p>
+            <p className="text-white font-medium mb-1">{t('activeProjects.empty')}</p>
+            <p className="text-sm" style={{ color: '#9CA3AF' }}>{t('activeProjects.createFirst')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -114,7 +116,7 @@ export default function ActiveProjects() {
                       {config.label}
                     </span>
                     <p className="text-xs mt-2" style={{ color: '#6B7280' }}>
-                      Due {project.dueDate ? new Date(project.dueDate).toLocaleDateString() : 'TBD'}
+                      {t('activeProjects.due')} {project.dueDate ? new Date(project.dueDate).toLocaleDateString() : t('activeProjects.tbd')}
                     </p>
                   </div>
                 </div>

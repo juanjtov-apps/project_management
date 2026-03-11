@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -114,6 +115,7 @@ interface MaterialsTabProps {
 }
 
 export function MaterialsTab({ projectId, initialStageFilter, isClient = false }: MaterialsTabProps) {
+  const { t } = useTranslation('clientPortal');
   const [isCreateAreaOpen, setIsCreateAreaOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<string>(initialStageFilter || "all");
@@ -187,16 +189,16 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/material-areas?project_id=${projectId}`] });
       toast({
-        title: "Area Created",
-        description: "New material area has been created successfully.",
+        title: t('materials.areaCreated'),
+        description: t('materials.areaCreatedDesc'),
       });
       areaForm.reset();
       setIsCreateAreaOpen(false);
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to create area. Please try again.",
+        title: t('materials.error'),
+        description: t('materials.areaCreateError'),
         variant: "destructive",
       });
     },
@@ -240,8 +242,8 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
         );
       }
       toast({
-        title: "Move Failed",
-        description: "Failed to move material to the new area. Please try again.",
+        title: t('materials.moveFailed'),
+        description: t('materials.moveFailedDesc'),
         variant: "destructive",
       });
     },
@@ -255,8 +257,8 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
     },
     onSuccess: () => {
       toast({
-        title: "Material Moved",
-        description: "Material has been moved to the new area.",
+        title: t('materials.materialMoved'),
+        description: t('materials.materialMovedDesc'),
       });
     },
   });
@@ -355,17 +357,17 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Materials by Area</h2>
+          <h2 className="text-2xl font-bold">{t('materials.header')}</h2>
           <p className="text-muted-foreground">
-            Organize materials by house area with collapsible sections
+            {t('materials.headerDesc')}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <SegmentedControl
             options={[
-              { value: "card", label: "Card View", icon: <LayoutGrid className="h-4 w-4" /> },
-              { value: "table", label: "Table View", icon: <Table2 className="h-4 w-4" /> },
+              { value: "card", label: t('materials.cardView'), icon: <LayoutGrid className="h-4 w-4" /> },
+              { value: "table", label: t('materials.tableView'), icon: <Table2 className="h-4 w-4" /> },
             ]}
             value={viewMode}
             onChange={(v) => setViewMode(v as "card" | "table")}
@@ -381,7 +383,7 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
               data-testid="button-back-to-stages"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Stages
+              {t('materials.backToStages')}
             </Button>
           )}
 
@@ -390,12 +392,12 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
               <DialogTrigger asChild>
                 <Button data-testid="button-add-area">
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Area
+                  {t('materials.addArea')}
                 </Button>
               </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create Material Area</DialogTitle>
+              <DialogTitle>{t('materials.createMaterialArea')}</DialogTitle>
             </DialogHeader>
             
             <Form {...areaForm}>
@@ -405,10 +407,10 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Area Name *</FormLabel>
+                      <FormLabel>{t('materials.areaName')}</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="e.g., Foundation, Framing, Electrical" 
+                        <Input
+                          placeholder={t('materials.areaNamePlaceholder')} 
                           {...field} 
                           data-testid="input-area-name"
                         />
@@ -423,10 +425,10 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description</FormLabel>
+                      <FormLabel>{t('materials.areaDescription')}</FormLabel>
                       <FormControl>
-                        <Textarea 
-                          placeholder="Optional description for this area..."
+                        <Textarea
+                          placeholder={t('materials.areaDescriptionPlaceholder')}
                           className="min-h-[80px]"
                           {...field}
                           data-testid="textarea-area-description"
@@ -444,14 +446,14 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
                     onClick={() => setIsCreateAreaOpen(false)}
                     data-testid="button-cancel-area"
                   >
-                    Cancel
+                    {t('materials.cancel')}
                   </Button>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={createAreaMutation.isPending}
                     data-testid="button-submit-area"
                   >
-                    {createAreaMutation.isPending ? "Creating..." : "Create Area"}
+                    {createAreaMutation.isPending ? t('materials.creatingArea') : t('materials.createArea')}
                   </Button>
                 </div>
               </form>
@@ -467,7 +469,7 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
         <div className="flex items-center gap-3 rounded-lg border border-zinc-700/50 bg-zinc-900/60 px-4 py-2.5 overflow-x-auto">
           <div className="flex items-center gap-1.5 shrink-0">
             <CalendarClock className="h-4 w-4 text-rose-400" />
-            <span className="text-xs font-medium text-zinc-400">Deadlines</span>
+            <span className="text-xs font-medium text-zinc-400">{t('materials.deadlines')}</span>
           </div>
           <div className="flex items-center gap-2">
             {stageDueDates.map((stage) => {
@@ -527,7 +529,7 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
               <Building2 className="h-8 w-8 text-blue-500" />
               <div>
                 <p className="text-2xl font-bold">{areas.length}</p>
-                <p className="text-sm text-muted-foreground">Material Areas</p>
+                <p className="text-sm text-muted-foreground">{t('materials.materialAreas')}</p>
               </div>
             </div>
           </CardContent>
@@ -539,7 +541,7 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
               <Package className="h-8 w-8 text-teal-500" />
               <div>
                 <p className="text-2xl font-bold">{totalItems}</p>
-                <p className="text-sm text-muted-foreground">Total Items</p>
+                <p className="text-sm text-muted-foreground">{t('materials.totalItems')}</p>
               </div>
             </div>
           </CardContent>
@@ -551,7 +553,7 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
               <DollarSign className="h-8 w-8 text-green-500" />
               <div>
                 <p className="text-2xl font-bold">${totalCost.toFixed(2)}</p>
-                <p className="text-sm text-muted-foreground">Estimated Total</p>
+                <p className="text-sm text-muted-foreground">{t('materials.estimatedTotal')}</p>
               </div>
             </div>
           </CardContent>
@@ -563,7 +565,7 @@ export function MaterialsTab({ projectId, initialStageFilter, isClient = false }
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search materials by name, spec, or vendor..."
+            placeholder={t('materials.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"

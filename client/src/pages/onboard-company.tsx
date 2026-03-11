@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 type PageState = "loading" | "invalid" | "form" | "submitting" | "success";
 
 export default function OnboardCompany() {
+  const { t } = useTranslation('auth');
   const [pageState, setPageState] = useState<PageState>("loading");
   const [email, setEmail] = useState("");
   const [purpose, setPurpose] = useState<"invite" | "reset">("invite");
@@ -74,20 +76,19 @@ export default function OnboardCompany() {
     const newErrors: Record<string, string> = {};
 
     if (purpose === "invite") {
-      if (!firstName.trim()) newErrors.firstName = "First name is required";
-      if (!lastName.trim()) newErrors.lastName = "Last name is required";
-      if (!companyName.trim()) newErrors.companyName = "Company name is required";
+      if (!firstName.trim()) newErrors.firstName = t('onboard.firstNameRequired');
+      if (!lastName.trim()) newErrors.lastName = t('onboard.lastNameRequired');
+      if (!companyName.trim()) newErrors.companyName = t('onboard.companyNameRequired');
     }
 
     if (!password) {
-      newErrors.password = "Password is required";
+      newErrors.password = t('onboard.passwordRequired');
     } else if (!passwordStrong) {
-      newErrors.password =
-        "Password must be at least 8 characters with uppercase, lowercase, and a digit";
+      newErrors.password = t('onboard.passwordMinLength');
     }
 
     if (password !== confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
+      newErrors.confirmPassword = t('onboard.passwordMismatch');
     }
 
     setErrors(newErrors);
@@ -137,7 +138,7 @@ export default function OnboardCompany() {
       const message =
         error.message || "Something went wrong. Please try again.";
       toast({
-        title: "Setup Failed",
+        title: t('onboard.setupFailed'),
         description: message,
         variant: "destructive",
       });
@@ -159,7 +160,7 @@ export default function OnboardCompany() {
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-[var(--pro-text-secondary)] text-sm">
-            Verifying your invitation...
+            {t('onboard.verifying')}
           </p>
         </div>
       </div>
@@ -182,20 +183,19 @@ export default function OnboardCompany() {
               <XCircle className="h-8 w-8 text-red-500" />
             </div>
             <CardTitle className="text-xl text-[var(--pro-text-primary)]">
-              Link expired or invalid
+              {t('onboard.expired')}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-center space-y-4 px-8 pb-8">
             <p className="text-[var(--pro-text-secondary)] text-sm">
-              This invitation link has expired, already been used, or is
-              invalid. Please contact your administrator for a new invitation.
+              {t('onboard.expiredDesc')}
             </p>
             <Button
               onClick={() => (window.location.href = "/login")}
               variant="outline"
               className="border-[var(--pro-border)] text-[var(--pro-text-primary)]"
             >
-              Go to Login
+              {t('onboard.goToLogin')}
             </Button>
           </CardContent>
         </Card>
@@ -213,11 +213,11 @@ export default function OnboardCompany() {
             </div>
             <h2 className="text-xl font-semibold text-[var(--pro-text-primary)]">
               {purpose === "invite"
-                ? "Your account is ready!"
-                : "Password updated!"}
+                ? t('onboard.accountReady')
+                : t('onboard.passwordUpdated')}
             </h2>
             <p className="text-[var(--pro-text-secondary)] text-sm">
-              Redirecting you to your dashboard...
+              {t('onboard.redirecting')}
             </p>
             <div className="w-6 h-6 border-2 border-[var(--pro-mint)] border-t-transparent rounded-full animate-spin mx-auto"></div>
           </CardContent>
@@ -248,12 +248,12 @@ export default function OnboardCompany() {
             <Logo variant="full" size="lg" />
           </div>
           <CardTitle className="text-2xl text-[var(--pro-text-primary)] font-light">
-            {isResetMode ? "Reset your password" : "Set up your company"}
+            {isResetMode ? t('onboard.resetPassword') : t('onboard.setupCompany')}
           </CardTitle>
           <p className="text-[var(--pro-text-secondary)] text-sm">
             {isResetMode
-              ? "Enter a new password for your account"
-              : "Complete your account setup to get started with Proesphere"}
+              ? t('onboard.resetPasswordDesc')
+              : t('onboard.setupCompanyDesc')}
           </p>
         </CardHeader>
         <CardContent className="px-8 pb-8">
@@ -261,7 +261,7 @@ export default function OnboardCompany() {
             {/* Email (read-only) */}
             <div className="space-y-2">
               <Label className="text-[var(--pro-text-primary)] font-medium">
-                Email
+                {t('onboard.email')}
               </Label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--pro-mint)]" />
@@ -280,7 +280,7 @@ export default function OnboardCompany() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label className="text-[var(--pro-text-primary)] font-medium">
-                      First name
+                      {t('onboard.firstName')}
                     </Label>
                     <div className="relative">
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--pro-mint)]" />
@@ -290,7 +290,7 @@ export default function OnboardCompany() {
                           setFirstName(e.target.value);
                           setErrors((prev) => ({ ...prev, firstName: "" }));
                         }}
-                        placeholder="John"
+                        placeholder={t('onboard.firstNamePlaceholder')}
                         className={`pl-12 pr-4 py-3 bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-primary)] placeholder:text-[var(--pro-text-secondary)]/50 focus:border-[var(--pro-mint)] rounded-xl min-h-[44px] ${
                           errors.firstName
                             ? "border-[var(--pro-red)]"
@@ -308,7 +308,7 @@ export default function OnboardCompany() {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[var(--pro-text-primary)] font-medium">
-                      Last name
+                      {t('onboard.lastName')}
                     </Label>
                     <Input
                       value={lastName}
@@ -316,7 +316,7 @@ export default function OnboardCompany() {
                         setLastName(e.target.value);
                         setErrors((prev) => ({ ...prev, lastName: "" }));
                       }}
-                      placeholder="Doe"
+                      placeholder={t('onboard.lastNamePlaceholder')}
                       className={`px-4 py-3 bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-primary)] placeholder:text-[var(--pro-text-secondary)]/50 focus:border-[var(--pro-mint)] rounded-xl min-h-[44px] ${
                         errors.lastName
                           ? "border-[var(--pro-red)]"
@@ -336,7 +336,7 @@ export default function OnboardCompany() {
                 {/* Company Name */}
                 <div className="space-y-2">
                   <Label className="text-[var(--pro-text-primary)] font-medium">
-                    Company name
+                    {t('onboard.companyName')}
                   </Label>
                   <div className="relative">
                     <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--pro-mint)]" />
@@ -346,7 +346,7 @@ export default function OnboardCompany() {
                         setCompanyName(e.target.value);
                         setErrors((prev) => ({ ...prev, companyName: "" }));
                       }}
-                      placeholder="Your Construction Co."
+                      placeholder={t('onboard.companyNamePlaceholder')}
                       className={`pl-12 pr-4 py-3 bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-primary)] placeholder:text-[var(--pro-text-secondary)]/50 focus:border-[var(--pro-mint)] rounded-xl min-h-[44px] ${
                         errors.companyName
                           ? "border-[var(--pro-red)]"
@@ -368,7 +368,7 @@ export default function OnboardCompany() {
             {/* Password */}
             <div className="space-y-2">
               <Label className="text-[var(--pro-text-primary)] font-medium">
-                {isResetMode ? "New password" : "Password"}
+                {isResetMode ? t('onboard.newPassword') : t('onboard.password')}
               </Label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--pro-mint)]" />
@@ -379,7 +379,7 @@ export default function OnboardCompany() {
                     setPassword(e.target.value);
                     setErrors((prev) => ({ ...prev, password: "" }));
                   }}
-                  placeholder="Create a strong password"
+                  placeholder={t('onboard.passwordPlaceholder')}
                   className={`pl-12 pr-12 py-3 bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-primary)] placeholder:text-[var(--pro-text-secondary)]/50 focus:border-[var(--pro-mint)] rounded-xl min-h-[44px] ${
                     errors.password
                       ? "border-[var(--pro-red)]"
@@ -391,7 +391,7 @@ export default function OnboardCompany() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--pro-text-secondary)] hover:text-[var(--pro-mint)] focus:outline-none rounded p-1 transition-colors"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                 >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5" />
@@ -411,10 +411,10 @@ export default function OnboardCompany() {
               {password && (
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
                   {[
-                    { key: "length", label: "8+ characters" },
-                    { key: "uppercase", label: "Uppercase" },
-                    { key: "lowercase", label: "Lowercase" },
-                    { key: "digit", label: "Number" },
+                    { key: "length", label: t('onboard.requirements.length') },
+                    { key: "uppercase", label: t('onboard.requirements.uppercase') },
+                    { key: "lowercase", label: t('onboard.requirements.lowercase') },
+                    { key: "digit", label: t('onboard.requirements.number') },
                   ].map(({ key, label }) => (
                     <div
                       key={key}
@@ -439,7 +439,7 @@ export default function OnboardCompany() {
             {/* Confirm Password */}
             <div className="space-y-2">
               <Label className="text-[var(--pro-text-primary)] font-medium">
-                Confirm password
+                {t('onboard.confirmPassword')}
               </Label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--pro-mint)]" />
@@ -450,7 +450,7 @@ export default function OnboardCompany() {
                     setConfirmPassword(e.target.value);
                     setErrors((prev) => ({ ...prev, confirmPassword: "" }));
                   }}
-                  placeholder="Re-enter your password"
+                  placeholder={t('onboard.confirmPasswordPlaceholder')}
                   className={`pl-12 pr-12 py-3 bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-primary)] placeholder:text-[var(--pro-text-secondary)]/50 focus:border-[var(--pro-mint)] rounded-xl min-h-[44px] ${
                     errors.confirmPassword
                       ? "border-[var(--pro-red)]"
@@ -462,7 +462,7 @@ export default function OnboardCompany() {
                   type="button"
                   onClick={() => setShowConfirm(!showConfirm)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--pro-text-secondary)] hover:text-[var(--pro-mint)] focus:outline-none rounded p-1 transition-colors"
-                  aria-label={showConfirm ? "Hide password" : "Show password"}
+                  aria-label={showConfirm ? t('login.hidePassword') : t('login.showPassword')}
                 >
                   {showConfirm ? (
                     <EyeOff className="h-5 w-5" />
@@ -489,14 +489,14 @@ export default function OnboardCompany() {
                   <div className="w-4 h-4 border-2 border-[var(--pro-bg-deep)] border-t-transparent rounded-full animate-spin"></div>
                   <span>
                     {isResetMode
-                      ? "Updating password..."
-                      : "Creating your account..."}
+                      ? t('onboard.updatingPassword')
+                      : t('onboard.creatingAccount')}
                   </span>
                 </div>
               ) : isResetMode ? (
-                "Reset Password"
+                t('onboard.resetBtn')
               ) : (
-                "Create Account"
+                t('onboard.createBtn')
               )}
             </Button>
           </form>

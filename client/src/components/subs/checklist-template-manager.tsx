@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ClipboardList,
@@ -60,10 +61,10 @@ interface TemplateFormData {
   items: TemplateItem[];
 }
 
-const itemTypeLabels: Record<TemplateItem["itemType"], string> = {
-  standard: "Standard",
-  doc_required: "Doc Required",
-  inspection: "Inspection",
+const itemTypeKeys: Record<TemplateItem["itemType"], string> = {
+  standard: "subs.standard",
+  doc_required: "subs.docRequired",
+  inspection: "subs.inspection",
 };
 
 const itemTypeBadgeClass: Record<TemplateItem["itemType"], string> = {
@@ -79,6 +80,7 @@ const emptyForm: TemplateFormData = {
 };
 
 export function ChecklistTemplateManager() {
+  const { t } = useTranslation('common');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -126,12 +128,12 @@ export function ChecklistTemplateManager() {
       queryClient.invalidateQueries({
         queryKey: ["/api/v1/sub/templates"],
       });
-      toast({ title: "Template created" });
+      toast({ title: t('subs.templateCreated') });
       closeDialog();
     },
     onError: (error: Error) => {
       toast({
-        title: "Failed to create template",
+        title: t('subs.failedCreateTemplate'),
         description: error.message,
         variant: "destructive",
       });
@@ -166,12 +168,12 @@ export function ChecklistTemplateManager() {
       queryClient.invalidateQueries({
         queryKey: ["/api/v1/sub/templates"],
       });
-      toast({ title: "Template updated" });
+      toast({ title: t('subs.templateUpdated') });
       closeDialog();
     },
     onError: (error: Error) => {
       toast({
-        title: "Failed to update template",
+        title: t('subs.failedUpdateTemplate'),
         description: error.message,
         variant: "destructive",
       });
@@ -194,13 +196,13 @@ export function ChecklistTemplateManager() {
       queryClient.invalidateQueries({
         queryKey: ["/api/v1/sub/templates"],
       });
-      toast({ title: "Template deleted" });
+      toast({ title: t('subs.templateDeleted') });
       setDeleteDialogOpen(false);
       setDeletingTemplateId(null);
     },
     onError: (error: Error) => {
       toast({
-        title: "Failed to delete template",
+        title: t('subs.failedDeleteTemplate'),
         description: error.message,
         variant: "destructive",
       });
@@ -281,15 +283,15 @@ export function ChecklistTemplateManager() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-[var(--pro-text-primary)]">
-            Checklist Templates
+            {t('subs.checklistTemplates')}
           </h2>
           <p className="text-[var(--pro-text-secondary)]">
-            Reusable checklist templates for sub tasks
+            {t('subs.reusableTemplates')}
           </p>
         </div>
         <Button onClick={openCreateDialog} className="gap-1.5">
           <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">New Template</span>
+          <span className="hidden sm:inline">{t('subs.newTemplate')}</span>
         </Button>
       </div>
 
@@ -299,14 +301,14 @@ export function ChecklistTemplateManager() {
           <CardContent className="text-center py-12">
             <ClipboardList className="h-16 w-16 mx-auto text-[var(--pro-text-muted)] mb-4" />
             <h3 className="text-xl font-semibold mb-2 text-[var(--pro-text-primary)]">
-              No Templates Yet
+              {t('subs.noTemplatesYet')}
             </h3>
             <p className="text-[var(--pro-text-secondary)] mb-4">
-              Create checklist templates to quickly assign standardized tasks.
+              {t('subs.createTemplatesDesc')}
             </p>
             <Button onClick={openCreateDialog} className="gap-1.5">
               <Plus className="h-4 w-4" />
-              Create First Template
+              {t('subs.createFirstTemplate')}
             </Button>
           </CardContent>
         </Card>
@@ -366,26 +368,25 @@ export function ChecklistTemplateManager() {
                         variant="outline"
                         className={`text-[10px] px-1.5 py-0 ${itemTypeBadgeClass[item.itemType]}`}
                       >
-                        {itemTypeLabels[item.itemType]}
+                        {t(itemTypeKeys[item.itemType])}
                       </Badge>
                     </div>
                   ))}
                   {template.items.length > 4 && (
                     <p className="text-xs text-[var(--pro-text-muted)] pl-5">
-                      +{template.items.length - 4} more items
+                      {t('subs.moreItems', { count: template.items.length - 4 })}
                     </p>
                   )}
                   {template.items.length === 0 && (
                     <p className="text-xs text-[var(--pro-text-muted)] italic">
-                      No items defined
+                      {t('subs.noItemsDefined')}
                     </p>
                   )}
                 </div>
 
                 <div className="mt-3 pt-3 border-t border-[var(--pro-border)]">
                   <p className="text-xs text-[var(--pro-text-muted)]">
-                    {template.items.length} item
-                    {template.items.length !== 1 ? "s" : ""}
+                    {t('subs.itemCount', { count: template.items.length })}
                   </p>
                 </div>
               </CardContent>
@@ -399,13 +400,13 @@ export function ChecklistTemplateManager() {
         <DialogContent className="max-w-lg" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>
-              {editingTemplate ? "Edit Template" : "Create Template"}
+              {editingTemplate ? t('subs.editTemplate') : t('subs.createTemplate')}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="tpl-name">Template Name *</Label>
+              <Label htmlFor="tpl-name">{t('subs.templateName')}</Label>
               <Input
                 id="tpl-name"
                 placeholder="e.g. Electrical Rough-In Checklist"
@@ -417,7 +418,7 @@ export function ChecklistTemplateManager() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="tpl-trade">Trade Category</Label>
+              <Label htmlFor="tpl-trade">{t('subs.tradeCategory')}</Label>
               <Input
                 id="tpl-trade"
                 placeholder="e.g. Electrical, Plumbing, HVAC"
@@ -433,7 +434,7 @@ export function ChecklistTemplateManager() {
 
             {/* Items */}
             <div className="space-y-2">
-              <Label>Checklist Items</Label>
+              <Label>{t('subs.checklistItems')}</Label>
 
               {/* Existing items */}
               {form.items.length > 0 && (
@@ -453,7 +454,7 @@ export function ChecklistTemplateManager() {
                         variant="outline"
                         className={`text-[10px] px-1.5 py-0 shrink-0 ${itemTypeBadgeClass[item.itemType]}`}
                       >
-                        {itemTypeLabels[item.itemType]}
+                        {t(itemTypeKeys[item.itemType])}
                       </Badge>
                       <Button
                         variant="ghost"
@@ -471,7 +472,7 @@ export function ChecklistTemplateManager() {
               {/* Add new item */}
               <div className="flex gap-2">
                 <Input
-                  placeholder="Item description"
+                  placeholder={t('subs.itemDescription')}
                   value={newItemDesc}
                   onChange={(e) => setNewItemDesc(e.target.value)}
                   onKeyDown={(e) => {
@@ -492,9 +493,9 @@ export function ChecklistTemplateManager() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="doc_required">Doc Required</SelectItem>
-                    <SelectItem value="inspection">Inspection</SelectItem>
+                    <SelectItem value="standard">{t('subs.standard')}</SelectItem>
+                    <SelectItem value="doc_required">{t('subs.docRequired')}</SelectItem>
+                    <SelectItem value="inspection">{t('subs.inspection')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button
@@ -512,7 +513,7 @@ export function ChecklistTemplateManager() {
 
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>
-              Cancel
+              {t('button.cancel')}
             </Button>
             <Button
               onClick={handleSubmit}
@@ -521,12 +522,12 @@ export function ChecklistTemplateManager() {
               {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  {t('subs.saving')}
                 </>
               ) : editingTemplate ? (
-                "Update Template"
+                t('subs.updateTemplate')
               ) : (
-                "Create Template"
+                t('subs.createTemplate')
               )}
             </Button>
           </DialogFooter>
@@ -537,14 +538,13 @@ export function ChecklistTemplateManager() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Template?</AlertDialogTitle>
+            <AlertDialogTitle>{t('subs.deleteTemplate')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this checklist template. This action
-              cannot be undone.
+              {t('subs.deleteTemplateDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('button.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (deletingTemplateId) {
@@ -556,7 +556,7 @@ export function ChecklistTemplateManager() {
               {deleteMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "Delete"
+                t('button.delete')
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

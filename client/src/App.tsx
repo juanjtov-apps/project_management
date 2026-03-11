@@ -11,10 +11,14 @@ import Header from "@/components/layout/header";
 import NotificationModal from "@/components/notifications/notification-modal";
 import { AgentDrawer } from "@/components/agent";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { ProeChatProvider } from "@/contexts/ProeChatContext";
+import PlatformTutorial from "@/components/onboarding/platform-tutorial";
+import { usePlatformTutorial } from "@/hooks/usePlatformTutorial";
 
 // Route-level code splitting via React.lazy
 const Landing = React.lazy(() => import("@/pages/landing"));
 const Login = React.lazy(() => import("@/pages/login"));
+const AIDashboard = React.lazy(() => import("@/pages/ai-dashboard"));
 const Dashboard = React.lazy(() => import("@/pages/dashboard"));
 const WorkPage = React.lazy(() => import("@/pages/work-page"));
 const Schedule = React.lazy(() => import("@/pages/schedule"));
@@ -30,6 +34,7 @@ const OnboardCompany = React.lazy(() => import("@/pages/onboard-company"));
 const MagicLink = React.lazy(() => import("@/pages/magic-link"));
 const RequestMagicLink = React.lazy(() => import("@/pages/request-magic-link"));
 const PlatformAnalytics = React.lazy(() => import("@/pages/platform-analytics"));
+const AgentTroubleshooting = React.lazy(() => import("@/pages/agent-troubleshooting"));
 const NotFound = React.lazy(() => import("@/pages/not-found"));
 
 function PageLoadingFallback() {
@@ -117,8 +122,9 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
   return (
     <Suspense fallback={<PageLoadingFallback />}>
       <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/dashboard" component={Dashboard} />
+        <Route path="/" component={AIDashboard} />
+        <Route path="/dashboard" component={AIDashboard} />
+        <Route path="/dashboard-classic" component={Dashboard} />
         <Route path="/login" component={RedirectToDashboard} />
         <Route path="/onboard/company" component={RedirectToDashboard} />
         <Route path="/auth/magic-link" component={MagicLinkOrRedirect} />
@@ -155,6 +161,9 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
         </Route>
         <Route path="/platform-analytics">
           <PlatformAnalytics />
+        </Route>
+        <Route path="/agent-troubleshooting">
+          <AgentTroubleshooting />
         </Route>
         <Route component={NotFound} />
       </Switch>
@@ -263,6 +272,9 @@ function AuthenticatedLayout({
   // Track time-in-app via heartbeat (agent vs app time split)
   useHeartbeat(isAgentChatOpen);
 
+  // Platform tutorial hook
+  const tutorial = usePlatformTutorial();
+
   // Check if user is a client or subcontractor
   const userRole = (currentUser?.role || '').toLowerCase();
   const isClientUser = userRole === 'client';
@@ -288,42 +300,63 @@ function AuthenticatedLayout({
     }
   }, [isSubUser, location, setLocation]);
 
+  // AI dashboard routes get special layout treatment (no padding, embedded chat)
+  const isAIDashboard = location === '/' || location === '/dashboard';
+
   return (
-    <div className="flex h-screen bg-background">
-      {/* Hide sidebar for client and subcontractor users */}
-      {!isPortalUser && (
-        <Sidebar
-          isMobileOpen={isMobileMenuOpen}
-          onMobileClose={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Hide mobile menu toggle and agent chat for portal users */}
-        <Header
-          onToggleMobileMenu={isPortalUser ? undefined : () => setIsMobileMenuOpen(true)}
-          onToggleNotifications={() => setIsNotificationModalOpen(true)}
-          onToggleAgentChat={isPortalUser ? undefined : () => setIsAgentChatOpen(true)}
-        />
-        <div className="flex-1 p-4 md:p-6 overflow-y-auto section-padding" style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
-          <Router isAuthenticated={isAuthenticated} isLoading={isLoading} />
-        </div>
-      </main>
+    <ProeChatProvider>
+      <div className="flex h-screen bg-background">
+        {/* Hide sidebar for client and subcontractor users */}
+        {!isPortalUser && (
+          <Sidebar
+            isMobileOpen={isMobileMenuOpen}
+            onMobileClose={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+        <main className="flex-1 flex flex-col overflow-hidden">
+          {/* Hide mobile menu toggle and agent chat for portal users; hide agent button on AI dashboard */}
+          <Header
+            onToggleMobileMenu={isPortalUser ? undefined : () => setIsMobileMenuOpen(true)}
+            onToggleNotifications={() => setIsNotificationModalOpen(true)}
+            onToggleAgentChat={isPortalUser || isAIDashboard ? undefined : () => setIsAgentChatOpen(true)}
+            onShowTutorial={!isClientUser && isAIDashboard ? tutorial.showTutorial : undefined}
+          />
+          {isAIDashboard ? (
+            <div className="flex-1 overflow-hidden">
+              <Router isAuthenticated={isAuthenticated} isLoading={isLoading} />
+            </div>
+          ) : (
+            <div className="flex-1 p-4 md:p-6 overflow-y-auto section-padding" style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
+              <Router isAuthenticated={isAuthenticated} isLoading={isLoading} />
+            </div>
+          )}
+        </main>
 
-      <NotificationModal
-        isOpen={isNotificationModalOpen}
-        onClose={() => setIsNotificationModalOpen(false)}
-      />
-
-      {/* Agent chat drawer - not available for portal users */}
-      {!isPortalUser && (
-        <AgentDrawer
-          open={isAgentChatOpen}
-          onOpenChange={setIsAgentChatOpen}
-          conversationId={agentConversationId}
-          onConversationIdChange={setAgentConversationId}
+        <NotificationModal
+          isOpen={isNotificationModalOpen}
+          onClose={() => setIsNotificationModalOpen(false)}
         />
-      )}
-    </div>
+
+        {/* Agent chat drawer - not available for portal users or AI dashboard (chat is embedded) */}
+        {!isPortalUser && !isAIDashboard && (
+          <AgentDrawer
+            open={isAgentChatOpen}
+            onOpenChange={setIsAgentChatOpen}
+            conversationId={agentConversationId}
+            onConversationIdChange={setAgentConversationId}
+          />
+        )}
+
+        {/* Platform tutorial - for internal staff and subcontractors (clients have their own ClientTour) */}
+        {!isClientUser && (
+          <PlatformTutorial
+            run={tutorial.run}
+            onComplete={tutorial.completeTutorial}
+            userRole={userRole}
+          />
+        )}
+      </div>
+    </ProeChatProvider>
   );
 }
 

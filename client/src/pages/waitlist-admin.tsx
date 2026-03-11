@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,8 @@ interface WaitlistResponse {
 }
 
 export default function WaitlistAdmin() {
+  const { t } = useTranslation('admin');
+
   // Get current user for access control
   const { data: currentUser } = useQuery<any>({
     queryKey: ['/api/v1/auth/user'],
@@ -56,9 +59,9 @@ export default function WaitlistAdmin() {
       <div className="container mx-auto p-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-destructive">Access Denied</CardTitle>
+            <CardTitle className="text-destructive">{t('waitlist.accessDenied')}</CardTitle>
             <CardDescription>
-              This page is restricted to root administrators only.
+              {t('waitlist.accessDeniedDesc')}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -72,9 +75,9 @@ export default function WaitlistAdmin() {
       <div className="container mx-auto p-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-destructive">Error Loading Data</CardTitle>
+            <CardTitle className="text-destructive">{t('waitlist.errorLoading')}</CardTitle>
             <CardDescription>
-              Failed to load waitlist entries. Please try again later.
+              {t('waitlist.errorLoadingDesc')}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -103,14 +106,14 @@ export default function WaitlistAdmin() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Waitlist Signups</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('waitlist.title')}</h1>
           <p className="text-muted-foreground">
-            View all signups from the landing page forms
+            {t('waitlist.subtitle')}
           </p>
         </div>
         <Badge variant="secondary" className="text-lg px-4 py-2">
           <Users className="w-4 h-4 mr-2" />
-          {total} Total
+          {total} {t('waitlist.total')}
         </Badge>
       </div>
 
@@ -118,7 +121,7 @@ export default function WaitlistAdmin() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Signups</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('waitlist.totalSignups')}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -127,7 +130,7 @@ export default function WaitlistAdmin() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">With Company</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('waitlist.withCompany')}</CardTitle>
             <Building className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -138,7 +141,7 @@ export default function WaitlistAdmin() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">With Phone</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('waitlist.withPhone')}</CardTitle>
             <Phone className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -149,7 +152,7 @@ export default function WaitlistAdmin() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">With Message</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('waitlist.withMessage')}</CardTitle>
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -163,28 +166,28 @@ export default function WaitlistAdmin() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>All Signups</CardTitle>
+          <CardTitle>{t('waitlist.allSignups')}</CardTitle>
           <CardDescription>
-            Complete list of users who signed up through the landing page
+            {t('waitlist.allSignupsDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {entries.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No waitlist signups yet</p>
+              <p>{t('waitlist.noSignups')}</p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Message</TableHead>
-                  <TableHead>Signed Up</TableHead>
+                  <TableHead>{t('waitlist.name')}</TableHead>
+                  <TableHead>{t('waitlist.email')}</TableHead>
+                  <TableHead>{t('waitlist.company')}</TableHead>
+                  <TableHead>{t('waitlist.role')}</TableHead>
+                  <TableHead>{t('waitlist.phone')}</TableHead>
+                  <TableHead>{t('waitlist.message')}</TableHead>
+                  <TableHead>{t('waitlist.signedUp')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

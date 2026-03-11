@@ -1,0 +1,42 @@
+{
+  "title": "Proesphere Assistant",
+  "thinking": "Thinking...",
+  "ready": "Ready to help",
+  "newConversation": "New conversation",
+  "closeAssistant": "Close assistant",
+  "inputPlaceholder": "Ask me anything about your projects...",
+  "inputHint": "Press Enter to send, Shift+Enter for new line",
+  "confirmationRequired": "Confirmation Required",
+
+  "welcome.title": "How can I help you today?",
+  "welcome.subtitle": "Ask me about your projects, tasks, stages, or materials. I can help you get status updates, find information, and more.",
+  "welcome.suggestion1": "Show my active projects",
+  "welcome.suggestion2": "What tasks are due this week?",
+  "welcome.suggestion3": "Project status summary",
+
+  "feedback.whatImproved": "What could be improved?",
+  "feedback.placeholder": "Optional feedback...",
+  "feedback.thanks": "Thanks!",
+  "feedback.good": "Good response",
+  "feedback.needsImprovement": "Needs improvement",
+
+  "tools.fetchingProjects": "Fetching projects",
+  "tools.gettingDetails": "Getting project details",
+  "tools.loadingStages": "Loading stages",
+  "tools.fetchingTasks": "Fetching tasks",
+  "tools.loadingMaterials": "Loading materials",
+  "tools.fetchingIssues": "Fetching issues",
+  "tools.fetchingPayments": "Fetching payment installments",
+  "tools.queryingDatabase": "Querying database",
+  "tools.creatingTask": "Creating task",
+  "tools.completingTask": "Completing task",
+  "tools.creatingStage": "Creating stage",
+  "tools.creatingLog": "Creating daily log",
+  "tools.updatingMaterial": "Updating material",
+  "tools.completed": "completed",
+  "tools.failed": "failed",
+
+  "actionButtons.done": "Done",
+
+  "drawer.title": "AI Assistant"
+}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +70,7 @@ function HealthMetricCard({ title, score, icon: Icon, description }: {
 
 // Risk assessment card component
 function RiskCard({ risk }: { risk: RiskAssessment }) {
+  const { t } = useTranslation('admin');
   const impactScore = risk.impact === "high" ? 5 : risk.impact === "medium" ? 3 : 1;
   const probabilityScore = risk.probability === "high" ? 5 : risk.probability === "medium" ? 3 : 1;
   const riskScore = impactScore * probabilityScore;
@@ -85,12 +87,12 @@ function RiskCard({ risk }: { risk: RiskAssessment }) {
       <CardContent>
         <p className="text-sm text-gray-600 mb-2">{risk.riskDescription}</p>
         <div className="flex justify-between items-center text-xs">
-          <span>Probability: <Badge variant="outline">{risk.probability}</Badge></span>
-          <span>Score: <Badge variant="outline">{riskScore}/25</Badge></span>
+          <span>{t('projectHealth.probability')}: <Badge variant="outline">{risk.probability}</Badge></span>
+          <span>{t('projectHealth.score')}: <Badge variant="outline">{riskScore}/25</Badge></span>
         </div>
         {risk.mitigationPlan && (
           <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
-            <strong>Mitigation:</strong> {risk.mitigationPlan}
+            <strong>{t('projectHealth.mitigation')}:</strong> {risk.mitigationPlan}
           </div>
         )}
       </CardContent>
@@ -103,6 +105,7 @@ function ProjectHealthOverview({ project, healthMetrics }: {
   project: Project;
   healthMetrics?: ProjectHealthMetrics;
 }) {
+  const { t } = useTranslation('admin');
   const score = healthMetrics?.overallHealthScore || 0;
   const OverallIcon = getHealthIcon(score);
   
@@ -127,19 +130,19 @@ function ProjectHealthOverview({ project, healthMetrics }: {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-brand-teal">{project.progress}%</div>
-            <div className="text-xs text-gray-500">Progress</div>
+            <div className="text-xs text-gray-500">{t('projectHealth.progress')}</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-blue-600">{healthMetrics?.scheduleHealth || 0}%</div>
-            <div className="text-xs text-gray-500">Schedule</div>
+            <div className="text-xs text-gray-500">{t('projectHealth.schedule')}</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">{healthMetrics?.budgetHealth || 0}%</div>
-            <div className="text-xs text-gray-500">Budget</div>
+            <div className="text-xs text-gray-500">{t('projectHealth.budget')}</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-purple-600">{healthMetrics?.qualityHealth || 0}%</div>
-            <div className="text-xs text-gray-500">Quality</div>
+            <div className="text-xs text-gray-500">{t('projectHealth.quality')}</div>
           </div>
         </div>
         
@@ -147,7 +150,7 @@ function ProjectHealthOverview({ project, healthMetrics }: {
           <Alert className="mt-4">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Risk Level: <Badge className={getRiskColor(healthMetrics.riskLevel)}>{healthMetrics.riskLevel.toUpperCase()}</Badge>
+              {t('projectHealth.riskLevel')}: <Badge className={getRiskColor(healthMetrics.riskLevel)}>{healthMetrics.riskLevel.toUpperCase()}</Badge>
             </AlertDescription>
           </Alert>
         )}
@@ -157,6 +160,7 @@ function ProjectHealthOverview({ project, healthMetrics }: {
 }
 
 export default function ProjectHealth() {
+  const { t } = useTranslation('admin');
   const [selectedProject, setSelectedProject] = useState<string>("all");
   const queryClient = useQueryClient();
 
@@ -232,8 +236,8 @@ export default function ProjectHealth() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold text-brand-blue">Project Health Dashboard</h1>
-          <p className="text-gray-600">Monitor project health metrics and risk assessments</p>
+          <h1 className="text-3xl font-bold text-brand-blue">{t('projectHealth.title')}</h1>
+          <p className="text-gray-600">{t('projectHealth.subtitle')}</p>
         </div>
         <div className="flex items-center space-x-4">
           <Select value={selectedProject} onValueChange={setSelectedProject}>
@@ -241,7 +245,7 @@ export default function ProjectHealth() {
               <SelectValue placeholder="Select project" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Projects</SelectItem>
+              <SelectItem value="all">{t('projectHealth.allProjects')}</SelectItem>
               {projects.map((project) => (
                 <SelectItem key={project.id} value={project.id}>
                   {project.name}
@@ -255,16 +259,16 @@ export default function ProjectHealth() {
             className="bg-brand-teal hover:bg-brand-teal/90"
           >
             <Target className="h-4 w-4 mr-2" />
-            Calculate Health
+            {t('projectHealth.calculateHealth')}
           </Button>
         </div>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="overview">Health Overview</TabsTrigger>
-          <TabsTrigger value="metrics">Detailed Metrics</TabsTrigger>
-          <TabsTrigger value="risks">Risk Assessment</TabsTrigger>
+          <TabsTrigger value="overview">{t('projectHealth.healthOverview')}</TabsTrigger>
+          <TabsTrigger value="metrics">{t('projectHealth.detailedMetrics')}</TabsTrigger>
+          <TabsTrigger value="risks">{t('projectHealth.riskAssessment')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -288,17 +292,17 @@ export default function ProjectHealth() {
           {filteredHealthMetrics.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Health Summary</CardTitle>
-                <CardDescription>Average health scores across selected projects</CardDescription>
+                <CardTitle>{t('projectHealth.healthSummary')}</CardTitle>
+                <CardDescription>{t('projectHealth.healthSummaryDesc')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   {[
-                    { key: 'overallHealthScore', label: 'Overall', icon: Target },
-                    { key: 'scheduleHealth', label: 'Schedule', icon: Clock },
-                    { key: 'budgetHealth', label: 'Budget', icon: DollarSign },
-                    { key: 'qualityHealth', label: 'Quality', icon: CheckCircle },
-                    { key: 'resourceHealth', label: 'Resources', icon: Users },
+                    { key: 'overallHealthScore', label: t('projectHealth.overall'), icon: Target },
+                    { key: 'scheduleHealth', label: t('projectHealth.schedule'), icon: Clock },
+                    { key: 'budgetHealth', label: t('projectHealth.budget'), icon: DollarSign },
+                    { key: 'qualityHealth', label: t('projectHealth.quality'), icon: CheckCircle },
+                    { key: 'resourceHealth', label: t('projectHealth.resources'), icon: Users },
                   ].map(({ key, label, icon: Icon }) => {
                     const avg = Math.round(
                       filteredHealthMetrics.reduce((acc, h) => acc + (h[key as keyof ProjectHealthMetrics] as number || 0), 0) / 
@@ -332,28 +336,28 @@ export default function ProjectHealth() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <HealthMetricCard
-                      title="Schedule Health"
+                      title={t('projectHealth.scheduleHealth')}
                       score={projectHealth.scheduleHealth}
                       icon={Clock}
-                      description="On-time task completion rate"
+                      description={t('projectHealth.scheduleHealthDesc')}
                     />
                     <HealthMetricCard
-                      title="Budget Health"
+                      title={t('projectHealth.budgetHealth')}
                       score={projectHealth.budgetHealth}
                       icon={DollarSign}
-                      description="Budget utilization efficiency"
+                      description={t('projectHealth.budgetHealthDesc')}
                     />
                     <HealthMetricCard
-                      title="Quality Health"
+                      title={t('projectHealth.qualityHealth')}
                       score={projectHealth.qualityHealth}
                       icon={CheckCircle}
-                      description="Quality standards compliance"
+                      description={t('projectHealth.qualityHealthDesc')}
                     />
                     <HealthMetricCard
-                      title="Resource Health"
+                      title={t('projectHealth.resourceHealth')}
                       score={projectHealth.resourceHealth}
                       icon={Users}
-                      description="Resource allocation efficiency"
+                      description={t('projectHealth.resourceHealthDesc')}
                     />
                   </div>
                 </CardContent>
@@ -366,8 +370,8 @@ export default function ProjectHealth() {
           {/* Risk Management Header */}
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-lg font-semibold">Risk Assessments</h3>
-              <p className="text-gray-600">Identify and manage project risks</p>
+              <h3 className="text-lg font-semibold">{t('projectHealth.riskAssessments')}</h3>
+              <p className="text-gray-600">{t('projectHealth.riskAssessmentsDesc')}</p>
             </div>
             {RISK_ASSESSMENTS_ENABLED && (
               <AddRiskDialog
@@ -388,11 +392,11 @@ export default function ProjectHealth() {
             <Card>
               <CardContent className="text-center py-8">
                 <Eye className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Risk Assessments</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">{t('projectHealth.noRisks')}</h3>
                 <p className="text-gray-500">
                   {RISK_ASSESSMENTS_ENABLED
-                    ? "No risks have been identified for the selected project(s)."
-                    : "Risk assessment feature coming soon."}
+                    ? t('projectHealth.noRisksDesc')
+                    : t('projectHealth.riskComingSoon')}
                 </p>
                 {RISK_ASSESSMENTS_ENABLED && (
                   <AddRiskDialog
@@ -401,7 +405,7 @@ export default function ProjectHealth() {
                     trigger={
                       <Button className="mt-4 bg-brand-teal hover:bg-brand-teal/90">
                         <Plus className="h-4 w-4 mr-2" />
-                        Add First Risk Assessment
+                        {t('projectHealth.addFirstRisk')}
                       </Button>
                     }
                   />

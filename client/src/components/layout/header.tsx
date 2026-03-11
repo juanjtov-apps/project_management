@@ -1,4 +1,4 @@
-import { Bell, Menu, LogOut, User as UserIcon, Settings, Search, ChevronRight, MessageSquare } from "lucide-react";
+import { Bell, Menu, LogOut, User as UserIcon, Settings, ChevronRight, MessageSquare, Globe, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,6 +11,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import type { Notification, User } from "@shared/schema";
 import OrganizationSelector from "@/components/organization-selector";
 
@@ -18,11 +19,18 @@ interface HeaderProps {
   onToggleMobileMenu?: () => void;
   onToggleNotifications: () => void;
   onToggleAgentChat?: () => void;
+  onShowTutorial?: () => void;
   pageTitle?: string;
 }
 
-export default function Header({ onToggleMobileMenu, onToggleNotifications, onToggleAgentChat, pageTitle = "Dashboard" }: HeaderProps) {
+export default function Header({ onToggleMobileMenu, onToggleNotifications, onToggleAgentChat, onShowTutorial, pageTitle = "Dashboard" }: HeaderProps) {
   const { user } = useAuth() as { user: User | undefined };
+  const { t, i18n } = useTranslation('common');
+
+  const toggleLanguage = () => {
+    const nextLang = i18n.language === 'es' ? 'en' : 'es';
+    i18n.changeLanguage(nextLang);
+  };
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -81,12 +89,10 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, onTo
       style={{
         height: '56px',
         backgroundColor: '#0F1115',
-        borderColor: '#2D333B',
-        paddingLeft: 'max(1rem, env(safe-area-inset-left))',
-        paddingRight: 'max(1rem, env(safe-area-inset-right))'
+        borderColor: '#2D333B'
       }}
     >
-      <div className="flex h-full items-center justify-between gap-3 max-w-screen-2xl mx-auto px-4">
+      <div className="flex h-full items-center justify-between gap-3 px-6">
         <div className="flex items-center gap-3 min-w-0">
           {onToggleMobileMenu && (
             <Button
@@ -94,7 +100,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, onTo
               size="icon"
               className="lg:hidden min-w-[48px] min-h-[48px] p-0 flex-shrink-0 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C]"
               onClick={onToggleMobileMenu}
-              aria-label="Open navigation menu"
+              aria-label={t('header.openNavMenu')}
               data-testid="button-mobile-menu"
             >
               <Menu className="h-5 w-5" />
@@ -125,23 +131,26 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, onTo
               className="min-w-[48px] min-h-[48px] p-0 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C] focus:outline-none focus:ring-2"
               style={{ '--tw-ring-color': '#4ADE80' } as any}
               onClick={onToggleAgentChat}
-              aria-label="AI Assistant"
+              aria-label={t('header.aiAssistant')}
               data-testid="button-agent-chat"
             >
               <MessageSquare className="h-5 w-5" />
             </Button>
           )}
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="min-w-[48px] min-h-[48px] p-0 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C] focus:outline-none focus:ring-2"
-            style={{ '--tw-ring-color': '#4ADE80' } as any}
-            aria-label="Search"
-            data-testid="button-search"
-          >
-            <Search className="h-5 w-5" />
-          </Button>
+{onShowTutorial && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="min-w-[48px] min-h-[48px] p-0 text-[#9CA3AF] hover:text-[#4ADE80] hover:bg-[#1F242C] focus:outline-none focus:ring-2"
+              style={{ '--tw-ring-color': '#4ADE80' } as any}
+              onClick={onShowTutorial}
+              aria-label={t('header.tutorial')}
+              data-testid="button-tutorial"
+            >
+              <GraduationCap className="h-5 w-5" />
+            </Button>
+          )}
 
           <Button
             variant="ghost"
@@ -149,7 +158,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, onTo
             className="relative min-w-[48px] min-h-[48px] p-0 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C] focus:outline-none focus:ring-2"
             style={{ '--tw-ring-color': '#4ADE80' } as any}
             onClick={onToggleNotifications}
-            aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+            aria-label={unreadCount > 0 ? t('header.notificationsUnread', { count: unreadCount }) : t('header.notifications')}
             data-testid="button-notifications"
           >
             <Bell className="h-5 w-5" />
@@ -169,7 +178,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, onTo
                 variant="ghost"
                 className="min-h-[48px] p-0 px-2 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C] data-[state=open]:bg-[#1F242C] focus:outline-none focus:ring-2"
                 style={{ '--tw-ring-color': '#4ADE80' } as any}
-                aria-label="User menu"
+                aria-label={t('header.userMenu')}
                 data-testid="button-user-menu"
               >
                 <div className="flex items-center gap-2">
@@ -215,14 +224,22 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, onTo
                 className="text-[#9CA3AF] focus:bg-[#1F242C] focus:text-white"
               >
                 <UserIcon className="mr-2 h-4 w-4" />
-                Profile
+                {t('header.profile')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled
                 className="text-[#9CA3AF] focus:bg-[#1F242C] focus:text-white"
               >
                 <Settings className="mr-2 h-4 w-4" />
-                Settings
+                {t('header.settings')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator style={{ backgroundColor: '#2D333B' }} />
+              <DropdownMenuItem
+                onClick={toggleLanguage}
+                className="text-[#9CA3AF] focus:bg-[#1F242C] focus:text-white cursor-pointer"
+              >
+                <Globe className="mr-2 h-4 w-4" />
+                {i18n.language === 'es' ? 'English' : 'Español'}
               </DropdownMenuItem>
               <DropdownMenuSeparator style={{ backgroundColor: '#2D333B' }} />
               <DropdownMenuItem
@@ -231,7 +248,7 @@ export default function Header({ onToggleMobileMenu, onToggleNotifications, onTo
                 style={{ color: '#EF4444' }}
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
+                {t('header.signOut')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

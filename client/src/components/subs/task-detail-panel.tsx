@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   Pencil,
@@ -76,50 +77,38 @@ interface TaskDetailPanelProps {
   onEdit: () => void;
 }
 
-const statusConfig: Record<string, { label: string; className: string }> = {
+const statusConfig: Record<string, { labelKey: string; className: string }> = {
   not_started: {
-    label: "Not Started",
+    labelKey: "status.notStarted",
     className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
   },
   in_progress: {
-    label: "In Progress",
+    labelKey: "status.inProgress",
     className: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   },
   pending_review: {
-    label: "Pending Review",
+    labelKey: "status.pendingReview",
     className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   },
   revision_requested: {
-    label: "Revision Requested",
+    labelKey: "subs.revisionRequested",
     className: "bg-orange-500/20 text-orange-400 border-orange-500/30",
   },
   approved: {
-    label: "Approved",
+    labelKey: "status.approved",
     className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   },
   rejected: {
-    label: "Rejected",
+    labelKey: "status.rejected",
     className: "bg-red-500/20 text-red-400 border-red-500/30",
   },
 };
 
-const priorityConfig: Record<string, { label: string; className: string }> = {
-  low: { label: "Low", className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30" },
-  medium: { label: "Medium", className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  high: { label: "High", className: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
-  urgent: { label: "Urgent", className: "bg-red-500/20 text-red-400 border-red-500/30" },
-};
-
-const itemTypeLabels: Record<string, string> = {
-  standard: "Standard",
-  doc_required: "Doc Required",
-  inspection: "Inspection",
-};
-
-const itemTypeBadgeClass: Record<string, string> = {
-  standard: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
-  doc_required: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  inspection: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+const priorityConfig: Record<string, { labelKey: string; className: string }> = {
+  low: { labelKey: "priority.low", className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30" },
+  medium: { labelKey: "priority.medium", className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  high: { labelKey: "priority.high", className: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
+  urgent: { labelKey: "subs.urgent", className: "bg-red-500/20 text-red-400 border-red-500/30" },
 };
 
 export function TaskDetailPanel({
@@ -128,8 +117,21 @@ export function TaskDetailPanel({
   onBack,
   onEdit,
 }: TaskDetailPanelProps) {
+  const { t } = useTranslation('common');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const itemTypeLabels: Record<string, string> = {
+    standard: t('subs.standard'),
+    doc_required: t('subs.docRequired'),
+    inspection: t('subs.inspection'),
+  };
+
+  const itemTypeBadgeClass: Record<string, string> = {
+    standard: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
+    doc_required: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    inspection: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  };
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteChecklistId, setDeleteChecklistId] = useState<string | null>(null);
@@ -167,11 +169,11 @@ export function TaskDetailPanel({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/sub/tasks"] });
-      toast({ title: "Task deleted" });
+      toast({ title: t('subs.taskDeleted') });
       onBack();
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to delete task", description: error.message, variant: "destructive" });
+      toast({ title: t('subs.failedDeleteTask'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -187,11 +189,11 @@ export function TaskDetailPanel({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/sub/tasks", taskId] });
-      toast({ title: "Checklist deleted" });
+      toast({ title: t('subs.checklistDeleted') });
       setDeleteChecklistId(null);
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to delete checklist", description: error.message, variant: "destructive" });
+      toast({ title: t('subs.failedDeleteChecklist'), description: error.message, variant: "destructive" });
       setDeleteChecklistId(null);
     },
   });
@@ -210,12 +212,12 @@ export function TaskDetailPanel({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/sub/tasks", taskId] });
-      toast({ title: "Checklist added" });
+      toast({ title: t('subs.checklistAdded') });
       setNewChecklistName("");
       setShowAddChecklist(false);
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to add checklist", description: error.message, variant: "destructive" });
+      toast({ title: t('subs.failedAddChecklist'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -238,7 +240,7 @@ export function TaskDetailPanel({
       setAddingItemTo(null);
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to add item", description: error.message, variant: "destructive" });
+      toast({ title: t('subs.failedAddItem'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -256,7 +258,7 @@ export function TaskDetailPanel({
       queryClient.invalidateQueries({ queryKey: ["/api/v1/sub/tasks", taskId] });
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to delete item", description: error.message, variant: "destructive" });
+      toast({ title: t('subs.failedDeleteItem'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -282,8 +284,8 @@ export function TaskDetailPanel({
       <Card className="bg-[var(--pro-surface)] border-[var(--pro-border)]">
         <CardContent className="text-center py-12">
           <AlertCircle className="h-12 w-12 mx-auto text-red-400 mb-3" />
-          <h3 className="text-lg font-semibold text-[var(--pro-text-primary)]">Task not found</h3>
-          <Button variant="outline" onClick={onBack} className="mt-4">Go Back</Button>
+          <h3 className="text-lg font-semibold text-[var(--pro-text-primary)]">{t('subs.taskNotFound')}</h3>
+          <Button variant="outline" onClick={onBack} className="mt-4">{t('subs.goBack')}</Button>
         </CardContent>
       </Card>
     );
@@ -309,12 +311,12 @@ export function TaskDetailPanel({
           className="gap-1.5 text-[var(--pro-text-secondary)] hover:text-[var(--pro-text-primary)]"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back
+          {t('button.back')}
         </Button>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={onEdit} className="gap-1.5">
             <Pencil className="h-3.5 w-3.5" />
-            Edit
+            {t('button.edit')}
           </Button>
           <Button
             variant="outline"
@@ -323,7 +325,7 @@ export function TaskDetailPanel({
             className="gap-1.5 text-red-400 border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
           >
             <Trash2 className="h-3.5 w-3.5" />
-            Delete
+            {t('button.delete')}
           </Button>
         </div>
       </div>
@@ -335,8 +337,8 @@ export function TaskDetailPanel({
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-2">
               <h2 className="text-xl font-bold text-[var(--pro-text-primary)]">{task.name}</h2>
-              <Badge variant="outline" className={priority.className}>{priority.label}</Badge>
-              <Badge variant="outline" className={status.className}>{status.label}</Badge>
+              <Badge variant="outline" className={priority.className}>{t(priority.labelKey)}</Badge>
+              <Badge variant="outline" className={status.className}>{t(status.labelKey)}</Badge>
             </div>
             {task.description && (
               <p className="text-sm text-[var(--pro-text-secondary)]">{task.description}</p>
@@ -354,18 +356,18 @@ export function TaskDetailPanel({
             {task.startDate && (
               <div className="flex items-center gap-1.5 text-[var(--pro-text-secondary)]">
                 <CalendarDays className="h-3.5 w-3.5" />
-                <span>Start: {formatDate(task.startDate)}</span>
+                <span>{t('subs.start')} {formatDate(task.startDate)}</span>
               </div>
             )}
             {task.endDate && (
               <div className={`flex items-center gap-1.5 ${isOverdue ? "text-red-400" : "text-[var(--pro-text-secondary)]"}`}>
                 {isOverdue ? <AlertCircle className="h-3.5 w-3.5" /> : <CalendarDays className="h-3.5 w-3.5" />}
-                <span>{isOverdue ? "Overdue: " : "Due: "}{formatDate(task.endDate)}</span>
+                <span>{isOverdue ? t('subs.overdue') : t('subs.due')} {formatDate(task.endDate)}</span>
               </div>
             )}
             {task.subcontractorName && (
               <div className="flex items-center gap-1.5 text-[var(--pro-text-secondary)]">
-                <span>Sub: <span className="text-[var(--pro-text-primary)] font-medium">{task.subcontractorName}</span></span>
+                <span>{t('subs.sub')} <span className="text-[var(--pro-text-primary)] font-medium">{task.subcontractorName}</span></span>
               </div>
             )}
           </div>
@@ -378,7 +380,7 @@ export function TaskDetailPanel({
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold text-[var(--pro-text-primary)] flex items-center gap-2">
               <ClipboardList className="h-4 w-4 text-[var(--pro-mint)]" />
-              Checklists
+              {t('subs.checklists')}
               {checklists.length > 0 && (
                 <span className="text-sm font-normal text-[var(--pro-text-muted)]">
                   ({checklists.length})
@@ -392,7 +394,7 @@ export function TaskDetailPanel({
               className="gap-1.5"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add Checklist
+              {t('subs.addChecklist')}
             </Button>
           </div>
 
@@ -400,7 +402,7 @@ export function TaskDetailPanel({
           {showAddChecklist && (
             <div className="flex gap-2 p-3 bg-[var(--pro-bg)] rounded-lg border border-[var(--pro-border)]">
               <Input
-                placeholder="Checklist name"
+                placeholder={t('subs.checklistName')}
                 value={newChecklistName}
                 onChange={(e) => setNewChecklistName(e.target.value)}
                 onKeyDown={(e) => {
@@ -418,14 +420,14 @@ export function TaskDetailPanel({
                 }}
                 disabled={!newChecklistName.trim() || addChecklistMutation.isPending}
               >
-                {addChecklistMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+                {addChecklistMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t('subs.add')}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => { setShowAddChecklist(false); setNewChecklistName(""); }}
               >
-                Cancel
+                {t('button.cancel')}
               </Button>
             </div>
           )}
@@ -434,7 +436,7 @@ export function TaskDetailPanel({
           {checklists.length === 0 && !showAddChecklist ? (
             <div className="text-center py-6">
               <ClipboardList className="h-8 w-8 mx-auto text-[var(--pro-text-muted)] mb-2" />
-              <p className="text-sm text-[var(--pro-text-secondary)]">No checklists yet</p>
+              <p className="text-sm text-[var(--pro-text-secondary)]">{t('subs.noChecklistsYet')}</p>
             </div>
           ) : (
             checklists.map((checklist) => {
@@ -454,7 +456,7 @@ export function TaskDetailPanel({
                       </h4>
                       {totalItems > 0 && (
                         <span className="text-xs text-[var(--pro-text-muted)]">
-                          {completedItems}/{totalItems} done
+                          {t('subs.doneFraction', { completed: completedItems, total: totalItems })}
                         </span>
                       )}
                     </div>
@@ -495,7 +497,7 @@ export function TaskDetailPanel({
                             itemTypeBadgeClass[item.itemType] || itemTypeBadgeClass.standard
                           }`}
                         >
-                          {itemTypeLabels[item.itemType] || "Standard"}
+                          {itemTypeLabels[item.itemType] || t('subs.standard')}
                         </Badge>
                         <Button
                           variant="ghost"
@@ -512,7 +514,7 @@ export function TaskDetailPanel({
                     {addingItemTo === checklist.id ? (
                       <div className="flex items-center gap-2 px-3 py-2">
                         <Input
-                          placeholder="Item description"
+                          placeholder={t('subs.itemDescription')}
                           value={newItemDesc}
                           onChange={(e) => setNewItemDesc(e.target.value)}
                           onKeyDown={(e) => {
@@ -535,9 +537,9 @@ export function TaskDetailPanel({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="standard">Standard</SelectItem>
-                            <SelectItem value="doc_required">Doc Required</SelectItem>
-                            <SelectItem value="inspection">Inspection</SelectItem>
+                            <SelectItem value="standard">{t('subs.standard')}</SelectItem>
+                            <SelectItem value="doc_required">{t('subs.docRequired')}</SelectItem>
+                            <SelectItem value="inspection">{t('subs.inspection')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <Button
@@ -571,7 +573,7 @@ export function TaskDetailPanel({
                         className="flex items-center gap-2 px-3 py-2 w-full text-sm text-[var(--pro-text-muted)] hover:text-[var(--pro-mint)] hover:bg-[var(--pro-bg)] transition-colors"
                       >
                         <Plus className="h-3.5 w-3.5" />
-                        Add item
+                        {t('subs.addItem')}
                       </button>
                     )}
                   </div>
@@ -586,13 +588,13 @@ export function TaskDetailPanel({
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Task</AlertDialogTitle>
+            <AlertDialogTitle>{t('subs.deleteTask')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{task.name}"? This will also remove all associated checklists and documents. This action cannot be undone.
+              {t('subs.deleteTaskDesc', { name: task.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('button.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteMutation.mutate()}
               className="bg-red-600 hover:bg-red-700"
@@ -600,7 +602,7 @@ export function TaskDetailPanel({
               {deleteMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              Delete
+              {t('button.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -610,13 +612,13 @@ export function TaskDetailPanel({
       <AlertDialog open={!!deleteChecklistId} onOpenChange={(open) => { if (!open) setDeleteChecklistId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Checklist</AlertDialogTitle>
+            <AlertDialogTitle>{t('subs.deleteChecklist')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this checklist and all its items? This action cannot be undone.
+              {t('subs.deleteChecklistDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('button.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => { if (deleteChecklistId) deleteChecklistMutation.mutate(deleteChecklistId); }}
               className="bg-red-600 hover:bg-red-700"
@@ -624,7 +626,7 @@ export function TaskDetailPanel({
               {deleteChecklistMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              Delete
+              {t('button.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

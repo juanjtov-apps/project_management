@@ -116,6 +116,9 @@ export const users = pgTable("users", {
   // Client-specific: assigned project (only for client role users)
   assignedProjectId: varchar("assigned_project_id").references(() => projects.id, { onDelete: 'set null' }),
 
+  // User preferences (tutorial completion, UI settings, etc.)
+  preferences: jsonb("preferences").default({}),
+
   // Special flags
   isRoot: boolean("is_root").notNull().default(false), // TRUE for the ONE root/platform admin
   isActive: boolean("is_active").notNull().default(true),
@@ -151,6 +154,9 @@ export const projects = pgTable("projects", {
   clientEmail: varchar("client_email"),
   clientPhone: varchar("client_phone"),
   coverPhotoId: varchar("cover_photo_id"),
+  customFields: jsonb("custom_fields").default({}),
+  aiInsightText: text("ai_insight_text"),
+  aiInsightUpdatedAt: timestamp("ai_insight_updated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (table) => [

@@ -1160,3 +1160,70 @@ input[type="file"] {
     background: linear-gradient(to bottom, #2D333B, transparent);
   }
 }
+
+/* =====================================================
+   AI DASHBOARD — Grain Texture & Animations
+   ===================================================== */
+
+/* Subtle grain texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.018;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+/* Gem glow animation for decorative elements */
+@keyframes gem-glow {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* Ambient pulse for accents */
+@keyframes ambient-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.15; transform: scale(1.04); }
+}
+
+/* Cascade grid item entrance animation */
+@keyframes cascade-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.cascade-item {
+  animation: cascade-enter 0.3s ease-out both;
+}
+
+/* Voice overlay animations */
+@keyframes waveAnim {
+  0% { transform: scaleY(0.3); }
+  100% { transform: scaleY(1); }
+}
+
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(74, 222, 128, 0.2); }
+  50% { box-shadow: 0 0 40px rgba(74, 222, 128, 0.4); }
+}
+
+.voice-overlay-enter {
+  animation: voiceOverlayIn 0.3s ease-out both;
+}
+
+@keyframes voiceOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.voice-card-enter {
+  animation: voiceCardIn 0.35s cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+@keyframes voiceCardIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}

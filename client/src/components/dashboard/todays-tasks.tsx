@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,6 +10,8 @@ import type { Task } from "@shared/schema";
 import { ClipboardList } from "lucide-react";
 
 export default function TodaysTasks() {
+  const { t } = useTranslation('dashboard');
+  const { t: tc } = useTranslation('common');
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   
@@ -48,7 +51,7 @@ export default function TodaysTasks() {
         style={{ backgroundColor: '#161B22', border: '1px solid #2D333B' }}
       >
         <div className="p-5 border-b" style={{ borderColor: '#2D333B' }}>
-          <h3 className="text-lg font-semibold text-white">Today's Tasks</h3>
+          <h3 className="text-lg font-semibold text-white">{t('todaysTasks.title')}</h3>
         </div>
         <div className="p-5">
           <div className="space-y-4">
@@ -70,7 +73,7 @@ export default function TodaysTasks() {
       data-testid="todays-tasks"
     >
       <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#2D333B' }}>
-        <h3 className="text-lg font-semibold text-white">Today's Tasks</h3>
+        <h3 className="text-lg font-semibold text-white">{t('todaysTasks.title')}</h3>
         <Button
           variant="ghost"
           className="text-sm font-medium"
@@ -78,7 +81,7 @@ export default function TodaysTasks() {
           onClick={() => setLocation("/tasks")}
           data-testid="view-all-todays-tasks"
         >
-          View All
+          {tc('button.viewAll')}
         </Button>
       </div>
       <div className="p-5">
@@ -86,8 +89,8 @@ export default function TodaysTasks() {
           {todaysTasks.length === 0 ? (
             <div className="text-center py-8">
               <ClipboardList className="mx-auto mb-3 h-12 w-12" style={{ color: '#9CA3AF' }} />
-              <p className="text-white font-medium mb-1">No tasks due today</p>
-              <p className="text-sm" style={{ color: '#9CA3AF' }}>Enjoy your day!</p>
+              <p className="text-white font-medium mb-1">{t('todaysTasks.empty')}</p>
+              <p className="text-sm" style={{ color: '#9CA3AF' }}>{t('todaysTasks.enjoyDay')}</p>
             </div>
           ) : (
             todaysTasks.map((task) => {
@@ -131,7 +134,7 @@ export default function TodaysTasks() {
                   <div className="text-right">
                     <p className="text-sm font-medium" 
                       style={{ color: task.status === "completed" ? '#6B7280' : '#9CA3AF' }}>
-                      {task.dueDate ? new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'No time set'}
+                      {task.dueDate ? new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : tc('date.noTimeSet')}
                     </p>
                   </div>
                 </div>

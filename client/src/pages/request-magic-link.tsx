@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Mail, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 
 export default function RequestMagicLink() {
+  const { t } = useTranslation('auth');
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -33,13 +35,13 @@ export default function RequestMagicLink() {
 
       // Check for rate limiting on either
       if (clientRes.status === 429 || subRes.status === 429) {
-        throw new Error("Too many requests. Please try again in a few minutes.");
+        throw new Error(t('requestLink.rateLimited'));
       }
 
       // If both failed, throw error from the client one
       if (!clientRes.ok && !subRes.ok) {
         const data = await clientRes.json().catch(() => ({}));
-        throw new Error(data.detail || "Something went wrong");
+        throw new Error(data.detail || t('requestLink.error'));
       }
 
       // Return whichever succeeded
@@ -57,11 +59,11 @@ export default function RequestMagicLink() {
   const validateEmail = (value: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!value) {
-      setEmailError("Email is required");
+      setEmailError(t('validation.emailRequired'));
       return false;
     }
     if (!emailRegex.test(value)) {
-      setEmailError("Please enter a valid email address");
+      setEmailError(t('validation.emailInvalid'));
       return false;
     }
     setEmailError("");
@@ -83,16 +85,14 @@ export default function RequestMagicLink() {
             <div className="mx-auto mb-2">
               <CheckCircle2 className="h-10 w-10 text-green-600" />
             </div>
-            <CardTitle className="text-xl">Check your email</CardTitle>
+            <CardTitle className="text-xl">{t('requestLink.checkEmail')}</CardTitle>
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <p className="text-sm text-muted-foreground">
-              If an account exists for <strong>{email}</strong>, we've sent a
-              sign-in link. Check your inbox and click the link to access your
-              project.
+              {t('requestLink.checkEmailDesc', { email })}
             </p>
             <p className="text-xs text-muted-foreground">
-              The link expires in 15 minutes. Check spam if you don't see it.
+              {t('requestLink.linkExpires')}
             </p>
             <Button
               variant="ghost"
@@ -102,7 +102,7 @@ export default function RequestMagicLink() {
               }}
               className="text-sm"
             >
-              Try a different email
+              {t('requestLink.tryDifferent')}
             </Button>
           </CardContent>
         </Card>
@@ -117,20 +117,19 @@ export default function RequestMagicLink() {
           <div className="mx-auto mb-2">
             <Mail className="h-10 w-10 text-blue-600" />
           </div>
-          <CardTitle className="text-xl">Sign in with magic link</CardTitle>
+          <CardTitle className="text-xl">{t('requestLink.title')}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground text-center mb-6">
-            Enter your email and we'll send you a link to sign in — no password
-            needed.
+            {t('requestLink.subtitle')}
           </p>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email address</Label>
+              <Label htmlFor="email">{t('requestLink.email')}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="your@email.com"
+                placeholder={t('requestLink.emailPlaceholder')}
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -150,10 +149,10 @@ export default function RequestMagicLink() {
               {requestMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
+                  {t('requestLink.sending')}
                 </>
               ) : (
-                "Send Magic Link"
+                t('requestLink.send')
               )}
             </Button>
           </form>
@@ -164,7 +163,7 @@ export default function RequestMagicLink() {
               className="text-sm"
             >
               <ArrowLeft className="mr-1 h-4 w-4" />
-              Back to Login
+              {t('magicLink.backToLogin')}
             </Button>
           </div>
         </CardContent>

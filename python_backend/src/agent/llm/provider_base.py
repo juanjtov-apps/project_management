@@ -45,6 +45,7 @@ class LLMProviderBase(ABC):
         model: Optional[str] = None,
         temperature: float = 0.3,
         max_tokens: int = 4096,
+        timeout: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Generate a chat completion without streaming.
 
@@ -54,6 +55,7 @@ class LLMProviderBase(ABC):
             model: Optional model override.
             temperature: Sampling temperature.
             max_tokens: Maximum tokens in response.
+            timeout: Optional timeout in seconds. Defaults to provider default.
 
         Returns:
             Dict with:

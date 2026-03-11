@@ -2,7 +2,9 @@
 Agent orchestrator - manages the agentic loop for processing user requests.
 """
 
+import json
 import time
+import uuid
 import logging
 from typing import Dict, Any, List, AsyncIterator, Optional
 
@@ -13,6 +15,7 @@ from ..tools.executor import tool_executor, PermissionDenied
 from ..repositories.agent_repository import agent_repo
 from .context_builder import context_builder
 from src.core.config import settings
+from .error_notifier import notify_root_admins_on_error
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +44,7 @@ class AgentOrchestrator:
         project_id: Optional[str],
         user_context: Dict[str, Any],
         attachments: Optional[List[str]] = None,
+        language: str = "en",
     ) -> AsyncIterator[Dict[str, Any]]:
         """Process a user message through the agentic loop.
 
@@ -58,7 +62,26 @@ class AgentOrchestrator:
         start_time = time.time()
         llm_provider = get_cached_llm_provider()
 
-        # 1. Get or create conversation
+        # 1. Classify intent with gatekeeper (before DB ops to avoid connection contention)
+        classification = None
+        router_latency_ms = 0
+        if settings.agent_gatekeeper_enabled:
+            try:
+                router_start = time.time()
+                selected_model, classification = await model_router.classify_and_select_model(
+                    message=message,
+                    llm_provider=llm_provider,
+                )
+                router_latency_ms = int((time.time() - router_start) * 1000)
+                logger.info(
+                    f"Gatekeeper → {classification.tier.value} "
+                    f"(intent={classification.intent}, confidence={classification.confidence})"
+                )
+            except Exception as e:
+                logger.warning(f"Gatekeeper failed, using specialist: {e}")
+                selected_model = model_router.specialist_model
+
+        # 2. Get or create conversation
         if conversation_id:
             conversation = await agent_repo.get_conversation(
                 conversation_id,
@@ -83,6 +106,7 @@ class AgentOrchestrator:
         system_prompt = await context_builder.build_system_prompt(
             user_context=user_context,
             project_id=project_id or conversation.get("projectId"),
+            language=language,
         )
 
         # 3. Get conversation history
@@ -100,12 +124,13 @@ class AgentOrchestrator:
         user_role = user_context.get("role", "user")
         tools = tool_registry.get_tool_definitions(user_role)
 
-        # 6. Select model based on message complexity
-        selected_model = model_router.select_model(
-            intent=None,  # Could add intent classification here
-            tool_calls=[],
-            message_length=sum(len(m.get("content", "")) for m in messages),
-        )
+        # 6. Select model (legacy fallback if gatekeeper is disabled)
+        if not settings.agent_gatekeeper_enabled:
+            selected_model = model_router.select_model(
+                intent=None,
+                tool_calls=[],
+                message_length=sum(len(m.get("content", "")) for m in messages),
+            )
 
         # 7. Save user message
         user_message = await agent_repo.save_message(
@@ -129,8 +154,8 @@ class AgentOrchestrator:
                     messages=messages,
                     tools=tools if tools else None,
                     model=selected_model,
-                    temperature=model_router.get_temperature(),
-                    max_tokens=model_router.get_max_tokens(),
+                    temperature=model_router.get_temperature(tier=classification.tier if classification else None),
+                    max_tokens=model_router.get_max_tokens(tier=classification.tier if classification else None),
                     stream=True,
                 ):
                     chunk_type = chunk.get("type")
@@ -144,6 +169,7 @@ class AgentOrchestrator:
                         tool_call_count += 1
                         tool_name = chunk.get("name")
                         tool_input = chunk.get("input", {})
+                        tool_call_id = chunk.get("id", f"call_{tool_call_count}")
 
                         yield {
                             "type": "tool_start",
@@ -164,18 +190,66 @@ class AgentOrchestrator:
                                     "message": f"Tool '{tool_name}' not permitted: {validation['reason']}"
                                 }
                             }
+                            # Send proper tool result so LLM knows the call failed
+                            messages.append({
+                                "role": "assistant",
+                                "content": None,
+                                "tool_calls": [{"id": tool_call_id, "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_input)}}],
+                            })
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call_id,
+                                "content": f"Permission denied: {validation['reason']}",
+                            })
                             continue
 
                         if validation["requires_confirmation"]:
-                            # Create pending confirmation
-                            # For now, we'll skip this and just note it
+                            # Persist tool_call to DB
+                            tool_call_record = await agent_repo.save_tool_call(
+                                message_id=user_message["id"],
+                                conversation_id=conversation_id,
+                                user_id=user_context["user_id"],
+                                tool_name=tool_name,
+                                tool_input=tool_input,
+                                safety_level="requires_confirmation",
+                                project_id=project_id or user_context.get("project_id"),
+                                execution_status="pending",
+                                confirmation_required=True,
+                            )
+
+                            # Build human-readable summary
+                            operation_summary = self._build_operation_summary(tool_name, tool_input)
+
+                            # Persist pending_confirmation to DB
+                            confirmation = await agent_repo.create_pending_confirmation(
+                                tool_call_id=tool_call_record["id"],
+                                conversation_id=conversation_id,
+                                user_id=user_context["user_id"],
+                                tool_name=tool_name,
+                                operation_summary=operation_summary,
+                            )
+
                             yield {
                                 "type": "confirmation_required",
                                 "data": {
+                                    "confirmation_id": confirmation["id"],
+                                    "tool_name": tool_name,
                                     "tool": tool_name,
-                                    "message": f"Tool '{tool_name}' requires confirmation"
+                                    "input": tool_input,
+                                    "operation_summary": operation_summary,
+                                    "message": f"Tool '{tool_name}' requires confirmation",
                                 }
                             }
+                            messages.append({
+                                "role": "assistant",
+                                "content": None,
+                                "tool_calls": [{"id": tool_call_id, "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_input)}}],
+                            })
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call_id,
+                                "content": "Action requires user confirmation. Please inform the user that this action needs their approval before proceeding.",
+                            })
                             continue
 
                         # Execute tool
@@ -188,6 +262,9 @@ class AgentOrchestrator:
                                 conversation_id=conversation_id,
                             )
 
+                            # Detect tool-level errors (returned as dicts, not exceptions)
+                            is_error = isinstance(result, dict) and "error" in result
+
                             tool_calls_made.append({
                                 "name": tool_name,
                                 "input": tool_input,
@@ -198,20 +275,22 @@ class AgentOrchestrator:
                                 "type": "tool_result",
                                 "data": {
                                     "tool": tool_name,
-                                    "success": True,
+                                    "success": not is_error,
                                     "result": result,
                                 }
                             }
 
-                            # Add tool result to messages for next iteration
-                            # Frame as system information to make it clear this is actual data
+                            # Add tool call + result in proper OpenAI format
+                            # so the LLM recognizes its tool was executed
                             messages.append({
                                 "role": "assistant",
-                                "content": f"I'll query the database using the {tool_name} tool.",
+                                "content": None,
+                                "tool_calls": [{"id": tool_call_id, "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_input)}}],
                             })
                             messages.append({
-                                "role": "user",
-                                "content": f"[ACTUAL DATABASE RESULTS - DO NOT FABRICATE OR MODIFY THIS DATA]\nTool '{tool_name}' returned the following REAL data from the database:\n{self._summarize_result(result)}\n[END DATABASE RESULTS - Only report what appears above]",
+                                "role": "tool",
+                                "tool_call_id": tool_call_id,
+                                "content": self._summarize_result(result),
                             })
 
                         except PermissionDenied as e:
@@ -219,14 +298,15 @@ class AgentOrchestrator:
                                 "type": "error",
                                 "data": {"message": str(e)}
                             }
-                            # Feed error back to LLM so it can try a different approach
                             messages.append({
                                 "role": "assistant",
-                                "content": f"I attempted to use the {tool_name} tool.",
+                                "content": None,
+                                "tool_calls": [{"id": tool_call_id, "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_input)}}],
                             })
                             messages.append({
-                                "role": "user",
-                                "content": f"[TOOL ERROR] Permission denied: {str(e)}. Try a different approach.",
+                                "role": "tool",
+                                "tool_call_id": tool_call_id,
+                                "content": f"Permission denied: {str(e)}",
                             })
 
                         except Exception as e:
@@ -236,28 +316,51 @@ class AgentOrchestrator:
                                 "data": {
                                     "tool": tool_name,
                                     "success": False,
-                                    "error": str(e),
+                                    "error": "Operation could not be completed",
                                 }
                             }
-                            # Feed error back to LLM so it can self-correct and retry
                             messages.append({
                                 "role": "assistant",
-                                "content": f"I attempted to use the {tool_name} tool.",
+                                "content": None,
+                                "tool_calls": [{"id": tool_call_id, "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_input)}}],
                             })
                             messages.append({
-                                "role": "user",
-                                "content": f"[TOOL ERROR] The {tool_name} tool failed: {str(e)}. Please retry with correct parameters.",
+                                "role": "tool",
+                                "tool_call_id": tool_call_id,
+                                "content": f"The {tool_name} operation could not be completed. Please inform the user that you encountered an issue and offer to try again or take an alternative approach. Do not show technical details.",
                             })
+                            # Notify root admins of tool failure
+                            import asyncio
+                            asyncio.create_task(notify_root_admins_on_error(
+                                error_type="tool_execution_error",
+                                error_message=str(e),
+                                tool_name=tool_name,
+                                user_id=user_context.get("user_id"),
+                                conversation_id=conversation_id,
+                                project_id=user_context.get("project_id"),
+                                company_id=user_context.get("company_id"),
+                            ))
 
                     elif chunk_type == "stop":
                         # LLM finished
                         break
 
                     elif chunk_type == "error":
+                        error_msg = chunk.get("message", "Unknown error")
                         yield {
                             "type": "error",
-                            "data": {"message": chunk.get("message", "Unknown error")}
+                            "data": {"message": error_msg}
                         }
+                        # Notify root admins of LLM error
+                        import asyncio
+                        asyncio.create_task(notify_root_admins_on_error(
+                            error_type="llm_provider_error",
+                            error_message=error_msg,
+                            user_id=user_context.get("user_id"),
+                            conversation_id=conversation_id,
+                            project_id=user_context.get("project_id"),
+                            company_id=user_context.get("company_id"),
+                        ))
                         break
 
                 # Check if we should continue the loop
@@ -272,16 +375,30 @@ class AgentOrchestrator:
                 "type": "error",
                 "data": {"message": f"An error occurred: {str(e)}"}
             }
+            # Notify root admins of orchestrator crash
+            import asyncio
+            asyncio.create_task(notify_root_admins_on_error(
+                error_type="orchestrator_error",
+                error_message=str(e),
+                user_id=user_context.get("user_id"),
+                conversation_id=conversation_id,
+                project_id=user_context.get("project_id"),
+                company_id=user_context.get("company_id"),
+            ))
 
         # 9. Save assistant message
         latency_ms = int((time.time() - start_time) * 1000)
         assistant_message_id = None
 
-        if accumulated_content:
+        # Save assistant message (even if no text content, to ensure feedback can reference it)
+        save_content = accumulated_content or (
+            "[Tool execution completed]" if tool_calls_made else None
+        )
+        if save_content:
             assistant_message = await agent_repo.save_message(
                 conversation_id=conversation_id,
                 role="assistant",
-                content=accumulated_content,
+                content=save_content,
                 tool_calls=tool_calls_made if tool_calls_made else None,
                 model_used=selected_model,
                 latency_ms=latency_ms,
@@ -305,8 +422,49 @@ class AgentOrchestrator:
                     metric_value=len(tool_calls_made),
                     user_id=user_context.get("user_id"),
                 )
+
+            if classification:
+                await agent_repo.record_metric(
+                    company_id=user_context.get("company_id", "unknown"),
+                    metric_type="routing_tier",
+                    metric_value=1,
+                    user_id=user_context.get("user_id"),
+                    dimension_1=classification.tier.value,
+                    dimension_2=classification.intent,
+                )
         except Exception as e:
             logger.warning(f"Failed to record metrics: {e}")
+
+        # 10b. Save detailed metric event for observability dashboard
+        try:
+            interaction_event = {
+                "user_id": user_context.get("user_id"),
+                "company_id": user_context.get("company_id"),
+                "conversation_id": str(conversation_id) if conversation_id else None,
+                "user_prompt": message[:200] if message else "",
+                "prompt_length": len(message) if message else 0,
+                "router_model_selected": selected_model,
+                "router_complexity_class": classification.tier.value if classification else "specialist",
+                "router_confidence": classification.confidence if classification else 0.0,
+                "router_latency_ms": router_latency_ms,
+                "tools_selected": [tc.get("name", tc.get("toolName", "")) for tc in tool_calls_made] if tool_calls_made else [],
+                "tool_execution_success": all(
+                    not (isinstance(tc.get("result"), dict) and "error" in tc.get("result", {}))
+                    for tc in tool_calls_made
+                ) if tool_calls_made else True,
+                "total_latency_ms": latency_ms,
+                "asked_followup": bool(accumulated_content and "?" in accumulated_content[-100:]),
+                "error": None,
+            }
+            await agent_repo.save_metric_event(
+                event_type="agent_interaction",
+                event_data=interaction_event,
+                user_id=user_context.get("user_id"),
+                company_id=user_context.get("company_id"),
+                conversation_id=str(conversation_id) if conversation_id else None,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save interaction event: {e}")
 
         # 11. Done
         yield {
@@ -318,6 +476,55 @@ class AgentOrchestrator:
                 "tool_calls": len(tool_calls_made),
             }
         }
+
+    def _build_operation_summary(self, tool_name: str, tool_input: Dict[str, Any]) -> str:
+        """Build a human-readable summary for the confirmation card title."""
+        name = tool_input.get("name") or tool_input.get("title") or ""
+
+        if tool_name == "create_task":
+            summary = f"Create task '{name}'" if name else "Create task"
+            if tool_input.get("priority"):
+                summary += f" ({tool_input['priority']} priority)"
+        elif tool_name == "create_issue":
+            summary = f"Report issue '{name}'" if name else "Report issue"
+            if tool_input.get("priority"):
+                summary += f" ({tool_input['priority']} priority)"
+        elif tool_name == "create_installment":
+            amount = tool_input.get("amount", 0)
+            summary = f"Create installment '{name}'" if name else "Create installment"
+            if amount:
+                summary += f" (${amount:,.2f})"
+            if tool_input.get("due_date"):
+                summary += f", due {tool_input['due_date']}"
+        elif tool_name == "create_stage":
+            summary = f"Add stage '{name}'" if name else "Add stage"
+            if tool_input.get("planned_start_date") and tool_input.get("planned_end_date"):
+                summary += f" ({tool_input['planned_start_date']} to {tool_input['planned_end_date']})"
+        elif tool_name == "delete_task":
+            summary = "Delete task"
+        elif tool_name == "update_project_status":
+            summary = f"Update project status to '{tool_input.get('status', '?')}'"
+        elif tool_name == "update_payment_status":
+            summary = f"Update payment status to '{tool_input.get('status', '?')}'"
+        elif tool_name == "update_issue_status":
+            summary = f"Update issue status to '{tool_input.get('status', '?')}'"
+        elif tool_name == "update_installment":
+            changes = []
+            if tool_input.get("name"):
+                changes.append(f"rename to '{tool_input['name']}'")
+            if tool_input.get("amount"):
+                changes.append(f"amount ${tool_input['amount']:,.2f}")
+            if tool_input.get("status"):
+                changes.append(f"status to '{tool_input['status']}'")
+            if tool_input.get("next_milestone") is True:
+                changes.append("mark as next milestone")
+            if tool_input.get("due_date"):
+                changes.append(f"due {tool_input['due_date']}")
+            summary = f"Update installment: {', '.join(changes)}" if changes else "Update installment"
+        else:
+            summary = tool_name.replace("_", " ").title()
+
+        return summary
 
     def _summarize_result(self, result: Dict[str, Any], max_length: int = 8000) -> str:
         """Summarize a tool result for inclusion in context.

@@ -5,6 +5,7 @@
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { AgentChat } from "./AgentChat";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { useTranslation } from "react-i18next";
 
 interface AgentDrawerProps {
   open: boolean;
@@ -21,6 +22,7 @@ export function AgentDrawer({
   conversationId,
   onConversationIdChange
 }: AgentDrawerProps) {
+  const { t } = useTranslation('agent');
   return (
     <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       <SheetContent
@@ -35,7 +37,7 @@ export function AgentDrawer({
         }}
       >
         <VisuallyHidden>
-          <SheetTitle>AI Assistant</SheetTitle>
+          <SheetTitle>{t('drawer.title')}</SheetTitle>
         </VisuallyHidden>
         <AgentChat
           projectId={projectId}

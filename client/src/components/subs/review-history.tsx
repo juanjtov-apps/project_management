@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import {
   CheckCircle,
@@ -81,6 +82,7 @@ const itemTypeIcons: Record<ChecklistItemData["itemType"], typeof FileText> = {
 };
 
 export function ReviewHistory({ projectId }: ReviewHistoryProps) {
+  const { t } = useTranslation('common');
   const { toast } = useToast();
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
@@ -117,7 +119,7 @@ export function ReviewHistory({ projectId }: ReviewHistoryProps) {
       <div className="flex items-center gap-2">
         <History className="h-5 w-5 text-[var(--pro-text-muted)]" />
         <h3 className="text-lg font-semibold text-[var(--pro-text-primary)]">
-          Recently Reviewed
+          {t('subs.recentlyReviewed')}
         </h3>
         <span className="text-sm text-[var(--pro-text-muted)]">
           ({history.length})
@@ -160,7 +162,7 @@ export function ReviewHistory({ projectId }: ReviewHistoryProps) {
                         ) : (
                           <XCircle className="h-3 w-3 mr-1" />
                         )}
-                        {isApproved ? "Approved" : "Rejected"}
+                        {isApproved ? t('status.approved') : t('status.rejected')}
                       </Badge>
                       <Badge variant="outline" className={priority.className}>
                         {priority.label}
@@ -218,7 +220,7 @@ export function ReviewHistory({ projectId }: ReviewHistoryProps) {
                         <div className="flex items-center gap-1.5 mb-1">
                           <MessageSquare className="h-3.5 w-3.5 text-[var(--pro-text-muted)]" />
                           <p className="text-xs font-medium text-[var(--pro-text-muted)]">
-                            Review feedback
+                            {t('subs.reviewFeedback')}
                           </p>
                         </div>
                         <p className="text-sm text-[var(--pro-text-secondary)] whitespace-pre-wrap">
@@ -285,7 +287,7 @@ export function ReviewHistory({ projectId }: ReviewHistoryProps) {
                                             : "bg-zinc-500/20 text-zinc-400 border-zinc-500/30"
                                         }`}
                                       >
-                                        {item.isCompleted ? "Done" : "Pending"}
+                                        {item.isCompleted ? t('subs.done') : t('status.pending')}
                                       </Badge>
                                     </div>
                                   </div>
@@ -295,7 +297,7 @@ export function ReviewHistory({ projectId }: ReviewHistoryProps) {
                                 {item.notes && (
                                   <div className="ml-6 p-2 rounded bg-[var(--pro-surface-highlight)] border border-[var(--pro-border)]">
                                     <p className="text-xs font-medium text-[var(--pro-text-muted)] mb-0.5">
-                                      Notes from sub:
+                                      {t('subs.notesFromSub')}
                                     </p>
                                     <p className="text-sm text-[var(--pro-text-secondary)] whitespace-pre-wrap">
                                       {item.notes}
@@ -308,7 +310,7 @@ export function ReviewHistory({ projectId }: ReviewHistoryProps) {
                                   item.documents.length > 0 && (
                                     <div className="ml-6 space-y-1">
                                       <p className="text-xs font-medium text-[var(--pro-text-muted)]">
-                                        Attached documents:
+                                        {t('subs.attachedDocuments')}
                                       </p>
                                       <div className="flex flex-wrap gap-1.5">
                                         {item.documents.map((doc) => (

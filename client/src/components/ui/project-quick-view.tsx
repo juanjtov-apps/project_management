@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { X, Sun, Cloud, CloudRain, Users, Building2, TrendingUp, Camera, Layers, ChevronRight, Clock, Sparkles, Check, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
@@ -36,6 +37,7 @@ export function ProjectQuickView({
   isOpen,
   className,
 }: ProjectQuickViewProps) {
+  const { t } = useTranslation('common');
   const [stagesOpen, setStagesOpen] = useState(false);
 
   // Fetch stages for the project
@@ -106,7 +108,7 @@ export function ProjectQuickView({
       >
         {/* Header */}
         <div className="sticky top-0 bg-[#161B22] border-b border-[#2D333B] p-3 sm:p-4 flex items-center justify-between z-10">
-          <h2 className="text-base sm:text-lg font-semibold text-white">Quick View</h2>
+          <h2 className="text-base sm:text-lg font-semibold text-white">{t('quickView.title')}</h2>
           <button
             onClick={onClose}
             className="p-2.5 sm:p-2 rounded-lg hover:bg-[#1F242C] transition-colors touch-manipulation min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
@@ -135,7 +137,7 @@ export function ProjectQuickView({
           {/* Project Name & Progress */}
           <div>
             <h3 className="text-xl font-bold text-white mb-1">{project.name}</h3>
-            <p className="text-sm text-[#9CA3AF] mb-3">Progress</p>
+            <p className="text-sm text-[#9CA3AF] mb-3">{t('quickView.progress')}</p>
             <Progress value={project.progress || 0} className="h-2" />
             <p className="text-xs text-[#9CA3AF] mt-1 text-right">{project.progress || 0}%</p>
           </div>
@@ -144,17 +146,17 @@ export function ProjectQuickView({
           <div className="grid grid-cols-2 gap-3">
             {/* Site Weather Card */}
             <div className="bg-[#1F242C] rounded-xl p-4">
-              <p className="text-xs text-[#9CA3AF] mb-3">Site Weather</p>
+              <p className="text-xs text-[#9CA3AF] mb-3">{t('quickView.siteWeather')}</p>
               <div className="flex items-center gap-2 mb-2">
                 <Sun className="w-8 h-8 text-[#EAB308]" />
               </div>
               <p className="text-2xl font-bold text-white">22°C</p>
-              <p className="text-xs text-[#9CA3AF]">Clear skies</p>
+              <p className="text-xs text-[#9CA3AF]">{t('quickView.clearSkies')}</p>
             </div>
 
             {/* Financial Health Card */}
             <div className="bg-[#1F242C] rounded-xl p-4">
-              <p className="text-xs text-[#9CA3AF] mb-3">Financial Health</p>
+              <p className="text-xs text-[#9CA3AF] mb-3">{t('quickView.financialHealth')}</p>
               <div className="relative w-16 h-16 mx-auto mb-2">
                 <svg className="w-full h-full transform -rotate-90">
                   <circle
@@ -180,7 +182,7 @@ export function ProjectQuickView({
                   <span className="text-sm font-bold text-white">{budgetSpent}%</span>
                 </div>
               </div>
-              <p className="text-xs text-[#9CA3AF] text-center">Spent</p>
+              <p className="text-xs text-[#9CA3AF] text-center">{t('quickView.spent')}</p>
               <p className="text-xs text-[#9CA3AF] text-center mt-1">
                 {formatCurrency(spentAmount)} / {formatCurrency(totalBudget)}
               </p>
@@ -189,7 +191,7 @@ export function ProjectQuickView({
 
           {/* Key Stakeholders */}
           <div className="bg-[#1F242C] rounded-xl p-4">
-            <p className="text-xs text-[#9CA3AF] mb-3">Key Stakeholders</p>
+            <p className="text-xs text-[#9CA3AF] mb-3">{t('quickView.keyStakeholders')}</p>
             {memberAvatars.length > 0 ? (
               <div className="flex items-center gap-4">
                 {memberAvatars.map((member) => (
@@ -206,14 +208,14 @@ export function ProjectQuickView({
             ) : (
               <div className="flex items-center gap-2 text-[#9CA3AF]">
                 <Users className="w-5 h-5" />
-                <span className="text-sm">No team members assigned</span>
+                <span className="text-sm">{t('quickView.noTeamMembers')}</span>
               </div>
             )}
           </div>
 
           {/* Recent Photos */}
           <div className="bg-[#1F242C] rounded-xl p-4">
-            <p className="text-xs text-[#9CA3AF] mb-3">Recent Photos</p>
+            <p className="text-xs text-[#9CA3AF] mb-3">{t('quickView.recentPhotos')}</p>
             {recentPhotos.length > 0 ? (
               <div className="grid grid-cols-3 xs:grid-cols-4 gap-2">
                 {recentPhotos.map((photo) => (
@@ -232,7 +234,7 @@ export function ProjectQuickView({
             ) : (
               <div className="flex items-center gap-2 text-[#9CA3AF]">
                 <Camera className="w-5 h-5" />
-                <span className="text-sm">No photos yet</span>
+                <span className="text-sm">{t('quickView.noPhotos')}</span>
               </div>
             )}
           </div>
@@ -242,7 +244,7 @@ export function ProjectQuickView({
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-amber-500" />
-                <p className="text-xs text-[#9CA3AF]">Project Stages</p>
+                <p className="text-xs text-[#9CA3AF]">{t('quickView.projectStages')}</p>
               </div>
               <Button
                 size="sm"
@@ -250,7 +252,7 @@ export function ProjectQuickView({
                 className="h-7 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
                 onClick={() => setStagesOpen(true)}
               >
-                Manage
+                {t('quickView.manage')}
                 <ChevronRight className="w-3 h-3 ml-1" />
               </Button>
             </div>
@@ -259,9 +261,9 @@ export function ProjectQuickView({
               <div className="space-y-3">
                 {/* Progress Summary */}
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-[#9CA3AF]">Progress</span>
+                  <span className="text-[#9CA3AF]">{t('quickView.progress')}</span>
                   <span className="text-white font-medium">
-                    {completedStages} of {stages.length} complete
+                    {t('quickView.stagesComplete', { completed: completedStages, total: stages.length })}
                   </span>
                 </div>
 
@@ -270,7 +272,7 @@ export function ProjectQuickView({
                   <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
                     <Sparkles className="w-4 h-4 text-amber-400" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-amber-400">Currently Active</p>
+                      <p className="text-xs text-amber-400">{t('quickView.currentlyActive')}</p>
                       <p className="text-sm text-white truncate">{activeStage.name}</p>
                     </div>
                   </div>
@@ -280,7 +282,7 @@ export function ProjectQuickView({
                 {nextMaterialsDue?.finishMaterialsDueDate && (
                   <div className="flex items-center gap-2 text-sm">
                     <Package className="w-4 h-4 text-rose-400" />
-                    <span className="text-[#9CA3AF]">Materials due:</span>
+                    <span className="text-[#9CA3AF]">{t('quickView.materialsDue')}</span>
                     <span className="text-rose-400">
                       {formatDateShort(nextMaterialsDue.finishMaterialsDueDate)}
                     </span>
@@ -289,14 +291,14 @@ export function ProjectQuickView({
               </div>
             ) : (
               <div className="text-center py-3">
-                <p className="text-sm text-[#9CA3AF]">No stages defined</p>
+                <p className="text-sm text-[#9CA3AF]">{t('quickView.noStages')}</p>
                 <Button
                   size="sm"
                   variant="ghost"
                   className="mt-2 text-xs text-amber-400 hover:text-amber-300"
                   onClick={() => setStagesOpen(true)}
                 >
-                  Add Stages
+                  {t('quickView.addStages')}
                 </Button>
               </div>
             )}
@@ -304,26 +306,42 @@ export function ProjectQuickView({
 
           {/* Project Details */}
           <div className="bg-[#1F242C] rounded-xl p-4 space-y-3">
-            <p className="text-xs text-[#9CA3AF]">Project Details</p>
+            <p className="text-xs text-[#9CA3AF]">{t('quickView.projectDetails')}</p>
             
             {project.location && (
               <div>
-                <p className="text-xs text-[#9CA3AF]">Location</p>
+                <p className="text-xs text-[#9CA3AF]">{t('quickView.location')}</p>
                 <p className="text-sm text-white">{project.location}</p>
               </div>
             )}
             
             {project.description && (
               <div>
-                <p className="text-xs text-[#9CA3AF]">Description</p>
+                <p className="text-xs text-[#9CA3AF]">{t('quickView.description')}</p>
                 <p className="text-sm text-white line-clamp-3">{project.description}</p>
               </div>
             )}
             
             <div>
-              <p className="text-xs text-[#9CA3AF]">Status</p>
+              <p className="text-xs text-[#9CA3AF]">{t('quickView.status')}</p>
               <p className="text-sm text-[#4ADE80] capitalize">{project.status?.replace('_', ' ')}</p>
             </div>
+
+            {/* Custom Fields */}
+            {(() => {
+              const cf = project.customFields as Record<string, string> | null | undefined;
+              if (!cf || typeof cf !== 'object') return null;
+              const entries = Object.entries(cf);
+              if (entries.length === 0) return null;
+              return entries.map(([key, value]) => (
+                <div key={key}>
+                  <p className="text-xs text-[#9CA3AF]">
+                    {key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                  </p>
+                  <p className="text-sm text-white">{String(value)}</p>
+                </div>
+              ));
+            })()}
           </div>
         </div>
       </div>
@@ -333,7 +351,7 @@ export function ProjectQuickView({
         <DialogContent hideCloseButton className="max-w-4xl max-h-[85vh] overflow-y-auto bg-zinc-900 border-zinc-700 p-0">
           {/* sr-only header for accessibility - close button is inside StagesTab */}
           <DialogHeader className="sr-only">
-            <DialogTitle>Project Stages</DialogTitle>
+            <DialogTitle>{t('quickView.projectStages')}</DialogTitle>
           </DialogHeader>
           <div className="p-6">
             <StagesTab

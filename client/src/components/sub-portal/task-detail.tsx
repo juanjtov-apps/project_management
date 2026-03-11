@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -85,92 +86,93 @@ interface TaskDetailProps {
   onBack: () => void;
 }
 
-const statusConfig: Record<
-  TaskDetailData["status"],
-  { label: string; className: string; icon: typeof Clock }
-> = {
-  not_started: {
-    label: "Not Started",
-    className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
-    icon: Clock,
-  },
-  in_progress: {
-    label: "In Progress",
-    className: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    icon: AlertCircle,
-  },
-  pending_review: {
-    label: "Pending Review",
-    className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    icon: Eye,
-  },
-  revision_requested: {
-    label: "Revision Requested",
-    className: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-    icon: AlertCircle,
-  },
-  approved: {
-    label: "Approved",
-    className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    icon: ShieldCheck,
-  },
-  rejected: {
-    label: "Rejected",
-    className: "bg-red-500/20 text-red-400 border-red-500/30",
-    icon: AlertCircle,
-  },
-};
-
-const priorityConfig: Record<
-  TaskDetailData["priority"],
-  { label: string; className: string }
-> = {
-  low: { label: "Low", className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30" },
-  medium: { label: "Medium", className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  high: { label: "High", className: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
-  urgent: { label: "Urgent", className: "bg-red-500/20 text-red-400 border-red-500/30" },
-};
-
-const itemTypeConfig: Record<
-  ChecklistItem["itemType"],
-  { label: string; className: string; icon: typeof FileText }
-> = {
-  standard: {
-    label: "Standard",
-    className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
-    icon: ClipboardCheck,
-  },
-  doc_required: {
-    label: "Doc Required",
-    className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    icon: FileText,
-  },
-  inspection: {
-    label: "Inspection",
-    className: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-    icon: Eye,
-  },
-};
-
-const reviewDecisionConfig: Record<
-  ReviewEntry["decision"],
-  { label: string; className: string }
-> = {
-  approved: {
-    label: "Approved",
-    className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-  },
-  revision_requested: {
-    label: "Revision Requested",
-    className: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-  },
-  rejected: {
-    label: "Rejected",
-    className: "bg-red-500/20 text-red-400 border-red-500/30",
-  },
-};
-
 export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
+  const { t } = useTranslation('subPortal');
+
+  const statusConfig: Record<
+    TaskDetailData["status"],
+    { label: string; className: string; icon: typeof Clock }
+  > = {
+    not_started: {
+      label: t('status.not_started'),
+      className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
+      icon: Clock,
+    },
+    in_progress: {
+      label: t('status.in_progress'),
+      className: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+      icon: AlertCircle,
+    },
+    pending_review: {
+      label: t('status.pending_review'),
+      className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+      icon: Eye,
+    },
+    revision_requested: {
+      label: t('status.revision_requested'),
+      className: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+      icon: AlertCircle,
+    },
+    approved: {
+      label: t('status.approved'),
+      className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+      icon: ShieldCheck,
+    },
+    rejected: {
+      label: t('status.rejected'),
+      className: "bg-red-500/20 text-red-400 border-red-500/30",
+      icon: AlertCircle,
+    },
+  };
+
+  const priorityConfig: Record<
+    TaskDetailData["priority"],
+    { label: string; className: string }
+  > = {
+    low: { label: t('priority.low'), className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30" },
+    medium: { label: t('priority.medium'), className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+    high: { label: t('priority.high'), className: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
+    urgent: { label: t('priority.urgent'), className: "bg-red-500/20 text-red-400 border-red-500/30" },
+  };
+
+  const itemTypeConfig: Record<
+    ChecklistItem["itemType"],
+    { label: string; className: string; icon: typeof FileText }
+  > = {
+    standard: {
+      label: t('tasks.itemType.standard'),
+      className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
+      icon: ClipboardCheck,
+    },
+    doc_required: {
+      label: t('tasks.itemType.docRequired'),
+      className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+      icon: FileText,
+    },
+    inspection: {
+      label: t('tasks.itemType.inspection'),
+      className: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+      icon: Eye,
+    },
+  };
+
+  const reviewDecisionConfig: Record<
+    ReviewEntry["decision"],
+    { label: string; className: string }
+  > = {
+    approved: {
+      label: t('status.approved'),
+      className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    },
+    revision_requested: {
+      label: t('status.revision_requested'),
+      className: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+    },
+    rejected: {
+      label: t('status.rejected'),
+      className: "bg-red-500/20 text-red-400 border-red-500/30",
+    },
+  };
   const [expandedChecklists, setExpandedChecklists] = useState<Set<string>>(
     new Set()
   );
@@ -225,8 +227,8 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to update checklist item.",
+        title: t('tasks.error'),
+        description: t('tasks.checklistError'),
         variant: "destructive",
       });
     },
@@ -264,14 +266,14 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
         queryKey: ["/api/v1/sub/tasks", taskId],
       });
       toast({
-        title: "Document Uploaded",
-        description: "Document has been attached to the checklist item.",
+        title: t('tasks.documentUploaded'),
+        description: t('tasks.documentUploadedDesc'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to upload document.",
+        title: t('tasks.error'),
+        description: t('tasks.documentUploadError'),
         variant: "destructive",
       });
     },
@@ -297,14 +299,14 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
         queryKey: ["/api/v1/sub/my-tasks", projectId],
       });
       toast({
-        title: "Submitted for Review",
-        description: "Your task has been submitted for review by the project manager.",
+        title: t('tasks.submittedForReview'),
+        description: t('tasks.submittedForReviewDesc'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to submit task for review.",
+        title: t('tasks.error'),
+        description: t('tasks.submitError'),
         variant: "destructive",
       });
     },
@@ -330,14 +332,14 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
         queryKey: ["/api/v1/sub/my-tasks", projectId],
       });
       toast({
-        title: "Task Started",
-        description: "Task status has been updated to In Progress.",
+        title: t('tasks.taskStarted'),
+        description: t('tasks.taskStartedDesc'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to start task.",
+        title: t('tasks.error'),
+        description: t('tasks.startError'),
         variant: "destructive",
       });
     },
@@ -384,8 +386,8 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
       });
     } catch (err) {
       toast({
-        title: "Upload Failed",
-        description: err instanceof Error ? err.message : "Could not upload file.",
+        title: t('tasks.uploadFailed'),
+        description: err instanceof Error ? err.message : t('tasks.uploadFailedDesc'),
         variant: "destructive",
       });
     } finally {
@@ -394,7 +396,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
   };
 
   const formatDate = (dateStr?: string) => {
-    if (!dateStr) return "Not set";
+    if (!dateStr) return t('tasks.notSet');
     return new Date(dateStr).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -413,10 +415,10 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
   if (!task) {
     return (
       <div className="text-center py-12">
-        <p className="text-[var(--pro-text-secondary)]">Task not found.</p>
+        <p className="text-[var(--pro-text-secondary)]">{t('tasks.notFound')}</p>
         <Button variant="outline" onClick={onBack} className="mt-4">
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Tasks
+          {t('tasks.backToTasks')}
         </Button>
       </div>
     );
@@ -440,7 +442,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
         className="text-[var(--pro-text-secondary)] hover:text-[var(--pro-text-primary)] min-h-[44px] -ml-2"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Tasks
+        {t('tasks.backToTasks')}
       </Button>
 
       {/* Task Header */}
@@ -484,7 +486,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
                   ) : (
                     <Clock className="h-4 w-4 mr-2" />
                   )}
-                  Start Task
+                  {t('tasks.startTask')}
                 </Button>
               )}
               {canSubmitForReview && (
@@ -498,7 +500,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
                   ) : (
                     <Send className="h-4 w-4 mr-2" />
                   )}
-                  Submit for Review
+                  {t('tasks.submitForReview')}
                 </Button>
               )}
             </div>
@@ -509,7 +511,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
           {task.description && (
             <div>
               <h4 className="text-sm font-medium text-[var(--pro-text-secondary)] mb-1">
-                Description
+                {t('tasks.description')}
               </h4>
               <p className="text-[var(--pro-text-primary)] whitespace-pre-wrap">
                 {task.description}
@@ -521,7 +523,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
           {task.instructions && (
             <div className="bg-[var(--pro-surface-highlight)] rounded-lg p-4 border border-[var(--pro-border)]">
               <h4 className="text-sm font-medium text-amber-400 mb-1">
-                Instructions
+                {t('tasks.instructions')}
               </h4>
               <p className="text-[var(--pro-text-primary)] whitespace-pre-wrap text-sm">
                 {task.instructions}
@@ -533,7 +535,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
           <div className="flex flex-wrap gap-4 text-sm">
             <div className="flex items-center gap-1.5 text-[var(--pro-text-secondary)]">
               <Calendar className="h-4 w-4" />
-              <span>Start: {formatDate(task.startDate)}</span>
+              <span>{t('tasks.start')} {formatDate(task.startDate)}</span>
             </div>
             <div
               className={`flex items-center gap-1.5 ${
@@ -545,7 +547,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
               }`}
             >
               <Calendar className="h-4 w-4" />
-              <span>Due: {formatDate(task.endDate)}</span>
+              <span>{t('tasks.due')} {formatDate(task.endDate)}</span>
             </div>
           </div>
 
@@ -553,9 +555,9 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
           {task.checklistItemsTotal > 0 && (
             <div>
               <div className="flex items-center justify-between mb-1.5 text-sm">
-                <span className="text-[var(--pro-text-secondary)]">Progress</span>
+                <span className="text-[var(--pro-text-secondary)]">{t('tasks.progress')}</span>
                 <span className="text-[var(--pro-text-primary)] font-medium">
-                  {task.checklistItemsCompleted}/{task.checklistItemsTotal} items
+                  {task.checklistItemsCompleted}/{task.checklistItemsTotal} {t('tasks.items')}
                 </span>
               </div>
               <div className="w-full h-2 bg-[var(--pro-surface-highlight)] rounded-full overflow-hidden">
@@ -578,7 +580,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
       {task.checklists && task.checklists.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--pro-text-primary)]">
-            Checklists
+            {t('tasks.checklists')}
           </h3>
           {task.checklists.map((checklist) => {
             const isExpanded = expandedChecklists.has(checklist.id);
@@ -667,7 +669,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
                                   </Badge>
                                 </div>
                                 {!item.isCompleted && item.itemType === "doc_required" && (!item.documents || item.documents.length === 0) && (
-                                  <p className="text-xs text-amber-400 mt-0.5">Upload document to complete</p>
+                                  <p className="text-xs text-amber-400 mt-0.5">{t('tasks.uploadDocToComplete')}</p>
                                 )}
                               </div>
                             </div>
@@ -676,7 +678,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
                             {!isTerminal && (
                               <div className="ml-8">
                                 <Textarea
-                                  placeholder="Add notes..."
+                                  placeholder={t('tasks.addNotes')}
                                   defaultValue={item.notes || ""}
                                   onChange={(e) =>
                                     setItemNotes((prev) => ({
@@ -722,7 +724,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
                                             const { downloadURL } = await res.json();
                                             window.open(downloadURL, "_blank");
                                           } catch {
-                                            toast({ title: "Download Failed", description: "Could not download document.", variant: "destructive" });
+                                            toast({ title: t('tasks.downloadFailed'), description: t('tasks.downloadFailedDesc'), variant: "destructive" });
                                           }
                                         }}
                                       >
@@ -743,7 +745,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
                                 {!isTerminal && (
                                   <label className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-dashed border-[var(--pro-border)] text-[var(--pro-text-secondary)] hover:border-[var(--pro-mint)] hover:text-[var(--pro-mint)] transition-colors min-h-[44px] ${uploadingItemId === item.id ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}>
                                     {uploadingItemId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                                    <span>{uploadingItemId === item.id ? "Uploading..." : "Upload Document"}</span>
+                                    <span>{uploadingItemId === item.id ? t('tasks.uploadingDoc') : t('tasks.uploadDocument')}</span>
                                     <input
                                       type="file"
                                       className="hidden"
@@ -776,7 +778,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
           <CardHeader>
             <CardTitle className="text-lg text-[var(--pro-text-primary)] flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-[var(--pro-mint)]" />
-              Review History
+              {t('tasks.reviewHistory')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -795,7 +797,7 @@ export function TaskDetail({ taskId, projectId, onBack }: TaskDetailProps) {
                         {decision.label}
                       </Badge>
                       <span className="text-sm text-[var(--pro-text-secondary)]">
-                        by {review.reviewerName || "PM"}
+                        {t('tasks.by')} {review.reviewerName || "PM"}
                       </span>
                     </div>
                     <span className="text-xs text-[var(--pro-text-muted)]">

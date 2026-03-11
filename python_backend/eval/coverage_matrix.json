@@ -1,0 +1,270 @@
+{
+  "total_cells": 208,
+  "covered_cells": 208,
+  "coverage_pct": 100.0,
+  "matrix": {
+    "create_task": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "create_issue": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "create_installment": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "create_stage": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "create_material_item": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "create_daily_log": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "update_project_status": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "update_task_status": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "update_issue_status": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "update_payment_status": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "update_installment": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "update_stage": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "update_project_details": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "assign_task": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "delete_task": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "send_notification": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "apply_stage_template": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "get_stage_templates": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "get_project_detail": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "get_projects": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "get_stages": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "get_tasks": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "get_materials": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "get_issues": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "get_installments": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    },
+    "query_database": {
+      "Happy Path": true,
+      "Edge Case": true,
+      "Wrong Tool Trap": true,
+      "Permission Check": true,
+      "Error Handling": true,
+      "Multi-Tool Combo": true,
+      "Follow-Up Trigger": true,
+      "Router Tier": true
+    }
+  },
+  "gaps": [],
+  "high_priority_gaps": [],
+  "low_coverage_tools": []
+}

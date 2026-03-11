@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   DollarSign,
   CheckCircle,
@@ -37,32 +38,6 @@ interface PaymentsTabProps {
   projectId: string;
 }
 
-const milestoneStatusConfig: Record<
-  PaymentMilestone["status"],
-  { label: string; className: string; icon: typeof Clock }
-> = {
-  pending: {
-    label: "Pending",
-    className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
-    icon: Clock,
-  },
-  payable: {
-    label: "Payable",
-    className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    icon: TrendingUp,
-  },
-  approved: {
-    label: "Approved",
-    className: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    icon: ShieldCheck,
-  },
-  paid: {
-    label: "Paid",
-    className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    icon: CheckCircle,
-  },
-};
-
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -73,6 +48,34 @@ function formatCurrency(amount: number): string {
 }
 
 export function PaymentsTab({ projectId }: PaymentsTabProps) {
+  const { t } = useTranslation('subPortal');
+
+  const milestoneStatusConfig: Record<
+    PaymentMilestone["status"],
+    { label: string; className: string; icon: typeof Clock }
+  > = {
+    pending: {
+      label: t('payments.status.pending'),
+      className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
+      icon: Clock,
+    },
+    payable: {
+      label: t('payments.status.payable'),
+      className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+      icon: TrendingUp,
+    },
+    approved: {
+      label: t('payments.status.approved'),
+      className: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+      icon: ShieldCheck,
+    },
+    paid: {
+      label: t('payments.status.paid'),
+      className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+      icon: CheckCircle,
+    },
+  };
+
   const { data, isLoading } = useQuery<PaymentSummary>({
     queryKey: ["/api/v1/sub/my-milestones", projectId],
     queryFn: async () => {
@@ -99,10 +102,10 @@ export function PaymentsTab({ projectId }: PaymentsTabProps) {
         <CardContent className="text-center py-12">
           <DollarSign className="h-16 w-16 mx-auto text-[var(--pro-text-muted)] mb-4" />
           <h3 className="text-xl font-semibold mb-2 text-[var(--pro-text-primary)]">
-            No Payment Data
+            {t('payments.noPaymentData')}
           </h3>
           <p className="text-[var(--pro-text-secondary)]">
-            Payment milestones have not been set up for this project yet.
+            {t('payments.noPaymentDataDesc')}
           </p>
         </CardContent>
       </Card>
@@ -120,10 +123,10 @@ export function PaymentsTab({ projectId }: PaymentsTabProps) {
       {/* Header */}
       <div>
         <h2 className="text-xl sm:text-2xl font-bold text-[var(--pro-text-primary)]">
-          Payments
+          {t('payments.title')}
         </h2>
         <p className="text-[var(--pro-text-secondary)]">
-          Payment milestones and earnings summary
+          {t('payments.subtitle')}
         </p>
       </div>
 
@@ -134,7 +137,7 @@ export function PaymentsTab({ projectId }: PaymentsTabProps) {
             <div className="flex items-center gap-2 mb-1">
               <Wallet className="h-4 w-4 text-[var(--pro-text-muted)]" />
               <span className="text-xs text-[var(--pro-text-secondary)] uppercase tracking-wider">
-                Contract
+                {t('payments.contract')}
               </span>
             </div>
             <p className="text-lg sm:text-xl font-bold text-[var(--pro-text-primary)]">
@@ -148,7 +151,7 @@ export function PaymentsTab({ projectId }: PaymentsTabProps) {
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="h-4 w-4 text-blue-400" />
               <span className="text-xs text-[var(--pro-text-secondary)] uppercase tracking-wider">
-                Earned
+                {t('payments.earned')}
               </span>
             </div>
             <p className="text-lg sm:text-xl font-bold text-blue-400">
@@ -162,7 +165,7 @@ export function PaymentsTab({ projectId }: PaymentsTabProps) {
             <div className="flex items-center gap-2 mb-1">
               <CheckCircle className="h-4 w-4 text-emerald-400" />
               <span className="text-xs text-[var(--pro-text-secondary)] uppercase tracking-wider">
-                Paid
+                {t('payments.paid')}
               </span>
             </div>
             <p className="text-lg sm:text-xl font-bold text-emerald-400">
@@ -176,7 +179,7 @@ export function PaymentsTab({ projectId }: PaymentsTabProps) {
             <div className="flex items-center gap-2 mb-1">
               <ShieldCheck className="h-4 w-4 text-amber-400" />
               <span className="text-xs text-[var(--pro-text-secondary)] uppercase tracking-wider">
-                Retention
+                {t('payments.retention')}
               </span>
             </div>
             <p className="text-lg sm:text-xl font-bold text-amber-400">
@@ -190,7 +193,7 @@ export function PaymentsTab({ projectId }: PaymentsTabProps) {
             <div className="flex items-center gap-2 mb-1">
               <DollarSign className="h-4 w-4 text-[var(--pro-text-muted)]" />
               <span className="text-xs text-[var(--pro-text-secondary)] uppercase tracking-wider">
-                Remaining
+                {t('payments.remaining')}
               </span>
             </div>
             <p className="text-lg sm:text-xl font-bold text-[var(--pro-text-primary)]">
@@ -204,7 +207,7 @@ export function PaymentsTab({ projectId }: PaymentsTabProps) {
       <Card className="bg-[var(--pro-surface)] border-[var(--pro-border)]">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-2 text-sm">
-            <span className="text-[var(--pro-text-secondary)]">Payment Progress</span>
+            <span className="text-[var(--pro-text-secondary)]">{t('payments.paymentProgress')}</span>
             <span className="text-[var(--pro-text-primary)] font-medium">{paidPercent}%</span>
           </div>
           <div className="w-full h-3 bg-[var(--pro-surface-highlight)] rounded-full overflow-hidden">
@@ -214,8 +217,8 @@ export function PaymentsTab({ projectId }: PaymentsTabProps) {
             />
           </div>
           <div className="flex items-center justify-between mt-1 text-xs text-[var(--pro-text-muted)]">
-            <span>{formatCurrency(data.paid)} paid</span>
-            <span>{formatCurrency(data.totalContractValue)} total</span>
+            <span>{t('payments.paidAmount', { amount: formatCurrency(data.paid) })}</span>
+            <span>{t('payments.totalAmount', { amount: formatCurrency(data.totalContractValue) })}</span>
           </div>
         </CardContent>
       </Card>
@@ -224,7 +227,7 @@ export function PaymentsTab({ projectId }: PaymentsTabProps) {
       {milestones.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--pro-text-primary)]">
-            Milestones
+            {t('payments.milestones')}
           </h3>
           <div className="space-y-2">
             {milestones.map((milestone) => {
@@ -262,8 +265,7 @@ export function PaymentsTab({ projectId }: PaymentsTabProps) {
                             <div className="flex items-center gap-1">
                               <LinkIcon className="h-3 w-3" />
                               <span>
-                                {milestone.linkedTasksCount} linked task
-                                {milestone.linkedTasksCount !== 1 ? "s" : ""}
+                                {t('payments.linkedTasks', { count: milestone.linkedTasksCount })}
                               </span>
                             </div>
                           )}
@@ -271,11 +273,12 @@ export function PaymentsTab({ projectId }: PaymentsTabProps) {
                             <div className="flex items-center gap-1">
                               <CalendarCheck className="h-3 w-3 text-emerald-400" />
                               <span className="text-emerald-400">
-                                Paid{" "}
-                                {new Date(milestone.paidDate).toLocaleDateString(
-                                  "en-US",
-                                  { month: "short", day: "numeric", year: "numeric" }
-                                )}
+                                {t('payments.paidOn', {
+                                  date: new Date(milestone.paidDate).toLocaleDateString(
+                                    "en-US",
+                                    { month: "short", day: "numeric", year: "numeric" }
+                                  )
+                                })}
                               </span>
                             </div>
                           )}

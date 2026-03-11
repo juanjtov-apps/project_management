@@ -1,0 +1,88 @@
+{
+  "tabs.projectOverview": "Vista de Proyectos",
+  "tabs.taskManagement": "Gesti\u00f3n de Tareas",
+
+  "stats.activeProjects": "Proyectos Activos",
+  "stats.activeProjectsSub": "+{{count}} esta semana",
+  "stats.tasksDueToday": "Tareas Vencen Hoy",
+  "stats.tasksDueTodaySub": "{{count}} vencidas",
+
+  "todaysTasks.title": "Tareas de Hoy",
+  "todaysTasks.empty": "No hay tareas para hoy",
+  "todaysTasks.enjoyDay": "\u00a1Disfruta tu d\u00eda!",
+
+  "quickActions.title": "Acciones R\u00e1pidas",
+  "quickActions.addProject": "Agregar Proyecto",
+  "quickActions.addTasks": "Agregar Tareas",
+  "quickActions.uploadPhotos": "Subir Fotos",
+  "quickActions.addIssue": "Agregar Problema",
+  "quickActions.addLog": "Agregar Registro",
+  "quickActions.finishMaterials": "Finalizar Materiales",
+
+  "multiProject.title": "Vista Multi-Proyecto",
+  "multiProject.onTrack": "En Curso",
+  "multiProject.atRisk": "En Riesgo",
+  "multiProject.delayed": "Retrasado",
+  "multiProject.empty": "A\u00fan no hay proyectos",
+  "multiProject.createFirst": "Crea tu primer proyecto para comenzar",
+  "multiProject.createProject": "Crear Proyecto",
+
+  "briefing.liveBriefing": "INFORME EN VIVO",
+
+  "chat.confirmationRequired": "Confirmaci\u00f3n Requerida",
+  "chat.cancel": "Cancelar",
+  "chat.confirm": "Confirmar",
+  "chat.howCanIHelp": "\u00bfC\u00f3mo puedo ayudarte hoy?",
+  "chat.askAbout": "Pregunta sobre proyectos, tareas, calendarios o cualquier tema de obra.",
+  "chat.suggestion.projectStatus": "\u00bfCu\u00e1l es el estado de mis proyectos?",
+  "chat.suggestion.overdueTasks": "Muestra las tareas vencidas",
+  "chat.suggestion.atRisk": "\u00bfQu\u00e9 proyectos est\u00e1n en riesgo?",
+  "chat.suggestion.dueThisWeek": "\u00bfQu\u00e9 vence esta semana?",
+  "chat.messagePlaceholder": "Escribe a Proe...",
+  "chat.working": "Procesando",
+  "chat.active": "Activo",
+  "chat.newConversation": "Nueva conversaci\u00f3n",
+  "chat.enterToSend": "Enter para enviar",
+  "chat.shiftEnterNewLine": "Shift+Enter para nueva l\u00ednea",
+  "chat.conversation": "CONVERSACI\u00d3N",
+
+  "rightPanel.activeJobs": "Trabajos Activos",
+  "rightPanel.viewAll": "Ver todos",
+  "rightPanel.noActiveProjects": "No hay proyectos activos",
+
+  "jobCard.onTrack": "En Curso",
+  "jobCard.atRisk": "En Riesgo",
+  "jobCard.onHold": "En Pausa",
+  "jobCard.delayed": "Retrasado",
+  "jobCard.done": "Completado",
+  "jobCard.daysBehind": "{{count}}d atr\u00e1s",
+
+  "activeProjects.title": "Proyectos Activos",
+  "activeProjects.viewAll": "Ver Todos",
+  "activeProjects.empty": "No hay proyectos activos",
+  "activeProjects.createFirst": "Crea tu primer proyecto para comenzar",
+  "activeProjects.due": "Vence",
+  "activeProjects.tbd": "Por definir",
+
+  "expiredTasks.title": "Tareas Vencidas",
+  "expiredTasks.viewAll": "Ver Todas",
+  "expiredTasks.empty": "No hay tareas vencidas",
+  "expiredTasks.onTrack": "\u00a1Excelente trabajo cumpliendo con los plazos!",
+
+  "upcomingTasks.title": "Pr\u00f3ximas 3 Tareas Prioritarias",
+  "upcomingTasks.viewAll": "Ver Todas",
+  "upcomingTasks.empty": "No hay tareas pr\u00f3ximas",
+  "upcomingTasks.allCaughtUp": "\u00a1Est\u00e1s al d\u00eda!",
+
+  "recentActivity.title": "Actividad Reciente",
+  "recentActivity.viewAll": "Ver toda",
+  "recentActivity.empty": "No hay actividad reciente en tu empresa",
+  "recentActivity.today": "Hoy",
+  "recentActivity.yesterday": "Ayer",
+  "recentActivity.recently": "Recientemente",
+
+  "rightPanel.activeJobs": "PROYECTOS ACTIVOS",
+  "rightPanel.viewAll": "Ver todos",
+  "rightPanel.noActiveProjects": "No hay proyectos activos",
+  "rightPanel.projectInfoPrompt": "Cuéntame sobre el proyecto {{projectName}}"
+}

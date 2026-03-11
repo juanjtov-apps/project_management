@@ -84,11 +84,16 @@ class GetIssuesTool(BaseTool):
         query_params = []
         param_count = 1
 
-        # Filter by company (through projects table since issues doesn't have company_id)
-        if company_id:
-            query += f" AND p.company_id = ${param_count}"
-            query_params.append(str(company_id))
-            param_count += 1
+        # Filter by company (mandatory for multi-tenant isolation)
+        if not company_id:
+            return {
+                "error": "Company context required",
+                "issues": [],
+                "summary": {},
+            }
+        query += f" AND p.company_id = ${param_count}"
+        query_params.append(str(company_id))
+        param_count += 1
 
         # Filter by project
         if project_id:
@@ -114,6 +119,13 @@ class GetIssuesTool(BaseTool):
         assigned_to = params.get("assigned_to")
         if assigned_to:
             issues = [i for i in issues if str(i.get("assigned_to")) == str(assigned_to)]
+
+        # Client visibility filter — clients only see public/client issues
+        if context.get("role") == "client":
+            issues = [
+                i for i in issues
+                if i.get("visibility") in ("public", "client", None)
+            ]
 
         # Urgent only filter (critical/high priority AND open)
         if params.get("urgent_only"):

@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, status, Depends, Query, UploadFile, File
 from pydantic import BaseModel
@@ -13,6 +14,7 @@ from src.database.connection import get_db_pool
 from src.api.auth import get_current_user_dependency, is_root_admin
 from src.services.notification_service import NotificationService
 from src.core.storage import generate_signed_url, get_storage_config
+from src.services.insight_service import regenerate_project_insight
 
 router = APIRouter()
 
@@ -511,6 +513,9 @@ async def create_issue(
             body=issue.description[:200] if issue.description else None
         )
 
+    # Refresh insight (issue count changed)
+    asyncio.create_task(regenerate_project_insight(issue.project_id))
+
     return issue_data
 
 @router.patch("/client-issues/{issue_id}")
@@ -599,6 +604,9 @@ async def update_issue(
             title=f"Issue Resolved: {issue['title'][:50]}",
             body=f"Marked as resolved by {resolver_name}"
         )
+
+    # Refresh insight (issue status changed)
+    asyncio.create_task(regenerate_project_insight(str(issue['project_id'])))
 
     return issue_data
 
@@ -736,6 +744,9 @@ async def delete_issue(
             "DELETE FROM client_portal.issues WHERE id = $1",
             issue_id
         )
+
+        # Refresh insight (issue count changed)
+        asyncio.create_task(regenerate_project_insight(str(issue['project_id'])))
 
         return {"success": True, "message": "Issue deleted successfully"}
 

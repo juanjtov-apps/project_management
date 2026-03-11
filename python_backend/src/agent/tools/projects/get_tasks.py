@@ -112,6 +112,17 @@ class GetTasksTool(BaseTool):
         company_id = context.get("company_id")
         project_id = params.get("project_id")
 
+        # Verify project belongs to user's company
+        if project_id:
+            from ..security import verify_project_access
+            if not await verify_project_access(project_id, company_id):
+                return {
+                    "error": "Project not found or access denied",
+                    "projectId": project_id,
+                    "tasks": [],
+                    "summary": {},
+                }
+
         # Get tasks as dicts
         tasks = await self._get_tasks(company_id, project_id)
 
@@ -203,12 +214,12 @@ class GetTasksTool(BaseTool):
         simplified_tasks = []
         for t in tasks[:50]:  # Limit to 50
             simplified_tasks.append({
-                "id": t.get("id"),
+                "id": str(t.get("id")) if t.get("id") else None,
                 "title": t.get("title"),
                 "description": t.get("description"),
                 "status": t.get("status"),
                 "priority": t.get("priority"),
-                "assigneeId": t.get("assignee_id"),
+                "assigneeId": str(t.get("assignee_id")) if t.get("assignee_id") else None,
                 "dueDate": str(t.get("due_date")) if t.get("due_date") else None,
                 "isMilestone": t.get("is_milestone", False),
                 "category": t.get("category"),

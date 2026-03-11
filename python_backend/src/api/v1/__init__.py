@@ -85,6 +85,25 @@ try:
 except ImportError:
     analytics_router = None
 
+# Import agent health dashboard router (observability)
+try:
+    from ...api.agent_health import router as agent_health_router
+except ImportError:
+    agent_health_router = None
+
+# Import agent troubleshooting router (root admin error tracking)
+try:
+    from ...api.agent_troubleshooting import router as agent_troubleshooting_router
+except ImportError:
+    agent_troubleshooting_router = None
+
+# Import briefing router (morning briefing)
+try:
+    from . import briefing as briefing_module
+    briefing_router = briefing_module.router
+except ImportError:
+    briefing_router = None
+
 def create_v1_router() -> APIRouter:
     """Create and configure the v1 API router."""
     v1_router = APIRouter(prefix="/v1", tags=["v1"])
@@ -163,6 +182,18 @@ def create_v1_router() -> APIRouter:
     # Include analytics router for platform usage tracking
     if analytics_router:
         v1_router.include_router(analytics_router, tags=["analytics"])
+
+    # Include briefing router for morning briefing
+    if briefing_router:
+        v1_router.include_router(briefing_router, tags=["briefing"])
+
+    # Include agent health dashboard router (observability)
+    if agent_health_router:
+        v1_router.include_router(agent_health_router, tags=["agent-health"])
+
+    # Include agent troubleshooting router (root admin error tracking)
+    if agent_troubleshooting_router:
+        v1_router.include_router(agent_troubleshooting_router, tags=["agent-troubleshooting"])
 
     return v1_router
 

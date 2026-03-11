@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Sheet,
   SheetContent,
@@ -19,6 +20,7 @@ import MultiProjectOverview from "@/components/dashboard/multi-project-overview"
 
 
 export default function Dashboard() {
+  const { t } = useTranslation('dashboard');
   const [isMobileFABOpen, setIsMobileFABOpen] = useState(false);
 
   return (
@@ -49,15 +51,15 @@ export default function Dashboard() {
                   aria-label="Project Overview"
                   data-testid="tab-overview"
                 >
-                  Project Overview
+                  {t('tabs.projectOverview')}
                 </TabsTrigger>
                 <TabsTrigger
                   value="tasks"
                   className="min-h-[48px] text-[#9CA3AF] data-[state=active]:text-white data-[state=active]:bg-[#1F242C] rounded-lg transition-all"
-                  aria-label="Task Management"
+                  aria-label={t('tabs.taskManagement')}
                   data-testid="tab-tasks"
                 >
-                  Task Management
+                  {t('tabs.taskManagement')}
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -108,7 +110,7 @@ export default function Dashboard() {
               aria-describedby={undefined}
             >
               <SheetHeader>
-                <SheetTitle className="text-white">Quick Actions</SheetTitle>
+                <SheetTitle className="text-white">{t('quickActions.title')}</SheetTitle>
               </SheetHeader>
               <div className="mt-6">
                 <QuickActions />

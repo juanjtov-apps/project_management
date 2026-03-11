@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -83,6 +84,8 @@ function IssuePhotos({
   photoCount: number;
   canDelete?: boolean;
 }) {
+  const { t } = useTranslation('clientPortal');
+  const { t: tc } = useTranslation('common');
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -101,10 +104,10 @@ function IssuePhotos({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/client-issues/${issueId}/photos`] });
-      toast({ title: "Photo Deleted", description: "The photo has been removed." });
+      toast({ title: t('issues.photoDeleted'), description: t('issues.photoDeletedDesc') });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to delete photo.", variant: "destructive" });
+      toast({ title: tc('toast.error'), description: t('issues.photoDeleteError'), variant: "destructive" });
     },
   });
 
@@ -128,7 +131,7 @@ function IssuePhotos({
         <div key={photo.id} className="relative group">
           <img
             src={photo.url}
-            alt="Issue photo"
+            alt={t('issues.issuePhoto')}
             className="w-full h-24 object-cover rounded-lg border cursor-pointer hover:opacity-80"
             onClick={() => window.open(photo.url, '_blank')}
             onError={(e) => {
@@ -144,7 +147,7 @@ function IssuePhotos({
               }}
               disabled={deletePhotoMutation.isPending}
               className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-md p-0.5 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
-              title="Delete photo"
+              title={t('issues.deletePhoto')}
             >
               <X className="h-4 w-4" />
             </button>
@@ -157,6 +160,7 @@ function IssuePhotos({
 
 // Component to display issue audit history (admin/PM only)
 function IssueHistory({ issueId }: { issueId: string }) {
+  const { t } = useTranslation('clientPortal');
   const [isExpanded, setIsExpanded] = useState(false);
 
   const { data, isLoading, error } = useQuery<IssueAuditEntry[]>({
@@ -167,11 +171,11 @@ function IssueHistory({ issueId }: { issueId: string }) {
   const formatAction = (action: string) => {
     switch (action) {
       case "created":
-        return { label: "Created", color: "bg-green-100 text-green-800" };
+        return { label: t('issues.actionCreated'), color: "bg-green-100 text-green-800" };
       case "edited":
-        return { label: "Edited", color: "bg-blue-100 text-blue-800" };
+        return { label: t('issues.actionEdited'), color: "bg-blue-100 text-blue-800" };
       case "deleted":
-        return { label: "Deleted", color: "bg-red-100 text-red-800" };
+        return { label: t('issues.actionDeleted'), color: "bg-red-100 text-red-800" };
       default:
         return { label: action, color: "bg-gray-100 text-gray-800" };
     }
@@ -211,7 +215,7 @@ function IssueHistory({ issueId }: { issueId: string }) {
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <History className="h-4 w-4" />
-        <span>Activity History</span>
+        <span>{t('issues.activityHistory')}</span>
         {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
 
@@ -220,19 +224,19 @@ function IssueHistory({ issueId }: { issueId: string }) {
           {isLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading history...
+              {t('issues.loadingHistory')}
             </div>
           )}
 
           {error && (
             <div className="text-sm text-red-600">
-              Failed to load history
+              {t('issues.failedToLoadHistory')}
             </div>
           )}
 
           {data && data.length === 0 && (
             <div className="text-sm text-muted-foreground">
-              No history available
+              {t('issues.noHistoryAvailable')}
             </div>
           )}
 
@@ -247,7 +251,7 @@ function IssueHistory({ issueId }: { issueId: string }) {
                       {actionInfo.label}
                     </Badge>
                     <span className="text-muted-foreground">
-                      by {entry.actor_name || "Unknown"}
+                      {t('issues.byActor', { name: entry.actor_name || "Unknown" })}
                     </span>
                     <span className="text-muted-foreground">
                       {new Date(entry.created_at).toLocaleString()}
@@ -269,6 +273,8 @@ function IssueHistory({ issueId }: { issueId: string }) {
 }
 
 export function IssuesTab({ projectId }: IssuesTabProps) {
+  const { t } = useTranslation('clientPortal');
+  const { t: tc } = useTranslation('common');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
@@ -345,8 +351,8 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/client-issues?project_id=${projectId}`] });
       toast({
-        title: "Issue Created",
-        description: "Your issue has been submitted successfully.",
+        title: t('issues.created'),
+        description: t('issues.submitSuccess'),
       });
       form.reset();
       setUploadedPhotos([]);
@@ -355,8 +361,8 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: "Failed to create issue. Please try again.",
+        title: tc('toast.error'),
+        description: t('issues.submitError'),
         variant: "destructive",
       });
     },
@@ -382,8 +388,8 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
         queryClient.invalidateQueries({ queryKey: [`/api/client-issues/${editingIssue.id}/photos`] });
       }
       toast({
-        title: "Issue Updated",
-        description: "The issue has been updated successfully.",
+        title: t('issues.updated'),
+        description: t('issues.updatedDesc'),
       });
       editForm.reset();
       setEditUploadedPhotos([]);
@@ -393,8 +399,8 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: "Failed to update issue. Please try again.",
+        title: tc('toast.error'),
+        description: t('issues.updateError'),
         variant: "destructive",
       });
     },
@@ -411,15 +417,15 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/client-issues?project_id=${projectId}`] });
       toast({
-        title: "Issue Deleted",
-        description: "The issue has been deleted successfully.",
+        title: t('issues.deleted'),
+        description: t('issues.deletedDesc'),
       });
       setDeleteIssueId(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: "Failed to delete issue. Please try again.",
+        title: tc('toast.error'),
+        description: t('issues.deleteError'),
         variant: "destructive",
       });
     },
@@ -437,8 +443,8 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
       queryClient.invalidateQueries({ queryKey: [`/api/client-issues?project_id=${projectId}`] });
       setResolvingIssueId(null);
       toast({
-        title: "Issue Closed",
-        description: "The issue has been marked as resolved.",
+        title: t('issues.closed'),
+        description: t('issues.closedDesc'),
       });
     },
   });
@@ -454,14 +460,14 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/client-issues?project_id=${projectId}`] });
       toast({
-        title: "Issue Reopened",
-        description: "The issue has been reopened.",
+        title: t('issues.reopened'),
+        description: t('issues.reopenedDesc'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Only admins can reopen closed issues.",
+        title: tc('toast.error'),
+        description: t('issues.reopenError'),
         variant: "destructive",
       });
     },
@@ -489,8 +495,8 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
 
     if (totalPhotos.length > 3) {
       toast({
-        title: "Photo Limit Exceeded",
-        description: "Maximum 3 photos allowed per issue.",
+        title: t('issues.photoLimitExceeded'),
+        description: t('issues.photoLimitExceededDesc'),
         variant: "destructive",
       });
       return;
@@ -510,8 +516,8 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
 
     if (totalPhotos.length > 3) {
       toast({
-        title: "Photo Limit Exceeded",
-        description: "Maximum 3 new photos allowed.",
+        title: t('issues.photoLimitExceeded'),
+        description: t('issues.photoLimitExceededNewDesc'),
         variant: "destructive",
       });
       return;
@@ -570,9 +576,9 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Project Issues</h2>
+          <h2 className="text-2xl font-bold">{t('issues.header')}</h2>
           <p className="text-muted-foreground">
-            Report issues and track their resolution status
+            {t('issues.headerDesc')}
           </p>
         </div>
 
@@ -580,12 +586,12 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
           <DialogTrigger asChild>
             <Button data-testid="button-create-issue">
               <Plus className="h-4 w-4 mr-2" />
-              Report Issue
+              {t('issues.reportIssue')}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Report New Issue</DialogTitle>
+              <DialogTitle>{t('issues.reportNewIssue')}</DialogTitle>
             </DialogHeader>
 
             <Form {...form}>
@@ -595,10 +601,10 @@ export function IssuesTab({ projectId }: IssuesTabProps) {
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Issue Title</FormLabel>
+                      <FormLabel>{t('issues.issueTitle')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Brief description of the issue"
+                          placeholder={t('issues.issueTitlePlaceholder')}
                           {...field}
                           data-testid="input-issue-title"
                         />

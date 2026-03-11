@@ -2,24 +2,26 @@ import { useRef } from 'react';
 import { Users, Rocket, Building2 } from 'lucide-react';
 import { useGSAP, usePrefersReducedMotion } from '@/hooks/useGSAP';
 import { CountUp, SectionHeader } from './shared';
+import { useTranslation } from "react-i18next";
 import type { LucideIcon } from 'lucide-react';
 
 interface Stat {
   number: number;
   suffix: string;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
 }
 
 const stats: Stat[] = [
-  { number: 400, suffix: '+', label: 'professionals on the waitlist', icon: Users },
-  { number: 12, suffix: '', label: 'beta teams actively testing', icon: Rocket },
-  { number: 3, suffix: '', label: 'enterprise pilots in progress', icon: Building2 }
+  { number: 400, suffix: '+', labelKey: 'trust.professionals', icon: Users },
+  { number: 12, suffix: '', labelKey: 'trust.betaTeams', icon: Rocket },
+  { number: 3, suffix: '', labelKey: 'trust.pilots', icon: Building2 }
 ];
 
 export function TrustSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
+  const { t } = useTranslation('landing');
 
   useGSAP((gsap) => {
     if (prefersReducedMotion) {
@@ -57,7 +59,7 @@ export function TrustSection() {
 
       <div className="container mx-auto px-6">
         <SectionHeader
-          title="Built with trust"
+          title={t('trust.headline')}
           className="mb-12"
         />
 
@@ -67,7 +69,7 @@ export function TrustSection() {
             const Icon = stat.icon;
             return (
               <div
-                key={stat.label}
+                key={stat.labelKey}
                 className="trust-card group relative p-8 rounded-2xl border transition-all duration-500 overflow-hidden"
                 style={{
                   background: 'linear-gradient(135deg, #161B22 0%, #1a2129 100%)',
@@ -122,7 +124,7 @@ export function TrustSection() {
                   className="text-sm leading-relaxed"
                   style={{ color: '#9CA3AF' }}
                 >
-                  {stat.label}
+                  {t(stat.labelKey)}
                 </p>
               </div>
             );

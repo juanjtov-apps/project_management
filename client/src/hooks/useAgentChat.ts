@@ -3,6 +3,8 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import i18n from "@/i18n";
 
 export interface AgentMessage {
   id: string;
@@ -28,6 +30,7 @@ export interface PendingConfirmation {
   operationSummary: string;
   impactAssessment?: string;
   expiresAt: string;
+  input?: Record<string, unknown>;
 }
 
 interface UseAgentChatOptions {
@@ -44,9 +47,45 @@ interface UseAgentChatReturn {
   pendingConfirmations: PendingConfirmation[];
   activeToolCall: ToolCall | null;
   sendMessage: (message: string) => Promise<void>;
-  confirmOperation: (confirmationId: string, action: "confirm" | "reject") => Promise<void>;
+  confirmOperation: (confirmationId: string, action: "confirm" | "reject", modifiedParams?: Record<string, unknown>) => Promise<void>;
   clearMessages: () => void;
   setConversationId: (id: string | null) => void;
+}
+
+// Maps tool names to React Query cache key prefixes to invalidate after execution.
+// Uses startsWith matching so "/api/client-issues" matches "/api/client-issues?project_id=xxx".
+const TOOL_CACHE_MAP: Record<string, string[]> = {
+  create_task: ["/api/tasks"],
+  update_task_status: ["/api/tasks"],
+  assign_task: ["/api/tasks"],
+  delete_task: ["/api/tasks"],
+  create_issue: ["/api/client-issues"],
+  update_issue_status: ["/api/client-issues"],
+  create_installment: ["/api/projects", "/api/payment"],
+  update_payment_status: ["/api/projects", "/api/payment"],
+  update_installment: ["/api/projects", "/api/payment"],
+  create_stage: ["/api/v1/stages"],
+  update_stage: ["/api/v1/stages"],
+  apply_stage_template: ["/api/v1/stages"],
+  create_material_item: ["/api/v1/stages"],
+  update_project_status: ["/api/projects"],
+  update_project_details: ["/api/projects"],
+  create_daily_log: ["/api/logs"],
+};
+
+function invalidateCacheKeys(queryClient: ReturnType<typeof useQueryClient>, keys: string[]) {
+  keys.forEach(prefix => {
+    queryClient.invalidateQueries({
+      predicate: (query) => {
+        const key = query.queryKey[0];
+        return typeof key === "string" && key.startsWith(prefix);
+      },
+    });
+  });
+}
+
+function buildActionBlock(actions: Array<{label: string; prompt?: string; navigateTo?: string}>): string {
+  return `\n\n\`\`\`json\n${JSON.stringify({ actions })}\n\`\`\``;
 }
 
 export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatReturn {
@@ -59,8 +98,10 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
   const [activeToolCall, setActiveToolCall] = useState<ToolCall | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
+  const queryClient = useQueryClient();
   const abortControllerRef = useRef<AbortController | null>(null);
   const hasLoadedRef = useRef(false);
+  const lastSuggestedActionsRef = useRef<Array<{label: string; prompt?: string; navigateTo?: string}> | null>(null);
 
   // Wrapper to also notify parent of conversation ID changes
   const setConversationId = useCallback((id: string | null) => {
@@ -165,6 +206,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
           message,
           conversation_id: conversationId,
           project_id: projectId,
+          language: i18n.language,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -209,6 +251,29 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
                     ? { ...msg, content: msg.content + data.content }
                     : msg
                 ));
+              } else if (data.confirmation_id) {
+                // Confirmation required — clear the active tool spinner
+                setActiveToolCall(null);
+                setPendingConfirmations(prev => [...prev, {
+                  id: data.confirmation_id,
+                  toolName: data.tool_name || data.tool,
+                  operationSummary: data.operation_summary || data.message,
+                  impactAssessment: data.impact_assessment,
+                  expiresAt: data.expires_at,
+                  input: data.input,
+                }]);
+                // Update the tool call status in the message
+                setMessages(prev => prev.map(msg => {
+                  if (msg.id !== assistantMessageId) return msg;
+                  const toolCalls = msg.toolCalls || [];
+                  const idx = toolCalls.findIndex(tc => tc.tool === (data.tool_name || data.tool) && tc.status === "running");
+                  if (idx >= 0) {
+                    const newToolCalls = [...toolCalls];
+                    newToolCalls[idx] = { ...newToolCalls[idx], status: "success" };
+                    return { ...msg, toolCalls: newToolCalls };
+                  }
+                  return msg;
+                }));
               } else if (data.tool !== undefined && data.input !== undefined && data.result === undefined) {
                 // Tool start
                 const toolCall: ToolCall = {
@@ -243,20 +308,23 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
                   }
                   return msg;
                 }));
-              } else if (data.confirmation_id || data.tool_name) {
-                // Confirmation required
-                setPendingConfirmations(prev => [...prev, {
-                  id: data.confirmation_id || data.id,
-                  toolName: data.tool_name || data.tool,
-                  operationSummary: data.operation_summary || data.message,
-                  impactAssessment: data.impact_assessment,
-                  expiresAt: data.expires_at,
-                }]);
+                // Invalidate relevant caches after successful tool execution
+                if (data.success !== false) {
+                  const keysToInvalidate = TOOL_CACHE_MAP[data.tool];
+                  if (keysToInvalidate) {
+                    invalidateCacheKeys(queryClient, keysToInvalidate);
+                  }
+                }
+                // Store suggested_actions from tool result for fallback rendering
+                if (data.result?.suggested_actions) {
+                  lastSuggestedActionsRef.current = data.result.suggested_actions;
+                }
               } else if (data.conversation_id !== undefined) {
                 // Done event
                 setConversationId(data.conversation_id);
                 // Update the assistant message with the actual database ID for feedback
                 // Also set isStreaming: false here since we're done
+                const finalMessageId = data.message_id || assistantMessageId;
                 if (data.message_id) {
                   setMessages(prev => {
                     return prev.map(msg =>
@@ -265,6 +333,17 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
                         : msg
                     );
                   });
+                }
+                // Inject suggested_actions as fallback if LLM didn't include action blocks
+                const pendingActions = lastSuggestedActionsRef.current;
+                if (pendingActions?.length) {
+                  setMessages(prev => prev.map(msg => {
+                    if (msg.id === finalMessageId && !msg.content.includes('"actions"')) {
+                      return { ...msg, content: msg.content + buildActionBlock(pendingActions) };
+                    }
+                    return msg;
+                  }));
+                  lastSuggestedActionsRef.current = null;
                 }
               } else if (data.message !== undefined && !data.tool) {
                 // Error event
@@ -312,19 +391,25 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
 
   const confirmOperation = useCallback(async (
     confirmationId: string,
-    action: "confirm" | "reject"
+    action: "confirm" | "reject",
+    modifiedParams?: Record<string, unknown>
   ) => {
     try {
+      const body: Record<string, unknown> = {
+        confirmation_id: confirmationId,
+        action,
+      };
+      if (modifiedParams && Object.keys(modifiedParams).length > 0) {
+        body.modified_params = modifiedParams;
+      }
+
       const response = await fetch("/api/v1/agent/confirm", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({
-          confirmation_id: confirmationId,
-          action,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -332,14 +417,54 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
         throw new Error(errorData.detail || `Error: ${response.status}`);
       }
 
+      const data = await response.json();
+
       // Remove from pending confirmations
       setPendingConfirmations(prev =>
         prev.filter(c => c.id !== confirmationId)
       );
+
+      // Add result as a new assistant message
+      if (action === "confirm" && data.result) {
+        const execResult = data.result.result;
+        let content = data.result.success
+          ? (execResult?.message || "Operation completed successfully.")
+          : `Operation failed: ${data.result.error}`;
+
+        // Append action buttons from suggested_actions
+        if (data.result.success && execResult?.suggested_actions?.length) {
+          content += buildActionBlock(execResult.suggested_actions);
+        }
+
+        // Invalidate relevant caches
+        const conf = pendingConfirmations.find(c => c.id === confirmationId);
+        if (conf && data.result.success) {
+          const keysToInvalidate = TOOL_CACHE_MAP[conf.toolName];
+          if (keysToInvalidate) {
+            invalidateCacheKeys(queryClient, keysToInvalidate);
+          }
+        }
+
+        setMessages(prev => [...prev, {
+          id: `confirm-result-${Date.now()}`,
+          role: "assistant" as const,
+          content,
+          timestamp: new Date(),
+          isStreaming: false,
+        }]);
+      } else if (action === "reject") {
+        setMessages(prev => [...prev, {
+          id: `confirm-reject-${Date.now()}`,
+          role: "assistant" as const,
+          content: "Operation cancelled.",
+          timestamp: new Date(),
+          isStreaming: false,
+        }]);
+      }
     } catch (error) {
       onError?.((error as Error).message || "Failed to process confirmation");
     }
-  }, [onError]);
+  }, [onError, pendingConfirmations, queryClient]);
 
   const clearMessages = useCallback(() => {
     if (abortControllerRef.current) {

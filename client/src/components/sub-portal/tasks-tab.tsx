@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { ClipboardList, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { TaskInlineCard } from "@/components/sub-portal/task-inline-card";
@@ -21,6 +22,8 @@ interface TasksTabProps {
 }
 
 export function TasksTab({ projectId }: TasksTabProps) {
+  const { t } = useTranslation('subPortal');
+
   const { data: tasks = [], isLoading } = useQuery<SubTask[]>({
     queryKey: ["/api/v1/sub/my-tasks", projectId],
     queryFn: async () => {
@@ -47,10 +50,10 @@ export function TasksTab({ projectId }: TasksTabProps) {
         <CardContent className="text-center py-12">
           <ClipboardList className="h-16 w-16 mx-auto text-[var(--pro-text-muted)] mb-4" />
           <h3 className="text-xl font-semibold mb-2 text-[var(--pro-text-primary)]">
-            No Tasks Assigned
+            {t('tasks.noTasksTitle')}
           </h3>
           <p className="text-[var(--pro-text-secondary)]">
-            You don't have any tasks assigned for this project yet.
+            {t('tasks.noTasksDesc')}
           </p>
         </CardContent>
       </Card>
@@ -61,10 +64,10 @@ export function TasksTab({ projectId }: TasksTabProps) {
     <div className="space-y-4">
       <div>
         <h2 className="text-xl sm:text-2xl font-bold text-[var(--pro-text-primary)]">
-          My Tasks
+          {t('tasks.myTasks')}
         </h2>
         <p className="text-[var(--pro-text-secondary)]">
-          {tasks.length} task{tasks.length !== 1 ? "s" : ""} assigned
+          {t('tasks.tasksAssigned', { count: tasks.length })}
         </p>
       </div>
 

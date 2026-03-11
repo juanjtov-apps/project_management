@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -99,6 +100,7 @@ interface UserProfile {
 }
 
 export default function RBACAdmin() {
+  const { t } = useTranslation('admin');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('users');
@@ -167,9 +169,9 @@ export default function RBACAdmin() {
     return (
       <div className="container mx-auto p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-destructive mb-4">Access Denied</h1>
-          <p className="text-muted-foreground">RBAC Administration requires admin privileges.</p>
-          <p className="text-sm text-muted-foreground mt-2">Contact your system administrator for access.</p>
+          <h1 className="text-2xl font-bold text-destructive mb-4">{t('rbac.accessDenied')}</h1>
+          <p className="text-muted-foreground">{t('rbac.requiresAdmin')}</p>
+          <p className="text-sm text-muted-foreground mt-2">{t('rbac.contactAdmin')}</p>
         </div>
       </div>
     );
@@ -196,15 +198,15 @@ export default function RBACAdmin() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
       if (data?.emailSent === true) {
-        toast({ title: 'Client Invited', description: `Invitation email sent to ${data.email || 'client'}` });
+        toast({ title: t('rbac.clientInvited'), description: t('rbac.inviteEmailSent', { email: data.email || 'client' }) });
       } else if (data?.emailSent === false) {
-        toast({ title: 'Client Created', description: 'User created but invitation email failed to send. You can re-send from Client Portal.', variant: 'destructive' });
+        toast({ title: t('rbac.clientCreated'), description: t('rbac.clientCreatedEmailFailed'), variant: 'destructive' });
       } else {
-        toast({ title: 'Success', description: 'User created successfully' });
+        toast({ title: t('toast.success'), description: t('toast.userCreated') });
       }
     },
     onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: t('toast.error'), description: error.message, variant: 'destructive' });
     }
   });
 
@@ -261,10 +263,10 @@ export default function RBACAdmin() {
       });
     },
     onSuccess: async () => {
-      toast({ title: 'Success', description: 'User updated successfully' });
+      toast({ title: t('toast.success'), description: t('toast.userUpdated') });
     },
     onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: t('toast.error'), description: error.message, variant: 'destructive' });
       queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
     }
   });
@@ -279,12 +281,12 @@ export default function RBACAdmin() {
         if (!old) return old;
         return old.filter((user: any) => user.id !== deletedUserId);
       });
-      toast({ title: 'Success', description: 'User deleted successfully' });
+      toast({ title: t('toast.success'), description: t('toast.userDeleted') });
     },
     onError: (error: any) => {
       setOpenMenuUserId(null);
       console.error('Delete user error:', error);
-      toast({ title: 'Error', description: error.message || 'Failed to delete user', variant: 'destructive' });
+      toast({ title: t('toast.error'), description: error.message || t('toast.failedToDelete'), variant: 'destructive' });
     }
   });
 
@@ -294,10 +296,10 @@ export default function RBACAdmin() {
     mutationFn: (roleData: any) => apiRequest('/api/rbac/roles', { method: 'POST', body: roleData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/rbac/roles'] });
-      toast({ title: 'Success', description: 'Role created successfully' });
+      toast({ title: t('toast.success'), description: t('toast.roleCreated') });
     },
     onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: t('toast.error'), description: error.message, variant: 'destructive' });
     }
   });
 
@@ -306,10 +308,10 @@ export default function RBACAdmin() {
       apiRequest(`/api/rbac/roles/${id}`, { method: 'PATCH', body: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/rbac/roles'] });
-      toast({ title: 'Success', description: 'Role updated successfully' });
+      toast({ title: t('toast.success'), description: t('toast.roleUpdated') });
     },
     onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: t('toast.error'), description: error.message, variant: 'destructive' });
     }
   });
 
@@ -317,10 +319,10 @@ export default function RBACAdmin() {
     mutationFn: (id: string) => apiRequest(`/api/rbac/roles/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/rbac/roles'] });
-      toast({ title: 'Success', description: 'Role deleted successfully' });
+      toast({ title: t('toast.success'), description: t('toast.roleDeleted') });
     },
     onError: (error: any) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: t('toast.error'), description: error.message, variant: 'destructive' });
     }
   });
 
@@ -328,11 +330,11 @@ export default function RBACAdmin() {
     mutationFn: (companyData: any) => apiRequest('/api/companies', { method: 'POST', body: companyData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/companies'] });
-      toast({ title: 'Success', description: 'Company created successfully' });
+      toast({ title: t('toast.success'), description: t('toast.companyCreated') });
     },
     onError: (error: any) => {
       console.error('Company creation error:', error);
-      toast({ title: 'Error', description: error.message || 'Failed to create company', variant: 'destructive' });
+      toast({ title: t('toast.error'), description: error.message || t('toast.failedToCreate'), variant: 'destructive' });
     }
   });
 
@@ -389,12 +391,12 @@ export default function RBACAdmin() {
         );
       });
       queryClient.invalidateQueries({ queryKey: ['/api/rbac/users'] });
-      toast({ title: 'Success', description: `User ${isActive ? 'activated' : 'deactivated'} successfully` });
+      toast({ title: t('toast.success'), description: isActive ? t('rbac.userActivated') : t('rbac.userDeactivated') });
     },
     onError: (error: any) => {
       setOpenMenuUserId(null);
       console.error('Toggle user status error:', error);
-      toast({ title: 'Error', description: error.message || 'Failed to update user status', variant: 'destructive' });
+      toast({ title: t('toast.error'), description: error.message || t('toast.failedToUpdate'), variant: 'destructive' });
     }
   });
 
@@ -477,8 +479,8 @@ export default function RBACAdmin() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h3 className="text-2xl font-semibold">User Management</h3>
-            <p className="text-muted-foreground">Manage users across all companies</p>
+            <h3 className="text-2xl font-semibold">{t('rbac.userManagement')}</h3>
+            <p className="text-muted-foreground">{t('rbac.manageUsersDesc')}</p>
           </div>
           <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
             if (!open) {
@@ -489,12 +491,12 @@ export default function RBACAdmin() {
             <DialogTrigger asChild>
               <Button onClick={() => setNewUser(prev => ({ ...prev, company_id: '' }))}>
                 <Plus className="w-4 h-4 mr-2" />
-                Add User
+                {t('rbac.addUser')}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md" aria-describedby={undefined}>
               <DialogHeader>
-                <DialogTitle>Create New User</DialogTitle>
+                <DialogTitle>{t('rbac.createUser')}</DialogTitle>
               </DialogHeader>
               <form onSubmit={(e) => {
                 e.preventDefault();
@@ -502,25 +504,25 @@ export default function RBACAdmin() {
               }} className="space-y-4">
                 {/* Role selector first — determines which fields are shown */}
                 <div>
-                  <Label htmlFor="role">Role *</Label>
+                  <Label htmlFor="role">{t('table.role')} *</Label>
                   <Select value={newUser.role_id} onValueChange={(value) => setNewUser({ ...newUser, role_id: value, password: '', confirm_password: '' })}>
                     <SelectTrigger id="role">
-                      <SelectValue placeholder="Select role" />
+                      <SelectValue placeholder={t('rbac.selectRole')} />
                     </SelectTrigger>
                     <SelectContent>
                       {(() => {
                         if (rolesLoading) {
-                          return <SelectItem value="loading" disabled>Loading roles...</SelectItem>;
+                          return <SelectItem value="loading" disabled>{t('rbac.loadingRolesSelect')}</SelectItem>;
                         }
 
                         if (!roles || roles.length === 0) {
-                          return <SelectItem value="none" disabled>No roles available</SelectItem>;
+                          return <SelectItem value="none" disabled>{t('rbac.noRolesAvailable')}</SelectItem>;
                         }
 
                         const rolesToShow = roles;
 
                         if (rolesToShow.length === 0) {
-                          return <SelectItem value="none" disabled>No roles available</SelectItem>;
+                          return <SelectItem value="none" disabled>{t('rbac.noRolesAvailable')}</SelectItem>;
                         }
 
                         return rolesToShow
@@ -539,18 +541,18 @@ export default function RBACAdmin() {
                     </SelectContent>
                   </Select>
                   {!newUser.role_id && (
-                    <p className="text-xs text-red-500 mt-1">Role is required</p>
+                    <p className="text-xs text-red-500 mt-1">{t('rbac.roleRequired')}</p>
                   )}
                 </div>
                 {/* Client role info banner */}
                 {isClientRole && (
                   <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-                    Client users sign in via magic link — no password needed. An invitation email will be sent automatically.
+                    {t('rbac.clientMagicLink')}
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="first_name">First Name</Label>
+                    <Label htmlFor="first_name">{t('rbac.firstName')}</Label>
                     <Input
                       id="first_name"
                       value={newUser.first_name}
@@ -558,7 +560,7 @@ export default function RBACAdmin() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="last_name">Last Name</Label>
+                    <Label htmlFor="last_name">{t('rbac.lastName')}</Label>
                     <Input
                       id="last_name"
                       value={newUser.last_name}
@@ -567,7 +569,7 @@ export default function RBACAdmin() {
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t('table.email')}</Label>
                   <Input
                     id="email"
                     type="email"
@@ -579,41 +581,41 @@ export default function RBACAdmin() {
                 {!isClientRole && (
                   <>
                     <div>
-                      <Label htmlFor="password">Password</Label>
+                      <Label htmlFor="password">{t('rbac.password')}</Label>
                       <Input
                         id="password"
                         type="password"
                         value={newUser.password}
                         onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                        placeholder="Enter password"
+                        placeholder={t('rbac.enterPassword')}
                       />
                       <div className="mt-2 text-xs space-y-1">
                         <p className={passwordChecks.minLength ? "text-green-600" : "text-gray-400"}>
-                          {passwordChecks.minLength ? "✓" : "○"} At least 8 characters
+                          {passwordChecks.minLength ? "✓" : "○"} {t('rbac.passwordMinLength')}
                         </p>
                         <p className={passwordChecks.hasUppercase ? "text-green-600" : "text-gray-400"}>
-                          {passwordChecks.hasUppercase ? "✓" : "○"} One uppercase letter
+                          {passwordChecks.hasUppercase ? "✓" : "○"} {t('rbac.passwordUppercase')}
                         </p>
                         <p className={passwordChecks.hasLowercase ? "text-green-600" : "text-gray-400"}>
-                          {passwordChecks.hasLowercase ? "✓" : "○"} One lowercase letter
+                          {passwordChecks.hasLowercase ? "✓" : "○"} {t('rbac.passwordLowercase')}
                         </p>
                         <p className={passwordChecks.hasDigit ? "text-green-600" : "text-gray-400"}>
-                          {passwordChecks.hasDigit ? "✓" : "○"} One digit
+                          {passwordChecks.hasDigit ? "✓" : "○"} {t('rbac.passwordDigit')}
                         </p>
                       </div>
                     </div>
                     <div>
-                      <Label htmlFor="confirm_password">Confirm Password *</Label>
+                      <Label htmlFor="confirm_password">{t('rbac.confirmPassword')}</Label>
                       <Input
                         id="confirm_password"
                         type="password"
                         value={newUser.confirm_password}
                         onChange={(e) => setNewUser({ ...newUser, confirm_password: e.target.value })}
-                        placeholder="Re-enter password"
+                        placeholder={t('rbac.reenterPassword')}
                       />
                       {newUser.confirm_password && (
                         <p className={`mt-1 text-xs ${passwordsMatch ? "text-green-600" : "text-red-500"}`}>
-                          {passwordsMatch ? "✓ Passwords match" : "✗ Passwords do not match"}
+                          {passwordsMatch ? `✓ ${t('rbac.passwordsMatch')}` : `✗ ${t('rbac.passwordsNoMatch')}`}
                         </p>
                       )}
                     </div>
@@ -621,7 +623,7 @@ export default function RBACAdmin() {
                 )}
                 {/* Company assignment */}
                 <div>
-                  <Label>Company {isRootAdmin ? '*' : ''}</Label>
+                  <Label>{t('table.company')} {isRootAdmin ? '*' : ''}</Label>
                   {isRootAdmin ? (
                     <>
                       <Select
@@ -629,13 +631,13 @@ export default function RBACAdmin() {
                         onValueChange={(value) => setNewUser({ ...newUser, company_id: value })}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select company" />
+                          <SelectValue placeholder={t('rbac.selectCompany')} />
                         </SelectTrigger>
                         <SelectContent>
                           {companiesLoading ? (
-                            <SelectItem value="loading" disabled>Loading companies...</SelectItem>
+                            <SelectItem value="loading" disabled>{t('rbac.loadingCompanies')}</SelectItem>
                           ) : companies.length === 0 ? (
-                            <SelectItem value="none" disabled>No companies available</SelectItem>
+                            <SelectItem value="none" disabled>{t('rbac.noCompaniesAvailable')}</SelectItem>
                           ) : (
                             companies.map((company: Company) => (
                               <SelectItem key={company.id} value={company.id.toString()}>
@@ -646,22 +648,22 @@ export default function RBACAdmin() {
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Select which company this user belongs to
+                        {t('rbac.selectWhichCompany')}
                       </p>
                     </>
                   ) : (
                     <>
                       <div className="p-2 bg-gray-50 rounded border text-sm text-gray-600">
                         {(() => {
-                          if (companiesLoading) return 'Loading company...';
-                          if (!companies.length) return 'No companies available';
+                          if (companiesLoading) return t('rbac.loadingCompany');
+                          if (!companies.length) return t('rbac.noCompaniesAvailable');
                           const userCompanyId = currentUser?.company_id || currentUser?.companyId;
                           const matchedCompany = companies.find(c => c.id.toString() === userCompanyId?.toString());
                           return matchedCompany?.name || `Company ID ${userCompanyId} not found`;
                         })()}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        User will be assigned to your company
+                        {t('rbac.assignedToYourCompany')}
                       </p>
                     </>
                   )}
@@ -669,17 +671,17 @@ export default function RBACAdmin() {
                 {/* Project Assignment - Only shown for Client role (roleId === '4') */}
                 {isClientRole && (
                   <div>
-                    <Label htmlFor="assigned_project">Assigned Project *</Label>
+                    <Label htmlFor="assigned_project">{t('rbac.assignedProject')}</Label>
                     <Select
                       value={newUser.assigned_project_id}
                       onValueChange={(value) => setNewUser({ ...newUser, assigned_project_id: value })}
                     >
                       <SelectTrigger id="assigned_project">
-                        <SelectValue placeholder="Select project for client" />
+                        <SelectValue placeholder={t('rbac.selectProjectForClient')} />
                       </SelectTrigger>
                       <SelectContent>
                         {projects.length === 0 ? (
-                          <SelectItem value="none" disabled>No projects available</SelectItem>
+                          <SelectItem value="none" disabled>{t('rbac.noProjectsAvailable')}</SelectItem>
                         ) : (
                           projects.map((project: any) => (
                             <SelectItem key={project.id} value={project.id}>
@@ -690,19 +692,19 @@ export default function RBACAdmin() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Client users can only access this specific project
+                      {t('rbac.clientProjectRequired')}
                     </p>
                     {!newUser.assigned_project_id && (
-                      <p className="text-xs text-red-500 mt-1">Project is required for client users</p>
+                      <p className="text-xs text-red-500 mt-1">{t('rbac.projectRequired')}</p>
                     )}
                   </div>
                 )}
               </form>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancel
+                  {t('button.cancel')}
                 </Button>
-                <Button 
+                <Button
                   id="create-user-button"
                   onClick={() => {
                     // Root admin: use selected company; non-root: use current user's company
@@ -714,18 +716,18 @@ export default function RBACAdmin() {
                     // Parse role_id safely - ensure it's a valid number
                     const roleIdNum = parseInt(newUser.role_id, 10);
                     if (isNaN(roleIdNum)) {
-                      toast({ title: 'Error', description: 'Please select a valid role', variant: 'destructive' });
+                      toast({ title: t('toast.error'), description: t('rbac.roleRequired'), variant: 'destructive' });
                       return;
                     }
                     
                     if (!effectiveCompanyId) {
-                      toast({ title: 'Error', description: 'Company ID not available', variant: 'destructive' });
+                      toast({ title: t('toast.error'), description: t('rbac.companyIdNotAvailable'), variant: 'destructive' });
                       return;
                     }
 
                     // Validate assigned_project_id for client role
                     if (roleIdNum === 4 && !newUser.assigned_project_id) {
-                      toast({ title: 'Error', description: 'Project is required for client users', variant: 'destructive' });
+                      toast({ title: t('toast.error'), description: t('rbac.projectRequired'), variant: 'destructive' });
                       return;
                     }
 
@@ -759,7 +761,7 @@ export default function RBACAdmin() {
                   }}
                   disabled={!isFormValid || createUserMutation.isPending}
                 >
-                  {createUserMutation.isPending ? 'Creating...' : (isClientRole ? 'Create & Send Invite' : 'Create User')}
+                  {createUserMutation.isPending ? t('rbac.creating') : (isClientRole ? t('rbac.createAndSendInvite') : t('rbac.createUser'))}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -787,7 +789,7 @@ export default function RBACAdmin() {
               }`}
             >
               <Eye className="w-3 h-3" />
-              {showInactiveUsers ? 'Hide' : 'Show'} inactive ({inactiveCount})
+              {showInactiveUsers ? t('rbac.hideInactive') : t('rbac.showInactive')} {t('rbac.inactive')} ({inactiveCount})
             </button>
           );
         })()}
@@ -796,7 +798,7 @@ export default function RBACAdmin() {
           {usersLoading ? (
             <Card>
               <CardContent className="p-6">
-                <div className="text-center">Loading users...</div>
+                <div className="text-center">{t('rbac.loadingUsers')}</div>
               </CardContent>
             </Card>
           ) : users && Array.isArray(users) && Object.keys(usersByCompany).length > 0 ? (
@@ -817,7 +819,7 @@ export default function RBACAdmin() {
                             <div className="text-left">
                               <h3 className="text-sm font-semibold text-[var(--pro-text-primary)]">{companyName}</h3>
                               <p className="text-xs text-[var(--pro-text-secondary)]">
-                                {companyUsers.length} user{companyUsers.length !== 1 ? 's' : ''}
+                                {companyUsers.length} {companyUsers.length !== 1 ? t('rbac.users') : t('rbac.user')}
                               </p>
                             </div>
                           </div>
@@ -892,7 +894,7 @@ export default function RBACAdmin() {
                                     variant="outline"
                                     className="text-[10px] h-5 px-1.5 bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-secondary)]"
                                   >
-                                    {user.role_name || user.roleName || user.role || 'No role'}
+                                    {user.role_name || user.roleName || user.role || t('rbac.noRole')}
                                   </Badge>
                                 </div>
                               </div>
@@ -919,7 +921,7 @@ export default function RBACAdmin() {
                                     className={`min-h-[44px] ${isActive ? 'text-[var(--pro-text-secondary)]' : 'text-[var(--pro-mint)]'}`}
                                   >
                                     {isActive ? <UserX className="w-4 h-4 mr-2" /> : <UserCheck2 className="w-4 h-4 mr-2" />}
-                                    {isActive ? 'Deactivate User' : 'Activate User'}
+                                    {isActive ? t('rbac.deactivateUser') : t('rbac.activateUser')}
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
                                   <DropdownMenuItem
@@ -980,7 +982,7 @@ export default function RBACAdmin() {
                                     data-testid={`button-edit-${user.id}`}
                                   >
                                     <Edit className="w-4 h-4 mr-2" />
-                                    Edit User
+                                    {t('rbac.editUser')}
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
                                   <DropdownMenuItem
@@ -991,7 +993,7 @@ export default function RBACAdmin() {
                                     className="min-h-[44px] text-[var(--pro-red)]"
                                   >
                                     <Trash2 className="w-4 h-4 mr-2" />
-                                    Delete User
+                                    {t('rbac.deleteUser')}
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -1063,7 +1065,7 @@ export default function RBACAdmin() {
                                 variant="outline"
                                 className="text-[10px] h-5 px-1.5 bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-secondary)]"
                               >
-                                {user.role_name || user.roleName || user.role || 'No role'}
+                                {user.role_name || user.roleName || user.role || t('rbac.noRole')}
                               </Badge>
                             </div>
                           </div>
@@ -1091,7 +1093,7 @@ export default function RBACAdmin() {
                                 className={`min-h-[44px] ${isActive ? 'text-[var(--pro-text-secondary)]' : 'text-[var(--pro-mint)]'}`}
                               >
                                 {isActive ? <UserX className="w-4 h-4 mr-2" /> : <UserCheck2 className="w-4 h-4 mr-2" />}
-                                {isActive ? 'Deactivate User' : 'Activate User'}
+                                {isActive ? t('rbac.deactivateUser') : t('rbac.activateUser')}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
                               <DropdownMenuItem
@@ -1151,7 +1153,7 @@ export default function RBACAdmin() {
                                 data-testid={`button-edit-${user.id}`}
                               >
                                 <Edit className="w-4 h-4 mr-2" />
-                                Edit User
+                                {t('rbac.editUser')}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator className="bg-[var(--pro-border)]" />
                               <DropdownMenuItem
@@ -1163,7 +1165,7 @@ export default function RBACAdmin() {
                                 data-testid={`button-delete-${user.id}`}
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
-                                Delete User
+                                {t('rbac.deleteUser')}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -1177,7 +1179,7 @@ export default function RBACAdmin() {
           ) : (
             <Card>
               <CardContent className="p-6">
-                <div className="text-center">No users found</div>
+                <div className="text-center">{t('rbac.noUsersFound')}</div>
               </CardContent>
             </Card>
           )}
@@ -1187,9 +1189,9 @@ export default function RBACAdmin() {
         <AlertDialog open={!!deleteConfirmUser} onOpenChange={(open) => { if (!open) { setDeleteConfirmUser(null); setForceDelete(false); } }}>
           <AlertDialogContent className="bg-[var(--pro-surface)] border-[var(--pro-border)]" aria-describedby={undefined}>
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-[var(--pro-text-primary)]">Delete User</AlertDialogTitle>
+              <AlertDialogTitle className="text-[var(--pro-text-primary)]">{t('rbac.deleteUser')}</AlertDialogTitle>
               <AlertDialogDescription className="text-[var(--pro-text-secondary)]">
-                Are you sure you want to delete user "{deleteConfirmUser?.displayName || deleteConfirmUser?.email || ''}"? This action cannot be undone.
+                {t('rbac.deleteUserConfirmDesc', { name: deleteConfirmUser?.displayName || deleteConfirmUser?.email || '' })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="flex items-start gap-2 px-1 py-2">
@@ -1203,11 +1205,11 @@ export default function RBACAdmin() {
                 htmlFor="force-delete-confirm"
                 className="text-sm text-[var(--pro-text-secondary)] cursor-pointer select-none"
               >
-                Force delete — permanently remove this user and all their associated records (issues, comments, photos, etc.)
+                {t('rbac.forceDeleteDesc')}
               </label>
             </div>
             <AlertDialogFooter>
-              <AlertDialogCancel className="min-h-[44px]" onClick={() => { setDeleteConfirmUser(null); setForceDelete(false); }}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel className="min-h-[44px]" onClick={() => { setDeleteConfirmUser(null); setForceDelete(false); }}>{t('button.cancel')}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
                   if (deleteConfirmUser) {
@@ -1218,7 +1220,7 @@ export default function RBACAdmin() {
                 className={`min-h-[44px] ${forceDelete ? 'bg-red-700 hover:bg-red-800' : 'bg-[var(--pro-red)] hover:bg-[var(--pro-red)]/90'}`}
                 disabled={deleteUserMutation.isPending}
               >
-                {deleteUserMutation.isPending ? 'Deleting...' : forceDelete ? 'Force Delete' : 'Delete'}
+                {deleteUserMutation.isPending ? t('rbac.deleting') : forceDelete ? t('rbac.forceDelete') : t('button.delete')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1251,24 +1253,24 @@ export default function RBACAdmin() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h3 className="text-2xl font-semibold">Role Management</h3>
-            <p className="text-muted-foreground">Manage roles and permissions</p>
+            <h3 className="text-2xl font-semibold">{t('rbac.roleManagement')}</h3>
+            <p className="text-muted-foreground">{t('rbac.manageRolesDesc')}</p>
           </div>
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
-                Create Role
+                {t('rbac.createRole')}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto" aria-describedby={undefined}>
               <DialogHeader>
-                <DialogTitle>Create New Role</DialogTitle>
+                <DialogTitle>{t('rbac.createRole')}</DialogTitle>
               </DialogHeader>
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="role_name">Role Name</Label>
+                    <Label htmlFor="role_name">{t('rbac.roleName')}</Label>
                     <Input
                       id="role_name"
                       value={newRole.name}
@@ -1276,10 +1278,10 @@ export default function RBACAdmin() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="company">Company</Label>
+                    <Label htmlFor="company">{t('table.company')}</Label>
                     <Select value={newRole.company_id} onValueChange={(value) => setNewRole({ ...newRole, company_id: value })}>
                       <SelectTrigger id="company">
-                        <SelectValue placeholder="Select company" />
+                        <SelectValue placeholder={t('rbac.selectCompany')} />
                       </SelectTrigger>
                       <SelectContent>
                         {companies.map((company: Company) => (
@@ -1292,7 +1294,7 @@ export default function RBACAdmin() {
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">{t('rbac.description')}</Label>
                   <Textarea
                     id="description"
                     value={newRole.description}
@@ -1305,11 +1307,11 @@ export default function RBACAdmin() {
                     checked={newRole.is_template}
                     onCheckedChange={(checked) => setNewRole({ ...newRole, is_template: checked as boolean })}
                   />
-                  <Label htmlFor="is_template">Template Role (can be used across companies)</Label>
+                  <Label htmlFor="is_template">{t('rbac.templateRole')}</Label>
                 </div>
                 
                 <div>
-                  <Label>Permissions</Label>
+                  <Label>{t('rbac.permissions')}</Label>
                   <div className="mt-2 space-y-4 max-h-60 overflow-y-auto border rounded-md p-4">
                     {Object.entries(permissionsByCategory).map(([category, perms]: [string, any]) => (
                       <div key={category}>
@@ -1344,9 +1346,9 @@ export default function RBACAdmin() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancel
+                  {t('button.cancel')}
                 </Button>
-                <Button 
+                <Button
                   onClick={() => {
                     createRoleMutation.mutate({ ...newRole, permissions: selectedPermissions });
                     setIsCreateDialogOpen(false);
@@ -1355,7 +1357,7 @@ export default function RBACAdmin() {
                   }}
                   disabled={createRoleMutation.isPending}
                 >
-                  Create Role
+                  {t('rbac.createRole')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1366,7 +1368,7 @@ export default function RBACAdmin() {
           {rolesLoading ? (
             <Card>
               <CardContent className="p-6">
-                <p>Loading roles...</p>
+                <p>{t('rbac.loadingRoles')}</p>
               </CardContent>
             </Card>
           ) : roles && Array.isArray(roles) && roles.length > 0 ? (
@@ -1380,7 +1382,7 @@ export default function RBACAdmin() {
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         {getRoleName(role) || role.displayName || role.display_name}
-                        {role.is_template && <Badge variant="secondary">Template</Badge>}
+                        {role.is_template && <Badge variant="secondary">{t('rbac.template')}</Badge>}
                       </CardTitle>
                       <CardDescription>{role.description}</CardDescription>
                     </div>
@@ -1394,10 +1396,10 @@ export default function RBACAdmin() {
                         }}
                       >
                         <Edit className="w-4 h-4 mr-2" />
-                        Edit
+                        {t('button.edit')}
                       </Button>
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         variant="outline"
                         onClick={() => deleteRoleMutation.mutate(role.id)}
                       >
@@ -1409,7 +1411,7 @@ export default function RBACAdmin() {
                 <CardContent>
                   <div className="space-y-2">
                     <div className="text-sm text-muted-foreground">
-                      Permissions ({rolePermissions.length})
+                      {t('rbac.permissions')} ({rolePermissions.length})
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {rolePermissions.slice(0, 5).map((permId: string) => {
@@ -1422,7 +1424,7 @@ export default function RBACAdmin() {
                       })}
                       {rolePermissions.length > 5 && (
                         <Badge variant="outline" className="text-xs">
-                          +{rolePermissions.length - 5} more
+                          {t('rbac.morePermissions', { count: rolePermissions.length - 5 })}
                         </Badge>
                       )}
                     </div>
@@ -1434,7 +1436,7 @@ export default function RBACAdmin() {
           ) : (
             <Card>
               <CardContent className="p-6">
-                <p>No roles found</p>
+                <p>{t('rbac.noRolesFound')}</p>
               </CardContent>
             </Card>
           )}
@@ -1509,10 +1511,10 @@ export default function RBACAdmin() {
         setIsEditCompanyDialogOpen(false);
         setEditingCompany(null);
         
-        toast({ title: 'Success', description: 'Company updated successfully' });
+        toast({ title: t('toast.success'), description: t('rbac.companyUpdated') });
       },
       onError: (error: any) => {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        toast({ title: t('toast.error'), description: error.message, variant: 'destructive' });
       }
     });
 
@@ -1523,13 +1525,13 @@ export default function RBACAdmin() {
         // Invalidate BOTH endpoints to ensure UI updates
         queryClient.invalidateQueries({ queryKey: ['/api/rbac/companies'] });
         queryClient.invalidateQueries({ queryKey: ['/api/companies'] });
-        toast({ title: 'Success', description: 'Company deleted successfully' });
+        toast({ title: t('toast.success'), description: t('rbac.companyDeleted') });
         // Close the delete confirmation dialog
         setIsDeleteConfirmDialogOpen(false);
         setCompanyToDelete(null);
       },
       onError: (error: any) => {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        toast({ title: t('toast.error'), description: error.message, variant: 'destructive' });
         // Close the delete confirmation dialog on error too
         setIsDeleteConfirmDialogOpen(false);
         setCompanyToDelete(null);
@@ -1546,14 +1548,14 @@ export default function RBACAdmin() {
         setIsInviteAdminDialogOpen(false);
         setInviteEmail('');
         toast({
-          title: 'Invitation Sent',
+          title: t('rbac.invitationSent'),
           description: data.emailSent
-            ? `An invitation email has been sent to ${data.email}`
-            : `Invitation created for ${data.email} but email delivery failed. Check logs for the invite URL.`,
+            ? t('rbac.inviteEmailSent', { email: data.email })
+            : t('rbac.inviteCreatedEmailFailed', { email: data.email }),
         });
       },
       onError: (error: any) => {
-        toast({ title: 'Error', description: error.message || 'Failed to send invitation', variant: 'destructive' });
+        toast({ title: t('toast.error'), description: error.message || t('rbac.failedSendInvitation'), variant: 'destructive' });
       },
     });
 
@@ -1567,14 +1569,14 @@ export default function RBACAdmin() {
         setIsResetPasswordDialogOpen(false);
         setResetEmail('');
         toast({
-          title: 'Reset Link Sent',
+          title: t('rbac.resetLinkSent'),
           description: data.emailSent
-            ? `A password reset email has been sent to ${data.email}`
-            : `Reset created for ${data.email} but email delivery failed.`,
+            ? t('rbac.resetEmailSent', { email: data.email })
+            : t('rbac.resetCreatedEmailFailed', { email: data.email }),
         });
       },
       onError: (error: any) => {
-        toast({ title: 'Error', description: error.message || 'Failed to send reset link', variant: 'destructive' });
+        toast({ title: t('toast.error'), description: error.message || t('rbac.failedSendReset'), variant: 'destructive' });
       },
     });
 
@@ -1590,8 +1592,8 @@ export default function RBACAdmin() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h3 className="text-2xl font-semibold">Company Management</h3>
-            <p className="text-muted-foreground">Manage companies and tenants</p>
+            <h3 className="text-2xl font-semibold">{t('rbac.companyManagement')}</h3>
+            <p className="text-muted-foreground">{t('rbac.manageCompaniesDesc')}</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center space-x-2">
@@ -1601,31 +1603,31 @@ export default function RBACAdmin() {
                 onCheckedChange={setShowOnlyWithUsers}
               />
               <Label htmlFor="show-only-with-users" className="text-sm">
-                Only show companies with users
+                {t('rbac.onlyWithUsers')}
               </Label>
             </div>
             <Button variant="outline" onClick={() => setIsResetPasswordDialogOpen(true)}>
               <KeyRound className="w-4 h-4 mr-2" />
-              Reset Password
+              {t('rbac.resetPassword')}
             </Button>
             <Button variant="outline" onClick={() => setIsInviteAdminDialogOpen(true)}>
               <Send className="w-4 h-4 mr-2" />
-              Invite Admin
+              {t('rbac.inviteAdmin')}
             </Button>
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
-                Add Company
+                {t('rbac.addCompany')}
               </Button>
             </DialogTrigger>
             <DialogContent aria-describedby={undefined}>
               <DialogHeader>
-                <DialogTitle>Create New Company</DialogTitle>
+                <DialogTitle>{t('rbac.createCompany')}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="company_name">Company Name</Label>
+                  <Label htmlFor="company_name">{t('rbac.companyName')}</Label>
                   <Input
                     id="company_name"
                     value={newCompany.name}
@@ -1633,7 +1635,7 @@ export default function RBACAdmin() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="domain">Domain (optional)</Label>
+                  <Label htmlFor="domain">{t('rbac.domain')}</Label>
                   <Input
                     id="domain"
                     value={newCompany.domain}
@@ -1642,7 +1644,7 @@ export default function RBACAdmin() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="type">Company Type</Label>
+                  <Label htmlFor="type">{t('rbac.companyType')}</Label>
                   <Select value={newCompany.settings.type} onValueChange={(value) => setNewCompany({ 
                     ...newCompany, 
                     settings: { ...newCompany.settings, type: value }
@@ -1651,14 +1653,14 @@ export default function RBACAdmin() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="platform">Platform Owner</SelectItem>
-                      <SelectItem value="customer">Customer</SelectItem>
-                      <SelectItem value="partner">Partner</SelectItem>
+                      <SelectItem value="platform">{t('rbac.platformOwner')}</SelectItem>
+                      <SelectItem value="customer">{t('rbac.customer')}</SelectItem>
+                      <SelectItem value="partner">{t('rbac.partner')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="subscription">Subscription Tier</Label>
+                  <Label htmlFor="subscription">{t('rbac.subscriptionTier')}</Label>
                   <Select value={newCompany.settings.subscription_tier} onValueChange={(value) => setNewCompany({ 
                     ...newCompany, 
                     settings: { ...newCompany.settings, subscription_tier: value }
@@ -1667,34 +1669,34 @@ export default function RBACAdmin() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="basic">Basic</SelectItem>
-                      <SelectItem value="professional">Professional</SelectItem>
-                      <SelectItem value="enterprise">Enterprise</SelectItem>
+                      <SelectItem value="basic">{t('rbac.basic')}</SelectItem>
+                      <SelectItem value="professional">{t('rbac.professional')}</SelectItem>
+                      <SelectItem value="enterprise">{t('rbac.enterprise')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="status">Status</Label>
+                  <Label htmlFor="status">{t('table.status')}</Label>
                   <Select value={newCompany.status} onValueChange={(value) => setNewCompany({ ...newCompany, status: value })}>
                     <SelectTrigger id="status">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="suspended">Suspended</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="active">{t('status.active')}</SelectItem>
+                      <SelectItem value="suspended">{t('rbac.suspended')}</SelectItem>
+                      <SelectItem value="pending">{t('status.pending')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancel
+                  {t('button.cancel')}
                 </Button>
-                <Button 
+                <Button
                   onClick={() => {
                     if (!newCompany.name.trim()) {
-                      toast({ title: 'Error', description: 'Company name is required', variant: 'destructive' });
+                      toast({ title: t('toast.error'), description: t('rbac.companyNameRequired'), variant: 'destructive' });
                       return;
                     }
                     
@@ -1720,7 +1722,7 @@ export default function RBACAdmin() {
                   }}
                   disabled={createCompanyMutation.isPending}
                 >
-                  {createCompanyMutation.isPending ? 'Creating...' : 'Create Company'}
+                  {createCompanyMutation.isPending ? t('rbac.creating') : t('rbac.createCompany')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1732,15 +1734,14 @@ export default function RBACAdmin() {
         <Dialog open={isInviteAdminDialogOpen} onOpenChange={(open) => { setIsInviteAdminDialogOpen(open); if (!open) setInviteEmail(''); }}>
           <DialogContent aria-describedby={undefined}>
             <DialogHeader>
-              <DialogTitle>Invite Company Admin</DialogTitle>
+              <DialogTitle>{t('rbac.inviteCompanyAdmin')}</DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
-              Send a beta invitation to a new company admin. They'll receive an email
-              with a link to set up their company and create their account.
+              {t('rbac.inviteAdminDesc')}
             </p>
             <div className="space-y-4 pt-2">
               <div>
-                <Label htmlFor="invite_email">Email Address</Label>
+                <Label htmlFor="invite_email">{t('rbac.emailAddress')}</Label>
                 <div className="relative mt-1">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -1762,7 +1763,7 @@ export default function RBACAdmin() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setIsInviteAdminDialogOpen(false); setInviteEmail(''); }}>
-                Cancel
+                {t('button.cancel')}
               </Button>
               <Button
                 onClick={() => inviteAdminMutation.mutate(inviteEmail)}
@@ -1771,12 +1772,12 @@ export default function RBACAdmin() {
                 {inviteAdminMutation.isPending ? (
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    Sending...
+                    {t('rbac.sendingInvite')}
                   </div>
                 ) : (
                   <>
                     <Send className="w-4 h-4 mr-2" />
-                    Send Invitation
+                    {t('rbac.sendInvitation')}
                   </>
                 )}
               </Button>
@@ -1788,14 +1789,14 @@ export default function RBACAdmin() {
         <Dialog open={isResetPasswordDialogOpen} onOpenChange={(open) => { setIsResetPasswordDialogOpen(open); if (!open) setResetEmail(''); }}>
           <DialogContent aria-describedby={undefined}>
             <DialogHeader>
-              <DialogTitle>Reset Admin Password</DialogTitle>
+              <DialogTitle>{t('rbac.resetAdminPassword')}</DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
-              Send a password reset link to an existing admin. The link expires in 1 hour.
+              {t('rbac.resetPasswordDesc')}
             </p>
             <div className="space-y-4 pt-2">
               <div>
-                <Label htmlFor="reset_email">Admin Email Address</Label>
+                <Label htmlFor="reset_email">{t('rbac.adminEmail')}</Label>
                 <div className="relative mt-1">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -1817,7 +1818,7 @@ export default function RBACAdmin() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setIsResetPasswordDialogOpen(false); setResetEmail(''); }}>
-                Cancel
+                {t('button.cancel')}
               </Button>
               <Button
                 onClick={() => resetPasswordMutation.mutate(resetEmail)}
@@ -1826,12 +1827,12 @@ export default function RBACAdmin() {
                 {resetPasswordMutation.isPending ? (
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    Sending...
+                    {t('rbac.sendingInvite')}
                   </div>
                 ) : (
                   <>
                     <KeyRound className="w-4 h-4 mr-2" />
-                    Send Reset Link
+                    {t('rbac.sendResetLink')}
                   </>
                 )}
               </Button>
@@ -1843,11 +1844,11 @@ export default function RBACAdmin() {
         <Dialog open={isEditCompanyDialogOpen} onOpenChange={setIsEditCompanyDialogOpen}>
           <DialogContent aria-describedby={undefined}>
             <DialogHeader>
-              <DialogTitle>Edit Company</DialogTitle>
+              <DialogTitle>{t('rbac.editCompany')}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="edit_company_name">Company Name</Label>
+                <Label htmlFor="edit_company_name">{t('rbac.companyName')}</Label>
                 <Input
                   id="edit_company_name"
                   value={editingCompany?.name || ''}
@@ -1855,7 +1856,7 @@ export default function RBACAdmin() {
                 />
               </div>
               <div>
-                <Label htmlFor="edit_domain">Domain</Label>
+                <Label htmlFor="edit_domain">{t('rbac.domain')}</Label>
                 <Input
                   id="edit_domain"
                   value={editingCompany?.domain || ''}
@@ -1863,23 +1864,23 @@ export default function RBACAdmin() {
                 />
               </div>
               <div>
-                <Label htmlFor="edit_status">Status</Label>
-                <Select 
-                  value={editingCompany?.status || 'active'} 
+                <Label htmlFor="edit_status">{t('table.status')}</Label>
+                <Select
+                  value={editingCompany?.status || 'active'}
                   onValueChange={(value) => setEditingCompany(prev => prev ? {...prev, status: value as 'active' | 'suspended' | 'pending'} : null)}
                 >
                   <SelectTrigger id="edit_status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="active">{t('status.active')}</SelectItem>
+                    <SelectItem value="suspended">{t('rbac.suspended')}</SelectItem>
+                    <SelectItem value="pending">{t('status.pending')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="edit_type">Company Type</Label>
+                <Label htmlFor="edit_type">{t('rbac.companyType')}</Label>
                 <Select 
                   value={editingCompany?.settings?.type || ''} 
                   onValueChange={(value) => setEditingCompany(prev => prev ? {
@@ -1891,14 +1892,14 @@ export default function RBACAdmin() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="platform">Platform Owner</SelectItem>
-                    <SelectItem value="customer">Customer</SelectItem>
-                    <SelectItem value="partner">Partner</SelectItem>
+                    <SelectItem value="platform">{t('rbac.platformOwner')}</SelectItem>
+                    <SelectItem value="customer">{t('rbac.customer')}</SelectItem>
+                    <SelectItem value="partner">{t('rbac.partner')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="edit_subscription">Subscription Tier</Label>
+                <Label htmlFor="edit_subscription">{t('rbac.subscriptionTier')}</Label>
                 <Select 
                   value={editingCompany?.settings?.subscription_tier || ''} 
                   onValueChange={(value) => setEditingCompany(prev => prev ? {
@@ -1910,9 +1911,9 @@ export default function RBACAdmin() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="basic">Basic</SelectItem>
-                    <SelectItem value="professional">Professional</SelectItem>
-                    <SelectItem value="enterprise">Enterprise</SelectItem>
+                    <SelectItem value="basic">{t('rbac.basic')}</SelectItem>
+                    <SelectItem value="professional">{t('rbac.professional')}</SelectItem>
+                    <SelectItem value="enterprise">{t('rbac.enterprise')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1922,7 +1923,7 @@ export default function RBACAdmin() {
                   checked={editingCompany?.is_active || false}
                   onCheckedChange={(checked) => setEditingCompany(prev => prev ? {...prev, is_active: checked} : null)}
                 />
-                <Label htmlFor="edit_is_active">Active Company</Label>
+                <Label htmlFor="edit_is_active">{t('rbac.activeCompany')}</Label>
               </div>
             </div>
             <DialogFooter>
@@ -1930,7 +1931,7 @@ export default function RBACAdmin() {
                 setIsEditCompanyDialogOpen(false);
                 setEditingCompany(null);
               }}>
-                Cancel
+                {t('button.cancel')}
               </Button>
               <Button 
                 onClick={() => {
@@ -1949,7 +1950,7 @@ export default function RBACAdmin() {
                 }}
                 disabled={updateCompanyMutation.isPending || !editingCompany?.name?.trim()}
               >
-                {updateCompanyMutation.isPending ? 'Updating...' : 'Update Company'}
+                {updateCompanyMutation.isPending ? t('rbac.updatingUser') : t('rbac.updateCompany')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1959,14 +1960,14 @@ export default function RBACAdmin() {
         <Dialog open={isViewUsersDialogOpen} onOpenChange={setIsViewUsersDialogOpen}>
           <DialogContent className="max-w-4xl" aria-describedby={undefined}>
             <DialogHeader>
-              <DialogTitle>Company Users</DialogTitle>
+              <DialogTitle>{t('rbac.companyUsers')}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               {companyUsersLoading ? (
-                <div className="text-center py-8">Loading users...</div>
+                <div className="text-center py-8">{t('rbac.loadingUsers')}</div>
               ) : companyUsers.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  No users found for this company
+                  {t('rbac.noUsersForCompany')}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -1981,14 +1982,14 @@ export default function RBACAdmin() {
                               </span>
                             </div>
                             <div>
-                              <p className="font-medium">{`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'No name'}</p>
+                              <p className="font-medium">{`${user.first_name || ''} ${user.last_name || ''}`.trim() || t('rbac.noName')}</p>
                               <p className="text-sm text-muted-foreground">{user.email}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline">{user.role_name || user.roleName || user.role || 'No role'}</Badge>
+                            <Badge variant="outline">{user.role_name || user.roleName || user.role || t('rbac.noRole')}</Badge>
                             <Badge variant={user.is_active ? 'default' : 'secondary'}>
-                              {user.is_active ? 'Active' : 'Inactive'}
+                              {user.is_active ? t('status.active') : t('rbac.inactive')}
                             </Badge>
                           </div>
                         </div>
@@ -2000,7 +2001,7 @@ export default function RBACAdmin() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsViewUsersDialogOpen(false)}>
-                Close
+                {t('button.close')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -2012,7 +2013,7 @@ export default function RBACAdmin() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-destructive">
                 <Trash2 className="w-5 h-5" />
-                Delete Company
+                {t('rbac.deleteCompany')}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
@@ -2039,24 +2040,24 @@ export default function RBACAdmin() {
                 <div className="flex gap-2">
                   <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
-                    <div className="font-medium text-destructive">Warning</div>
+                    <div className="font-medium text-destructive">{t('rbac.warning')}</div>
                     <div className="text-destructive/80">
-                      All projects, tasks, users, and associated data will be permanently removed.
+                      {t('rbac.deleteCompanyWarning')}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
             <DialogFooter className="gap-3">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setIsDeleteConfirmDialogOpen(false);
                   setCompanyToDelete(null);
                 }}
                 disabled={deleteCompanyMutation.isPending}
               >
-                Cancel
+                {t('button.cancel')}
               </Button>
               <Button 
                 variant="destructive" 
@@ -2071,12 +2072,12 @@ export default function RBACAdmin() {
                 {deleteCompanyMutation.isPending ? (
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                    Deleting...
+                    {t('rbac.deleting')}
                   </div>
                 ) : (
                   <>
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Company
+                    {t('rbac.deleteCompany')}
                   </>
                 )}
               </Button>
@@ -2088,7 +2089,7 @@ export default function RBACAdmin() {
           {companiesLoading ? (
             <Card>
               <CardContent className="p-6">
-                <p>Loading companies...</p>
+                <p>{t('rbac.loadingCompanies')}</p>
               </CardContent>
             </Card>
           ) : (
@@ -2103,7 +2104,7 @@ export default function RBACAdmin() {
                       </CardDescription>
                     </div>
                     <Badge variant={company.status === 'active' ? 'default' : 'destructive'}>
-                      {company.status === 'active' ? 'Active' : company.status || 'Unknown'}
+                      {company.status === 'active' ? t('status.active') : company.status === 'suspended' ? t('rbac.suspended') : company.status === 'pending' ? t('status.pending') : company.status || t('rbac.unknown')}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -2111,10 +2112,10 @@ export default function RBACAdmin() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <div className="text-sm text-muted-foreground">
-                        Created: {new Date(company.created_at).toLocaleDateString()}
+                        {t('rbac.created')}: {new Date(company.created_at).toLocaleDateString()}
                       </div>
                       <div className="text-sm font-medium">
-                        {userCountsByCompany[company.name] || 0} users
+                        {userCountsByCompany[company.name] || 0} {t('rbac.users')}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -2127,10 +2128,10 @@ export default function RBACAdmin() {
                         }}
                       >
                         <Edit className="w-4 h-4 mr-2" />
-                        Edit
+                        {t('button.edit')}
                       </Button>
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         variant="outline"
                         onClick={() => {
                           setSelectedCompanyId(company.id);
@@ -2138,7 +2139,7 @@ export default function RBACAdmin() {
                         }}
                       >
                         <Eye className="w-4 h-4 mr-2" />
-                        View Users
+                        {t('rbac.viewUsers')}
                       </Button>
                       <Button 
                         size="sm" 
@@ -2150,7 +2151,7 @@ export default function RBACAdmin() {
                         disabled={deleteCompanyMutation.isPending}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
+                        {t('button.delete')}
                       </Button>
                     </div>
                   </div>
@@ -2175,8 +2176,8 @@ export default function RBACAdmin() {
     return (
       <div className="space-y-6">
         <div>
-          <h3 className="text-2xl font-semibold">Permissions Overview</h3>
-          <p className="text-muted-foreground">View all available permissions in the system</p>
+          <h3 className="text-2xl font-semibold">{t('rbac.permissionsOverview')}</h3>
+          <p className="text-muted-foreground">{t('rbac.viewPermissionsDesc')}</p>
         </div>
 
         <div className="grid gap-6">
@@ -2185,10 +2186,10 @@ export default function RBACAdmin() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Key className="w-5 h-5" />
-                  {category.charAt(0).toUpperCase() + category.slice(1)} Permissions
+                  {category.charAt(0).toUpperCase() + category.slice(1)} {t('rbac.permissions')}
                 </CardTitle>
                 <CardDescription>
-                  {perms.length} permissions in this category
+                  {t('rbac.permissionsInCategory', { count: perms.length })}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -2264,10 +2265,10 @@ export default function RBACAdmin() {
       },
       onSuccess: () => {
         refetchModules();
-        toast({ title: 'Success', description: 'Module settings updated' });
+        toast({ title: t('toast.success'), description: t('rbac.moduleSettingsUpdated') });
       },
       onError: (error: any) => {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        toast({ title: t('toast.error'), description: error.message, variant: 'destructive' });
       }
     });
 
@@ -2287,13 +2288,13 @@ export default function RBACAdmin() {
         refetchModules();
         const action = data.enabled ? 'enabled' : 'disabled';
         toast({
-          title: 'Success',
-          description: `${moduleDisplayNames[data.module] || data.module} ${action} for ${data.companiesUpdated} companies`
+          title: t('toast.success'),
+          description: t('rbac.moduleBulkUpdated', { module: moduleDisplayNames[data.module] || data.module, action, count: data.companiesUpdated })
         });
         setUpdatingModule(null);
       },
       onError: (error: any) => {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        toast({ title: t('toast.error'), description: error.message, variant: 'destructive' });
         setUpdatingModule(null);
       }
     });
@@ -2332,8 +2333,8 @@ export default function RBACAdmin() {
       return (
         <div className="space-y-6">
           <div>
-            <h3 className="text-2xl font-semibold">Module Management</h3>
-            <p className="text-muted-foreground">Loading module settings...</p>
+            <h3 className="text-2xl font-semibold">{t('rbac.moduleManagement')}</h3>
+            <p className="text-muted-foreground">{t('rbac.loadingModules')}</p>
           </div>
         </div>
       );
@@ -2345,8 +2346,8 @@ export default function RBACAdmin() {
     return (
       <div className="space-y-6">
         <div>
-          <h3 className="text-2xl font-semibold">Module Management</h3>
-          <p className="text-muted-foreground">Enable or disable modules for each company</p>
+          <h3 className="text-2xl font-semibold">{t('rbac.moduleManagement')}</h3>
+          <p className="text-muted-foreground">{t('rbac.enableDisableModules')}</p>
         </div>
 
         {/* Bulk Actions Section */}
@@ -2354,10 +2355,10 @@ export default function RBACAdmin() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Settings className="w-5 h-5" />
-              Bulk Actions
+              {t('rbac.bulkActions')}
             </CardTitle>
             <CardDescription>
-              Enable or disable a module across ALL companies at once
+              {t('rbac.bulkActionsDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -2376,7 +2377,7 @@ export default function RBACAdmin() {
                       onClick={() => handleBulkAction(moduleKey, true)}
                     >
                       <ToggleRight className="w-3 h-3 mr-1" />
-                      Enable All
+                      {t('rbac.enableAll')}
                     </Button>
                     <Button
                       size="sm"
@@ -2386,7 +2387,7 @@ export default function RBACAdmin() {
                       onClick={() => handleBulkAction(moduleKey, false)}
                     >
                       <ToggleLeft className="w-3 h-3 mr-1" />
-                      Disable All
+                      {t('rbac.disableAll')}
                     </Button>
                   </div>
                 </div>
@@ -2400,10 +2401,10 @@ export default function RBACAdmin() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building className="w-5 h-5" />
-              Company Module Settings
+              {t('rbac.companyModuleSettings')}
             </CardTitle>
             <CardDescription>
-              Configure modules for individual companies ({companiesList.length} companies)
+              {t('rbac.configureModules', { count: companiesList.length })}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -2425,7 +2426,7 @@ export default function RBACAdmin() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-xs">
-                        {Object.values(company.enabledModules).filter(Boolean).length} / {availableModules.length} enabled
+                        {t('rbac.enabledModules', { enabled: Object.values(company.enabledModules).filter(Boolean).length, total: availableModules.length })}
                       </Badge>
                     </div>
                   </CollapsibleTrigger>
@@ -2488,12 +2489,12 @@ export default function RBACAdmin() {
         }
       }}>
         <DialogHeader>
-          <DialogTitle>Edit User</DialogTitle>
+          <DialogTitle>{t('rbac.editUser')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="edit_first_name">First Name</Label>
+              <Label htmlFor="edit_first_name">{t('rbac.firstName')}</Label>
               <Input
                 id="edit_first_name"
                 value={editingUser?.first_name || ''}
@@ -2501,7 +2502,7 @@ export default function RBACAdmin() {
               />
             </div>
             <div>
-              <Label htmlFor="edit_last_name">Last Name</Label>
+              <Label htmlFor="edit_last_name">{t('rbac.lastName')}</Label>
               <Input
                 id="edit_last_name"
                 value={editingUser?.last_name || ''}
@@ -2510,7 +2511,7 @@ export default function RBACAdmin() {
             </div>
           </div>
           <div>
-            <Label htmlFor="edit_email">Email</Label>
+            <Label htmlFor="edit_email">{t('table.email')}</Label>
             <Input
               id="edit_email"
               type="email"
@@ -2519,14 +2520,14 @@ export default function RBACAdmin() {
             />
           </div>
           <div>
-            <Label htmlFor="edit_company">Company</Label>
+            <Label htmlFor="edit_company">{t('table.company')}</Label>
             <Select 
               value={editingUser?.company_id?.toString() || ''} 
               onValueChange={(value) => setEditingUser(editingUser ? {...editingUser, company_id: value} : null)}
               disabled={true}
             >
               <SelectTrigger id="edit_company" className="opacity-60">
-                <SelectValue placeholder="Company (read-only)" />
+                <SelectValue placeholder={t('rbac.companyReadOnly')} />
               </SelectTrigger>
               <SelectContent>
                 {filteredCompanies.map((company: Company) => (
@@ -2536,21 +2537,21 @@ export default function RBACAdmin() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground mt-1">Users cannot change companies</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('rbac.usersCannotChangeCompanies')}</p>
           </div>
           <div>
-            <Label htmlFor="edit_password">New Password (Optional)</Label>
+            <Label htmlFor="edit_password">{t('rbac.newPassword')}</Label>
             <Input
               id="edit_password"
               type="password"
-              placeholder="Leave empty to keep current password"
+              placeholder={t('rbac.keepCurrentPassword')}
               value={editingUser?.password || ''}
               onChange={(e) => setEditingUser(editingUser ? {...editingUser, password: e.target.value} : null)}
             />
-            <p className="text-xs text-muted-foreground mt-1">Only change if user needs a new password</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('rbac.onlyChangePassword')}</p>
           </div>
           <div>
-            <Label htmlFor="edit_role">Role</Label>
+            <Label htmlFor="edit_role">{t('table.role')}</Label>
             <Select
               value={editingUser?.role_id?.toString() || ''}
               onValueChange={(value) => {
@@ -2574,11 +2575,11 @@ export default function RBACAdmin() {
               }}
             >
               <SelectTrigger id="edit_role">
-                <SelectValue placeholder="Select role" />
+                <SelectValue placeholder={t('rbac.selectRole')} />
               </SelectTrigger>
               <SelectContent>
                 {rolesLoading ? (
-                  <SelectItem value="loading" disabled>Loading roles...</SelectItem>
+                  <SelectItem value="loading" disabled>{t('rbac.loadingRolesSelect')}</SelectItem>
                 ) : roles && roles.length > 0 ? (
                   roles.map((role: Role) => (
                     <SelectItem key={role.id} value={role.id.toString()}>
@@ -2586,7 +2587,7 @@ export default function RBACAdmin() {
                     </SelectItem>
                   ))
                 ) : (
-                  <SelectItem value="none" disabled>No roles available</SelectItem>
+                  <SelectItem value="none" disabled>{t('rbac.noRolesAvailable')}</SelectItem>
                 )}
               </SelectContent>
             </Select>
@@ -2595,24 +2596,24 @@ export default function RBACAdmin() {
           {editingUser?.role_id?.toString() !== originalRoleId && originalRoleId && (
             <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs space-y-1">
               {originalRoleId === '6' && (
-                <p className="text-amber-700 dark:text-amber-300">Subcontractor company link will be removed and active assignments terminated.</p>
+                <p className="text-amber-700 dark:text-amber-300">{t('rbac.subLinkRemoved')}</p>
               )}
               {originalRoleId === '4' && (
-                <p className="text-amber-700 dark:text-amber-300">Client portal access will be removed and project assignment cleared.</p>
+                <p className="text-amber-700 dark:text-amber-300">{t('rbac.clientPortalRemoved')}</p>
               )}
               {editingUser?.role_id?.toString() === '6' && (
-                <p className="text-amber-700 dark:text-amber-300">User will be linked to the selected subcontractor company.</p>
+                <p className="text-amber-700 dark:text-amber-300">{t('rbac.userLinkedToSub')}</p>
               )}
               {editingUser?.role_id?.toString() === '4' && (
-                <p className="text-amber-700 dark:text-amber-300">A client portal invitation will be created. Select a project below.</p>
+                <p className="text-amber-700 dark:text-amber-300">{t('rbac.clientInviteCreated')}</p>
               )}
-              <p className="text-amber-600 dark:text-amber-400 font-medium">User will be logged out and must re-login with new permissions.</p>
+              <p className="text-amber-600 dark:text-amber-400 font-medium">{t('rbac.userMustRelogin')}</p>
             </div>
           )}
           {/* Subcontractor Company - ONLY when transitioning TO subcontractor role */}
           {editingUser?.role_id?.toString() === '6' && originalRoleId !== '6' && (
             <div className="space-y-3">
-              <Label className="font-medium">Subcontractor Company *</Label>
+              <Label className="font-medium">{t('rbac.subcontractorCompany')}</Label>
               {subCompanies.length > 0 && (
                 <div className="flex gap-2">
                   <button
@@ -2624,7 +2625,7 @@ export default function RBACAdmin() {
                     }`}
                     onClick={() => setEditingUser({ ...editingUser, sub_company_mode: 'existing' })}
                   >
-                    Existing Company
+                    {t('rbac.existingCompany')}
                   </button>
                   <button
                     type="button"
@@ -2635,7 +2636,7 @@ export default function RBACAdmin() {
                     }`}
                     onClick={() => setEditingUser({ ...editingUser, sub_company_mode: 'new' })}
                   >
-                    New Company
+                    {t('rbac.newCompany')}
                   </button>
                 </div>
               )}
@@ -2645,7 +2646,7 @@ export default function RBACAdmin() {
                   onValueChange={(v) => setEditingUser({ ...editingUser, sub_company_id: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select existing sub company" />
+                    <SelectValue placeholder={t('rbac.selectExistingSubCompany')} />
                   </SelectTrigger>
                   <SelectContent>
                     {subCompanies.map((sc: any) => (
@@ -2658,12 +2659,12 @@ export default function RBACAdmin() {
               ) : (
                 <div className="space-y-2">
                   <Input
-                    placeholder="Company name *"
+                    placeholder={t('rbac.companyNameRequired')}
                     value={editingUser.sub_company_name || ''}
                     onChange={(e) => setEditingUser({ ...editingUser, sub_company_name: e.target.value })}
                   />
                   <Input
-                    placeholder="Trade (e.g. Electrical, Plumbing)"
+                    placeholder={t('rbac.tradePlaceholder')}
                     value={editingUser.sub_trade || ''}
                     onChange={(e) => setEditingUser({ ...editingUser, sub_trade: e.target.value })}
                   />
@@ -2674,17 +2675,17 @@ export default function RBACAdmin() {
           {/* Project Assignment - ONLY for Client role (roleId === '4') */}
           {editingUser?.role_id?.toString() === '4' && (
             <div>
-              <Label htmlFor="edit_assigned_project">Assigned Project *</Label>
+              <Label htmlFor="edit_assigned_project">{t('rbac.assignedProject')}</Label>
               <Select
                 value={editingUser?.assigned_project_id || ''}
                 onValueChange={(value) => setEditingUser(editingUser ? {...editingUser, assigned_project_id: value} : null)}
               >
                 <SelectTrigger id="edit_assigned_project">
-                  <SelectValue placeholder="Select project for client" />
+                  <SelectValue placeholder={t('rbac.selectProjectForClient')} />
                 </SelectTrigger>
                 <SelectContent>
                   {projects.length === 0 ? (
-                    <SelectItem value="none" disabled>No projects available</SelectItem>
+                    <SelectItem value="none" disabled>{t('rbac.noProjectsAvailable')}</SelectItem>
                   ) : (
                     projects.map((project: any) => (
                       <SelectItem key={project.id} value={project.id}>
@@ -2695,7 +2696,7 @@ export default function RBACAdmin() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                Client users can only access this specific project
+                {t('rbac.clientProjectRequired')}
               </p>
             </div>
           )}
@@ -2705,7 +2706,7 @@ export default function RBACAdmin() {
               checked={editingUser?.is_active || false}
               onCheckedChange={(checked) => setEditingUser(editingUser ? {...editingUser, is_active: checked} : null)}
             />
-            <Label htmlFor="edit_is_active">Active User</Label>
+            <Label htmlFor="edit_is_active">{t('rbac.activeUser')}</Label>
           </div>
         </div>
         <DialogFooter>
@@ -2718,7 +2719,7 @@ export default function RBACAdmin() {
             }}
             data-testid="button-cancel-edit"
           >
-            Cancel
+            {t('button.cancel')}
           </Button>
           <Button
             type="button"
@@ -2727,8 +2728,8 @@ export default function RBACAdmin() {
                 // Validate project required for client role
                 if (editingUser.role_id?.toString() === '4' && !editingUser.assigned_project_id) {
                   toast({
-                    title: 'Error',
-                    description: 'Project assignment is required for client users',
+                    title: t('toast.error'),
+                    description: t('rbac.projectRequired'),
                     variant: 'destructive'
                   });
                   return;
@@ -2737,11 +2738,11 @@ export default function RBACAdmin() {
                 // Validate sub company info required for subcontractor role transition
                 if (editingUser.role_id?.toString() === '6' && originalRoleId !== '6') {
                   if (editingUser.sub_company_mode === 'existing' && !editingUser.sub_company_id) {
-                    toast({ title: 'Error', description: 'Please select a subcontractor company', variant: 'destructive' });
+                    toast({ title: t('toast.error'), description: t('rbac.selectSubCompanyRequired'), variant: 'destructive' });
                     return;
                   }
                   if (editingUser.sub_company_mode === 'new' && !editingUser.sub_company_name?.trim()) {
-                    toast({ title: 'Error', description: 'Company name is required for new subcontractor', variant: 'destructive' });
+                    toast({ title: t('toast.error'), description: t('rbac.companyNameRequired'), variant: 'destructive' });
                     return;
                   }
                 }
@@ -2828,7 +2829,7 @@ export default function RBACAdmin() {
             disabled={updateUserMutation.isPending || !editingUser?.email?.trim()}
             data-testid="button-update-user"
           >
-            {updateUserMutation.isPending ? 'Updating...' : 'Update User'}
+            {updateUserMutation.isPending ? t('rbac.updatingUser') : t('rbac.updateUser')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -2838,24 +2839,24 @@ export default function RBACAdmin() {
   // Segmented control options for tabs
   const tabOptions = isRootAdmin
     ? [
-        { value: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
-        { value: 'roles', label: 'Roles', icon: <UserCheck className="w-4 h-4" /> },
-        { value: 'companies', label: 'Companies', icon: <Building className="w-4 h-4" /> },
-        { value: 'permissions', label: 'Permissions', icon: <Key className="w-4 h-4" /> },
-        { value: 'modules', label: 'Modules', icon: <Settings className="w-4 h-4" /> },
-        { value: 'branding', label: 'Branding', icon: <Palette className="w-4 h-4" /> },
+        { value: 'users', label: t('rbac.tabs.users'), icon: <Users className="w-4 h-4" /> },
+        { value: 'roles', label: t('rbac.tabs.roles'), icon: <UserCheck className="w-4 h-4" /> },
+        { value: 'companies', label: t('rbac.tabs.companies'), icon: <Building className="w-4 h-4" /> },
+        { value: 'permissions', label: t('rbac.tabs.permissions'), icon: <Key className="w-4 h-4" /> },
+        { value: 'modules', label: t('rbac.tabs.modules'), icon: <Settings className="w-4 h-4" /> },
+        { value: 'branding', label: t('rbac.tabs.branding'), icon: <Palette className="w-4 h-4" /> },
       ]
     : [
-        { value: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
-        { value: 'branding', label: 'Branding', icon: <Palette className="w-4 h-4" /> },
+        { value: 'users', label: t('rbac.tabs.users'), icon: <Users className="w-4 h-4" /> },
+        { value: 'branding', label: t('rbac.tabs.branding'), icon: <Palette className="w-4 h-4" /> },
       ];
 
   // Bottom navigation items
   const bottomNavItems = [
-    { value: 'home', label: 'Home', icon: <Home className="w-5 h-5" /> },
-    { value: 'projects', label: 'Projects', icon: <FolderKanban className="w-5 h-5" /> },
-    { value: 'tasks', label: 'Tasks', icon: <ListTodo className="w-5 h-5" /> },
-    { value: 'admin', label: 'Admin', icon: <Shield className="w-5 h-5" /> },
+    { value: 'home', label: t('rbac.navHome'), icon: <Home className="w-5 h-5" /> },
+    { value: 'projects', label: t('rbac.navProjects'), icon: <FolderKanban className="w-5 h-5" /> },
+    { value: 'tasks', label: t('rbac.navTasks'), icon: <ListTodo className="w-5 h-5" /> },
+    { value: 'admin', label: t('rbac.navAdmin'), icon: <Shield className="w-5 h-5" /> },
   ];
 
   const [activeNavItem, setActiveNavItem] = useState('admin');
@@ -2883,7 +2884,7 @@ export default function RBACAdmin() {
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-[var(--pro-mint)]" />
             <h1 className="text-lg font-semibold text-[var(--pro-text-primary)]">
-              RBAC Admin
+              {t('rbac.title')}
             </h1>
           </div>
         </div>
@@ -2905,7 +2906,7 @@ export default function RBACAdmin() {
         <Alert className="mx-4 mt-4 bg-[var(--pro-surface)] border-[var(--pro-border)]">
           <AlertCircle className="h-4 w-4 text-[var(--pro-blue)]" />
           <AlertDescription className="text-[var(--pro-text-primary)]">
-            Loading RBAC data...
+            {t('rbac.loadingRbacData')}
           </AlertDescription>
         </Alert>
       )}

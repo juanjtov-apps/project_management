@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle,
@@ -99,6 +100,7 @@ const itemTypeIcons: Record<ChecklistItemData["itemType"], typeof FileText> = {
 };
 
 export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
+  const { t } = useTranslation('common');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
@@ -168,14 +170,19 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
         revision_requested: "sent back for revision",
         rejected: "rejected",
       };
+      const decisionI18n: Record<string, string> = {
+        approved: t('subs.taskApproved'),
+        revision_requested: t('subs.taskSentBack'),
+        rejected: t('subs.taskRejected'),
+      };
       toast({
-        title: `Task ${decisionLabels[variables.decision] || "reviewed"}`,
+        title: decisionI18n[variables.decision] || t('subs.taskReviewed'),
       });
       closeReviewDialog();
     },
     onError: (error: Error) => {
       toast({
-        title: "Review failed",
+        title: t('subs.reviewFailed'),
         description: error.message,
         variant: "destructive",
       });
@@ -208,8 +215,8 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
       !feedback.trim()
     ) {
       toast({
-        title: "Feedback required",
-        description: "Please provide feedback when rejecting or requesting revisions.",
+        title: t('subs.feedbackRequiredMsg'),
+        description: t('subs.feedbackRequiredDesc'),
         variant: "destructive",
       });
       return;
@@ -239,10 +246,10 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
       {/* Header */}
       <div>
         <h2 className="text-xl sm:text-2xl font-bold text-[var(--pro-text-primary)]">
-          Approval Queue
+          {t('subs.approvalQueue')}
         </h2>
         <p className="text-[var(--pro-text-secondary)]">
-          {queue.length} task{queue.length !== 1 ? "s" : ""} pending review
+          {t('subs.tasksPendingReview', { count: queue.length })}
         </p>
       </div>
 
@@ -252,10 +259,10 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
           <CardContent className="text-center py-12">
             <CheckCircle className="h-16 w-16 mx-auto text-emerald-400/50 mb-4" />
             <h3 className="text-xl font-semibold mb-2 text-[var(--pro-text-primary)]">
-              All Caught Up
+              {t('subs.allCaughtUp')}
             </h3>
             <p className="text-[var(--pro-text-secondary)]">
-              No tasks are pending review right now.
+              {t('subPortal:tasks.noPendingReview')}
             </p>
           </CardContent>
         </Card>
@@ -348,7 +355,7 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
                           className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
                         >
                           <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                          Revise
+                          {t('subs.revise')}
                         </Button>
                         <Button
                           size="sm"
@@ -357,7 +364,7 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
                           className="border-red-500/30 text-red-400 hover:bg-red-500/10"
                         >
                           <XCircle className="h-3.5 w-3.5 mr-1" />
-                          Reject
+                          {t('subs.reject')}
                         </Button>
                         <Button
                           size="sm"
@@ -365,7 +372,7 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
                           className="bg-emerald-600 hover:bg-emerald-700 text-white"
                         >
                           <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                          Approve
+                          {t('subs.approve')}
                         </Button>
                       </div>
 
@@ -478,7 +485,7 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
                                               : "bg-zinc-500/20 text-zinc-400 border-zinc-500/30"
                                           }`}
                                         >
-                                          {item.isCompleted ? "Done" : "Pending"}
+                                          {item.isCompleted ? t('subs.done') : t('status.pending')}
                                         </Badge>
                                       </div>
                                     </div>
@@ -487,7 +494,7 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
                                   {/* Sub's notes */}
                                   {item.notes && (
                                     <div className="ml-6 p-2 rounded bg-[var(--pro-surface-highlight)] border border-[var(--pro-border)]">
-                                      <p className="text-xs font-medium text-[var(--pro-text-muted)] mb-0.5">Notes from sub:</p>
+                                      <p className="text-xs font-medium text-[var(--pro-text-muted)] mb-0.5">{t('subs.notesFromSub')}</p>
                                       <p className="text-sm text-[var(--pro-text-secondary)] whitespace-pre-wrap">
                                         {item.notes}
                                       </p>
@@ -497,7 +504,7 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
                                   {/* Attached documents */}
                                   {item.documents && item.documents.length > 0 && (
                                     <div className="ml-6 space-y-1">
-                                      <p className="text-xs font-medium text-[var(--pro-text-muted)]">Attached documents:</p>
+                                      <p className="text-xs font-medium text-[var(--pro-text-muted)]">{t('subs.attachedDocuments')}</p>
                                       <div className="flex flex-wrap gap-1.5">
                                         {item.documents.map((doc) => (
                                           <button
@@ -516,7 +523,7 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
                                                 const { downloadURL } = await res.json();
                                                 window.open(downloadURL, "_blank");
                                               } catch {
-                                                toast({ title: "Download Failed", description: "Could not download document.", variant: "destructive" });
+                                                toast({ title: t('subs.downloadFailed'), description: t('subs.couldNotDownload'), variant: "destructive" });
                                               }
                                             }}
                                           >
@@ -542,7 +549,7 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
 
                       {(!task.checklists || task.checklists.length === 0) && (
                         <p className="text-sm text-[var(--pro-text-muted)] italic">
-                          No checklists attached to this task.
+                          {t('subs.noChecklistsAttached')}
                         </p>
                       )}
                     </div>
@@ -559,9 +566,9 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
         <DialogContent className="max-w-md" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>
-              {reviewDecision === "approved" && "Approve Task"}
-              {reviewDecision === "revision_requested" && "Request Revision"}
-              {reviewDecision === "rejected" && "Reject Task"}
+              {reviewDecision === "approved" && t('subs.approveTask')}
+              {reviewDecision === "revision_requested" && t('subs.requestRevision')}
+              {reviewDecision === "rejected" && t('subs.rejectTask')}
             </DialogTitle>
           </DialogHeader>
 
@@ -579,7 +586,7 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
               {reviewDecision === "approved" && (
                 <div className="space-y-1.5">
                   <Label htmlFor="approve-feedback">
-                    Feedback (optional)
+                    {t('subs.feedbackOptional')}
                   </Label>
                   <Textarea
                     id="approve-feedback"
@@ -595,7 +602,7 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
                 <div className="space-y-1.5">
                   <Label htmlFor="revision-feedback">
                     <MessageSquare className="h-3.5 w-3.5 inline mr-1" />
-                    What needs to be revised? *
+                    {t('subs.whatNeedsRevision')}
                   </Label>
                   <Textarea
                     id="revision-feedback"
@@ -612,7 +619,7 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
                   <div className="space-y-1.5">
                     <Label htmlFor="reject-feedback">
                       <MessageSquare className="h-3.5 w-3.5 inline mr-1" />
-                      Feedback *
+                      {t('subs.feedbackRequired')}
                     </Label>
                     <Textarea
                       id="reject-feedback"
@@ -624,7 +631,7 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="reject-reason">
-                      Rejection Reason (optional)
+                      {t('subs.rejectionReasonOptional')}
                     </Label>
                     <Textarea
                       id="reject-reason"
@@ -641,7 +648,7 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
 
           <DialogFooter>
             <Button variant="outline" onClick={closeReviewDialog}>
-              Cancel
+              {t('button.cancel')}
             </Button>
             <Button
               onClick={submitReview}
@@ -659,17 +666,17 @@ export function ApprovalQueue({ projectId }: ApprovalQueueProps) {
               ) : reviewDecision === "approved" ? (
                 <>
                   <CheckCircle className="h-4 w-4 mr-1.5" />
-                  Approve
+                  {t('subs.approve')}
                 </>
               ) : reviewDecision === "rejected" ? (
                 <>
                   <XCircle className="h-4 w-4 mr-1.5" />
-                  Reject
+                  {t('subs.reject')}
                 </>
               ) : (
                 <>
                   <RotateCcw className="h-4 w-4 mr-1.5" />
-                  Request Revision
+                  {t('subs.requestRevision')}
                 </>
               )}
             </Button>

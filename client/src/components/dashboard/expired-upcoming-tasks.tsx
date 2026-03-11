@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import { apiRequest } from "@/lib/queryClient";
 import { getPriorityConfig, formatDueDate } from "@/lib/statusColors";
 import type { Task } from "@shared/schema";
@@ -20,6 +21,7 @@ const getPriorityValue = (priority: string): number => {
 
 export default function ExpiredUpcomingTasks() {
   const [, setLocation] = useLocation();
+  const { t } = useTranslation('dashboard');
   const queryClient = useQueryClient();
   
   const { data: tasks = [], isLoading } = useQuery<Task[]>({
@@ -80,7 +82,7 @@ export default function ExpiredUpcomingTasks() {
           style={{ backgroundColor: '#161B22', border: '1px solid #2D333B' }}
         >
           <div className="p-5 border-b" style={{ borderColor: '#2D333B' }}>
-            <h3 className="text-lg font-semibold" style={{ color: '#EF4444' }}>Expired Tasks</h3>
+            <h3 className="text-lg font-semibold" style={{ color: '#EF4444' }}>{t('expiredTasks.title')}</h3>
           </div>
           <div className="p-5">
             <div className="space-y-4">
@@ -98,7 +100,7 @@ export default function ExpiredUpcomingTasks() {
           style={{ backgroundColor: '#161B22', border: '1px solid #2D333B' }}
         >
           <div className="p-5 border-b" style={{ borderColor: '#2D333B' }}>
-            <h3 className="text-lg font-semibold" style={{ color: '#60A5FA' }}>Next 3 Priority Tasks</h3>
+            <h3 className="text-lg font-semibold" style={{ color: '#60A5FA' }}>{t('upcomingTasks.title')}</h3>
           </div>
           <div className="p-5">
             <div className="space-y-4">
@@ -123,7 +125,7 @@ export default function ExpiredUpcomingTasks() {
         <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#2D333B' }}>
           <div className="flex items-center space-x-2">
             <AlertTriangle size={20} style={{ color: '#EF4444' }} />
-            <h3 className="text-lg font-semibold" style={{ color: '#EF4444' }}>Expired Tasks</h3>
+            <h3 className="text-lg font-semibold" style={{ color: '#EF4444' }}>{t('expiredTasks.title')}</h3>
             <span 
               className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
               style={{ 
@@ -141,7 +143,7 @@ export default function ExpiredUpcomingTasks() {
             onClick={() => setLocation("/tasks")}
             data-testid="view-all-expired-tasks"
           >
-            View All
+            {t('expiredTasks.viewAll')}
             <ArrowRight size={16} className="ml-1" />
           </Button>
         </div>
@@ -150,8 +152,8 @@ export default function ExpiredUpcomingTasks() {
             {expiredTasks.length === 0 ? (
               <div className="text-center py-8">
                 <Clock size={32} className="mx-auto mb-2" style={{ color: '#9CA3AF' }} />
-                <p className="text-white font-medium">No expired tasks</p>
-                <p className="text-sm" style={{ color: '#9CA3AF' }}>Great job staying on top of deadlines!</p>
+                <p className="text-white font-medium">{t('expiredTasks.empty')}</p>
+                <p className="text-sm" style={{ color: '#9CA3AF' }}>{t('expiredTasks.onTrack')}</p>
               </div>
             ) : (
               expiredTasks.map((task) => {
@@ -215,7 +217,7 @@ export default function ExpiredUpcomingTasks() {
         <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#2D333B' }}>
           <div className="flex items-center space-x-2">
             <Clock size={20} style={{ color: '#60A5FA' }} />
-            <h3 className="text-lg font-semibold" style={{ color: '#60A5FA' }}>Next 3 Priority Tasks</h3>
+            <h3 className="text-lg font-semibold" style={{ color: '#60A5FA' }}>{t('upcomingTasks.title')}</h3>
           </div>
           <Button
             variant="ghost"
@@ -224,7 +226,7 @@ export default function ExpiredUpcomingTasks() {
             onClick={() => setLocation("/tasks")}
             data-testid="view-all-upcoming-tasks"
           >
-            View All
+            {t('upcomingTasks.viewAll')}
             <ArrowRight size={16} className="ml-1" />
           </Button>
         </div>
@@ -233,8 +235,8 @@ export default function ExpiredUpcomingTasks() {
             {upcomingTasks.length === 0 ? (
               <div className="text-center py-8">
                 <Clock size={32} className="mx-auto mb-2" style={{ color: '#9CA3AF' }} />
-                <p className="text-white font-medium">No upcoming tasks</p>
-                <p className="text-sm" style={{ color: '#9CA3AF' }}>You're all caught up!</p>
+                <p className="text-white font-medium">{t('upcomingTasks.empty')}</p>
+                <p className="text-sm" style={{ color: '#9CA3AF' }}>{t('upcomingTasks.allCaughtUp')}</p>
               </div>
             ) : (
               upcomingTasks.map((task, index) => {

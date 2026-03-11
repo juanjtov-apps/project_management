@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { X, AlertTriangle, MessageSquare, Bell, Package, Receipt, DollarSign } from "lucide-react";
+import { X, AlertTriangle, MessageSquare, Bell, Package, Receipt, DollarSign, Bot } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
@@ -36,6 +36,8 @@ const getNotificationIcon = (type: string) => {
       return <Receipt className="text-purple-600" size={16} />;
     case "installment_paid":
       return <DollarSign className="text-emerald-600" size={16} />;
+    case "agent_error":
+      return <Bot className="text-red-500" size={16} />;
     default:
       return <Bell className="text-gray-500" size={16} />;
   }

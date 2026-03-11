@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   DollarSign,
@@ -71,25 +72,25 @@ interface MilestoneManagerProps {
 
 const milestoneStatusConfig: Record<
   Milestone["status"],
-  { label: string; className: string; icon: typeof Clock }
+  { labelKey: string; className: string; icon: typeof Clock }
 > = {
   pending: {
-    label: "Pending",
+    labelKey: "status.pending",
     className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
     icon: Clock,
   },
   payable: {
-    label: "Payable",
+    labelKey: "subs.payable",
     className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
     icon: TrendingUp,
   },
   approved: {
-    label: "Approved",
+    labelKey: "status.approved",
     className: "bg-blue-500/20 text-blue-400 border-blue-500/30",
     icon: ShieldCheck,
   },
   paid: {
-    label: "Paid",
+    labelKey: "subs.paid",
     className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
     icon: CheckCircle,
   },
@@ -117,6 +118,7 @@ export function MilestoneManager({
   assignmentId,
   projectId,
 }: MilestoneManagerProps) {
+  const { t } = useTranslation('common');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -181,12 +183,12 @@ export function MilestoneManager({
       queryClient.invalidateQueries({
         queryKey: ["/api/v1/sub/assignments", assignmentId, "milestones"],
       });
-      toast({ title: "Milestone created" });
+      toast({ title: t('subs.milestoneCreated') });
       closeDialog();
     },
     onError: (error: Error) => {
       toast({
-        title: "Failed to create milestone",
+        title: t('subs.failedCreateMilestone'),
         description: error.message,
         variant: "destructive",
       });
@@ -225,12 +227,12 @@ export function MilestoneManager({
       queryClient.invalidateQueries({
         queryKey: ["/api/v1/sub/assignments", assignmentId, "milestones"],
       });
-      toast({ title: "Milestone updated" });
+      toast({ title: t('subs.milestoneUpdated') });
       closeDialog();
     },
     onError: (error: Error) => {
       toast({
-        title: "Failed to update milestone",
+        title: t('subs.failedUpdateMilestone'),
         description: error.message,
         variant: "destructive",
       });
@@ -256,11 +258,11 @@ export function MilestoneManager({
       queryClient.invalidateQueries({
         queryKey: ["/api/v1/sub/assignments", assignmentId, "milestones"],
       });
-      toast({ title: "Milestone marked as paid" });
+      toast({ title: t('subs.milestoneMarkedPaid') });
     },
     onError: (error: Error) => {
       toast({
-        title: "Failed to mark as paid",
+        title: t('subs.failedMarkPaid'),
         description: error.message,
         variant: "destructive",
       });
@@ -331,17 +333,17 @@ export function MilestoneManager({
         <div>
           <h3 className="text-lg font-semibold text-[var(--pro-text-primary)] flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-[var(--pro-mint)]" />
-            Milestones
+            {t('subs.milestones')}
           </h3>
           {milestones.length > 0 && (
             <p className="text-sm text-[var(--pro-text-secondary)]">
-              {formatCurrency(paidAmount)} of {formatCurrency(totalAmount)} paid
+              {t('subs.paidOfTotal', { paid: formatCurrency(paidAmount), total: formatCurrency(totalAmount) })}
             </p>
           )}
         </div>
         <Button size="sm" onClick={openCreateDialog} className="gap-1.5">
           <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Add Milestone</span>
+          <span className="hidden sm:inline">{t('subs.addMilestone')}</span>
         </Button>
       </div>
 
@@ -351,7 +353,7 @@ export function MilestoneManager({
           <CardContent className="text-center py-8">
             <DollarSign className="h-10 w-10 mx-auto text-[var(--pro-text-muted)] mb-2" />
             <p className="text-sm text-[var(--pro-text-secondary)]">
-              No milestones created yet.
+              {t('subs.noMilestonesYet')}
             </p>
           </CardContent>
         </Card>
@@ -380,7 +382,7 @@ export function MilestoneManager({
                         </h4>
                         <Badge variant="outline" className={config.className}>
                           <StatusIcon className="h-3 w-3 mr-1" />
-                          {config.label}
+                          {t(config.labelKey)}
                         </Badge>
                         <Badge
                           variant="outline"
@@ -398,17 +400,14 @@ export function MilestoneManager({
 
                       <div className="flex items-center gap-3 text-xs text-[var(--pro-text-muted)] flex-wrap">
                         {milestone.retentionPct > 0 && (
-                          <span>Retention: {milestone.retentionPct}%</span>
+                          <span>{t('subs.retention', { pct: milestone.retentionPct })}</span>
                         )}
                         {milestone.linkedTaskNames &&
                           milestone.linkedTaskNames.length > 0 && (
                             <div className="flex items-center gap-1">
                               <LinkIcon className="h-3 w-3" />
                               <span>
-                                {milestone.linkedTaskNames.length} linked task
-                                {milestone.linkedTaskNames.length !== 1
-                                  ? "s"
-                                  : ""}
+                                {t('subs.linkedTaskCount', { count: milestone.linkedTaskNames.length })}
                               </span>
                             </div>
                           )}
@@ -416,12 +415,13 @@ export function MilestoneManager({
                           <div className="flex items-center gap-1 text-emerald-400">
                             <CalendarCheck className="h-3 w-3" />
                             <span>
-                              Paid{" "}
-                              {new Date(
-                                milestone.paidDate
-                              ).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
+                              {t('subs.paidOn', {
+                                date: new Date(
+                                  milestone.paidDate
+                                ).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                }),
                               })}
                             </span>
                           </div>
@@ -455,7 +455,7 @@ export function MilestoneManager({
                             {markPaidMutation.isPending ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
                             ) : (
-                              "Mark Paid"
+                              t('subs.markPaid')
                             )}
                           </Button>
                         )}
@@ -474,16 +474,16 @@ export function MilestoneManager({
         <DialogContent className="max-w-lg" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>
-              {editingMilestone ? "Edit Milestone" : "Create Milestone"}
+              {editingMilestone ? t('subs.editMilestone') : t('subs.createMilestone')}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="ms-name">Name *</Label>
+              <Label htmlFor="ms-name">{t('subs.milestoneNameLabel')}</Label>
               <Input
                 id="ms-name"
-                placeholder="e.g. Foundation Complete"
+                placeholder={t('subs.egFoundationComplete')}
                 value={form.name}
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, name: e.target.value }))
@@ -492,10 +492,10 @@ export function MilestoneManager({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="ms-desc">Description</Label>
+              <Label htmlFor="ms-desc">{t('subs.milestoneDescLabel')}</Label>
               <Textarea
                 id="ms-desc"
-                placeholder="Describe this milestone..."
+                placeholder={t('subs.describeMilestone')}
                 rows={2}
                 value={form.description}
                 onChange={(e) =>
@@ -509,7 +509,7 @@ export function MilestoneManager({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="ms-amount">Amount ($) *</Label>
+                <Label htmlFor="ms-amount">{t('subs.milestoneAmount')}</Label>
                 <Input
                   id="ms-amount"
                   type="number"
@@ -523,7 +523,7 @@ export function MilestoneManager({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="ms-retention">Retention (%)</Label>
+                <Label htmlFor="ms-retention">{t('subs.milestoneRetention')}</Label>
                 <Input
                   id="ms-retention"
                   type="number"
@@ -542,7 +542,7 @@ export function MilestoneManager({
             </div>
 
             <div className="space-y-1.5">
-              <Label>Milestone Type</Label>
+              <Label>{t('subs.milestoneType')}</Label>
               <Select
                 value={form.milestoneType}
                 onValueChange={(val) =>
@@ -553,12 +553,12 @@ export function MilestoneManager({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="fixed">Fixed Amount</SelectItem>
+                  <SelectItem value="fixed">{t('subs.fixedAmount')}</SelectItem>
                   <SelectItem value="percentage">
-                    Percentage of Contract
+                    {t('subs.percentageOfContract')}
                   </SelectItem>
                   <SelectItem value="task_completion">
-                    Task Completion
+                    {t('subs.taskCompletion')}
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -567,7 +567,7 @@ export function MilestoneManager({
             {/* Linked Tasks Multi-Select */}
             {tasks.length > 0 && (
               <div className="space-y-1.5">
-                <Label>Linked Tasks (optional)</Label>
+                <Label>{t('subs.linkedTasks')}</Label>
                 <div className="max-h-32 overflow-y-auto border border-[var(--pro-border)] rounded-lg p-2 space-y-1">
                   {tasks.map((task) => (
                     <label
@@ -592,7 +592,7 @@ export function MilestoneManager({
 
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>
-              Cancel
+              {t('button.cancel')}
             </Button>
             <Button
               onClick={handleSubmit}
@@ -601,12 +601,12 @@ export function MilestoneManager({
               {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  {t('subs.saving')}
                 </>
               ) : editingMilestone ? (
-                "Update Milestone"
+                t('subs.updateMilestone')
               ) : (
-                "Create Milestone"
+                t('subs.createMilestone')
               )}
             </Button>
           </DialogFooter>

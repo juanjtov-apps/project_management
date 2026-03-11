@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +25,7 @@ import PaymentsTab from "@/components/client-portal/payments-tab.tsx";
 import { StagesTab } from "@/components/client-portal/stages-tab.tsx";
 
 export default function ClientPortal() {
+  const { t } = useTranslation('clientPortal');
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("stages");
   const [initialStageFilter, setInitialStageFilter] = useState<string | undefined>(undefined);
@@ -133,41 +135,41 @@ export default function ClientPortal() {
   const allTabItems = [
     {
       value: "stages",
-      label: "Stages",
+      label: t('tabs.stages'),
       icon: Layers,
-      description: "Project timeline and milestones",
+      description: t('tabs.stagesDesc'),
       color: "text-amber-400",
       requiresPermission: null // Always visible
     },
     {
       value: "issues",
-      label: "Issues",
+      label: t('tabs.issues'),
       icon: AlertTriangle,
-      description: "Report and track project issues",
+      description: t('tabs.issuesDesc'),
       color: "text-[var(--pro-orange)]",
       requiresPermission: null // Always visible
     },
     {
       value: "forum",
-      label: "Forum",
+      label: t('tabs.forum'),
       icon: MessageSquare,
-      description: "Q&A with project managers",
+      description: t('tabs.forumDesc'),
       color: "text-[var(--pro-blue)]",
       requiresPermission: null // Always visible
     },
     {
       value: "materials",
-      label: "Materials",
+      label: t('tabs.materials'),
       icon: Package,
-      description: "Collaborative material list",
+      description: t('tabs.materialsDesc'),
       color: "text-[var(--pro-mint)]",
       requiresPermission: null // Always visible
     },
     {
       value: "installments",
-      label: "Payments",
+      label: t('tabs.payments'),
       icon: CreditCard,
-      description: "Payment schedule tracking",
+      description: t('tabs.paymentsDesc'),
       color: "text-[var(--pro-purple)]",
       requiresPermission: "clientPortalPayments" // Only visible with payment permission
     }
@@ -190,9 +192,9 @@ export default function ClientPortal() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--pro-text-primary)]">Client Portal</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--pro-text-primary)]">{t('title')}</h1>
           <p className="text-[var(--pro-text-secondary)]">
-            Communicate and collaborate on your construction projects
+            {t('subtitle')}
           </p>
         </div>
         
@@ -202,7 +204,7 @@ export default function ClientPortal() {
           <div className="flex items-center gap-2 px-4 py-2 bg-[var(--pro-surface)] rounded-lg border border-[var(--pro-border)]">
             <Building className="h-4 w-4 text-[var(--pro-text-secondary)]" />
             <span className="font-medium text-[var(--pro-text-primary)]">
-              {projects.find(p => p.id === selectedProject)?.name || 'Loading project...'}
+              {projects.find(p => p.id === selectedProject)?.name || t('loadingProject')}
             </span>
             {projects.find(p => p.id === selectedProject)?.status && (
               <Badge variant="outline" className="ml-2">
@@ -218,7 +220,7 @@ export default function ClientPortal() {
                 <SelectTrigger className="w-full" data-testid="select-project">
                   <div className="flex items-center gap-2">
                     <Building className="h-4 w-4 shrink-0" />
-                    <SelectValue placeholder="Select a project" />
+                    <SelectValue placeholder={t('selectProject')} />
                   </div>
                 </SelectTrigger>
                 <SelectContent>
@@ -247,9 +249,9 @@ export default function ClientPortal() {
           <CardContent className="pt-6">
             <div className="text-center py-12">
               <Building className="h-16 w-16 mx-auto text-[var(--pro-text-muted)] mb-4" />
-              <h3 className="text-xl font-semibold mb-2 text-[var(--pro-text-primary)]">Select a Project</h3>
+              <h3 className="text-xl font-semibold mb-2 text-[var(--pro-text-primary)]">{t('selectProjectTitle')}</h3>
               <p className="text-[var(--pro-text-secondary)]">
-                Choose a project to access issues, forum, materials, and payment information.
+                {t('selectProjectDesc')}
               </p>
             </div>
           </CardContent>

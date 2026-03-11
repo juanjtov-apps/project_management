@@ -174,6 +174,26 @@ def register_default_tools():
     # Import dynamic query tool for flexible database access
     from .dynamic.dynamic_query_tool import DynamicQueryTool
 
+    # Import write/action tools
+    from .actions.create_task import CreateTaskTool
+    from .actions.update_task_status import UpdateTaskStatusTool
+    from .actions.update_project_status import UpdateProjectStatusTool
+    from .actions.create_daily_log import CreateDailyLogTool
+    from .actions.send_notification import SendNotificationTool
+    from .actions.create_issue import CreateIssueTool
+    from .actions.update_issue_status import UpdateIssueStatusTool
+    from .actions.assign_task import AssignTaskTool
+    from .actions.update_payment_status import UpdatePaymentStatusTool
+    from .actions.create_stage import CreateStageTool
+    from .actions.update_stage import UpdateStageTool
+    from .actions.apply_stage_template import ApplyStageTemplateTool
+    from .projects.get_stage_templates import GetStageTemplatesTool
+    from .actions.update_project_details import UpdateProjectDetailsTool
+    from .actions.create_material_item import CreateMaterialItemTool
+    from .actions.delete_task import DeleteTaskTool
+    from .actions.create_installment import CreateInstallmentTool
+    from .actions.update_installment import UpdateInstallmentTool
+
     # Register DynamicQueryTool early (position 2) so LLM considers it first for queries
     tool_registry.register(GetProjectsTool())
     tool_registry.register(DynamicQueryTool())  # Primary tool for flexible queries
@@ -183,6 +203,26 @@ def register_default_tools():
     tool_registry.register(GetMaterialsTool())
     tool_registry.register(GetIssuesTool())
     tool_registry.register(GetInstallmentsTool())
+
+    # Write/action tools
+    tool_registry.register(CreateTaskTool())
+    tool_registry.register(UpdateTaskStatusTool())
+    tool_registry.register(UpdateProjectStatusTool())
+    tool_registry.register(CreateDailyLogTool())
+    tool_registry.register(SendNotificationTool())
+    tool_registry.register(CreateIssueTool())
+    tool_registry.register(UpdateIssueStatusTool())
+    tool_registry.register(AssignTaskTool())
+    tool_registry.register(UpdatePaymentStatusTool())
+    tool_registry.register(CreateStageTool())
+    tool_registry.register(UpdateStageTool())
+    tool_registry.register(ApplyStageTemplateTool())
+    tool_registry.register(GetStageTemplatesTool())
+    tool_registry.register(UpdateProjectDetailsTool())
+    tool_registry.register(CreateMaterialItemTool())
+    tool_registry.register(DeleteTaskTool())
+    tool_registry.register(CreateInstallmentTool())
+    tool_registry.register(UpdateInstallmentTool())
 
     tool_registry._initialized = True
     logger.info(f"Registered {len(tool_registry)} tools")

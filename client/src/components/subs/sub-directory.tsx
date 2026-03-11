@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Search,
   Building,
@@ -70,18 +71,18 @@ function getScoreColor(score?: number): string {
 
 const statusConfig: Record<
   SubCompanyEntry["status"],
-  { label: string; className: string }
+  { labelKey: string; className: string }
 > = {
   active: {
-    label: "Active",
+    labelKey: "status.active",
     className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   },
   inactive: {
-    label: "Inactive",
+    labelKey: "subs.inactive",
     className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
   },
   suspended: {
-    label: "Suspended",
+    labelKey: "subs.suspended",
     className: "bg-red-500/20 text-red-400 border-red-500/30",
   },
 };
@@ -91,6 +92,7 @@ interface SubDirectoryProps {
 }
 
 export function SubDirectory({ onViewTasks }: SubDirectoryProps = {}) {
+  const { t } = useTranslation('common');
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("active");
   const [selectedSub, setSelectedSub] = useState<SubCompanyEntry | null>(null);
@@ -140,11 +142,10 @@ export function SubDirectory({ onViewTasks }: SubDirectoryProps = {}) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-[var(--pro-text-primary)]">
-            Sub Directory
+            {t('subs.subDirectory')}
           </h2>
           <p className="text-[var(--pro-text-secondary)]">
-            {filteredCompanies.length} subcontractor
-            {filteredCompanies.length !== 1 ? " companies" : " company"}
+            {t('subs.subcontractorCompany', { count: filteredCompanies.length })}
           </p>
         </div>
         <InviteSubDialog />
@@ -155,7 +156,7 @@ export function SubDirectory({ onViewTasks }: SubDirectoryProps = {}) {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--pro-text-muted)]" />
           <Input
-            placeholder="Search by name or trade..."
+            placeholder={t('subs.searchByNameTrade')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -167,10 +168,10 @@ export function SubDirectory({ onViewTasks }: SubDirectoryProps = {}) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-            <SelectItem value="suspended">Suspended</SelectItem>
+            <SelectItem value="all">{t('subs.allStatus')}</SelectItem>
+            <SelectItem value="active">{t('status.active')}</SelectItem>
+            <SelectItem value="inactive">{t('subs.inactive')}</SelectItem>
+            <SelectItem value="suspended">{t('subs.suspended')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -182,13 +183,13 @@ export function SubDirectory({ onViewTasks }: SubDirectoryProps = {}) {
             <Building className="h-16 w-16 mx-auto text-[var(--pro-text-muted)] mb-4" />
             <h3 className="text-xl font-semibold mb-2 text-[var(--pro-text-primary)]">
               {companies.length === 0
-                ? "No Subcontractors Yet"
-                : "No Results Found"}
+                ? t('subs.noSubsYet')
+                : t('subs.noResultsFound')}
             </h3>
             <p className="text-[var(--pro-text-secondary)] mb-4">
               {companies.length === 0
-                ? "Invite your first subcontractor to get started."
-                : "Try adjusting your search or filter criteria."}
+                ? t('subs.inviteFirstSub')
+                : t('subs.adjustSearchFilter')}
             </p>
             {companies.length === 0 && <InviteSubDialog />}
           </CardContent>
@@ -219,7 +220,7 @@ export function SubDirectory({ onViewTasks }: SubDirectoryProps = {}) {
                           {company.companyName}
                         </h3>
                         <Badge variant="outline" className={status.className}>
-                          {status.label}
+                          {t(status.labelKey)}
                         </Badge>
                       </div>
                       {company.trade && (
@@ -262,8 +263,7 @@ export function SubDirectory({ onViewTasks }: SubDirectoryProps = {}) {
                     <div className="flex items-center gap-1.5 text-sm text-[var(--pro-text-secondary)]">
                       <ClipboardList className="h-3.5 w-3.5" />
                       <span>
-                        {company.activeAssignments} active assignment
-                        {company.activeAssignments !== 1 ? "s" : ""}
+                        {t('subs.activeAssignment', { count: company.activeAssignments })}
                       </span>
                     </div>
                   </div>
@@ -303,10 +303,9 @@ export function SubDirectory({ onViewTasks }: SubDirectoryProps = {}) {
                                 : "text-amber-400"
                             }
                           >
-                            Insurance{" "}
                             {isExpired(company.insuranceExpiry)
-                              ? "expired"
-                              : "expiring soon"}
+                              ? t('subs.insuranceExpired')
+                              : t('subs.insuranceExpiringSoon')}
                             {company.insuranceExpiry &&
                               ` (${new Date(company.insuranceExpiry).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })})`}
                           </span>
@@ -328,10 +327,9 @@ export function SubDirectory({ onViewTasks }: SubDirectoryProps = {}) {
                                 : "text-amber-400"
                             }
                           >
-                            License{" "}
                             {isExpired(company.licenseExpiry)
-                              ? "expired"
-                              : "expiring soon"}
+                              ? t('subs.licenseExpired')
+                              : t('subs.licenseExpiringSoon')}
                             {company.licenseExpiry &&
                               ` (${new Date(company.licenseExpiry).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })})`}
                           </span>
@@ -370,8 +368,7 @@ export function SubDirectory({ onViewTasks }: SubDirectoryProps = {}) {
                       statusConfig[selectedSub.status]?.className || ""
                     }
                   >
-                    {statusConfig[selectedSub.status]?.label ||
-                      selectedSub.status}
+                    {t(statusConfig[selectedSub.status]?.labelKey || 'status.active')}
                   </Badge>
                   {selectedSub.trade && (
                     <Badge
@@ -410,8 +407,7 @@ export function SubDirectory({ onViewTasks }: SubDirectoryProps = {}) {
                 <div className="flex items-center gap-2 text-sm text-[var(--pro-text-secondary)]">
                   <ClipboardList className="h-4 w-4 text-[var(--pro-text-muted)]" />
                   <span>
-                    {selectedSub.activeAssignments} active assignment
-                    {selectedSub.activeAssignments !== 1 ? "s" : ""}
+                    {t('subs.activeAssignment', { count: selectedSub.activeAssignments })}
                   </span>
                 </div>
               </div>

@@ -17,6 +17,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertScheduleChangeSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
+import { useTranslation } from 'react-i18next';
 import { cn } from "@/lib/utils";
 import { getPriorityColor } from "@/lib/statusColors";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, addMonths, subMonths } from "date-fns";
@@ -36,6 +37,7 @@ const getStatusIcon = (status: string) => {
 };
 
 export default function Schedule() {
+  const { t } = useTranslation('schedule');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedScheduleChange, setSelectedScheduleChange] = useState<ScheduleChange | null>(null);
@@ -225,7 +227,7 @@ export default function Schedule() {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Schedule</h1>
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="animate-pulse">
@@ -248,17 +250,17 @@ export default function Schedule() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold construction-secondary">Schedule Management</h1>
+        <h1 className="text-2xl font-bold construction-secondary">{t('scheduleManagement')}</h1>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button className="construction-primary text-white">
               <Plus size={16} className="mr-2" />
-              Update Task Schedule
+              {t('updateTaskSchedule')}
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
             <DialogHeader>
-              <DialogTitle>Update Task Schedule</DialogTitle>
+              <DialogTitle>{t('updateTaskSchedule')}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -267,11 +269,11 @@ export default function Schedule() {
                   name="taskId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Task</FormLabel>
+                      <FormLabel>{t('task')}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select task" />
+                            <SelectValue placeholder={t('selectTask')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -292,10 +294,10 @@ export default function Schedule() {
                   name="reason"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Reason for Schedule Change</FormLabel>
+                      <FormLabel>{t('reasonForChange')}</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="Explain why the schedule needs to be changed..." 
+                          placeholder={t('reasonPlaceholder')} 
                           {...field} 
                         />
                       </FormControl>
@@ -310,7 +312,7 @@ export default function Schedule() {
                     name="originalDate"
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
-                        <FormLabel>Original Date</FormLabel>
+                        <FormLabel>{t('originalDate')}</FormLabel>
                         <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
@@ -324,7 +326,7 @@ export default function Schedule() {
                                 {field.value ? (
                                   format(field.value, "PPP")
                                 ) : (
-                                  <span>Pick original date</span>
+                                  <span>{t('pickOriginalDate')}</span>
                                 )}
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                               </Button>
@@ -349,7 +351,7 @@ export default function Schedule() {
                     name="newDate"
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
-                        <FormLabel>New Requested Date</FormLabel>
+                        <FormLabel>{t('newRequestedDate')}</FormLabel>
                         <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
@@ -363,7 +365,7 @@ export default function Schedule() {
                                 {field.value ? (
                                   format(field.value, "PPP")
                                 ) : (
-                                  <span>Pick new date</span>
+                                  <span>{t('pickNewDate')}</span>
                                 )}
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                               </Button>
@@ -390,14 +392,14 @@ export default function Schedule() {
                     variant="outline"
                     onClick={() => setIsCreateDialogOpen(false)}
                   >
-                    Cancel
+                    {t('cancel')}
                   </Button>
                   <Button 
                     type="submit" 
                     disabled={createScheduleChangeMutation.isPending}
                     className="construction-primary text-white"
                   >
-                    {createScheduleChangeMutation.isPending ? "Saving..." : "Save Changes"}
+                    {createScheduleChangeMutation.isPending ? t('saving') : t('saveChanges')}
                   </Button>
                 </div>
               </form>
@@ -409,7 +411,7 @@ export default function Schedule() {
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="sm:max-w-[600px]" aria-describedby={undefined}>
             <DialogHeader>
-              <DialogTitle>Update Task Schedule</DialogTitle>
+              <DialogTitle>{t('updateTaskSchedule')}</DialogTitle>
             </DialogHeader>
             <Form {...editForm}>
               <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
@@ -418,11 +420,11 @@ export default function Schedule() {
                   name="taskId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Task</FormLabel>
+                      <FormLabel>{t('task')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select task" />
+                            <SelectValue placeholder={t('selectTask')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -443,10 +445,10 @@ export default function Schedule() {
                   name="reason"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Reason for Schedule Change</FormLabel>
+                      <FormLabel>{t('reasonForChange')}</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="Explain why the schedule needs to be changed..." 
+                          placeholder={t('reasonPlaceholder')} 
                           {...field} 
                         />
                       </FormControl>
@@ -461,7 +463,7 @@ export default function Schedule() {
                     name="originalDate"
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
-                        <FormLabel>Original Date</FormLabel>
+                        <FormLabel>{t('originalDate')}</FormLabel>
                         <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
@@ -475,7 +477,7 @@ export default function Schedule() {
                                 {field.value ? (
                                   format(field.value, "PPP")
                                 ) : (
-                                  <span>Pick original date</span>
+                                  <span>{t('pickOriginalDate')}</span>
                                 )}
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                               </Button>
@@ -500,7 +502,7 @@ export default function Schedule() {
                     name="newDate"
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
-                        <FormLabel>New Requested Date</FormLabel>
+                        <FormLabel>{t('newRequestedDate')}</FormLabel>
                         <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
@@ -514,7 +516,7 @@ export default function Schedule() {
                                 {field.value ? (
                                   format(field.value, "PPP")
                                 ) : (
-                                  <span>Pick new date</span>
+                                  <span>{t('pickNewDate')}</span>
                                 )}
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                               </Button>
@@ -544,14 +546,14 @@ export default function Schedule() {
                       setSelectedScheduleChange(null);
                     }}
                   >
-                    Cancel
+                    {t('cancel')}
                   </Button>
                   <Button 
                     type="submit" 
                     disabled={updateScheduleChangeMutation.isPending}
                     className="construction-primary text-white"
                   >
-                    {updateScheduleChangeMutation.isPending ? "Saving..." : "Save Changes"}
+                    {updateScheduleChangeMutation.isPending ? t('saving') : t('saveChanges')}
                   </Button>
                 </div>
               </form>
@@ -564,19 +566,19 @@ export default function Schedule() {
         <TabsList className="grid w-full grid-cols-4 bg-gray-100">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <List size={16} />
-            Overview
+            {t('tabs.overview')}
           </TabsTrigger>
           <TabsTrigger value="timeline" className="flex items-center gap-2">
             <Clock size={16} />
-            Timeline
+            {t('tabs.timeline')}
           </TabsTrigger>
           <TabsTrigger value="gantt" className="flex items-center gap-2">
             <CalendarIcon size={16} />
-            Gantt Chart
+            {t('tabs.ganttChart')}
           </TabsTrigger>
           <TabsTrigger value="calendar" className="flex items-center gap-2">
             <CalendarDays size={16} />
-            Calendar
+            {t('tabs.calendar')}
           </TabsTrigger>
         </TabsList>
 
@@ -586,13 +588,13 @@ export default function Schedule() {
             {/* Upcoming Schedule */}
             <Card>
               <CardHeader>
-                <CardTitle className="construction-secondary">Upcoming Tasks</CardTitle>
+                <CardTitle className="construction-secondary">{t('upcomingTasks')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {upcomingTasks.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
-                      No upcoming scheduled tasks
+                      {t('noUpcomingTasks')}
                     </div>
                   ) : (
                     upcomingTasks.slice(0, 10).map((task) => (
@@ -615,7 +617,7 @@ export default function Schedule() {
                             {new Date(task.dueDate!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </div>
                           <div className="text-xs text-blue-600 mt-1">
-                            Click to update schedule
+                            {t('clickToUpdateSchedule')}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -634,13 +636,13 @@ export default function Schedule() {
             {/* Schedule Change Requests */}
             <Card>
               <CardHeader>
-                <CardTitle className="construction-secondary">Recent Schedule Updates</CardTitle>
+                <CardTitle className="construction-secondary">{t('recentUpdates')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {scheduleChanges.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
-                      No recent schedule updates
+                      {t('noRecentUpdates')}
                     </div>
                   ) : (
                     scheduleChanges.map((change) => (
@@ -654,7 +656,7 @@ export default function Schedule() {
                             <p className="text-sm text-blue-600">{getProjectName(change.taskId)}</p>
                           </div>
                           <Badge className="bg-green-100 text-green-800">
-                            Updated
+                            {t('updated')}
                           </Badge>
                         </div>
                         
@@ -662,11 +664,11 @@ export default function Schedule() {
                         
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="text-gray-500">Original Date:</span>
+                            <span className="text-gray-500">{t('originalDateLabel')}</span>
                             <p className="font-medium">{new Date(change.originalDate).toLocaleDateString()}</p>
                           </div>
                           <div>
-                            <span className="text-gray-500">Updated Date:</span>
+                            <span className="text-gray-500">{t('updatedDateLabel')}</span>
                             <p className="font-medium text-green-600">{new Date(change.newDate).toLocaleDateString()}</p>
                           </div>
                         </div>
@@ -674,7 +676,7 @@ export default function Schedule() {
 
                         
                         <div className="text-xs text-gray-500">
-                          Updated {new Date(change.createdAt).toLocaleDateString()} at {new Date(change.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {t('updatedAt', { date: new Date(change.createdAt).toLocaleDateString(), time: new Date(change.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}
                         </div>
                       </div>
                     ))
@@ -689,14 +691,14 @@ export default function Schedule() {
         <TabsContent value="timeline" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="construction-secondary">Horizontal Timeline</CardTitle>
-              <p className="text-sm text-gray-600">Chronological progression of all tasks and project deadlines</p>
+              <CardTitle className="construction-secondary">{t('horizontalTimeline')}</CardTitle>
+              <p className="text-sm text-gray-600">{t('timelineDescription')}</p>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto pb-4">
                 {timelineData.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
-                    No scheduled tasks or project deadlines
+                    {t('noScheduledTasks')}
                   </div>
                 ) : (
                   <div className="relative min-w-[800px]">
@@ -745,15 +747,15 @@ export default function Schedule() {
                                     </div>
                                   </div>
                                   <div className="text-xs text-gray-500">
-                                    {item.daysFromNow < 0 
-                                      ? <span className="text-red-500 font-medium">{Math.abs(item.daysFromNow)} days overdue</span>
-                                      : item.daysFromNow === 0 
-                                      ? <span className="text-brand-coral font-medium">Due today</span>
-                                      : `${item.daysFromNow} days remaining`
+                                    {item.daysFromNow < 0
+                                      ? <span className="text-red-500 font-medium">{t('daysOverdue', { count: Math.abs(item.daysFromNow) })}</span>
+                                      : item.daysFromNow === 0
+                                      ? <span className="text-brand-coral font-medium">{t('dueToday')}</span>
+                                      : t('daysRemaining', { count: item.daysFromNow })
                                     }
                                   </div>
                                   <div className="text-xs text-blue-600 mt-1">
-                                    Click to update schedule
+                                    {t('clickToUpdateSchedule')}
                                   </div>
                                 </div>
                               </div>
@@ -773,20 +775,20 @@ export default function Schedule() {
         <TabsContent value="gantt" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="construction-secondary">Gantt Chart</CardTitle>
-              <p className="text-sm text-gray-600">Project timeline with task durations and dependencies</p>
+              <CardTitle className="construction-secondary">{t('ganttChart')}</CardTitle>
+              <p className="text-sm text-gray-600">{t('ganttDescription')}</p>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 {timelineData.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
-                    No scheduled tasks or project deadlines
+                    {t('noScheduledTasks')}
                   </div>
                 ) : (
                   <div className="min-w-[1000px]">
                     {/* Gantt header with date labels */}
                     <div className="flex border-b border-gray-200 pb-2 mb-4">
-                      <div className="w-64 flex-shrink-0 font-medium text-sm text-gray-700">Tasks</div>
+                      <div className="w-64 flex-shrink-0 font-medium text-sm text-gray-700">{t('ganttTasks')}</div>
                       <div className="flex-1 grid grid-cols-7 gap-1 text-xs text-gray-500">
                         {Array.from({ length: 7 }, (_, i) => {
                           const date = new Date();
@@ -830,7 +832,7 @@ export default function Schedule() {
                                   {item.project && (
                                     <div className="text-xs text-blue-600 truncate">{item.project.name}</div>
                                   )}
-                                  <div className="text-xs text-gray-500">Click to update schedule</div>
+                                  <div className="text-xs text-gray-500">{t('clickToUpdateSchedule')}</div>
                                 </div>
                               </div>
                             </div>
@@ -872,19 +874,19 @@ export default function Schedule() {
                       <div className="flex items-center space-x-6 text-xs text-gray-600">
                         <div className="flex items-center space-x-2">
                           <div className="w-3 h-3 bg-red-500 rounded"></div>
-                          <span>High Priority</span>
+                          <span>{t('highPriority')}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <div className="w-3 h-3 bg-blue-500 rounded"></div>
-                          <span>Medium Priority</span>
+                          <span>{t('mediumPriority')}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <div className="w-3 h-3 bg-green-500 rounded"></div>
-                          <span>Low Priority / Completed</span>
+                          <span>{t('lowPriorityCompleted')}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <div className="w-3 h-3 bg-red-500 rounded"></div>
-                          <span>Overdue</span>
+                          <span>{t('overdue')}</span>
                         </div>
                       </div>
                     </div>
@@ -901,8 +903,8 @@ export default function Schedule() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="construction-secondary">Calendar View</CardTitle>
-                  <p className="text-sm text-gray-600">Monthly view of tasks and project deadlines</p>
+                  <CardTitle className="construction-secondary">{t('calendarView')}</CardTitle>
+                  <p className="text-sm text-gray-600">{t('calendarDescription')}</p>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Button
@@ -910,7 +912,7 @@ export default function Schedule() {
                     size="sm"
                     onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
                   >
-                    Previous
+                    {t('previous')}
                   </Button>
                   <span className="font-medium px-4">
                     {format(currentMonth, "MMMM yyyy")}
@@ -920,7 +922,7 @@ export default function Schedule() {
                     size="sm"
                     onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
                   >
-                    Next
+                    {t('next')}
                   </Button>
                 </div>
               </div>
@@ -996,7 +998,7 @@ export default function Schedule() {
                       {/* Show count if more tasks */}
                       {dayTasks.length > 3 && (
                         <div className="text-xs text-gray-500 text-center">
-                          +{dayTasks.length - 3} more
+                          {t('moreItems', { count: dayTasks.length - 3 })}
                         </div>
                       )}
                     </div>

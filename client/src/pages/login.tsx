@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { apiRequest, queryClient, setCsrfToken } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
+  const { t } = useTranslation('auth');
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -39,18 +41,18 @@ export default function Login() {
       setLocation("/dashboard");
     },
     onError: (error: any) => {
-      let errorMessage = "Please check your email and password and try again.";
-      
+      let errorMessage = t('login.errorGeneric');
+
       if (error.message?.includes("Invalid credentials")) {
-        errorMessage = "Email or password is incorrect. Please try again.";
+        errorMessage = t('login.errorInvalid');
       } else if (error.message?.includes("required")) {
-        errorMessage = "Both email and password are required.";
+        errorMessage = t('login.errorRequired');
       } else if (error.message?.includes("server")) {
-        errorMessage = "Unable to connect to the server. Please try again later.";
+        errorMessage = t('login.errorServer');
       }
-      
+
       toast({
-        title: "Unable to Sign In",
+        title: t('login.errorTitle'),
         description: errorMessage,
         variant: "destructive",
       });
@@ -58,14 +60,14 @@ export default function Login() {
   });
 
   const validateEmail = (email: string) => {
-    if (!email) return "Email is required";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Please enter a valid email address";
+    if (!email) return t('validation.emailRequired');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return t('validation.emailInvalid');
     return "";
   };
 
   const validatePassword = (password: string) => {
-    if (!password) return "Password is required";
-    if (password.length < 6) return "Password must be at least 6 characters";
+    if (!password) return t('validation.passwordRequired');
+    if (password.length < 6) return t('validation.passwordMinLength');
     return "";
   };
 
@@ -83,13 +85,13 @@ export default function Login() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const emailErr = validateEmail(email);
     const passwordErr = validatePassword(password);
-    
+
     setEmailError(emailErr);
     setPasswordError(passwordErr);
-    
+
     if (!emailErr && !passwordErr) {
       loginMutation.mutate({ email, password });
     }
@@ -103,34 +105,34 @@ export default function Login() {
         <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-gradient-to-br from-[var(--pro-orange)] to-[var(--pro-mint)] opacity-5 blur-3xl"></div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-gradient-radial from-[var(--pro-surface-highlight)] to-transparent opacity-20"></div>
       </div>
-      
+
       {/* Back to Landing Button */}
-      <Button 
+      <Button
         onClick={() => setLocation("/")}
         variant="ghost"
         className="absolute top-6 left-6 text-[var(--pro-text-secondary)] hover:text-[var(--pro-mint)] hover:bg-[var(--pro-surface-highlight)] z-10 transition-colors"
         data-testid="button-back-landing"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Landing
+        {t('login.backToLanding')}
       </Button>
-      
+
       <Card className="w-full max-w-md border-[var(--pro-border)] bg-[var(--pro-surface)]/90 backdrop-blur-xl shadow-2xl relative z-10">
         <CardHeader className="text-center space-y-6 pb-8">
           <div className="flex items-center justify-center">
             <Logo variant="full" size="lg" />
           </div>
           <CardTitle className="text-2xl text-[var(--pro-text-primary)] font-light">
-            Welcome back
+            {t('login.welcomeBack')}
           </CardTitle>
           <p className="text-[var(--pro-text-secondary)] text-sm">
-            Sign in to your account to continue
+            {t('login.subtitle')}
           </p>
         </CardHeader>
         <CardContent className="px-8 pb-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-3">
-              <Label htmlFor="email" className="text-[var(--pro-text-primary)] font-medium">Email address</Label>
+              <Label htmlFor="email" className="text-[var(--pro-text-primary)] font-medium">{t('login.email')}</Label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--pro-mint)]" />
                 <Input
@@ -141,7 +143,7 @@ export default function Login() {
                   className={`pl-12 pr-4 py-3 bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-primary)] placeholder:text-[var(--pro-text-secondary)]/50 focus:border-[var(--pro-mint)] focus:ring-[var(--pro-mint)]/20 rounded-xl min-h-[44px] ${
                     emailError ? 'border-[var(--pro-red)] focus:border-[var(--pro-red)]' : ''
                   }`}
-                  placeholder="Enter your email"
+                  placeholder={t('login.emailPlaceholder')}
                   autoComplete="username email"
                   aria-invalid={!!emailError}
                   aria-describedby={emailError ? 'email-error' : undefined}
@@ -157,7 +159,7 @@ export default function Login() {
               )}
             </div>
             <div className="space-y-3">
-              <Label htmlFor="password" className="text-[var(--pro-text-primary)] font-medium">Password</Label>
+              <Label htmlFor="password" className="text-[var(--pro-text-primary)] font-medium">{t('login.password')}</Label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--pro-mint)]" />
                 <Input
@@ -168,7 +170,7 @@ export default function Login() {
                   className={`pl-12 pr-12 py-3 bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-[var(--pro-text-primary)] placeholder:text-[var(--pro-text-secondary)]/50 focus:border-[var(--pro-mint)] focus:ring-[var(--pro-mint)]/20 rounded-xl min-h-[44px] ${
                     passwordError ? 'border-[var(--pro-red)] focus:border-[var(--pro-red)]' : ''
                   }`}
-                  placeholder="Enter your password"
+                  placeholder={t('login.passwordPlaceholder')}
                   autoComplete="current-password"
                   aria-invalid={!!passwordError}
                   aria-describedby={passwordError ? 'password-error' : undefined}
@@ -179,7 +181,7 @@ export default function Login() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--pro-text-secondary)] hover:text-[var(--pro-mint)] focus:outline-none focus:ring-2 focus:ring-[var(--pro-mint)]/50 rounded p-1 transition-colors"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                   data-testid="button-toggle-password"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -197,20 +199,20 @@ export default function Login() {
                   className="text-sm text-[var(--pro-mint)] hover:text-[var(--pro-mint-dim)] focus:outline-none focus:ring-2 focus:ring-[var(--pro-mint)]/50 rounded px-1 py-0.5 transition-colors"
                   onClick={() => {
                     toast({
-                      title: "Password Reset",
-                      description: "Password reset functionality will be available soon.",
+                      title: t('login.forgotPasswordTitle'),
+                      description: t('login.forgotPasswordDesc'),
                       variant: "default",
                     });
                   }}
                   data-testid="button-forgot-password"
                 >
-                  Forgot password?
+                  {t('login.forgotPassword')}
                 </button>
               </div>
             </div>
-            
-            <Button 
-              type="submit" 
+
+            <Button
+              type="submit"
               className="w-full font-semibold py-3 rounded-xl bg-gradient-to-r from-[var(--pro-mint)] to-[var(--pro-mint-dim)] text-[var(--pro-bg-deep)] hover:opacity-90 transition-all duration-300 shadow-lg shadow-[var(--pro-mint)]/20 hover:shadow-xl hover:shadow-[var(--pro-mint)]/30 mt-8 min-h-[44px] active:scale-[0.98]"
               disabled={loginMutation.isPending || !isFormValid}
               aria-busy={loginMutation.isPending}
@@ -219,10 +221,10 @@ export default function Login() {
               {loginMutation.isPending ? (
                 <div className="flex items-center justify-center space-x-2">
                   <div className="w-4 h-4 border-2 border-[var(--pro-bg-deep)] border-t-transparent rounded-full animate-spin"></div>
-                  <span>Signing in...</span>
+                  <span>{t('login.signingIn')}</span>
                 </div>
               ) : (
-                "Sign In"
+                t('login.signIn')
               )}
             </Button>
           </form>
@@ -233,7 +235,7 @@ export default function Login() {
                 <span className="w-full border-t border-[var(--pro-border)]" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-[var(--pro-surface)] px-2 text-[var(--pro-text-secondary)]">or</span>
+                <span className="bg-[var(--pro-surface)] px-2 text-[var(--pro-text-secondary)]">{t('login.or')}</span>
               </div>
             </div>
             <button
@@ -241,7 +243,7 @@ export default function Login() {
               onClick={() => setLocation("/auth/request-link")}
               className="text-sm text-[var(--pro-mint)] hover:text-[var(--pro-mint-dim)] focus:outline-none focus:ring-2 focus:ring-[var(--pro-mint)]/50 rounded px-2 py-1 transition-colors"
             >
-              Client or Sub? Sign in with magic link
+              {t('login.magicLink')}
             </button>
           </div>
         </CardContent>

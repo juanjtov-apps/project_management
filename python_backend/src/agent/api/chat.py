@@ -36,6 +36,10 @@ class ChatRequest(BaseModel):
         max_length=10000,
         description="The user's message to the agent."
     )
+    language: Optional[str] = Field(
+        "en",
+        description="UI language code (e.g., 'en', 'es'). Agent responds in this language."
+    )
 
 
 class ConversationListItem(BaseModel):
@@ -53,6 +57,10 @@ class ConfirmationAction(BaseModel):
     confirmation_id: str
     action: str = Field(..., pattern="^(confirm|reject)$")
     notes: Optional[str] = None
+    modified_params: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Optional modified parameters from the editable confirmation card."
+    )
 
 
 class FeedbackRequest(BaseModel):
@@ -68,6 +76,7 @@ async def generate_sse_response(
     conversation_id: Optional[str],
     project_id: Optional[str],
     user_context: Dict[str, Any],
+    language: str = "en",
 ):
     """Generate SSE response stream from orchestrator."""
     try:
@@ -76,6 +85,7 @@ async def generate_sse_response(
             conversation_id=conversation_id,
             project_id=project_id,
             user_context=user_context,
+            language=language,
         ):
             event_type = event.get("type", "message")
             event_data = event.get("data", {})
@@ -127,6 +137,7 @@ async def chat(
             conversation_id=request.conversation_id,
             project_id=request.project_id,
             user_context=user_context,
+            language=request.language or "en",
         ),
         media_type="text/event-stream",
         headers={
@@ -241,7 +252,11 @@ async def process_confirmation(
     request: ConfirmationAction,
     current_user: Dict[str, Any] = Depends(get_current_user_dependency),
 ):
-    """Process a confirmation action (confirm or reject a pending operation)."""
+    """Process a confirmation action (confirm or reject a pending operation).
+
+    If action is 'confirm', executes the tool with the original (or modified) params
+    and returns the result.
+    """
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
@@ -266,16 +281,103 @@ async def process_confirmation(
             detail=f"Confirmation already {confirmation['status']}"
         )
 
-    # Process the confirmation
+    # Update confirmation status
     updated = await agent_repo.update_confirmation_status(
         confirmation_id=request.confirmation_id,
         status="confirmed" if request.action == "confirm" else "rejected",
         confirmed_by=user_context["user_id"],
     )
 
+    result = None
+
+    if request.action == "confirm":
+        # Get the tool call to retrieve tool_input
+        tool_call = await agent_repo.get_tool_call(confirmation["toolCallId"])
+
+        if tool_call:
+            tool_name = tool_call["toolName"]
+            tool_input = tool_call["toolInput"]
+            if isinstance(tool_input, str):
+                tool_input = json.loads(tool_input)
+
+            # Merge modified params over original if provided
+            if request.modified_params:
+                tool_input.update(request.modified_params)
+
+            # Execute the tool
+            try:
+                from ..tools.executor import tool_executor
+
+                exec_result = await tool_executor.execute(
+                    tool_name=tool_name,
+                    params=tool_input,
+                    context=user_context,
+                    message_id=tool_call["messageId"],
+                    conversation_id=confirmation["conversationId"],
+                )
+
+                # Detect tool-level errors (returned as dicts, not exceptions)
+                is_error = isinstance(exec_result, dict) and "error" in exec_result
+
+                if is_error:
+                    result = {"success": False, "error": exec_result["error"]}
+                    result_message = exec_result.get("error", "Operation could not be completed.")
+                    await agent_repo.update_tool_call(
+                        tool_call["id"],
+                        tool_output=exec_result,
+                        execution_status="failed",
+                    )
+                else:
+                    result = {"success": True, "result": exec_result}
+                    result_message = exec_result.get("message", "Operation completed successfully.")
+                    await agent_repo.update_tool_call(
+                        tool_call["id"],
+                        tool_output=exec_result,
+                        execution_status="success",
+                    )
+
+                # Save assistant message with the result
+                await agent_repo.save_message(
+                    conversation_id=confirmation["conversationId"],
+                    role="assistant",
+                    content=result_message,
+                )
+
+            except Exception as e:
+                logger.error(f"Tool execution after confirmation failed: {e}")
+                result = {"success": False, "error": str(e)}
+
+                await agent_repo.update_tool_call(
+                    tool_call["id"],
+                    execution_status="failed",
+                    error_message=str(e),
+                )
+
+    # Log confirmation event for observability
+    try:
+        confirmation_event = {
+            "tool_name": confirmation.get("toolName"),
+            "user_id": user_context["user_id"],
+            "company_id": user_context.get("company_id"),
+            "conversation_id": confirmation.get("conversationId"),
+            "edits_made": request.modified_params is not None,
+            "edit_fields": list(request.modified_params.keys()) if request.modified_params else [],
+        }
+        event_type = "confirmation_approved" if request.action == "confirm" else "confirmation_rejected"
+        await agent_repo.save_metric_event(
+            event_type=event_type,
+            event_data=confirmation_event,
+            user_id=user_context["user_id"],
+            company_id=user_context.get("company_id"),
+            conversation_id=confirmation.get("conversationId"),
+        )
+    except Exception as e:
+        logger.warning(f"Failed to save confirmation event: {e}")
+
     return {
         "confirmation": updated,
         "action": request.action,
+        "result": result,
     }
 
 

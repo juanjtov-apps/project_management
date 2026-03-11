@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
@@ -78,35 +79,36 @@ interface TaskInlineCardProps {
   taskSummary: TaskSummary;
 }
 
-const statusConfig: Record<string, { label: string; className: string }> = {
-  not_started: { label: "Not Started", className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30" },
-  in_progress: { label: "In Progress", className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  pending_review: { label: "Pending Review", className: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
-  revision_requested: { label: "Revision Requested", className: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
-  approved: { label: "Approved", className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-  rejected: { label: "Rejected", className: "bg-red-500/20 text-red-400 border-red-500/30" },
-};
-
-const priorityConfig: Record<string, { label: string; className: string }> = {
-  low: { label: "Low", className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30" },
-  medium: { label: "Medium", className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  high: { label: "High", className: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
-  urgent: { label: "Urgent", className: "bg-red-500/20 text-red-400 border-red-500/30" },
-};
-
-const itemTypeConfig: Record<string, { label: string; className: string; icon: typeof ClipboardCheck }> = {
-  standard: { label: "Standard", className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30", icon: ClipboardCheck },
-  doc_required: { label: "Doc Required", className: "bg-amber-500/20 text-amber-400 border-amber-500/30", icon: FileText },
-  inspection: { label: "Inspection", className: "bg-purple-500/20 text-purple-400 border-purple-500/30", icon: Eye },
-};
-
-const reviewDecisionConfig: Record<string, { label: string; className: string }> = {
-  approved: { label: "Approved", className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-  revision_requested: { label: "Revision Requested", className: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
-  rejected: { label: "Rejected", className: "bg-red-500/20 text-red-400 border-red-500/30" },
-};
-
 export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCardProps) {
+  const { t } = useTranslation('subPortal');
+
+  const statusConfig: Record<string, { label: string; className: string }> = {
+    not_started: { label: t('status.not_started'), className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30" },
+    in_progress: { label: t('status.in_progress'), className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+    pending_review: { label: t('status.pending_review'), className: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+    revision_requested: { label: t('status.revision_requested'), className: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
+    approved: { label: t('status.approved'), className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+    rejected: { label: t('status.rejected'), className: "bg-red-500/20 text-red-400 border-red-500/30" },
+  };
+
+  const priorityConfig: Record<string, { label: string; className: string }> = {
+    low: { label: t('priority.low'), className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30" },
+    medium: { label: t('priority.medium'), className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+    high: { label: t('priority.high'), className: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
+    urgent: { label: t('priority.urgent'), className: "bg-red-500/20 text-red-400 border-red-500/30" },
+  };
+
+  const itemTypeConfig: Record<string, { label: string; className: string; icon: typeof ClipboardCheck }> = {
+    standard: { label: t('tasks.itemType.standard'), className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30", icon: ClipboardCheck },
+    doc_required: { label: t('tasks.itemType.docRequired'), className: "bg-amber-500/20 text-amber-400 border-amber-500/30", icon: FileText },
+    inspection: { label: t('tasks.itemType.inspection'), className: "bg-purple-500/20 text-purple-400 border-purple-500/30", icon: Eye },
+  };
+
+  const reviewDecisionConfig: Record<string, { label: string; className: string }> = {
+    approved: { label: t('status.approved'), className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+    revision_requested: { label: t('status.revision_requested'), className: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
+    rejected: { label: t('status.rejected'), className: "bg-red-500/20 text-red-400 border-red-500/30" },
+  };
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -140,7 +142,7 @@ export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCar
       queryClient.invalidateQueries({ queryKey: ["/api/v1/sub/my-tasks", projectId] });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to update checklist item.", variant: "destructive" });
+      toast({ title: t('tasks.error'), description: t('tasks.checklistError'), variant: "destructive" });
     },
   });
 
@@ -157,10 +159,10 @@ export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCar
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/sub/tasks", taskId] });
-      toast({ title: "Document Uploaded" });
+      toast({ title: t('tasks.documentUploaded') });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to upload document.", variant: "destructive" });
+      toast({ title: t('tasks.error'), description: t('tasks.documentUploadError'), variant: "destructive" });
     },
   });
 
@@ -178,10 +180,10 @@ export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCar
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/sub/tasks", taskId] });
       queryClient.invalidateQueries({ queryKey: ["/api/v1/sub/my-tasks", projectId] });
-      toast({ title: "Submitted for Review" });
+      toast({ title: t('tasks.submittedForReview') });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to submit for review.", variant: "destructive" });
+      toast({ title: t('tasks.error'), description: t('tasks.submitError'), variant: "destructive" });
     },
   });
 
@@ -199,10 +201,10 @@ export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCar
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/sub/tasks", taskId] });
       queryClient.invalidateQueries({ queryKey: ["/api/v1/sub/my-tasks", projectId] });
-      toast({ title: "Task Started" });
+      toast({ title: t('tasks.taskStarted') });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to start task.", variant: "destructive" });
+      toast({ title: t('tasks.error'), description: t('tasks.startError'), variant: "destructive" });
     },
   });
 
@@ -240,7 +242,7 @@ export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCar
               {endDate && (
                 <div className={`flex items-center gap-1 ${isOverdue ? "text-red-400" : "text-[var(--pro-text-secondary)]"}`}>
                   {isOverdue ? <AlertCircle className="h-3.5 w-3.5" /> : <Calendar className="h-3.5 w-3.5" />}
-                  <span>{isOverdue ? "Overdue: " : "Due: "}{formatDate(endDate)}</span>
+                  <span>{isOverdue ? t('tasks.overdue') : t('tasks.due')}{formatDate(endDate)}</span>
                 </div>
               )}
               {task?.description && (
@@ -261,7 +263,7 @@ export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCar
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 {startTaskMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Clock className="h-4 w-4 mr-1.5" />}
-                Start Task
+                {t('tasks.startTask')}
               </Button>
             )}
             {canSubmitForReview && (
@@ -272,7 +274,7 @@ export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCar
                 className="bg-[var(--pro-mint)] text-[var(--pro-bg-deep)] hover:bg-[var(--pro-mint)]/90"
               >
                 {submitForReviewMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Send className="h-4 w-4 mr-1.5" />}
-                Submit for Review
+                {t('tasks.submitForReview')}
               </Button>
             )}
           </div>
@@ -281,9 +283,9 @@ export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCar
         {/* Revision feedback banner */}
         {currentStatus === "revision_requested" && reviews.length > 0 && (
           <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-3">
-            <p className="text-sm font-medium text-orange-400 mb-1">Revision Requested</p>
+            <p className="text-sm font-medium text-orange-400 mb-1">{t('tasks.revisionRequested')}</p>
             <p className="text-sm text-[var(--pro-text-secondary)]">
-              {reviews[0].feedback || "Please review and address the requested changes."}
+              {reviews[0].feedback || t('tasks.revisionRequestedDesc')}
             </p>
           </div>
         )}
@@ -353,7 +355,7 @@ export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCar
                                   </Badge>
                                 </div>
                                 {!item.isCompleted && item.itemType === "doc_required" && (!item.documents || item.documents.length === 0) && (
-                                  <p className="text-xs text-amber-400 mt-0.5">Upload document to complete</p>
+                                  <p className="text-xs text-amber-400 mt-0.5">{t('tasks.uploadDocToComplete')}</p>
                                 )}
                               </div>
                             </div>
@@ -362,7 +364,7 @@ export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCar
                             {!isTerminal && (
                               <div className="ml-8">
                                 <Textarea
-                                  placeholder="Add notes..."
+                                  placeholder={t('tasks.addNotes')}
                                   defaultValue={item.notes || ""}
                                   onChange={(e) =>
                                     setItemNotes((prev) => ({ ...prev, [item.id]: e.target.value }))
@@ -404,7 +406,7 @@ export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCar
                                             const { downloadURL } = await res.json();
                                             window.open(downloadURL, "_blank");
                                           } catch {
-                                            toast({ title: "Download Failed", description: "Could not download document.", variant: "destructive" });
+                                            toast({ title: t('tasks.downloadFailed'), description: t('tasks.downloadFailedDesc'), variant: "destructive" });
                                           }
                                         }}
                                       >
@@ -421,7 +423,7 @@ export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCar
                                 {!isTerminal && (
                                   <label className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-dashed border-[var(--pro-border)] text-[var(--pro-text-secondary)] hover:border-[var(--pro-mint)] hover:text-[var(--pro-mint)] transition-colors ${uploadingItemId === item.id ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}>
                                     {uploadingItemId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                                    <span>{uploadingItemId === item.id ? "Uploading..." : "Upload Document"}</span>
+                                    <span>{uploadingItemId === item.id ? t('tasks.uploadingDoc') : t('tasks.uploadDocument')}</span>
                                     <input
                                       type="file"
                                       className="hidden"
@@ -455,7 +457,7 @@ export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCar
                                             fileSize: file.size,
                                           });
                                         } catch (err) {
-                                          toast({ title: "Upload Failed", description: err instanceof Error ? err.message : "Could not upload file.", variant: "destructive" });
+                                          toast({ title: t('tasks.uploadFailed'), description: err instanceof Error ? err.message : t('tasks.uploadFailedDesc'), variant: "destructive" });
                                         } finally {
                                           setUploadingItemId(null);
                                           e.target.value = "";
@@ -479,7 +481,7 @@ export function TaskInlineCard({ taskId, projectId, taskSummary }: TaskInlineCar
         {/* Review History (compact) */}
         {reviews.length > 0 && currentStatus !== "revision_requested" && (
           <div className="pt-2 border-t border-[var(--pro-border)]">
-            <p className="text-xs font-medium text-[var(--pro-text-muted)] mb-1.5">Review History</p>
+            <p className="text-xs font-medium text-[var(--pro-text-muted)] mb-1.5">{t('tasks.reviewHistory')}</p>
             {reviews.slice(0, 2).map((review) => {
               const decision = reviewDecisionConfig[review.decision] || reviewDecisionConfig.revision_requested;
               return (

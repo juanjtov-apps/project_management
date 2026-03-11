@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Trash2, Link2, Plus, Check, X } from "lucide-react";
 import {
@@ -58,6 +59,7 @@ export function MaterialsTableView({
   projectId,
   isClient = false,
 }: MaterialsTableViewProps) {
+  const { t } = useTranslation('clientPortal');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -88,8 +90,8 @@ export function MaterialsTableView({
     },
     onError: (error: Error) => {
       toast({
-        title: "Update Failed",
-        description: error.message || "Failed to save change. Please try again.",
+        title: t('materials.updateFailed'),
+        description: error.message || t('materials.updateFailedDesc'),
         variant: "destructive",
       });
     },
@@ -109,12 +111,12 @@ export function MaterialsTableView({
       queryClient.invalidateQueries({
         queryKey: [`/api/material-areas?project_id=${projectId}`],
       });
-      toast({ title: "Item Deleted", description: "Material item has been removed." });
+      toast({ title: t('materials.itemDeleted'), description: t('materials.itemDeletedDesc') });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to delete item. Please try again.",
+        title: t('materials.error'),
+        description: t('materials.deleteItemError'),
         variant: "destructive",
       });
     },
@@ -156,17 +158,17 @@ export function MaterialsTableView({
       <Table style={{ minWidth: 1100 }}>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[130px] sticky left-0 z-10 bg-[var(--pro-surface-highlight)]/80 backdrop-blur-sm">Area</TableHead>
-            <TableHead className="w-[170px]">Name</TableHead>
-            <TableHead className="w-[150px]">Spec</TableHead>
-            <TableHead className="w-[130px]">Vendor</TableHead>
-            <TableHead className="w-[80px]">Link</TableHead>
-            <TableHead className="w-[80px]">Qty</TableHead>
-            <TableHead className="w-[100px]">Unit Cost</TableHead>
-            <TableHead className="w-[100px]">Total</TableHead>
-            <TableHead className="w-[140px]">Stage</TableHead>
-            <TableHead className="w-[130px]">Order Status</TableHead>
-            {!isClient && <TableHead className="w-[60px]">Actions</TableHead>}
+            <TableHead className="w-[130px] sticky left-0 z-10 bg-[var(--pro-surface-highlight)]/80 backdrop-blur-sm">{t('materials.area')}</TableHead>
+            <TableHead className="w-[170px]">{t('materials.materialName').replace(' *', '')}</TableHead>
+            <TableHead className="w-[150px]">{t('materials.spec')}</TableHead>
+            <TableHead className="w-[130px]">{t('materials.vendor')}</TableHead>
+            <TableHead className="w-[80px]">{t('materials.link')}</TableHead>
+            <TableHead className="w-[80px]">{t('materials.qty')}</TableHead>
+            <TableHead className="w-[100px]">{t('materials.unitCost')}</TableHead>
+            <TableHead className="w-[100px]">{t('materials.total')}</TableHead>
+            <TableHead className="w-[140px]">{t('materials.stage')}</TableHead>
+            <TableHead className="w-[130px]">{t('materials.orderStatus')}</TableHead>
+            {!isClient && <TableHead className="w-[60px]">{t('materials.actions')}</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -202,7 +204,7 @@ export function MaterialsTableView({
                 colSpan={isClient ? 10 : 11}
                 className="text-center py-8 text-muted-foreground"
               >
-                No materials match your search or filter.
+                {t('materials.noMaterials')}
               </TableCell>
             </TableRow>
           )}
@@ -210,7 +212,7 @@ export function MaterialsTableView({
         <TableFooter>
           <TableRow>
             <TableCell colSpan={7} className="text-right font-medium">
-              Grand Total:
+              {t('materials.grandTotal')}
             </TableCell>
             <TableCell className="font-bold text-emerald-400">
               ${grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -224,13 +226,13 @@ export function MaterialsTableView({
       <AlertDialog open={!!itemToDelete} onOpenChange={() => setItemToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Material Item</AlertDialogTitle>
+            <AlertDialogTitle>{t('materials.deleteMaterialItem')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this material? This action cannot be undone.
+              {t('materials.deleteItemConfirm')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('materials.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (itemToDelete) {
@@ -240,7 +242,7 @@ export function MaterialsTableView({
               }}
               className="bg-red-600 hover:bg-red-700"
             >
-              Delete
+              {t('materials.deleteItem')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -265,6 +267,7 @@ interface AreaGroupProps {
 }
 
 function AreaGroup({ area, areaItems, areaCost, stages, projectId, isClient, overdueStageIds, nextDueStageId, onSave, onDelete }: AreaGroupProps) {
+  const { t } = useTranslation('clientPortal');
   return (
     <>
       {/* Area header row */}
@@ -275,7 +278,7 @@ function AreaGroup({ area, areaItems, areaCost, stages, projectId, isClient, ove
         >
           <span className="text-[var(--pro-text-primary)]">{area.name}</span>
           <span className="ml-3 text-xs font-normal text-[var(--pro-text-secondary)]">
-            {areaItems.length} item{areaItems.length !== 1 ? "s" : ""}
+            {t('materials.items', { count: areaItems.length })}
           </span>
           <span className="ml-2 text-xs font-normal text-emerald-400">
             ${areaCost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -319,6 +322,7 @@ interface NewItemRowProps {
 }
 
 function NewItemRow({ areaId, projectId, stages, isClient }: NewItemRowProps) {
+  const { t } = useTranslation('clientPortal');
   const [isAdding, setIsAdding] = useState(false);
   const [name, setName] = useState("");
   const [spec, setSpec] = useState("");
@@ -367,13 +371,13 @@ function NewItemRow({ areaId, projectId, stages, isClient }: NewItemRowProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/material-items?project_id=${projectId}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/material-areas?project_id=${projectId}`] });
-      toast({ title: "Item Added", description: "Material item has been added successfully." });
+      toast({ title: t('materials.itemAdded'), description: t('materials.itemAddedDesc') });
       resetForm();
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to add item. Please try again.",
+        title: t('materials.error'),
+        description: t('materials.itemAddError'),
         variant: "destructive",
       });
     },
@@ -406,7 +410,7 @@ function NewItemRow({ areaId, projectId, stages, isClient }: NewItemRowProps) {
             className="inline-flex items-center gap-1 text-xs text-[var(--pro-text-secondary)] hover:text-emerald-400 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add item
+            {t('materials.addItem')}
           </button>
         </TableCell>
       </TableRow>
@@ -423,7 +427,7 @@ function NewItemRow({ areaId, projectId, stages, isClient }: NewItemRowProps) {
         <input
           ref={nameRef}
           type="text"
-          placeholder="Material name *"
+          placeholder={t('materials.name')}
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -435,7 +439,7 @@ function NewItemRow({ areaId, projectId, stages, isClient }: NewItemRowProps) {
       <TableCell className="px-1 py-1">
         <input
           type="text"
-          placeholder="Spec"
+          placeholder={t('materials.spec')}
           value={spec}
           onChange={(e) => setSpec(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -447,7 +451,7 @@ function NewItemRow({ areaId, projectId, stages, isClient }: NewItemRowProps) {
       <TableCell className="px-1 py-1">
         <input
           type="text"
-          placeholder="Vendor"
+          placeholder={t('materials.vendor')}
           value={vendor}
           onChange={(e) => setVendor(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -462,7 +466,7 @@ function NewItemRow({ areaId, projectId, stages, isClient }: NewItemRowProps) {
       <TableCell className="px-1 py-1">
         <input
           type="text"
-          placeholder="Qty"
+          placeholder={t('materials.qty')}
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -475,7 +479,7 @@ function NewItemRow({ areaId, projectId, stages, isClient }: NewItemRowProps) {
         <input
           type="number"
           step="0.01"
-          placeholder="$0.00"
+          placeholder={t('materials.price')}
           value={unitCost}
           onChange={(e) => setUnitCost(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -491,17 +495,17 @@ function NewItemRow({ areaId, projectId, stages, isClient }: NewItemRowProps) {
         <TableCell className="px-1 py-1">
           <Select value={stageId || "none"} onValueChange={(val) => setStageId(val === "none" ? "" : val)}>
             <SelectTrigger className="h-7 text-xs border-0 bg-transparent hover:bg-[var(--pro-surface-highlight)]/30 focus:ring-1 focus:ring-emerald-500/60">
-              <SelectValue placeholder="Stage" />
+              <SelectValue placeholder={t('materials.stage')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">No stage</SelectItem>
+              <SelectItem value="none">{t('materials.noStage')}</SelectItem>
               {[...stages].sort((a, b) => a.orderIndex - b.orderIndex).map((stage) => {
                 const dueLabel = stage.finishMaterialsDueDate
                   ? new Date(stage.finishMaterialsDueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
                   : null;
                 return (
                   <SelectItem key={stage.id} value={stage.id}>
-                    {stage.name}{dueLabel ? ` · Due ${dueLabel}` : ""}
+                    {stage.name}{dueLabel ? ` · ${t('materials.due', { date: dueLabel })}` : ""}
                   </SelectItem>
                 );
               })}
@@ -701,6 +705,7 @@ function EditableCell({
   prefix,
   placeholder = "",
 }: EditableCellProps) {
+  const { t } = useTranslation('clientPortal');
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -759,7 +764,7 @@ function EditableCell({
               <span>{prefix && value ? `${prefix}${value}` : value || placeholder}</span>
             </TooltipTrigger>
             <TooltipContent side="top">
-              <p className="text-xs">Contact PM to change this field</p>
+              <p className="text-xs">{t('materials.contactPM')}</p>
             </TooltipContent>
           </Tooltip>
         ) : (
@@ -810,6 +815,7 @@ interface StageCellProps {
 }
 
 function StageCell({ item, stages, editable, isClient, onSave }: StageCellProps) {
+  const { t } = useTranslation('clientPortal');
   const sortedStages = [...stages].sort((a, b) => a.orderIndex - b.orderIndex);
   const matchedStage = sortedStages.find((s) => s.id === item.stage_id);
   const stageName = item.stage_name || matchedStage?.name;
@@ -824,10 +830,10 @@ function StageCell({ item, stages, editable, isClient, onSave }: StageCellProps)
     target.setHours(0, 0, 0, 0);
     const formatted = target.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const days = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    if (days < 0) return { text: `Overdue (${formatted})`, className: "text-red-400" };
-    if (days === 0) return { text: "Due today", className: "text-amber-400" };
-    if (days <= 7) return { text: `Due ${formatted}`, className: "text-amber-400" };
-    return { text: `Due ${formatted}`, className: "text-zinc-500" };
+    if (days < 0) return { text: `${t('materials.overdue')} (${formatted})`, className: "text-red-400" };
+    if (days === 0) return { text: t('materials.dueToday'), className: "text-amber-400" };
+    if (days <= 7) return { text: t('materials.due', { date: formatted }), className: "text-amber-400" };
+    return { text: t('materials.due', { date: formatted }), className: "text-zinc-500" };
   })();
 
   if (!editable) {
@@ -850,7 +856,7 @@ function StageCell({ item, stages, editable, isClient, onSave }: StageCellProps)
               <span>{stageContent}</span>
             </TooltipTrigger>
             <TooltipContent side="top">
-              <p className="text-xs">Contact PM to change stage</p>
+              <p className="text-xs">{t('materials.contactPMStage')}</p>
             </TooltipContent>
           </Tooltip>
         ) : (
@@ -870,14 +876,14 @@ function StageCell({ item, stages, editable, isClient, onSave }: StageCellProps)
           <SelectValue placeholder="—" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="none">Unassigned</SelectItem>
+          <SelectItem value="none">{t('materials.unassigned')}</SelectItem>
           {sortedStages.map((stage) => {
             const dueLabel = stage.finishMaterialsDueDate
               ? new Date(stage.finishMaterialsDueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
               : null;
             return (
               <SelectItem key={stage.id} value={stage.id}>
-                {stage.name}{dueLabel ? ` · Due ${dueLabel}` : ""}
+                {stage.name}{dueLabel ? ` · ${t('materials.due', { date: dueLabel })}` : ""}
               </SelectItem>
             );
           })}
@@ -898,6 +904,7 @@ interface LinkCellProps {
 }
 
 function LinkCell({ value, itemId, editable, isClient, onSave }: LinkCellProps) {
+  const { t } = useTranslation('clientPortal');
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -941,7 +948,7 @@ function LinkCell({ value, itemId, editable, isClient, onSave }: LinkCellProps) 
         className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300"
       >
         <ExternalLink className="h-3.5 w-3.5" />
-        View
+        {t('materials.view')}
       </a>
     ) : (
       <span className="text-[var(--pro-text-secondary)]">—</span>
@@ -955,7 +962,7 @@ function LinkCell({ value, itemId, editable, isClient, onSave }: LinkCellProps) 
               <span>{linkContent}</span>
             </TooltipTrigger>
             <TooltipContent side="top">
-              <p className="text-xs">Contact PM to change this field</p>
+              <p className="text-xs">{t('materials.contactPM')}</p>
             </TooltipContent>
           </Tooltip>
         ) : (
@@ -1016,7 +1023,7 @@ function LinkCell({ value, itemId, editable, isClient, onSave }: LinkCellProps) 
             onClick={() => setIsEditing(true)}
           >
             <Link2 className="h-3.5 w-3.5 inline mr-1" />
-            Add link
+            {t('materials.addLink')}
           </span>
         )}
       </div>
@@ -1032,6 +1039,7 @@ interface OrderStatusCellProps {
 }
 
 function OrderStatusCell({ item, onSave }: OrderStatusCellProps) {
+  const { t } = useTranslation('clientPortal');
   const isOrdered = item.order_status === "ordered";
 
   return (
@@ -1048,7 +1056,7 @@ function OrderStatusCell({ item, onSave }: OrderStatusCellProps) {
               : "text-[var(--pro-text-secondary)] hover:text-[var(--pro-text-primary)]"
           )}
         >
-          Pending
+          {t('materials.pending')}
         </button>
         <button
           onClick={() => {
@@ -1061,7 +1069,7 @@ function OrderStatusCell({ item, onSave }: OrderStatusCellProps) {
               : "text-[var(--pro-text-secondary)] hover:text-[var(--pro-text-primary)]"
           )}
         >
-          Ordered
+          {t('materials.ordered')}
         </button>
       </div>
     </TableCell>

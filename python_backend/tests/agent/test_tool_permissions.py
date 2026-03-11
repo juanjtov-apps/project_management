@@ -39,12 +39,15 @@ class TestRoleBasedAccess:
             GetProjectsTool(),
             GetProjectDetailTool(),
             GetTasksTool(),
-            GetInstallmentsTool(),
             GetIssuesTool(),
         ]
 
         for tool in pm_can_access:
             assert "project_manager" in tool.permissions, f"PM cannot access {tool.name}"
+
+        # PM should NOT have access to payment tools
+        installments_tool = GetInstallmentsTool()
+        assert "project_manager" not in installments_tool.permissions
 
     def test_office_manager_tool_access(self):
         """Test 3: Office Manager has correct access."""
