@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   CalendarDays,
   Clock,
@@ -27,48 +28,6 @@ interface ScheduleTabProps {
   projectId: string;
 }
 
-const statusConfig: Record<
-  ScheduleTask["status"],
-  { label: string; className: string; barColor: string; icon: typeof Clock }
-> = {
-  not_started: {
-    label: "Not Started",
-    className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
-    barColor: "bg-zinc-500",
-    icon: Clock,
-  },
-  in_progress: {
-    label: "In Progress",
-    className: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    barColor: "bg-blue-500",
-    icon: AlertCircle,
-  },
-  pending_review: {
-    label: "Pending Review",
-    className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    barColor: "bg-amber-500",
-    icon: Clock,
-  },
-  revision_requested: {
-    label: "Revision Requested",
-    className: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-    barColor: "bg-orange-500",
-    icon: AlertCircle,
-  },
-  approved: {
-    label: "Approved",
-    className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    barColor: "bg-emerald-500",
-    icon: CheckCircle,
-  },
-  rejected: {
-    label: "Rejected",
-    className: "bg-red-500/20 text-red-400 border-red-500/30",
-    barColor: "bg-red-500",
-    icon: AlertCircle,
-  },
-};
-
 const statusOrder: ScheduleTask["status"][] = [
   "in_progress",
   "revision_requested",
@@ -79,6 +38,50 @@ const statusOrder: ScheduleTask["status"][] = [
 ];
 
 export function ScheduleTab({ projectId }: ScheduleTabProps) {
+  const { t } = useTranslation('subPortal');
+
+  const statusConfig: Record<
+    ScheduleTask["status"],
+    { label: string; className: string; barColor: string; icon: typeof Clock }
+  > = {
+    not_started: {
+      label: t('status.not_started'),
+      className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
+      barColor: "bg-zinc-500",
+      icon: Clock,
+    },
+    in_progress: {
+      label: t('status.in_progress'),
+      className: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+      barColor: "bg-blue-500",
+      icon: AlertCircle,
+    },
+    pending_review: {
+      label: t('status.pending_review'),
+      className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+      barColor: "bg-amber-500",
+      icon: Clock,
+    },
+    revision_requested: {
+      label: t('status.revision_requested'),
+      className: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+      barColor: "bg-orange-500",
+      icon: AlertCircle,
+    },
+    approved: {
+      label: t('status.approved'),
+      className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+      barColor: "bg-emerald-500",
+      icon: CheckCircle,
+    },
+    rejected: {
+      label: t('status.rejected'),
+      className: "bg-red-500/20 text-red-400 border-red-500/30",
+      barColor: "bg-red-500",
+      icon: AlertCircle,
+    },
+  };
+
   const { data: tasks = [], isLoading } = useQuery<ScheduleTask[]>({
     queryKey: ["/api/v1/sub/my-tasks", projectId],
     queryFn: async () => {
@@ -92,20 +95,10 @@ export function ScheduleTab({ projectId }: ScheduleTabProps) {
   });
 
   const formatDate = (dateStr?: string) => {
-    if (!dateStr) return "TBD";
+    if (!dateStr) return t('schedule.tbd');
     return new Date(dateStr).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
-    });
-  };
-
-  const formatDateFull = (dateStr?: string) => {
-    if (!dateStr) return "TBD";
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
     });
   };
 
@@ -123,10 +116,10 @@ export function ScheduleTab({ projectId }: ScheduleTabProps) {
         <CardContent className="text-center py-12">
           <CalendarDays className="h-16 w-16 mx-auto text-[var(--pro-text-muted)] mb-4" />
           <h3 className="text-xl font-semibold mb-2 text-[var(--pro-text-primary)]">
-            No Schedule Data
+            {t('schedule.noScheduleData')}
           </h3>
           <p className="text-[var(--pro-text-secondary)]">
-            No tasks have been assigned for this project yet.
+            {t('schedule.noTasksAssigned')}
           </p>
         </CardContent>
       </Card>
@@ -176,10 +169,10 @@ export function ScheduleTab({ projectId }: ScheduleTabProps) {
       {/* Header */}
       <div>
         <h2 className="text-xl sm:text-2xl font-bold text-[var(--pro-text-primary)]">
-          Schedule
+          {t('schedule.title')}
         </h2>
         <p className="text-[var(--pro-text-secondary)]">
-          Timeline view of your assigned tasks
+          {t('schedule.subtitle')}
         </p>
       </div>
 
@@ -189,7 +182,7 @@ export function ScheduleTab({ projectId }: ScheduleTabProps) {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2 text-amber-400">
               <Sun className="h-5 w-5" />
-              Today's Tasks
+              {t('schedule.todaysTasks')}
               <Badge variant="outline" className="bg-amber-500/20 text-amber-400 border-amber-500/30 ml-1">
                 {todaysTasks.length}
               </Badge>
@@ -225,7 +218,7 @@ export function ScheduleTab({ projectId }: ScheduleTabProps) {
                               : "text-[var(--pro-text-muted)]"
                           }
                         >
-                          Due {formatDate(task.endDate)}
+                          {t('schedule.due', { date: formatDate(task.endDate) })}
                         </span>
                       )}
                     </div>
@@ -301,7 +294,7 @@ export function ScheduleTab({ projectId }: ScheduleTabProps) {
                               variant="outline"
                               className="bg-red-500/20 text-red-400 border-red-500/30 text-xs"
                             >
-                              Overdue
+                              {t('schedule.overdue')}
                             </Badge>
                           )}
                           {task.checklistItemsTotal > 0 && (

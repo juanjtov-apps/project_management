@@ -2,33 +2,34 @@ import { useRef } from 'react';
 import { Eye, Lightbulb, Shield } from 'lucide-react';
 import { useGSAP, usePrefersReducedMotion, useIsMobile } from '@/hooks/useGSAP';
 import { SectionHeader } from './shared';
+import { useTranslation } from "react-i18next";
 import type { LucideIcon } from 'lucide-react';
 
 interface TimelineStage {
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
-  title: string;
-  description: string;
+  titleKey: string;
+  descKey: string;
 }
 
 const stages: TimelineStage[] = [
   {
-    label: 'DAY ONE',
+    labelKey: 'intelligence.day1.label',
     icon: Eye,
-    title: 'Reactive',
-    description: 'You ask. It answers.'
+    titleKey: 'intelligence.day1.title',
+    descKey: 'intelligence.day1.desc'
   },
   {
-    label: 'MONTH ONE',
+    labelKey: 'intelligence.month1.label',
     icon: Lightbulb,
-    title: 'Proactive',
-    description: 'It learns your patterns. Surfaces what matters before you ask.'
+    titleKey: 'intelligence.month1.title',
+    descKey: 'intelligence.month1.desc'
   },
   {
-    label: 'OVER TIME',
+    labelKey: 'intelligence.overTime.label',
     icon: Shield,
-    title: 'Predictive',
-    description: 'Flags risks. Predicts delays. Identifies improvements you hadn\'t seen.'
+    titleKey: 'intelligence.overTime.title',
+    descKey: 'intelligence.overTime.desc'
   }
 ];
 
@@ -36,6 +37,7 @@ export function IntelligenceEvolutionSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
   const isMobile = useIsMobile(1024);
+  const { t } = useTranslation('landing');
 
   useGSAP((gsap) => {
     if (prefersReducedMotion) {
@@ -101,8 +103,8 @@ export function IntelligenceEvolutionSection() {
 
       <div className="container mx-auto px-6">
         <SectionHeader
-          eyebrow="Intelligent Adaptation"
-          title="Gets smarter with you"
+          eyebrow={t('intelligence.tag')}
+          title={t('intelligence.headline')}
           className="mb-16 md:mb-24"
         />
 
@@ -124,13 +126,13 @@ export function IntelligenceEvolutionSection() {
                 {stages.map((stage, index) => {
                   const Icon = stage.icon;
                   return (
-                    <div key={stage.label} className="timeline-node text-center">
+                    <div key={stage.labelKey} className="timeline-node text-center">
                       {/* Label */}
                       <p
                         className="text-xs uppercase tracking-[0.2em] mb-4 font-medium"
                         style={{ color: '#6B7280' }}
                       >
-                        {stage.label}
+                        {t(stage.labelKey)}
                       </p>
 
                       {/* Icon Node */}
@@ -157,7 +159,7 @@ export function IntelligenceEvolutionSection() {
                         className="text-xl font-semibold mb-2"
                         style={{ color: '#FFFFFF' }}
                       >
-                        {stage.title}
+                        {t(stage.titleKey)}
                       </h3>
 
                       {/* Description */}
@@ -165,7 +167,7 @@ export function IntelligenceEvolutionSection() {
                         className="text-sm leading-relaxed max-w-[200px] mx-auto"
                         style={{ color: '#9CA3AF' }}
                       >
-                        {stage.description}
+                        {t(stage.descKey)}
                       </p>
                     </div>
                   );
@@ -189,7 +191,7 @@ export function IntelligenceEvolutionSection() {
                 {stages.map((stage) => {
                   const Icon = stage.icon;
                   return (
-                    <div key={stage.label} className="timeline-node relative">
+                    <div key={stage.labelKey} className="timeline-node relative">
                       {/* Node */}
                       <div
                         className="absolute left-[-28px] w-10 h-10 rounded-full flex items-center justify-center border-2"
@@ -207,19 +209,19 @@ export function IntelligenceEvolutionSection() {
                           className="text-xs uppercase tracking-[0.2em] mb-2 font-medium"
                           style={{ color: '#6B7280' }}
                         >
-                          {stage.label}
+                          {t(stage.labelKey)}
                         </p>
                         <h3
                           className="text-lg font-semibold mb-1"
                           style={{ color: '#FFFFFF' }}
                         >
-                          {stage.title}
+                          {t(stage.titleKey)}
                         </h3>
                         <p
                           className="text-sm leading-relaxed"
                           style={{ color: '#9CA3AF' }}
                         >
-                          {stage.description}
+                          {t(stage.descKey)}
                         </p>
                       </div>
                     </div>
@@ -239,9 +241,7 @@ export function IntelligenceEvolutionSection() {
             className="text-lg leading-relaxed"
             style={{ color: '#9CA3AF' }}
           >
-            "It notices the concrete delivery is scheduled the same day as the inspection.
-            It flags that the electrical subcontractor hasn't confirmed next week's timeline.
-            It sees the pattern that always leads to delays—before the delay happens."
+            {t('intelligence.quote')}
           </p>
         </blockquote>
       </div>

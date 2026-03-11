@@ -122,6 +122,15 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.warning(f"Analytics schema initialization error: {e}")
 
+        # Initialize user preferences column (only if DB is connected)
+        if db_connected:
+            try:
+                from src.database.init_user_preferences import init_user_preferences
+                await init_user_preferences()
+                logger.info("✅ User preferences column verified/initialized")
+            except Exception as e:
+                logger.warning(f"⚠️ User preferences initialization error: {e}")
+
         # Seed progress + AI insights for existing projects
         if db_connected:
             try:

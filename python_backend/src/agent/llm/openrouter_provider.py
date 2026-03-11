@@ -214,6 +214,7 @@ class OpenRouterProvider(LLMProviderBase):
         model: Optional[str] = None,
         temperature: float = 0.3,
         max_tokens: int = 4096,
+        timeout: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Generate a non-streaming chat completion."""
         model = model or self._standard_model
@@ -231,7 +232,7 @@ class OpenRouterProvider(LLMProviderBase):
             payload["tools"] = formatted_tools
             payload["tool_choice"] = "auto"
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=timeout or 120.0) as client:
             response = await client.post(
                 f"{self.BASE_URL}/chat/completions",
                 headers=self._get_headers(),

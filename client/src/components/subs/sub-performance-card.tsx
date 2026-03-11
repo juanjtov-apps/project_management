@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Star,
   Clock,
@@ -52,34 +53,34 @@ interface SubPerformanceCardProps {
 
 const dimensionConfig: Record<
   string,
-  { label: string; icon: typeof Star; color: string; indicatorColor: string }
+  { labelKey: string; icon: typeof Star; color: string; indicatorColor: string }
 > = {
   timeliness: {
-    label: "Timeliness",
+    labelKey: "subs.timeliness",
     icon: Clock,
     color: "text-blue-400",
     indicatorColor: "#60A5FA",
   },
   quality: {
-    label: "Quality",
+    labelKey: "subs.quality",
     icon: ShieldCheck,
     color: "text-emerald-400",
     indicatorColor: "#34D399",
   },
   documentation: {
-    label: "Documentation",
+    labelKey: "subs.documentation",
     icon: FileText,
     color: "text-amber-400",
     indicatorColor: "#FBBF24",
   },
   responsiveness: {
-    label: "Responsiveness",
+    labelKey: "subs.responsiveness",
     icon: MessageSquare,
     color: "text-purple-400",
     indicatorColor: "#A78BFA",
   },
   safety: {
-    label: "Safety",
+    labelKey: "subs.safety",
     icon: HardHat,
     color: "text-red-400",
     indicatorColor: "#F87171",
@@ -93,29 +94,29 @@ function getScoreColor(score: number): string {
   return "text-red-400";
 }
 
-function getScoreBadge(score: number): { label: string; className: string } {
+function getScoreBadgeKey(score: number): { labelKey: string; className: string } {
   if (score >= 90)
     return {
-      label: "Excellent",
+      labelKey: "subs.excellent",
       className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
     };
   if (score >= 75)
     return {
-      label: "Good",
+      labelKey: "subs.good",
       className: "bg-blue-500/20 text-blue-400 border-blue-500/30",
     };
   if (score >= 60)
     return {
-      label: "Average",
+      labelKey: "subs.average",
       className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
     };
   if (score >= 40)
     return {
-      label: "Below Avg",
+      labelKey: "subs.belowAvg",
       className: "bg-orange-500/20 text-orange-400 border-orange-500/30",
     };
   return {
-    label: "Poor",
+    labelKey: "subs.poor",
     className: "bg-red-500/20 text-red-400 border-red-500/30",
   };
 }
@@ -123,6 +124,7 @@ function getScoreBadge(score: number): { label: string; className: string } {
 export function SubPerformanceCard({
   subcontractorId,
 }: SubPerformanceCardProps) {
+  const { t } = useTranslation('common');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -195,11 +197,11 @@ export function SubPerformanceCard({
       queryClient.invalidateQueries({
         queryKey: ["/api/v1/sub/companies", subcontractorId, "performance"],
       });
-      toast({ title: "Performance recalculated" });
+      toast({ title: t('subs.performanceRecalculated') });
     },
     onError: (error: Error) => {
       toast({
-        title: "Recalculation failed",
+        title: t('subs.recalculationFailed'),
         description: error.message,
         variant: "destructive",
       });
@@ -222,17 +224,17 @@ export function SubPerformanceCard({
         <CardContent className="text-center py-12">
           <TrendingUp className="h-12 w-12 mx-auto text-[var(--pro-text-muted)] mb-3" />
           <h3 className="text-lg font-semibold text-[var(--pro-text-primary)] mb-1">
-            No Performance Data
+            {t('subs.noPerformanceData')}
           </h3>
           <p className="text-sm text-[var(--pro-text-secondary)]">
-            Performance metrics will appear once tasks are completed.
+            {t('subs.performanceWillAppear')}
           </p>
         </CardContent>
       </Card>
     );
   }
 
-  const scoreBadge = getScoreBadge(data.compositeScore);
+  const scoreBadge = getScoreBadgeKey(data.compositeScore);
 
   return (
     <div className="space-y-4">
@@ -242,7 +244,7 @@ export function SubPerformanceCard({
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg text-[var(--pro-text-primary)] flex items-center gap-2">
               <Star className="h-5 w-5 text-amber-400" />
-              Performance Score
+              {t('subs.performanceScore')}
             </CardTitle>
             <Button
               variant="ghost"
@@ -256,7 +258,7 @@ export function SubPerformanceCard({
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
-              <span className="ml-1.5 hidden sm:inline">Recalculate</span>
+              <span className="ml-1.5 hidden sm:inline">{t('subs.recalculate')}</span>
             </Button>
           </div>
         </CardHeader>
@@ -269,11 +271,11 @@ export function SubPerformanceCard({
             </div>
             <div>
               <Badge variant="outline" className={scoreBadge.className}>
-                {scoreBadge.label}
+                {t(scoreBadge.labelKey)}
               </Badge>
               {data.lastCalculatedAt && (
                 <p className="text-xs text-[var(--pro-text-muted)] mt-1">
-                  Updated{" "}
+                  {t('subs.updated')}{" "}
                   {new Date(data.lastCalculatedAt).toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
@@ -297,7 +299,7 @@ export function SubPerformanceCard({
                     <div className="flex items-center gap-2">
                       <Icon className={`h-4 w-4 ${config.color}`} />
                       <span className="text-sm font-medium text-[var(--pro-text-primary)]">
-                        {config.label}
+                        {t(config.labelKey)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -305,7 +307,7 @@ export function SubPerformanceCard({
                         {Math.round(dim.score)}
                       </span>
                       <span className="text-xs text-[var(--pro-text-muted)]">
-                        ({dim.dataPoints} pts)
+                        ({t('subs.pts', { count: dim.dataPoints })})
                       </span>
                     </div>
                   </div>
@@ -327,13 +329,13 @@ export function SubPerformanceCard({
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-[var(--pro-text-primary)] flex items-center gap-2">
               <Building className="h-5 w-5 text-[var(--pro-blue)]" />
-              Project Breakdown
+              {t('subs.projectBreakdown')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {data.projectBreakdowns.map((proj) => {
-                const projBadge = getScoreBadge(proj.compositeScore);
+                const projBadge = getScoreBadgeKey(proj.compositeScore);
                 return (
                   <div
                     key={proj.projectId}
@@ -344,7 +346,7 @@ export function SubPerformanceCard({
                         {proj.projectName}
                       </p>
                       <p className="text-xs text-[var(--pro-text-muted)]">
-                        {proj.completedTasks}/{proj.taskCount} tasks completed
+                        {t('subs.tasksCompleted', { completed: proj.completedTasks, total: proj.taskCount })}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -354,7 +356,7 @@ export function SubPerformanceCard({
                         {Math.round(proj.compositeScore)}
                       </span>
                       <Badge variant="outline" className={projBadge.className}>
-                        {projBadge.label}
+                        {t(projBadge.labelKey)}
                       </Badge>
                     </div>
                   </div>

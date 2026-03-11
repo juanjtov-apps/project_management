@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   UserCircle,
   Building2,
@@ -50,37 +51,6 @@ interface ProfileTabProps {
   subcontractorId: string;
 }
 
-const dimensionConfig: Record<
-  string,
-  { label: string; color: string; indicatorColor: string }
-> = {
-  timeliness: {
-    label: "Timeliness",
-    color: "text-blue-400",
-    indicatorColor: "#60a5fa",
-  },
-  quality: {
-    label: "Quality",
-    color: "text-emerald-400",
-    indicatorColor: "#34d399",
-  },
-  documentation: {
-    label: "Documentation",
-    color: "text-amber-400",
-    indicatorColor: "#fbbf24",
-  },
-  responsiveness: {
-    label: "Responsiveness",
-    color: "text-purple-400",
-    indicatorColor: "#c084fc",
-  },
-  safety: {
-    label: "Safety",
-    color: "text-red-400",
-    indicatorColor: "#f87171",
-  },
-};
-
 function getScoreColor(score: number): string {
   if (score >= 90) return "text-emerald-400";
   if (score >= 75) return "text-blue-400";
@@ -89,15 +59,47 @@ function getScoreColor(score: number): string {
   return "text-red-400";
 }
 
-function getScoreLabel(score: number): string {
-  if (score >= 90) return "Excellent";
-  if (score >= 75) return "Good";
-  if (score >= 60) return "Average";
-  if (score >= 40) return "Below Average";
-  return "Poor";
-}
-
 export function ProfileTab({ subcontractorId }: ProfileTabProps) {
+  const { t } = useTranslation('subPortal');
+
+  const dimensionConfig: Record<
+    string,
+    { label: string; color: string; indicatorColor: string }
+  > = {
+    timeliness: {
+      label: t('profile.timeliness'),
+      color: "text-blue-400",
+      indicatorColor: "#60a5fa",
+    },
+    quality: {
+      label: t('profile.quality'),
+      color: "text-emerald-400",
+      indicatorColor: "#34d399",
+    },
+    documentation: {
+      label: t('profile.documentation'),
+      color: "text-amber-400",
+      indicatorColor: "#fbbf24",
+    },
+    responsiveness: {
+      label: t('profile.responsiveness'),
+      color: "text-purple-400",
+      indicatorColor: "#c084fc",
+    },
+    safety: {
+      label: t('profile.safety'),
+      color: "text-red-400",
+      indicatorColor: "#f87171",
+    },
+  };
+
+  function getScoreLabel(score: number): string {
+    if (score >= 90) return t('profile.excellent');
+    if (score >= 75) return t('profile.good');
+    if (score >= 60) return t('profile.average');
+    if (score >= 40) return t('profile.belowAverage');
+    return t('profile.poor');
+  }
   // Fetch sub company info
   const { data: company, isLoading: companyLoading } = useQuery<SubCompanyInfo>({
     queryKey: ["/api/v1/sub/companies", subcontractorId],
@@ -144,10 +146,10 @@ export function ProfileTab({ subcontractorId }: ProfileTabProps) {
         <CardContent className="text-center py-12">
           <UserCircle className="h-16 w-16 mx-auto text-[var(--pro-text-muted)] mb-4" />
           <h3 className="text-xl font-semibold mb-2 text-[var(--pro-text-primary)]">
-            Profile Unavailable
+            {t('profile.unavailable')}
           </h3>
           <p className="text-[var(--pro-text-secondary)]">
-            Your subcontractor profile could not be loaded.
+            {t('profile.unavailableDesc')}
           </p>
         </CardContent>
       </Card>
@@ -165,10 +167,10 @@ export function ProfileTab({ subcontractorId }: ProfileTabProps) {
       {/* Header */}
       <div>
         <h2 className="text-xl sm:text-2xl font-bold text-[var(--pro-text-primary)]">
-          Profile
+          {t('profile.title')}
         </h2>
         <p className="text-[var(--pro-text-secondary)]">
-          Your company information and performance ratings
+          {t('profile.subtitle')}
         </p>
       </div>
 
@@ -179,13 +181,13 @@ export function ProfileTab({ subcontractorId }: ProfileTabProps) {
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2 text-[var(--pro-text-primary)]">
                 <Building2 className="h-5 w-5 text-[var(--pro-mint)]" />
-                Company Information
+                {t('profile.companyInfo')}
               </CardTitle>
               <Badge
                 variant="outline"
                 className={statusColor[company.status] || statusColor.active}
               >
-                {company.status}
+                {t(`profile.${company.status}`)}
               </Badge>
             </div>
           </CardHeader>
@@ -194,7 +196,7 @@ export function ProfileTab({ subcontractorId }: ProfileTabProps) {
               <div className="space-y-3">
                 <div>
                   <label className="text-xs text-[var(--pro-text-muted)] uppercase tracking-wider">
-                    Company Name
+                    {t('profile.companyName')}
                   </label>
                   <p className="text-[var(--pro-text-primary)] font-medium">
                     {company.companyName}
@@ -203,7 +205,7 @@ export function ProfileTab({ subcontractorId }: ProfileTabProps) {
 
                 <div>
                   <label className="text-xs text-[var(--pro-text-muted)] uppercase tracking-wider">
-                    Trade
+                    {t('profile.trade')}
                   </label>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <Wrench className="h-4 w-4 text-[var(--pro-text-secondary)]" />
@@ -214,7 +216,7 @@ export function ProfileTab({ subcontractorId }: ProfileTabProps) {
                 {company.contactName && (
                   <div>
                     <label className="text-xs text-[var(--pro-text-muted)] uppercase tracking-wider">
-                      Contact
+                      {t('profile.contact')}
                     </label>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <UserCircle className="h-4 w-4 text-[var(--pro-text-secondary)]" />
@@ -230,7 +232,7 @@ export function ProfileTab({ subcontractorId }: ProfileTabProps) {
                 {company.contactEmail && (
                   <div>
                     <label className="text-xs text-[var(--pro-text-muted)] uppercase tracking-wider">
-                      Email
+                      {t('profile.email')}
                     </label>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <Mail className="h-4 w-4 text-[var(--pro-text-secondary)]" />
@@ -244,7 +246,7 @@ export function ProfileTab({ subcontractorId }: ProfileTabProps) {
                 {company.contactPhone && (
                   <div>
                     <label className="text-xs text-[var(--pro-text-muted)] uppercase tracking-wider">
-                      Phone
+                      {t('profile.phone')}
                     </label>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <Phone className="h-4 w-4 text-[var(--pro-text-secondary)]" />
@@ -258,7 +260,7 @@ export function ProfileTab({ subcontractorId }: ProfileTabProps) {
                 {company.address && (
                   <div>
                     <label className="text-xs text-[var(--pro-text-muted)] uppercase tracking-wider">
-                      Address
+                      {t('profile.address')}
                     </label>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <MapPin className="h-4 w-4 text-[var(--pro-text-secondary)]" />
@@ -272,7 +274,7 @@ export function ProfileTab({ subcontractorId }: ProfileTabProps) {
                 {company.licenseNumber && (
                   <div>
                     <label className="text-xs text-[var(--pro-text-muted)] uppercase tracking-wider">
-                      License #
+                      {t('profile.license')}
                     </label>
                     <p className="text-[var(--pro-text-primary)]">
                       {company.licenseNumber}
@@ -291,7 +293,7 @@ export function ProfileTab({ subcontractorId }: ProfileTabProps) {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2 text-[var(--pro-text-primary)]">
               <Star className="h-5 w-5 text-amber-400" />
-              Overall Performance
+              {t('profile.overallPerformance')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -341,8 +343,7 @@ export function ProfileTab({ subcontractorId }: ProfileTabProps) {
               {/* Score explanation */}
               <div className="flex-1 text-center sm:text-left">
                 <p className="text-[var(--pro-text-secondary)] text-sm">
-                  Your composite performance score is based on timeliness, quality,
-                  documentation, responsiveness, and safety across all projects.
+                  {t('profile.performanceDesc')}
                 </p>
               </div>
             </div>
@@ -357,7 +358,7 @@ export function ProfileTab({ subcontractorId }: ProfileTabProps) {
           <div className="space-y-3">
             <h3 className="text-lg font-semibold text-[var(--pro-text-primary)] flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-[var(--pro-blue)]" />
-              Performance by Project
+              {t('profile.performanceByProject')}
             </h3>
 
             {performance.projectPerformances.map((proj) => (

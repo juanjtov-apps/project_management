@@ -40,24 +40,40 @@ def _heuristic_insight(
     open_issues: int,
     active_stage: Optional[str],
     status: str,
+    language: str = "en",
 ) -> str:
     """Generate a fallback insight without LLM."""
+    is_es = language == "es"
     if overdue > 0:
+        if is_es:
+            return f"{overdue} tarea{'s' if overdue != 1 else ''} vencida{'s' if overdue != 1 else ''} — revisa las prioridades antes de que se acumulen."
         return f"{overdue} overdue task{'s' if overdue != 1 else ''} — review priorities before they cascade."
     if status == "delayed":
+        if is_es:
+            return f"Proyecto retrasado. Enfócate en desbloquear {active_stage or 'la etapa actual'}."
         return f"Project is delayed. Focus on unblocking {active_stage or 'the current stage'}."
     if progress >= 80:
+        if is_es:
+            return f"{progress}% completado — comienza a programar inspecciones y lista de pendientes."
         return f"{progress}% complete — start lining up inspections and punch-list items."
     if due_this_week > 0:
+        if is_es:
+            return f"{due_this_week} tarea{'s' if due_this_week != 1 else ''} vence{'n' if due_this_week != 1 else ''} esta semana en {active_stage or 'etapa activa'}."
         return f"{due_this_week} task{'s' if due_this_week != 1 else ''} due this week in {active_stage or 'active stage'}."
     if open_issues > 0:
+        if is_es:
+            return f"{open_issues} incidencia{'s' if open_issues != 1 else ''} abierta{'s' if open_issues != 1 else ''} necesita{'n' if open_issues != 1 else ''} resolución."
         return f"{open_issues} open issue{'s' if open_issues != 1 else ''} need resolution before moving forward."
     if active_stage:
+        if is_es:
+            return f"En buen camino — {active_stage} está en progreso."
         return f"On track — {active_stage} is in progress."
+    if is_es:
+        return "En buen camino — sin bloqueos detectados."
     return "On track — no blockers detected."
 
 
-async def regenerate_project_insight(project_id: str, heuristic_only: bool = False) -> str:
+async def regenerate_project_insight(project_id: str, heuristic_only: bool = False, language: str = "en") -> str:
     """Regenerate AI insight for a project, storing result in DB.
 
     If heuristic_only=True, skips LLM call (used for batch seeding at startup).
@@ -129,7 +145,7 @@ async def regenerate_project_insight(project_id: str, heuristic_only: bool = Fal
 
         # Always compute heuristic first (guaranteed to succeed)
         insight = _heuristic_insight(
-            name, progress, overdue_tasks, due_this_week, open_issues, active_stage_name, status
+            name, progress, overdue_tasks, due_this_week, open_issues, active_stage_name, status, language
         )
 
         # Try LLM upgrade (optional, may fail)
@@ -145,6 +161,7 @@ async def regenerate_project_insight(project_id: str, heuristic_only: bool = Fal
                 overdue_tasks=overdue_tasks,
                 due_this_week=due_this_week,
                 open_issues=open_issues,
+                language=language,
             )
             if llm_insight:
                 insight = llm_insight
@@ -175,6 +192,7 @@ async def _generate_llm_insight(
     overdue_tasks: int,
     due_this_week: int,
     open_issues: int,
+    language: str = "en",
 ) -> Optional[str]:
     """Call Claude via OpenRouter for a one-liner insight. Returns None on failure."""
     try:
@@ -184,7 +202,12 @@ async def _generate_llm_insight(
 
         due_str = due_date.strftime("%Y-%m-%d") if isinstance(due_date, (date, datetime)) else str(due_date or "N/A")
 
+        language_instruction = ""
+        if language == "es":
+            language_instruction = "You MUST respond in Spanish (Español). "
+
         prompt = (
+            f"{language_instruction}"
             "You are Proe, a construction project AI. Given this project data, write ONE sentence (max 120 chars) "
             "that tells a general contractor the single most important thing about this project right now.\n\n"
             "Rules:\n"

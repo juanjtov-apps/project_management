@@ -65,7 +65,7 @@ class UpdateIssueStatusTool(BaseTool):
 
         # Verify issue belongs to a project in this company
         issue = await db_manager.execute_one(
-            """SELECT i.id, i.title, i.status, i.priority, p.name as project_name
+            """SELECT i.id, i.title, i.status, i.priority, i.project_id, p.name as project_name
                FROM client_portal.issues i
                JOIN projects p ON p.id = i.project_id
                WHERE i.id = $1::uuid AND p.company_id = $2""",
@@ -103,4 +103,7 @@ class UpdateIssueStatusTool(BaseTool):
                 "projectName": issue["project_name"],
             },
             "message": f"Issue '{row['title']}' updated: {old_status} → {new_status}",
+            "suggested_actions": [
+                {"label": "View Issues", "navigateTo": f"/client-portal?projectId={issue['project_id']}"},
+            ],
         }

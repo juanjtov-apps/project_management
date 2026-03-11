@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Logo } from "@/components/ui/logo";
 import logoImage from "../../assets/proesphere-hd-logo.png";
 import {
@@ -17,7 +18,8 @@ import {
   CircleUserRound,
   Users,
   HardHat,
-  BarChart3
+  BarChart3,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Sheet,
@@ -33,17 +35,18 @@ import {
 } from "@/components/ui/tooltip";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Work", href: "/work", icon: Briefcase },
-  { name: "Project Health", href: "/project-health", icon: TrendingUp },
-  { name: "Schedule", href: "/schedule", icon: Calendar },
-  { name: "Photos", href: "/photos", icon: Camera },
-  { name: "Project Logs", href: "/logs", icon: ClipboardList },
-  { name: "Client Portal", href: "/client-portal", icon: CircleUserRound },
-  { name: "Subs", href: "/subs", icon: HardHat },
-  { name: "RBAC Admin", href: "/rbac", icon: Shield },
-  { name: "Waitlist", href: "/waitlist-admin", icon: Users, rootOnly: true },
-  { name: "Analytics", href: "/platform-analytics", icon: BarChart3, rootOnly: true },
+  { name: "Dashboard", i18nKey: "nav.dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Work", i18nKey: "nav.work", href: "/work", icon: Briefcase },
+  { name: "Project Health", i18nKey: "nav.projectHealth", href: "/project-health", icon: TrendingUp },
+  { name: "Schedule", i18nKey: "nav.schedule", href: "/schedule", icon: Calendar },
+  { name: "Photos", i18nKey: "nav.photos", href: "/photos", icon: Camera },
+  { name: "Project Logs", i18nKey: "nav.projectLogs", href: "/logs", icon: ClipboardList },
+  { name: "Client Portal", i18nKey: "nav.clientPortal", href: "/client-portal", icon: CircleUserRound },
+  { name: "Subs", i18nKey: "nav.subs", href: "/subs", icon: HardHat },
+  { name: "RBAC Admin", i18nKey: "nav.rbacAdmin", href: "/rbac", icon: Shield },
+  { name: "Waitlist", i18nKey: "nav.waitlist", href: "/waitlist-admin", icon: Users, rootOnly: true },
+  { name: "Analytics", i18nKey: "nav.analytics", href: "/platform-analytics", icon: BarChart3, rootOnly: true },
+  { name: "Agent Logs", i18nKey: "nav.agentLogs", href: "/agent-troubleshooting", icon: AlertTriangle, rootOnly: true },
 ];
 
 interface SidebarProps {
@@ -54,6 +57,7 @@ interface SidebarProps {
 export default function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps = {}) {
   const [location] = useLocation();
   const [isExpanded, setIsExpanded] = useState(false);
+  const { t } = useTranslation('common');
   
   const { data: currentUser } = useQuery<any>({
     queryKey: ['/api/v1/auth/user'],
@@ -62,6 +66,16 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   
   const permissions = currentUser?.permissions || {};
   const isRootAdmin = currentUser?.isRoot === true || currentUser?.is_root === true;
+
+  // Agent error badge for root admins
+  const lastViewed = typeof window !== 'undefined' ? localStorage.getItem('agent-logs-last-viewed') : null;
+  const sinceParam = lastViewed ? `?since=${encodeURIComponent(lastViewed)}` : '';
+  const { data: errorCountData } = useQuery<{ count: number }>({
+    queryKey: [`/api/v1/admin/agent-troubleshooting/unread-error-count${sinceParam}`],
+    enabled: isRootAdmin,
+    refetchInterval: 30000,
+  });
+  const agentErrorCount = errorCountData?.count ?? 0;
 
   const navigationPermissions: Record<string, string> = {
     'Dashboard': 'dashboard',
@@ -97,17 +111,17 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
       onMouseLeave={() => setIsExpanded(false)}
     >
       <div 
-        className="flex items-center justify-center py-3 px-2 border-b" 
-        style={{ borderColor: '#2D333B', minHeight: '70px' }}
+        className="flex items-center justify-center px-2 border-b overflow-hidden"
+        style={{ borderColor: '#2D333B', height: '56px' }}
       >
         {isExpanded ? (
-          <Logo variant="full" size="sm" className="shadow-lg" />
+          <img src={logoImage} alt="Proesphere" className="h-10 w-auto object-contain shadow-lg" />
         ) : (
-          <div className="flex items-center justify-center w-full h-12">
-            <img 
-              src={logoImage} 
-              alt="Proesphere" 
-              className="h-12 w-auto object-contain"
+          <div className="flex items-center justify-center w-full h-10">
+            <img
+              src={logoImage}
+              alt="Proesphere"
+              className="h-10 w-auto object-contain"
             />
           </div>
         )}
@@ -121,7 +135,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
             const Icon = item.icon;
             
             return (
-              <li key={item.name}>
+              <li key={t(item.i18nKey)}>
                 <TooltipProvider delayDuration={0}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -134,7 +148,12 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                               ? "text-[#4ADE80]" 
                               : "text-[#9CA3AF] hover:text-white hover:bg-[#1F242C]"
                           )}
-                          onClick={() => onMobileClose?.()}
+                          onClick={() => {
+                            if (item.name === "Agent Logs") {
+                              localStorage.setItem('agent-logs-last-viewed', new Date().toISOString());
+                            }
+                            onMobileClose?.();
+                          }}
                           data-testid={`nav-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
                         >
                           {isActive && (
@@ -143,18 +162,28 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                               style={{ backgroundColor: '#4ADE80' }}
                             />
                           )}
-                          <Icon 
-                            className={cn(
-                              "h-5 w-5 shrink-0 transition-colors",
-                              isActive ? "text-[#4ADE80]" : ""
-                            )} 
-                          />
+                          <div className="relative shrink-0">
+                            <Icon
+                              className={cn(
+                                "h-5 w-5 transition-colors",
+                                isActive ? "text-[#4ADE80]" : ""
+                              )}
+                            />
+                            {item.name === "Agent Logs" && agentErrorCount > 0 && (
+                              <span
+                                className="absolute -top-1.5 -right-1.5 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5"
+                                style={{ backgroundColor: '#EF4444' }}
+                              >
+                                {agentErrorCount > 99 ? '99+' : agentErrorCount}
+                              </span>
+                            )}
+                          </div>
                           {isExpanded && (
                             <span className={cn(
                               "text-sm font-medium whitespace-nowrap transition-opacity duration-200",
                               isActive ? "text-[#4ADE80]" : ""
                             )}>
-                              {item.name}
+                              {t(item.i18nKey)}
                             </span>
                           )}
                         </div>
@@ -166,7 +195,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                         className="text-white border-0"
                         style={{ backgroundColor: '#1F242C' }}
                       >
-                        {item.name}
+                        {t(item.i18nKey)}
                       </TooltipContent>
                     )}
                   </Tooltip>
@@ -193,7 +222,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
             const Icon = item.icon;
             
             return (
-              <li key={item.name}>
+              <li key={t(item.i18nKey)}>
                 <Link href={item.href}>
                   <div 
                     className={cn(
@@ -214,7 +243,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                         isActive ? "text-[#4ADE80]" : "text-[#9CA3AF] group-hover:text-white"
                       )} 
                     />
-                    <span className="truncate">{item.name}</span>
+                    <span className="truncate">{t(item.i18nKey)}</span>
                   </div>
                 </Link>
               </li>
@@ -250,7 +279,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           aria-describedby={undefined}
         >
           <SheetHeader className="sr-only">
-            <SheetTitle>Navigation Menu</SheetTitle>
+            <SheetTitle>{t('nav.navigationMenu')}</SheetTitle>
           </SheetHeader>
           <MobileNavigationContent />
         </SheetContent>

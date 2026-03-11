@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,7 @@ export default function InviteClientDialog({
   defaultProjectId,
 }: InviteClientDialogProps) {
   const [open, setOpen] = useState(false);
+  const { t } = useTranslation('common');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -93,8 +95,8 @@ export default function InviteClientDialog({
           : " Invitation created (email/SMS delivery may be pending).";
 
       toast({
-        title: "Client Invited",
-        description: `${form.getValues("first_name")} has been invited to ${data.projectName}.${channelText}`,
+        title: t('inviteClient.invited'),
+        description: t('inviteClient.invitedDesc', { name: form.getValues("first_name"), project: data.projectName, channels: channelText }),
       });
       setOpen(false);
       form.reset();
@@ -102,7 +104,7 @@ export default function InviteClientDialog({
     },
     onError: (error: Error) => {
       toast({
-        title: "Invitation Failed",
+        title: t('inviteClient.failed'),
         description: error.message,
         variant: "destructive",
       });
@@ -119,18 +121,18 @@ export default function InviteClientDialog({
         {trigger || (
           <Button size="sm" className="gap-2">
             <UserPlus className="h-4 w-4" />
-            Invite Client
+            {t('inviteClient.trigger')}
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="max-w-lg" aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle>Invite Client to Project Portal</DialogTitle>
+          <DialogTitle>{t('inviteClient.dialogTitle')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="first_name">First Name *</Label>
+              <Label htmlFor="first_name">{t('inviteClient.firstName')}</Label>
               <Input
                 id="first_name"
                 placeholder="John"
@@ -144,7 +146,7 @@ export default function InviteClientDialog({
               )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="last_name">Last Name *</Label>
+              <Label htmlFor="last_name">{t('inviteClient.lastName')}</Label>
               <Input
                 id="last_name"
                 placeholder="Doe"
@@ -162,7 +164,7 @@ export default function InviteClientDialog({
           <div className="space-y-1.5">
             <Label htmlFor="email" className="flex items-center gap-1.5">
               <Mail className="h-3.5 w-3.5" />
-              Email *
+              {t('inviteClient.email')}
             </Label>
             <Input
               id="email"
@@ -181,7 +183,7 @@ export default function InviteClientDialog({
           <div className="space-y-1.5">
             <Label htmlFor="phone" className="flex items-center gap-1.5">
               <Phone className="h-3.5 w-3.5" />
-              Phone (optional)
+              {t('inviteClient.phone')}
             </Label>
             <Input
               id="phone"
@@ -196,12 +198,12 @@ export default function InviteClientDialog({
               </p>
             )}
             <p className="text-xs text-muted-foreground">
-              If provided, an SMS with a direct link will also be sent.
+              {t('inviteClient.phoneHint')}
             </p>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="project_id">Project *</Label>
+            <Label htmlFor="project_id">{t('inviteClient.project')}</Label>
             <Select
               value={form.watch("project_id")}
               onValueChange={(val) => form.setValue("project_id", val)}
@@ -209,7 +211,7 @@ export default function InviteClientDialog({
               <SelectTrigger
                 className={form.formState.errors.project_id ? "border-red-500" : ""}
               >
-                <SelectValue placeholder="Select a project" />
+                <SelectValue placeholder={t('inviteClient.selectProject')} />
               </SelectTrigger>
               <SelectContent>
                 {projects.map((project) => (
@@ -227,15 +229,15 @@ export default function InviteClientDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="welcome_note">Welcome Note (optional)</Label>
+            <Label htmlFor="welcome_note">{t('inviteClient.welcomeNote')}</Label>
             <Textarea
               id="welcome_note"
-              placeholder="Hi! We're excited to have you on board. Your dashboard is ready with all the latest updates on your project..."
+              placeholder={t('inviteClient.welcomeNotePlaceholder')}
               rows={3}
               {...form.register("welcome_note")}
             />
             <p className="text-xs text-muted-foreground">
-              This note will appear in the invitation email.
+              {t('inviteClient.welcomeNoteHint')}
             </p>
           </div>
 
@@ -245,18 +247,18 @@ export default function InviteClientDialog({
               variant="outline"
               onClick={() => setOpen(false)}
             >
-              Cancel
+              {t('inviteClient.cancel')}
             </Button>
             <Button type="submit" disabled={inviteMutation.isPending}>
               {inviteMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending Invite...
+                  {t('inviteClient.sending')}
                 </>
               ) : (
                 <>
                   <UserPlus className="mr-2 h-4 w-4" />
-                  Invite Client
+                  {t('inviteClient.trigger')}
                 </>
               )}
             </Button>

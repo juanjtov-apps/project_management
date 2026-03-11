@@ -728,6 +728,23 @@ async def get_current_user(request: Request):
             except Exception as e:
                 logger.warning(f"Error fetching company name: {e}")
 
+        # Fetch user preferences from DB
+        try:
+            pool = await get_db_pool()
+            async with pool.acquire() as conn:
+                pref_row = await conn.fetchval(
+                    "SELECT preferences FROM users WHERE id = $1",
+                    str(session_data["userId"])
+                )
+                if pref_row:
+                    prefs = pref_row if isinstance(pref_row, dict) else json.loads(pref_row) if isinstance(pref_row, str) else {}
+                    user_data["preferences"] = prefs
+                else:
+                    user_data["preferences"] = {}
+        except Exception as e:
+            logger.warning(f"Error fetching user preferences: {e}")
+            user_data["preferences"] = {}
+
         user_data["permissions"] = permissions
         
         return user_data

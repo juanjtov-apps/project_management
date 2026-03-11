@@ -94,11 +94,14 @@ class AssignTaskTool(BaseTool):
         return {
             "success": True,
             "task": {
-                "id": row["id"],
+                "id": str(row["id"]),
                 "title": row["title"],
-                "oldAssigneeId": old_assignee,
-                "newAssigneeId": row["assignee_id"],
+                "oldAssigneeId": str(old_assignee) if old_assignee else None,
+                "newAssigneeId": str(row["assignee_id"]) if row["assignee_id"] else None,
                 "assigneeName": assignee_name,
             },
             "message": msg,
+            "suggested_actions": [
+                {"label": "Go to Tasks", "navigateTo": "/work"},
+            ],
         }

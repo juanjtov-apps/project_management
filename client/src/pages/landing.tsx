@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "react-i18next";
 
 // V5 landing styles
 import "@/styles/landing.css";
@@ -29,6 +30,7 @@ export default function Landing() {
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation('landing');
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -66,7 +68,7 @@ export default function Landing() {
 
       if (result.success) {
         toast({
-          title: "Welcome to the waitlist!",
+          title: t('waitlistModal.success'),
           description: result.message,
         });
         setShowWaitlistModal(false);
@@ -76,8 +78,8 @@ export default function Landing() {
       }
     } catch (error) {
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to join waitlist. Please try again.",
+        title: t('waitlistModal.error'),
+        description: error instanceof Error ? error.message : t('waitlistModal.error'),
         variant: "destructive",
       });
     } finally {
@@ -114,44 +116,44 @@ export default function Landing() {
         >
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold" style={{ color: "#FFFFFF" }}>
-              Join the Waitlist
+              {t('waitlistModal.title')}
             </DialogTitle>
             <DialogDescription style={{ color: "#9CA3AF" }}>
-              See how Proesphere can transform your project management. We'll reach out within 24 hours.
+              {t('waitlistModal.subtitle')}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmitWaitlist} className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName" style={{ color: "#9CA3AF" }}>First Name *</Label>
-                <Input id="firstName" required value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className="border" style={{ backgroundColor: "#1F242C", borderColor: "#2D333B", color: "#FFFFFF" }} placeholder="John" />
+                <Label htmlFor="firstName" style={{ color: "#9CA3AF" }}>{t('waitlistModal.firstName')} *</Label>
+                <Input id="firstName" required value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className="border" style={{ backgroundColor: "#1F242C", borderColor: "#2D333B", color: "#FFFFFF" }} placeholder={t('waitlistModal.firstNamePlaceholder')} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName" style={{ color: "#9CA3AF" }}>Last Name *</Label>
-                <Input id="lastName" required value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="border" style={{ backgroundColor: "#1F242C", borderColor: "#2D333B", color: "#FFFFFF" }} placeholder="Smith" />
+                <Label htmlFor="lastName" style={{ color: "#9CA3AF" }}>{t('waitlistModal.lastName')} *</Label>
+                <Input id="lastName" required value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="border" style={{ backgroundColor: "#1F242C", borderColor: "#2D333B", color: "#FFFFFF" }} placeholder={t('waitlistModal.lastNamePlaceholder')} />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email" style={{ color: "#9CA3AF" }}>Email *</Label>
-              <Input id="email" type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="border" style={{ backgroundColor: "#1F242C", borderColor: "#2D333B", color: "#FFFFFF" }} placeholder="john@company.com" />
+              <Label htmlFor="email" style={{ color: "#9CA3AF" }}>{t('waitlistModal.email')} *</Label>
+              <Input id="email" type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="border" style={{ backgroundColor: "#1F242C", borderColor: "#2D333B", color: "#FFFFFF" }} placeholder={t('waitlistModal.emailPlaceholder')} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="company" style={{ color: "#9CA3AF" }}>Company</Label>
-                <Input id="company" value={formData.company} onChange={(e) => setFormData({ ...formData, company: e.target.value })} className="border" style={{ backgroundColor: "#1F242C", borderColor: "#2D333B", color: "#FFFFFF" }} placeholder="Acme Construction" />
+                <Label htmlFor="company" style={{ color: "#9CA3AF" }}>{t('waitlistModal.company')}</Label>
+                <Input id="company" value={formData.company} onChange={(e) => setFormData({ ...formData, company: e.target.value })} className="border" style={{ backgroundColor: "#1F242C", borderColor: "#2D333B", color: "#FFFFFF" }} placeholder={t('waitlistModal.companyPlaceholder')} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="role" style={{ color: "#9CA3AF" }}>Role</Label>
-                <Input id="role" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="border" style={{ backgroundColor: "#1F242C", borderColor: "#2D333B", color: "#FFFFFF" }} placeholder="Project Manager" />
+                <Label htmlFor="role" style={{ color: "#9CA3AF" }}>{t('waitlistModal.role')}</Label>
+                <Input id="role" value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="border" style={{ backgroundColor: "#1F242C", borderColor: "#2D333B", color: "#FFFFFF" }} placeholder={t('waitlistModal.rolePlaceholder')} />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone" style={{ color: "#9CA3AF" }}>Phone</Label>
-              <Input id="phone" type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="border" style={{ backgroundColor: "#1F242C", borderColor: "#2D333B", color: "#FFFFFF" }} placeholder="+1 (555) 000-0000" />
+              <Label htmlFor="phone" style={{ color: "#9CA3AF" }}>{t('waitlistModal.phone')}</Label>
+              <Input id="phone" type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="border" style={{ backgroundColor: "#1F242C", borderColor: "#2D333B", color: "#FFFFFF" }} placeholder={t('waitlistModal.phonePlaceholder')} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="message" style={{ color: "#9CA3AF" }}>How can Proesphere help you?</Label>
-              <Textarea id="message" value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} className="border resize-none" style={{ backgroundColor: "#1F242C", borderColor: "#2D333B", color: "#FFFFFF" }} placeholder="Tell us about your construction management needs..." rows={3} />
+              <Label htmlFor="message" style={{ color: "#9CA3AF" }}>{t('waitlistModal.messageLabel')}</Label>
+              <Textarea id="message" value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} className="border resize-none" style={{ backgroundColor: "#1F242C", borderColor: "#2D333B", color: "#FFFFFF" }} placeholder={t('waitlistModal.messagePlaceholder')} rows={3} />
             </div>
             <Button
               type="submit"
@@ -159,7 +161,7 @@ export default function Landing() {
               className="w-full font-semibold py-3 rounded-lg transition-all duration-300"
               style={{ backgroundColor: "#4ADE80", color: "#0F1115" }}
             >
-              {isSubmitting ? "Submitting..." : "Join the Waitlist"}
+              {isSubmitting ? "..." : t('waitlistModal.submit')}
             </Button>
           </form>
         </DialogContent>

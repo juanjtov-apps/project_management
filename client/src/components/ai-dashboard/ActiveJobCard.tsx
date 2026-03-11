@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { useTranslation } from 'react-i18next';
+import i18n from "@/i18n";
 
 interface ActiveJobCardProps {
   project: {
@@ -23,13 +25,13 @@ const STATUS_COLORS: Record<string, string> = {
   completed: "#4ADE80",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  active: "On Track",
-  "on-track": "On Track",
-  "at-risk": "At Risk",
-  "on-hold": "On Hold",
-  delayed: "Delayed",
-  completed: "Done",
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  active: "jobCard.onTrack",
+  "on-track": "jobCard.onTrack",
+  "at-risk": "jobCard.atRisk",
+  "on-hold": "jobCard.onHold",
+  delayed: "jobCard.delayed",
+  completed: "jobCard.done",
 };
 
 function deriveDisplayStatus(status: string, dueDate?: string): string {
@@ -41,29 +43,31 @@ function deriveDisplayStatus(status: string, dueDate?: string): string {
   return status;
 }
 
-function formatDueDate(dueDate?: string): { text: string; isOverdue: boolean } | null {
+function formatDueDate(dueDate: string | undefined, t: (key: string, opts?: Record<string, unknown>) => string): { text: string; isOverdue: boolean } | null {
   if (!dueDate) return null;
   const due = new Date(dueDate);
   const now = new Date();
   const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
   if (diffDays < 0) {
-    return { text: `${Math.abs(diffDays)}d behind`, isOverdue: true };
+    return { text: t('jobCard.daysBehind', { count: Math.abs(diffDays) }), isOverdue: true };
   }
   return {
-    text: due.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    text: due.toLocaleDateString(i18n.language === "es" ? "es" : "en-US", { month: "short", day: "numeric" }),
     isOverdue: false,
   };
 }
 
 export default function ActiveJobCard({ project, onProjectClick }: ActiveJobCardProps) {
+  const { t } = useTranslation('dashboard');
   const displayStatus = useMemo(
     () => deriveDisplayStatus(project.status, project.dueDate),
     [project.status, project.dueDate]
   );
   const statusColor = STATUS_COLORS[displayStatus] || "#9CA3AF";
-  const statusLabel = STATUS_LABELS[displayStatus] || displayStatus;
-  const dueDateInfo = useMemo(() => formatDueDate(project.dueDate), [project.dueDate]);
+  const statusLabelKey = STATUS_LABEL_KEYS[displayStatus];
+  const statusLabel = statusLabelKey ? t(statusLabelKey) : displayStatus;
+  const dueDateInfo = useMemo(() => formatDueDate(project.dueDate, t), [project.dueDate, t]);
 
   return (
     <button

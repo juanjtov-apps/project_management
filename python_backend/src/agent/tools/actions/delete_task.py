@@ -72,10 +72,13 @@ class DeleteTaskTool(BaseTool):
         return {
             "success": True,
             "deleted": {
-                "id": task["id"],
+                "id": str(task["id"]),
                 "title": task["title"],
                 "status": task["status"],
                 "projectName": task["project_name"],
             },
             "message": f"Task '{task['title']}' deleted from {task['project_name']}",
+            "suggested_actions": [
+                {"label": "Go to Tasks", "navigateTo": "/work"},
+            ],
         }

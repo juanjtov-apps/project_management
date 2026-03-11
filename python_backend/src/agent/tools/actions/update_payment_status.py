@@ -64,7 +64,7 @@ class UpdatePaymentStatusTool(BaseTool):
         # Verify installment belongs to a project in this company
         installment = await db_manager.execute_one(
             """SELECT pi.id, pi.name, pi.status, pi.amount, pi.due_date,
-                      p.name as project_name
+                      pi.project_id, p.name as project_name
                FROM client_portal.payment_installments pi
                JOIN projects p ON p.id = pi.project_id
                WHERE pi.id = $1::uuid AND p.company_id = $2""",
@@ -95,4 +95,7 @@ class UpdatePaymentStatusTool(BaseTool):
                 "projectName": installment["project_name"],
             },
             "message": f"Payment '{row['name']}' ({float(row['amount']):,.2f}) updated: {old_status} → {new_status}",
+            "suggested_actions": [
+                {"label": "View Payments", "navigateTo": f"/client-portal?projectId={installment['project_id']}"},
+            ],
         }

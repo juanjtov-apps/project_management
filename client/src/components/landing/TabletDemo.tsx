@@ -1,4 +1,8 @@
+import { useTranslation } from "react-i18next";
+
 export function TabletDemo() {
+  const { t } = useTranslation('landing');
+
   return (
     <div className="hero-demo">
       <div className="tablet-wrap">
@@ -6,9 +10,9 @@ export function TabletDemo() {
 
         {/* Floating chips above tablet */}
         <div className="tab-chips">
-          <div className="chip"><span className="cd cdm" />3 projects on track</div>
-          <div className="chip"><span className="cd" style={{ background: 'rgba(237,232,223,0.25)' }} />Budget alert &middot; Metro Office</div>
-          <div className="chip"><span className="cd cdm" />$284K revenue MTD</div>
+          <div className="chip"><span className="cd cdm" />{t('tablet.chipsOnTrack')}</div>
+          <div className="chip"><span className="cd" style={{ background: 'rgba(237,232,223,0.25)' }} />{t('tablet.chipsBudgetAlert')}</div>
+          <div className="chip"><span className="cd cdm" />{t('tablet.chipsRevenue')}</div>
         </div>
 
         <div className="tablet">
@@ -44,35 +48,35 @@ export function TabletDemo() {
             <div className="tab-main">
               {/* Morning briefing header */}
               <div className="brf-head">
-                <div className="brf-badge"><span className="brf-bdot" />Morning Briefing</div>
-                <div className="brf-date">Wed, Mar 4 &middot; 7:14 AM</div>
+                <div className="brf-badge"><span className="brf-bdot" />{t('tablet.morningBriefing')}</div>
+                <div className="brf-date">{t('tablet.briefingDate')}</div>
               </div>
               <div className="brf-body">
                 <div className="brf-text">
-                  <strong style={{ color: 'rgba(237,232,223,0.85)' }}>6 active jobs</strong> today.{' '}
-                  <span className="hi-r">Harbor View 4 days behind</span> — framing crew unconfirmed.
-                  Oak Ave window closing tomorrow.{' '}
-                  <span className="hi-a">$8,400 overdue &middot; Martinez.</span>{' '}
-                  <span className="hi-m">Pine Ct ready for inspection.</span>
+                  <strong style={{ color: 'rgba(237,232,223,0.85)' }}>{t('tablet.activeJobs')}</strong> {t('tablet.activeJobsToday')}{' '}
+                  <span className="hi-r">{t('tablet.harborViewBehind')}</span> {t('tablet.framingCrewUnconfirmed')}
+                  {' '}{t('tablet.oakAveWindow')}{' '}
+                  <span className="hi-a">{t('tablet.overdueAmount')}</span>{' '}
+                  <span className="hi-m">{t('tablet.pineCtInspection')}</span>
                 </div>
                 <div className="brf-chips">
-                  <div className="brf-chip rose"><span className="cc">{"\u2726"}</span>Harbor View — 4 days behind</div>
-                  <div className="brf-chip"><span className="cc">{"\u2726"}</span>Oak Ave delivery unconfirmed</div>
-                  <div className="brf-chip rose"><span className="cc">{"\u2726"}</span>$8,400 overdue</div>
-                  <div className="brf-chip"><span className="cc">{"\u2726"}</span>Schedule inspection</div>
+                  <div className="brf-chip rose"><span className="cc">{"\u2726"}</span>{t('tablet.chipHarborView')}</div>
+                  <div className="brf-chip"><span className="cc">{"\u2726"}</span>{t('tablet.chipOakAve')}</div>
+                  <div className="brf-chip rose"><span className="cc">{"\u2726"}</span>{t('tablet.chipOverdue')}</div>
+                  <div className="brf-chip"><span className="cc">{"\u2726"}</span>{t('tablet.chipInspection')}</div>
                 </div>
               </div>
 
               {/* Conversation divider */}
-              <div className="conv-div"><span>Conversation</span></div>
+              <div className="conv-div"><span>{t('tablet.conversation')}</span></div>
 
               {/* Proe header */}
               <div className="proe-row">
                 <div className="proe-name">
                   <div className="proe-ico">{"\u2726"}</div>
-                  <div className="proe-lbl">Proe</div>
+                  <div className="proe-lbl">{t('tablet.proe')}</div>
                 </div>
-                <div className="proe-active">Active</div>
+                <div className="proe-active">{t('tablet.active')}</div>
               </div>
 
               {/* Animated frames */}
@@ -87,8 +91,8 @@ export function TabletDemo() {
                         <div className="v-b" /><div className="v-b" /><div className="v-b" /><div className="v-b" />
                       </div>
                     </div>
-                    <div className="v-status">Analyzing intent&hellip;</div>
-                    <div className="v-quote">&ldquo;Delay the foundation pour at Riverdale by two days due to rain. Notify the sub.&rdquo;</div>
+                    <div className="v-status">{t('tablet.analyzingIntent')}</div>
+                    <div className="v-quote">&ldquo;{t('tablet.voiceQuote')}&rdquo;</div>
                   </div>
                 </div>
 
@@ -96,20 +100,20 @@ export function TabletDemo() {
                 <div className="tf tf-2">
                   <div className="proe-bubble">PROE</div>
                   <div className="proe-msg">
-                    <p>Done. <strong>Riverdale foundation pour moved to Mar 17.</strong> Apex Builders notified via magic link. Client portal updated with delay notice.</p>
+                    <p><strong>{t('tablet.frame2Done')}</strong> {t('tablet.frame2Msg')}</p>
                   </div>
                   <div className="wf-tags">
-                    <div className="wf-tag">PROJECT: <strong>Riverdale</strong></div>
-                    <div className="wf-tag">SUB: <strong>Apex Builders</strong></div>
-                    <div className="wf-tag">DELAY: <strong>+2 days</strong></div>
+                    <div className="wf-tag">{t('tablet.tagProject')} <strong>Riverdale</strong></div>
+                    <div className="wf-tag">{t('tablet.tagSub')} <strong>Apex Builders</strong></div>
+                    <div className="wf-tag">{t('tablet.tagDelay')} <strong>{t('tablet.delayValue')}</strong></div>
                   </div>
                   <div className="wf-confirm">
                     <div className="wf-conf-ico">&#x1F4C5;</div>
                     <div className="wf-conf-text">
-                      <div className="wf-conf-title">Schedule Update #047 — Riverdale</div>
-                      <div className="wf-conf-sub">Foundation pour &rarr; Mar 17 &middot; Magic link &rarr; Apex Builders &middot; Portal updated</div>
+                      <div className="wf-conf-title">{t('tablet.scheduleUpdateTitle')}</div>
+                      <div className="wf-conf-sub">{t('tablet.scheduleUpdateDetail')}</div>
                     </div>
-                    <div className="wf-conf-ok">&#x2713; Done</div>
+                    <div className="wf-conf-ok">&#x2713; {t('tablet.done')}</div>
                   </div>
                 </div>
 
@@ -119,34 +123,34 @@ export function TabletDemo() {
                   <div className="cascade-grid">
                     <div className="cg-item">
                       <div className="cg-ico cg-m">&#x1F4C5;</div>
-                      <div><div className="cg-ti">Schedule updated</div><div className="cg-su">Foundation pour &rarr; Mar 17</div></div>
+                      <div><div className="cg-ti">{t('tablet.cascadeSchedule')}</div><div className="cg-su">{t('tablet.cascadeScheduleSub')}</div></div>
                       <div className="cg-ok cg-ok-m">&#x2713;</div>
                     </div>
                     <div className="cg-item">
                       <div className="cg-ico cg-m">&#x1F517;</div>
-                      <div><div className="cg-ti">Sub notified</div><div className="cg-su">Magic link &rarr; Apex Builders</div></div>
+                      <div><div className="cg-ti">{t('tablet.cascadeSubNotified')}</div><div className="cg-su">{t('tablet.cascadeSubSub')}</div></div>
                       <div className="cg-ok cg-ok-m">&#x2713;</div>
                     </div>
                     <div className="cg-item">
                       <div className="cg-ico cg-m">&#x1F465;</div>
-                      <div><div className="cg-ti">Client portal updated</div><div className="cg-su">Delay notice &rarr; Johnson &amp; Assoc.</div></div>
+                      <div><div className="cg-ti">{t('tablet.cascadePortal')}</div><div className="cg-su">{t('tablet.cascadePortalSub')}</div></div>
                       <div className="cg-ok cg-ok-m">&#x2713;</div>
                     </div>
                     <div className="cg-item">
                       <div className="cg-ico cg-a">&#x1F327;</div>
-                      <div><div className="cg-ti">AI suggests</div><div className="cg-su">2 more weather-risk tasks</div></div>
+                      <div><div className="cg-ti">{t('tablet.cascadeAI')}</div><div className="cg-su">{t('tablet.cascadeAISub')}</div></div>
                       <div className="cg-ok cg-ok-m">&rarr;</div>
                     </div>
                   </div>
-                  <div className="casc-foot">3 actions &middot; 4 seconds</div>
+                  <div className="casc-foot">{t('tablet.cascadeFoot')}</div>
                 </div>
               </div>
 
               {/* Chat input */}
               <div className="tab-input">
-                <div className="tab-drop">Drop: <span>invoice, permit, contract</span> — Proe fills automatically</div>
+                <div className="tab-drop">{t('tablet.dropLabel')} <span>{t('tablet.dropItems')}</span> {t('tablet.dropAuto')}</div>
                 <div className="tab-input-row">
-                  <div className="tab-input-field">Tell Proe anything&hellip;</div>
+                  <div className="tab-input-field">{t('tablet.inputPlaceholder')}</div>
                   <div className="tab-mic">&#x1F399;</div>
                   <div className="tab-send">&rarr;</div>
                 </div>
@@ -156,14 +160,14 @@ export function TabletDemo() {
             {/* Right panel: Active Jobs */}
             <div className="tab-jobs">
               <div className="tab-jobs-head">
-                <div className="tj-title">Active Jobs</div>
-                <div className="tj-view">View all &rarr;</div>
+                <div className="tj-title">{t('tablet.activeJobsTitle')}</div>
+                <div className="tj-view">{t('tablet.viewAll')}</div>
               </div>
               <div className="tab-jobs-scroll">
-                <JobCard icon="&#x1F3E0;" name="Maple St Renovation" status="ON TRACK" statusClass="st-ok" pct={68} fillColor="var(--mint)" aiText="Electrical sub confirmed Monday. Schedule drywall this week." />
-                <JobCard icon="&#x1F528;" name="Oak Ave Addition" status="AT RISK" statusClass="st-risk" pct={41} fillColor="rgba(0,194,120,0.45)" aiText="No lumber confirmation. Framing week at risk." />
-                <JobCard icon="&#x1F3D7;" name="Harbor View Build" status="DELAYED" statusClass="st-del" pct={22} fillColor="rgba(0,194,120,0.25)" aiText="Crew unconfirmed. Permit buffer at risk by Apr 3." updating />
-                <JobCard icon="&#x1F373;" name="Pine Ct Kitchen" status="NEARLY DONE" statusClass="st-done" pct={89} fillColor="var(--mint)" aiText="All checks passed. Thu 10am slot available." />
+                <JobCard icon="&#x1F3E0;" name={t('tablet.job1Name')} status={t('tablet.job1Status')} statusClass="st-ok" pct={68} fillColor="var(--mint)" aiText={t('tablet.job1AI')} />
+                <JobCard icon="&#x1F528;" name={t('tablet.job2Name')} status={t('tablet.job2Status')} statusClass="st-risk" pct={41} fillColor="rgba(0,194,120,0.45)" aiText={t('tablet.job2AI')} />
+                <JobCard icon="&#x1F3D7;" name={t('tablet.job3Name')} status={t('tablet.job3Status')} statusClass="st-del" pct={22} fillColor="rgba(0,194,120,0.25)" aiText={t('tablet.job3AI')} updating />
+                <JobCard icon="&#x1F373;" name={t('tablet.job4Name')} status={t('tablet.job4Status')} statusClass="st-done" pct={89} fillColor="var(--mint)" aiText={t('tablet.job4AI')} />
               </div>
             </div>
           </div>

@@ -1,52 +1,49 @@
 import { useState, useEffect } from "react";
 import Joyride, { Step, CallBackProps, STATUS } from "react-joyride";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { apiRequest } from "@/lib/queryClient";
-
-const TOUR_STEPS: Step[] = [
-  {
-    target: '[data-tour="stages-tab"]',
-    title: "Project Progress",
-    content:
-      "Track your project timeline and milestones here. See each stage of work and its current status.",
-    disableBeacon: true,
-  },
-  {
-    target: '[data-tour="issues-tab"]',
-    title: "Issues & Approvals",
-    content:
-      "Report issues, request changes, or approve selections directly from this tab.",
-    disableBeacon: true,
-  },
-  {
-    target: '[data-tour="forum-tab"]',
-    title: "Communication",
-    content:
-      "Message your project manager anytime. Ask questions, share feedback, or get updates.",
-    disableBeacon: true,
-  },
-  {
-    target: '[data-tour="materials-tab"]',
-    title: "Materials",
-    content:
-      "View and collaborate on material selections for your project. Add specs, vendors, and links.",
-    disableBeacon: true,
-  },
-  {
-    target: '[data-tour="installments-tab"]',
-    title: "Payments",
-    content:
-      "View your payment schedule and upload proof of payments for each installment.",
-    disableBeacon: true,
-  },
-];
 
 interface ClientTourProps {
   forceShow?: boolean;
 }
 
 export default function ClientTour({ forceShow }: ClientTourProps) {
+  const { t } = useTranslation('common');
   const [run, setRun] = useState(false);
+
+  const TOUR_STEPS: Step[] = [
+    {
+      target: '[data-tour="stages-tab"]',
+      title: t('tour.stagesTitle'),
+      content: t('tour.stagesContent'),
+      disableBeacon: true,
+    },
+    {
+      target: '[data-tour="issues-tab"]',
+      title: t('tour.issuesTitle'),
+      content: t('tour.issuesContent'),
+      disableBeacon: true,
+    },
+    {
+      target: '[data-tour="forum-tab"]',
+      title: t('tour.forumTitle'),
+      content: t('tour.forumContent'),
+      disableBeacon: true,
+    },
+    {
+      target: '[data-tour="materials-tab"]',
+      title: t('tour.materialsTitle'),
+      content: t('tour.materialsContent'),
+      disableBeacon: true,
+    },
+    {
+      target: '[data-tour="installments-tab"]',
+      title: t('tour.paymentsTitle'),
+      content: t('tour.paymentsContent'),
+      disableBeacon: true,
+    },
+  ];
 
   const { data: invitationStatus } = useQuery<{
     hasInvitation: boolean;
@@ -112,11 +109,11 @@ export default function ClientTour({ forceShow }: ClientTourProps) {
         },
       }}
       locale={{
-        back: "Back",
-        close: "Close",
-        last: "Got it!",
-        next: "Next",
-        skip: "Skip tour",
+        back: t('tour.back'),
+        close: t('tour.close'),
+        last: t('tour.gotIt'),
+        next: t('tour.next'),
+        skip: t('tour.skipTour'),
       }}
     />
   );

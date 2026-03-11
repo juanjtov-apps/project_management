@@ -7,6 +7,7 @@ from typing import Dict, Any, List
 from datetime import datetime
 
 from ..base_tool import BaseTool
+from ..security import resolve_project_or_error
 from ...models.agent_models import SafetyLevel
 from src.database.connection import db_manager
 
@@ -31,11 +32,18 @@ class CreateStageTool(BaseTool):
             "properties": {
                 "project_id": {
                     "type": "string",
-                    "description": "The project ID to add the stage to",
+                    "description": "The project ID (UUID) or project name",
                 },
                 "name": {
                     "type": "string",
                     "description": "Stage name (e.g., 'Framing', 'Rough Plumbing')",
+                },
+                "order_index": {
+                    "type": "integer",
+                    "description": (
+                        "Position to insert the stage at (0-based). Existing stages at "
+                        "and after this position shift down. Omit to append at the end."
+                    ),
                 },
                 "planned_start_date": {
                     "type": "string",
@@ -72,23 +80,30 @@ class CreateStageTool(BaseTool):
     ) -> Dict[str, Any]:
         company_id = context.get("company_id")
         user_id = context.get("user_id")
-        project_id = params["project_id"]
         name = params["name"]
 
-        # Verify project belongs to company
-        verify = await db_manager.execute_one(
-            "SELECT id, name FROM projects WHERE id = $1 AND company_id = $2",
-            project_id, company_id,
-        )
-        if not verify:
-            return {"error": "Project not found or access denied"}
+        # Resolve project by UUID or name
+        verify, err = await resolve_project_or_error(params["project_id"], company_id)
+        if err:
+            return err
+        project_id = str(verify["id"])
 
-        # Get next order_index
-        max_order = await db_manager.execute_one(
-            "SELECT COALESCE(MAX(order_index), -1) as max_idx FROM client_portal.project_stages WHERE project_id = $1",
-            project_id,
-        )
-        next_order = max_order["max_idx"] + 1
+        # Determine order_index
+        if params.get("order_index") is not None:
+            next_order = params["order_index"]
+            # Shift existing stages down to make room
+            await db_manager.execute_one(
+                "UPDATE client_portal.project_stages SET order_index = order_index + 1 "
+                "WHERE project_id = $1 AND order_index >= $2",
+                project_id, next_order,
+            )
+        else:
+            # Append at end
+            max_order = await db_manager.execute_one(
+                "SELECT COALESCE(MAX(order_index), -1) as max_idx FROM client_portal.project_stages WHERE project_id = $1",
+                project_id,
+            )
+            next_order = max_order["max_idx"] + 1
 
         # Parse dates
         def parse_date(date_str):
@@ -132,4 +147,8 @@ class CreateStageTool(BaseTool):
                 "projectName": verify["name"],
             },
             "message": f"Stage '{name}' added to {verify['name']} at position {next_order}",
+            "suggested_actions": [
+                {"label": "View Stages", "navigateTo": f"/client-portal?projectId={project_id}"},
+                {"label": "Create Another", "prompt": "Create another stage for this project"},
+            ],
         }

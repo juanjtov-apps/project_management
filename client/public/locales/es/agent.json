@@ -1,0 +1,42 @@
+{
+  "title": "Asistente Proesphere",
+  "thinking": "Pensando...",
+  "ready": "Listo para ayudar",
+  "newConversation": "Nueva conversación",
+  "closeAssistant": "Cerrar asistente",
+  "inputPlaceholder": "Pregúntame cualquier cosa sobre tus proyectos...",
+  "inputHint": "Presiona Enter para enviar, Shift+Enter para nueva línea",
+  "confirmationRequired": "Confirmación Requerida",
+
+  "welcome.title": "¿Cómo puedo ayudarte hoy?",
+  "welcome.subtitle": "Pregúntame sobre tus proyectos, tareas, etapas o materiales. Puedo ayudarte a obtener actualizaciones de estado, encontrar información y más.",
+  "welcome.suggestion1": "Muestra mis proyectos activos",
+  "welcome.suggestion2": "¿Qué tareas vencen esta semana?",
+  "welcome.suggestion3": "Resumen del estado de proyectos",
+
+  "feedback.whatImproved": "¿Qué se podría mejorar?",
+  "feedback.placeholder": "Comentarios opcionales...",
+  "feedback.thanks": "¡Gracias!",
+  "feedback.good": "Buena respuesta",
+  "feedback.needsImprovement": "Necesita mejorar",
+
+  "tools.fetchingProjects": "Obteniendo proyectos",
+  "tools.gettingDetails": "Obteniendo detalles del proyecto",
+  "tools.loadingStages": "Cargando etapas",
+  "tools.fetchingTasks": "Obteniendo tareas",
+  "tools.loadingMaterials": "Cargando materiales",
+  "tools.fetchingIssues": "Obteniendo problemas",
+  "tools.fetchingPayments": "Obteniendo cuotas de pago",
+  "tools.queryingDatabase": "Consultando base de datos",
+  "tools.creatingTask": "Creando tarea",
+  "tools.completingTask": "Completando tarea",
+  "tools.creatingStage": "Creando etapa",
+  "tools.creatingLog": "Creando registro diario",
+  "tools.updatingMaterial": "Actualizando material",
+  "tools.completed": "completado",
+  "tools.failed": "fallido",
+
+  "actionButtons.done": "Listo",
+
+  "drawer.title": "Asistente IA"
+}

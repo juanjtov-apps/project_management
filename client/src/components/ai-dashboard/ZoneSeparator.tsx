@@ -1,4 +1,7 @@
+import { useTranslation } from 'react-i18next';
+
 export default function ZoneSeparator() {
+  const { t } = useTranslation('dashboard');
   return (
     <div
       className="flex items-center justify-center shrink-0"
@@ -25,7 +28,7 @@ export default function ZoneSeparator() {
           color: "#9CA3AF",
         }}
       >
-        CONVERSATION
+        {t('chat.conversation')}
       </span>
     </div>
   );

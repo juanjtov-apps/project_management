@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,7 @@ interface SubProject {
 }
 
 export default function SubPortal() {
+  const { t } = useTranslation('subPortal');
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("tasks");
   const { user } = useAuth();
@@ -95,25 +97,25 @@ export default function SubPortal() {
   const tabItems = [
     {
       value: "tasks",
-      label: "Tasks",
+      label: t('tabs.tasks'),
       icon: ClipboardList,
       color: "text-[var(--pro-blue)]",
     },
     {
       value: "schedule",
-      label: "Schedule",
+      label: t('tabs.schedule'),
       icon: CalendarDays,
       color: "text-amber-400",
     },
     {
       value: "payments",
-      label: "Payments",
+      label: t('tabs.payments'),
       icon: DollarSign,
       color: "text-[var(--pro-mint)]",
     },
     {
       value: "profile",
-      label: "Profile",
+      label: t('tabs.profile'),
       icon: UserCircle,
       color: "text-[var(--pro-purple)]",
     },
@@ -127,11 +129,11 @@ export default function SubPortal() {
           <div className="flex items-center gap-2">
             <HardHat className="h-6 w-6 sm:h-7 sm:w-7 text-[var(--pro-mint)]" />
             <h1 className="text-2xl sm:text-3xl font-bold text-[var(--pro-text-primary)]">
-              Sub Portal
+              {t('title')}
             </h1>
           </div>
           <p className="text-[var(--pro-text-secondary)] mt-1">
-            Manage your tasks, schedule, and payments
+            {t('subtitle')}
           </p>
         </div>
 
@@ -140,7 +142,7 @@ export default function SubPortal() {
           {projectsLoading ? (
             <div className="flex items-center gap-2 px-4 py-2 bg-[var(--pro-surface)] rounded-lg border border-[var(--pro-border)]">
               <Building className="h-4 w-4 text-[var(--pro-text-secondary)] animate-pulse" />
-              <span className="text-[var(--pro-text-secondary)]">Loading projects...</span>
+              <span className="text-[var(--pro-text-secondary)]">{t('loadingProjects')}</span>
             </div>
           ) : projects.length === 1 ? (
             <div className="flex items-center gap-2 px-4 py-2 bg-[var(--pro-surface)] rounded-lg border border-[var(--pro-border)]">
@@ -159,7 +161,7 @@ export default function SubPortal() {
               <SelectTrigger className="w-full">
                 <div className="flex items-center gap-2">
                   <Building className="h-4 w-4 shrink-0" />
-                  <SelectValue placeholder="Select a project" />
+                  <SelectValue placeholder={t('selectProject')} />
                 </div>
               </SelectTrigger>
               <SelectContent>
@@ -185,10 +187,10 @@ export default function SubPortal() {
             <div className="text-center py-12">
               <HardHat className="h-16 w-16 mx-auto text-[var(--pro-text-muted)] mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-[var(--pro-text-primary)]">
-                Select a Project
+                {t('selectProject')}
               </h3>
               <p className="text-[var(--pro-text-secondary)]">
-                Choose a project to view your tasks, schedule, payments, and profile.
+                {t('selectProjectDesc')}
               </p>
             </div>
           </CardContent>
@@ -202,6 +204,7 @@ export default function SubPortal() {
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
+                  data-tour={`sub-${tab.value}-tab`}
                   className="flex items-center gap-2 min-h-[44px]"
                 >
                   <Icon className={`h-4 w-4 ${tab.color}`} />

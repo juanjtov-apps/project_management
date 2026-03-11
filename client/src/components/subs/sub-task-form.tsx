@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -99,10 +100,10 @@ interface SubTaskFormProps {
   editingTask?: ExistingTask | null;
 }
 
-const itemTypeLabels: Record<ChecklistItemDraft["itemType"], string> = {
-  standard: "Standard",
-  doc_required: "Doc Required",
-  inspection: "Inspection",
+const itemTypeKeys: Record<ChecklistItemDraft["itemType"], string> = {
+  standard: "subs.standard",
+  doc_required: "subs.docRequired",
+  inspection: "subs.inspection",
 };
 
 const itemTypeBadgeClass: Record<ChecklistItemDraft["itemType"], string> = {
@@ -118,6 +119,7 @@ export function SubTaskForm({
   prefilledAssignedTo,
   editingTask,
 }: SubTaskFormProps) {
+  const { t } = useTranslation('common');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEditing = !!editingTask;
@@ -283,12 +285,12 @@ export function SubTaskForm({
       queryClient.invalidateQueries({
         queryKey: ["/api/v1/sub/reviews/queue"],
       });
-      toast({ title: "Task created" });
+      toast({ title: t('subs.taskCreated') });
       onOpenChange(false);
     },
     onError: (error: Error) => {
       toast({
-        title: "Failed to create task",
+        title: t('subs.failedCreateTask'),
         description: error.message,
         variant: "destructive",
       });
@@ -322,12 +324,12 @@ export function SubTaskForm({
       queryClient.invalidateQueries({
         queryKey: ["/api/v1/sub/reviews/queue"],
       });
-      toast({ title: "Task updated" });
+      toast({ title: t('subs.taskUpdated') });
       onOpenChange(false);
     },
     onError: (error: Error) => {
       toast({
-        title: "Failed to update task",
+        title: t('subs.failedUpdateTask'),
         description: error.message,
         variant: "destructive",
       });
@@ -400,7 +402,7 @@ export function SubTaskForm({
         })),
       },
     ]);
-    toast({ title: `Template "${template.name}" applied` });
+    toast({ title: t('subs.templateApplied', { name: template.name }) });
   }
 
   function onSubmit(data: TaskFormData) {
@@ -421,7 +423,7 @@ export function SubTaskForm({
       >
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? "Edit Sub Task" : "Create Sub Task"}
+            {isEditing ? t('subs.editSubTask') : t('subs.createSubTask')}
           </DialogTitle>
         </DialogHeader>
 
@@ -431,10 +433,10 @@ export function SubTaskForm({
         >
           {/* Task Name */}
           <div className="space-y-1.5">
-            <Label htmlFor="task-name">Task Name *</Label>
+            <Label htmlFor="task-name">{t('subs.taskName')}</Label>
             <Input
               id="task-name"
-              placeholder="e.g. Install electrical panels"
+              placeholder={t('subs.egInstallPanels')}
               {...form.register("name")}
               className={
                 form.formState.errors.name ? "border-red-500" : ""
@@ -449,10 +451,10 @@ export function SubTaskForm({
 
           {/* Description */}
           <div className="space-y-1.5">
-            <Label htmlFor="task-desc">Description</Label>
+            <Label htmlFor="task-desc">{t('subs.description')}</Label>
             <Textarea
               id="task-desc"
-              placeholder="Brief description..."
+              placeholder={t('subs.briefDescription')}
               rows={3}
               {...form.register("description")}
             />
@@ -461,7 +463,7 @@ export function SubTaskForm({
           {/* Priority & Location */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Priority</Label>
+              <Label>{t('table.priority')}</Label>
               <Controller
                 name="priority"
                 control={form.control}
@@ -474,20 +476,20 @@ export function SubTaskForm({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="urgent">Urgent</SelectItem>
+                      <SelectItem value="low">{t('priority.low')}</SelectItem>
+                      <SelectItem value="medium">{t('priority.medium')}</SelectItem>
+                      <SelectItem value="high">{t('priority.high')}</SelectItem>
+                      <SelectItem value="urgent">{t('subs.urgent')}</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="task-location">Location Tag</Label>
+              <Label htmlFor="task-location">{t('subs.locationTag')}</Label>
               <Input
                 id="task-location"
-                placeholder="e.g. Building A, Floor 2"
+                placeholder={t('subs.egBuildingAFloor2')}
                 {...form.register("locationTag")}
               />
             </div>
@@ -498,7 +500,7 @@ export function SubTaskForm({
             <div className="space-y-1.5">
               <Label htmlFor="task-start">
                 <CalendarDays className="h-3.5 w-3.5 inline mr-1" />
-                Start Date
+                {t('subs.startDate')}
               </Label>
               <Input
                 id="task-start"
@@ -509,7 +511,7 @@ export function SubTaskForm({
             <div className="space-y-1.5">
               <Label htmlFor="task-end">
                 <CalendarDays className="h-3.5 w-3.5 inline mr-1" />
-                End Date
+                {t('subs.endDate')}
               </Label>
               <Input
                 id="task-end"
@@ -521,7 +523,7 @@ export function SubTaskForm({
 
           {/* Assignment */}
           <div className="space-y-1.5">
-            <Label>Assign to Sub Company *</Label>
+            <Label>{t('subs.assignToSubCompany')}</Label>
             <Controller
               name="assignedTo"
               control={form.control}
@@ -538,7 +540,7 @@ export function SubTaskForm({
                         : ""
                     }
                   >
-                    <SelectValue placeholder="Select sub company" />
+                    <SelectValue placeholder={t('subs.selectSubCompany')} />
                   </SelectTrigger>
                   <SelectContent>
                     {subCompanies.map((company) => (
@@ -565,16 +567,16 @@ export function SubTaskForm({
           {/* Payment Milestone (optional, only for creation) */}
           {!isEditing && milestones.length > 0 && (
             <div className="space-y-1.5">
-              <Label>Link to Payment Milestone (optional)</Label>
+              <Label>{t('subs.linkToMilestone')}</Label>
               <Select
                 value={selectedMilestoneId || "none"}
                 onValueChange={(val) => setSelectedMilestoneId(val === "none" ? "" : val)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="No milestone" />
+                  <SelectValue placeholder={t('subs.noMilestone')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No milestone</SelectItem>
+                  <SelectItem value="none">{t('subs.noMilestone')}</SelectItem>
                   {milestones
                     .filter((m) => m.status === "pending")
                     .map((m) => (
@@ -594,19 +596,19 @@ export function SubTaskForm({
               <div className="flex items-center justify-between">
                 <Label className="text-base flex items-center gap-2">
                   <ClipboardList className="h-4 w-4 text-[var(--pro-mint)]" />
-                  Checklists
+                  {t('subs.checklists')}
                 </Label>
 
                 {/* Apply Template */}
                 {templates.length > 0 && (
                   <Select onValueChange={applyTemplate}>
                     <SelectTrigger className="w-44 h-8 text-xs">
-                      <SelectValue placeholder="Apply template..." />
+                      <SelectValue placeholder={t('subs.applyTemplate')} />
                     </SelectTrigger>
                     <SelectContent>
                       {templates.map((tpl) => (
                         <SelectItem key={tpl.id} value={tpl.id}>
-                          {tpl.name} ({tpl.items.length} items)
+                          {tpl.name} ({tpl.items.length} {t('subs.items')})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -617,7 +619,7 @@ export function SubTaskForm({
               {/* Add Checklist */}
               <div className="flex gap-2">
                 <Input
-                  placeholder="Checklist name"
+                  placeholder={t('subs.checklistName')}
                   value={newChecklistName}
                   onChange={(e) => setNewChecklistName(e.target.value)}
                   onKeyDown={(e) => {
@@ -676,7 +678,7 @@ export function SubTaskForm({
                             variant="outline"
                             className={`text-[10px] px-1.5 py-0 shrink-0 ${itemTypeBadgeClass[item.itemType]}`}
                           >
-                            {itemTypeLabels[item.itemType]}
+                            {t(itemTypeKeys[item.itemType])}
                           </Badge>
                           <Button
                             type="button"
@@ -697,7 +699,7 @@ export function SubTaskForm({
                   {/* Add Item */}
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Item description"
+                      placeholder={t('subs.itemDescription')}
                       value={newItemDescs[clIdx] || ""}
                       onChange={(e) =>
                         setNewItemDescs((prev) => ({
@@ -726,11 +728,11 @@ export function SubTaskForm({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="standard">Standard</SelectItem>
+                        <SelectItem value="standard">{t('subs.standard')}</SelectItem>
                         <SelectItem value="doc_required">
-                          Doc Required
+                          {t('subs.docRequired')}
                         </SelectItem>
-                        <SelectItem value="inspection">Inspection</SelectItem>
+                        <SelectItem value="inspection">{t('subs.inspection')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button
@@ -755,18 +757,18 @@ export function SubTaskForm({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {t('button.cancel')}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isEditing ? "Updating..." : "Creating..."}
+                  {isEditing ? t('subs.updating') : t('subs.creating')}
                 </>
               ) : isEditing ? (
-                "Update Task"
+                t('subs.updateTask')
               ) : (
-                "Create Task"
+                t('subs.createTask')
               )}
             </Button>
           </DialogFooter>

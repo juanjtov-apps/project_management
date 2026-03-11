@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { CheckCircle2, Circle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -26,13 +27,15 @@ const itemTypeBadgeClass: Record<string, string> = {
   inspection: "bg-amber-500/20 text-amber-400 border-amber-500/30",
 };
 
-const itemTypeLabels: Record<string, string> = {
-  standard: "Std",
-  doc_required: "Doc",
-  inspection: "Insp",
-};
-
 export function TaskChecklistPreview({ taskId }: { taskId: string }) {
+  const { t } = useTranslation('common');
+
+  const itemTypeLabels: Record<string, string> = {
+    standard: t('subs.stdShort'),
+    doc_required: t('subs.docShort'),
+    inspection: t('subs.inspShort'),
+  };
+
   const { data: task, isLoading } = useQuery<TaskWithChecklists>({
     queryKey: ["/api/v1/sub/tasks", taskId],
     queryFn: async () => {
@@ -48,7 +51,7 @@ export function TaskChecklistPreview({ taskId }: { taskId: string }) {
     return (
       <div className="flex items-center gap-2 pt-2 text-[var(--pro-text-muted)]">
         <Loader2 className="h-3 w-3 animate-spin" />
-        <span className="text-xs">Loading checklists...</span>
+        <span className="text-xs">{t('subs.loadingChecklists')}</span>
       </div>
     );
   }
@@ -96,7 +99,7 @@ export function TaskChecklistPreview({ taskId }: { taskId: string }) {
                       itemTypeBadgeClass[item.itemType] || itemTypeBadgeClass.standard
                     }`}
                   >
-                    {itemTypeLabels[item.itemType] || "Std"}
+                    {itemTypeLabels[item.itemType] || t('subs.stdShort')}
                   </Badge>
                 </div>
               ))}

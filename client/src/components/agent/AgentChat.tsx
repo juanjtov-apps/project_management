@@ -3,6 +3,7 @@
  */
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Send, Loader2, RotateCcw, AlertCircle, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAgentChat, type PendingConfirmation } from "@/hooks/useAgentChat";
@@ -18,6 +19,8 @@ interface AgentChatProps {
 }
 
 export function AgentChat({ projectId, onClose, conversationId: initialConversationId, onConversationIdChange }: AgentChatProps) {
+  const { t } = useTranslation('agent');
+  const { t: tc } = useTranslation('common');
   const { toast } = useToast();
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -115,13 +118,13 @@ export function AgentChat({ projectId, onClose, conversationId: initialConversat
           {/* Title and subtitle */}
           <div className="flex flex-col">
             <h2 className="text-base font-semibold text-white leading-tight">
-              Proesphere Assistant
+              {t('title')}
             </h2>
             <p
               className="text-sm leading-tight"
               style={{ color: isLoading ? '#FBBF24' : '#9CA3AF' }}
             >
-              {isLoading ? "Thinking..." : "Ready to help"}
+              {isLoading ? t('thinking') : t('ready')}
             </p>
           </div>
         </div>
@@ -134,7 +137,7 @@ export function AgentChat({ projectId, onClose, conversationId: initialConversat
               size="icon"
               onClick={clearMessages}
               className="h-9 w-9 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C]"
-              title="New conversation"
+              title={t('newConversation')}
             >
               <RotateCcw className="w-4 h-4" />
             </Button>
@@ -145,7 +148,7 @@ export function AgentChat({ projectId, onClose, conversationId: initialConversat
               size="icon"
               onClick={onClose}
               className="h-9 w-9 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C]"
-              title="Close assistant"
+              title={t('closeAssistant')}
             >
               <X className="w-4 h-4" />
             </Button>
@@ -191,7 +194,7 @@ export function AgentChat({ projectId, onClose, conversationId: initialConversat
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Ask me anything about your projects..."
+            placeholder={t('inputPlaceholder')}
             className="flex-1 bg-transparent text-white placeholder-[#6B7280] resize-none outline-none text-sm py-2 px-2"
             style={{ minHeight: "40px", maxHeight: "120px" }}
             rows={1}
@@ -216,7 +219,7 @@ export function AgentChat({ projectId, onClose, conversationId: initialConversat
         </div>
 
         <p className="text-xs text-center mt-2" style={{ color: '#6B7280' }}>
-          Press Enter to send, Shift+Enter for new line
+          {t('inputHint')}
         </p>
       </div>
     </div>
@@ -269,6 +272,8 @@ const TOOL_FIELDS: Record<string, Array<{
 };
 
 function ConfirmationCard({ confirmation, onConfirm, onReject }: ConfirmationCardProps) {
+  const { t } = useTranslation('agent');
+  const { t: tc } = useTranslation('common');
   const fields = TOOL_FIELDS[confirmation.toolName];
   const [editedValues, setEditedValues] = useState<Record<string, unknown>>(
     () => ({ ...(confirmation.input || {}) })
@@ -310,7 +315,7 @@ function ConfirmationCard({ confirmation, onConfirm, onReject }: ConfirmationCar
         <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#FBBF24' }} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-white">
-            Confirmation Required
+            {t('confirmationRequired')}
           </p>
           <p className="text-xs mt-0.5" style={{ color: '#9CA3AF' }}>
             {confirmation.operationSummary}
@@ -383,7 +388,7 @@ function ConfirmationCard({ confirmation, onConfirm, onReject }: ConfirmationCar
           className="text-[#9CA3AF] hover:text-white hover:bg-[#2D333B]"
         >
           <X className="w-3 h-3 mr-1" />
-          Cancel
+          {tc('button.cancel')}
         </Button>
         <Button
           size="sm"
@@ -391,7 +396,7 @@ function ConfirmationCard({ confirmation, onConfirm, onReject }: ConfirmationCar
           style={{ backgroundColor: '#4ADE80', color: '#0F1115' }}
         >
           <Check className="w-3 h-3 mr-1" />
-          Confirm
+          {tc('button.confirm')}
         </Button>
       </div>
     </div>

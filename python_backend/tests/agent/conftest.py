@@ -9,6 +9,24 @@ from typing import Dict, Any, List
 import uuid
 
 
+@pytest.fixture(autouse=True)
+async def reset_db_pool_after_test():
+    """Reset the global DB connection pool after each test.
+
+    Integration tests that use the real orchestrator (which hits the real DB
+    and real LLM APIs) can leave connections in a bad state — especially when
+    the LLM returns errors (e.g. 402) that cause the async generator to exit
+    early. This fixture ensures the pool is cleanly closed after every test
+    so no corrupted connections leak into subsequent tests.
+    """
+    yield
+    try:
+        from src.database.connection import close_db_pool
+        await close_db_pool()
+    except Exception:
+        pass
+
+
 # ============================================================================
 # User Context Fixtures
 # ============================================================================

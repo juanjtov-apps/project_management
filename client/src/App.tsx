@@ -12,6 +12,8 @@ import NotificationModal from "@/components/notifications/notification-modal";
 import { AgentDrawer } from "@/components/agent";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { ProeChatProvider } from "@/contexts/ProeChatContext";
+import PlatformTutorial from "@/components/onboarding/platform-tutorial";
+import { usePlatformTutorial } from "@/hooks/usePlatformTutorial";
 
 // Route-level code splitting via React.lazy
 const Landing = React.lazy(() => import("@/pages/landing"));
@@ -32,6 +34,7 @@ const OnboardCompany = React.lazy(() => import("@/pages/onboard-company"));
 const MagicLink = React.lazy(() => import("@/pages/magic-link"));
 const RequestMagicLink = React.lazy(() => import("@/pages/request-magic-link"));
 const PlatformAnalytics = React.lazy(() => import("@/pages/platform-analytics"));
+const AgentTroubleshooting = React.lazy(() => import("@/pages/agent-troubleshooting"));
 const NotFound = React.lazy(() => import("@/pages/not-found"));
 
 function PageLoadingFallback() {
@@ -159,6 +162,9 @@ function Router({ isAuthenticated, isLoading }: { isAuthenticated: boolean; isLo
         <Route path="/platform-analytics">
           <PlatformAnalytics />
         </Route>
+        <Route path="/agent-troubleshooting">
+          <AgentTroubleshooting />
+        </Route>
         <Route component={NotFound} />
       </Switch>
     </Suspense>
@@ -266,6 +272,9 @@ function AuthenticatedLayout({
   // Track time-in-app via heartbeat (agent vs app time split)
   useHeartbeat(isAgentChatOpen);
 
+  // Platform tutorial hook
+  const tutorial = usePlatformTutorial();
+
   // Check if user is a client or subcontractor
   const userRole = (currentUser?.role || '').toLowerCase();
   const isClientUser = userRole === 'client';
@@ -310,6 +319,7 @@ function AuthenticatedLayout({
             onToggleMobileMenu={isPortalUser ? undefined : () => setIsMobileMenuOpen(true)}
             onToggleNotifications={() => setIsNotificationModalOpen(true)}
             onToggleAgentChat={isPortalUser || isAIDashboard ? undefined : () => setIsAgentChatOpen(true)}
+            onShowTutorial={!isClientUser && isAIDashboard ? tutorial.showTutorial : undefined}
           />
           {isAIDashboard ? (
             <div className="flex-1 overflow-hidden">
@@ -334,6 +344,15 @@ function AuthenticatedLayout({
             onOpenChange={setIsAgentChatOpen}
             conversationId={agentConversationId}
             onConversationIdChange={setAgentConversationId}
+          />
+        )}
+
+        {/* Platform tutorial - for internal staff and subcontractors (clients have their own ClientTour) */}
+        {!isClientUser && (
+          <PlatformTutorial
+            run={tutorial.run}
+            onComplete={tutorial.completeTutorial}
+            userRole={userRole}
           />
         )}
       </div>

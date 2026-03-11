@@ -7,6 +7,7 @@ from typing import Dict, Any, List
 from datetime import datetime
 
 from ..base_tool import BaseTool
+from ..security import resolve_project_or_error
 from ...models.agent_models import SafetyLevel
 from src.database.connection import db_manager
 
@@ -32,7 +33,7 @@ class CreateInstallmentTool(BaseTool):
             "properties": {
                 "project_id": {
                     "type": "string",
-                    "description": "The project ID to create the installment for",
+                    "description": "The project ID (UUID) or project name",
                 },
                 "name": {
                     "type": "string",
@@ -78,17 +79,14 @@ class CreateInstallmentTool(BaseTool):
     ) -> Dict[str, Any]:
         company_id = context.get("company_id")
         user_id = context.get("user_id")
-        project_id = params["project_id"]
         name = params["name"]
         amount = params["amount"]
 
-        # Verify project belongs to company
-        verify = await db_manager.execute_one(
-            "SELECT id, name FROM projects WHERE id = $1 AND company_id = $2",
-            project_id, company_id,
-        )
-        if not verify:
-            return {"error": "Project not found or access denied"}
+        # Resolve project by UUID or name
+        verify, err = await resolve_project_or_error(params["project_id"], company_id)
+        if err:
+            return err
+        project_id = str(verify["id"])
 
         # Auto-resolve schedule_id
         schedules = await db_manager.execute_query(
@@ -174,4 +172,8 @@ class CreateInstallmentTool(BaseTool):
                 "projectName": verify["name"],
             },
             "message": f"Installment '{name}' (${amount:,.2f}) created for {verify['name']}",
+            "suggested_actions": [
+                {"label": "View Payments", "navigateTo": f"/client-portal?projectId={project_id}"},
+                {"label": "Create Another", "prompt": "Create another payment installment"},
+            ],
         }

@@ -3,6 +3,7 @@
  */
 
 import { useRef, useEffect, useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { User, Bot, Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
 import type { AgentMessage } from "@/hooks/useAgentChat";
 import { ToolStatus } from "./ToolStatus";
@@ -21,6 +22,8 @@ interface MessageListProps {
 }
 
 export function MessageList({ messages, isLoading, conversationId, onSendMessage }: MessageListProps) {
+  const { t } = useTranslation('agent');
+  const { t: tc } = useTranslation('common');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,17 +41,16 @@ export function MessageList({ messages, isLoading, conversationId, onSendMessage
             <Bot className="w-8 h-8" style={{ color: '#4ADE80' }} />
           </div>
           <h3 className="text-lg font-semibold text-white mb-2">
-            How can I help you today?
+            {t('welcome.title')}
           </h3>
           <p className="text-sm" style={{ color: '#D1D5DB' }}>
-            Ask me about your projects, tasks, stages, or materials.
-            I can help you get status updates, find information, and more.
+            {t('welcome.subtitle')}
           </p>
           <div className="mt-4 flex flex-wrap gap-2 justify-center">
             {[
-              "Show my active projects",
-              "What tasks are due this week?",
-              "Project status summary",
+              t('welcome.suggestion1'),
+              t('welcome.suggestion2'),
+              t('welcome.suggestion3'),
             ].map((suggestion) => (
               <button
                 key={suggestion}
@@ -208,6 +210,8 @@ interface FeedbackButtonsProps {
 }
 
 function FeedbackButtons({ messageId, conversationId }: FeedbackButtonsProps) {
+  const { t } = useTranslation('agent');
+  const { t: tc } = useTranslation('common');
   const [feedbackGiven, setFeedbackGiven] = useState<'positive' | 'negative' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
@@ -261,7 +265,7 @@ function FeedbackButtons({ messageId, conversationId }: FeedbackButtonsProps) {
         ) : (
           <ThumbsDown className="w-3.5 h-3.5" style={{ color: '#9CA3AF' }} />
         )}
-        <span className="text-xs" style={{ color: '#6B7280' }}>Thanks!</span>
+        <span className="text-xs" style={{ color: '#6B7280' }}>{t('feedback.thanks')}</span>
       </div>
     );
   }
@@ -269,12 +273,12 @@ function FeedbackButtons({ messageId, conversationId }: FeedbackButtonsProps) {
   if (showNoteInput) {
     return (
       <div className="flex flex-col gap-2 p-2 rounded-lg" style={{ backgroundColor: '#1F242C' }}>
-        <span className="text-xs" style={{ color: '#9CA3AF' }}>What could be improved?</span>
+        <span className="text-xs" style={{ color: '#9CA3AF' }}>{t('feedback.whatImproved')}</span>
         <input
           type="text"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Optional feedback..."
+          placeholder={t('feedback.placeholder')}
           className="text-xs px-2 py-1 rounded border focus:outline-none focus:ring-1"
           style={{
             backgroundColor: '#0F1115',
@@ -294,7 +298,7 @@ function FeedbackButtons({ messageId, conversationId }: FeedbackButtonsProps) {
             className="text-xs px-2 py-1 rounded transition-colors"
             style={{ backgroundColor: '#22C55E', color: '#022C22' }}
           >
-            Submit
+            {tc('button.submit')}
           </button>
           <button
             onClick={handleSkipNote}
@@ -302,14 +306,14 @@ function FeedbackButtons({ messageId, conversationId }: FeedbackButtonsProps) {
             className="text-xs px-2 py-1 rounded transition-colors"
             style={{ backgroundColor: '#2D333B', color: '#9CA3AF' }}
           >
-            Skip
+            {tc('button.skip')}
           </button>
           <button
             onClick={() => setShowNoteInput(false)}
             className="text-xs px-2 py-1 rounded transition-colors"
             style={{ color: '#6B7280' }}
           >
-            Cancel
+            {tc('button.cancel')}
           </button>
         </div>
       </div>
@@ -325,7 +329,7 @@ function FeedbackButtons({ messageId, conversationId }: FeedbackButtonsProps) {
         style={{ color: '#6B7280' }}
         onMouseEnter={(e) => { e.currentTarget.style.color = '#4ADE80'; }}
         onMouseLeave={(e) => { e.currentTarget.style.color = '#6B7280'; }}
-        title="Good response"
+        title={t('feedback.good')}
       >
         <ThumbsUp className="w-3.5 h-3.5" />
       </button>
@@ -336,7 +340,7 @@ function FeedbackButtons({ messageId, conversationId }: FeedbackButtonsProps) {
         style={{ color: '#6B7280' }}
         onMouseEnter={(e) => { e.currentTarget.style.color = '#EF4444'; }}
         onMouseLeave={(e) => { e.currentTarget.style.color = '#6B7280'; }}
-        title="Needs improvement"
+        title={t('feedback.needsImprovement')}
       >
         <ThumbsDown className="w-3.5 h-3.5" />
       </button>
@@ -430,13 +434,27 @@ function FormattedContent({ content }: FormattedContentProps) {
 }
 
 function formatBoldText(text: string): React.ReactNode {
-  // Match **bold** text
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  // Match **bold** and <<highlighted>> text
+  const parts = text.split(/(\*\*[^*]+\*\*|<<[^>]+>>)/g);
 
   return parts.map((part, idx) => {
     if (part.startsWith('**') && part.endsWith('**')) {
+      const inner = part.slice(2, -2);
+      const innerParts = inner.split(/(<<[^>]+>>)/g);
       return (
         <span key={idx} className="font-semibold">
+          {innerParts.map((ip, iIdx) => {
+            if (ip.startsWith('<<') && ip.endsWith('>>')) {
+              return <span key={iIdx} style={{ color: '#4ADE80', fontWeight: 500 }}>{ip.slice(2, -2)}</span>;
+            }
+            return ip;
+          })}
+        </span>
+      );
+    }
+    if (part.startsWith('<<') && part.endsWith('>>')) {
+      return (
+        <span key={idx} style={{ color: '#4ADE80', fontWeight: 500 }}>
           {part.slice(2, -2)}
         </span>
       );
@@ -447,6 +465,7 @@ function formatBoldText(text: string): React.ReactNode {
 
 function formatTime(date: Date): string {
   if (!(date instanceof Date) || isNaN(date.getTime())) {
+    // Note: this is outside a component, so we use a static fallback
     return "Just now";
   }
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

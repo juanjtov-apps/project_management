@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import type { Project, Photo } from "@shared/schema";
@@ -32,6 +33,8 @@ interface TimelineProject {
 }
 
 export default function MultiProjectOverview() {
+  const { t } = useTranslation('dashboard');
+  const { t: tc } = useTranslation('common');
   const [, setLocation] = useLocation();
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
@@ -117,19 +120,19 @@ export default function MultiProjectOverview() {
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex flex-col md:flex-row md:items-center gap-3">
-            <h2 className="text-xl font-semibold text-white">Multi-Project Overview</h2>
+            <h2 className="text-xl font-semibold text-white">{t('multiProject.title')}</h2>
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#4ADE80' }}></div>
-                <span className="text-xs" style={{ color: '#9CA3AF' }}>On Track</span>
+                <span className="text-xs" style={{ color: '#9CA3AF' }}>{t('multiProject.onTrack')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#F97316' }}></div>
-                <span className="text-xs" style={{ color: '#9CA3AF' }}>At Risk</span>
+                <span className="text-xs" style={{ color: '#9CA3AF' }}>{t('multiProject.atRisk')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#EF4444' }}></div>
-                <span className="text-xs" style={{ color: '#9CA3AF' }}>Delayed</span>
+                <span className="text-xs" style={{ color: '#9CA3AF' }}>{t('multiProject.delayed')}</span>
               </div>
             </div>
           </div>
@@ -139,7 +142,7 @@ export default function MultiProjectOverview() {
             className="text-[#4ADE80] hover:text-[#4ADE80] hover:bg-[#1F242C]"
             data-testid="view-all-projects"
           >
-            View All
+            {tc('button.viewAll')}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
@@ -147,14 +150,14 @@ export default function MultiProjectOverview() {
         {projects.length === 0 ? (
           <div className="text-center py-12">
             <Building size={48} className="mx-auto mb-4" style={{ color: '#9CA3AF' }} />
-            <p className="text-lg mb-2 text-white">No projects yet</p>
-            <p className="text-sm mb-4" style={{ color: '#9CA3AF' }}>Create your first project to get started</p>
+            <p className="text-lg mb-2 text-white">{t('multiProject.empty')}</p>
+            <p className="text-sm mb-4" style={{ color: '#9CA3AF' }}>{t('multiProject.createFirst')}</p>
             <Button
               onClick={() => setLocation("/projects")}
               style={{ backgroundColor: '#4ADE80', color: '#0F1115' }}
               className="hover:opacity-90"
             >
-              Create Project
+              {t('multiProject.createProject')}
             </Button>
           </div>
         ) : (

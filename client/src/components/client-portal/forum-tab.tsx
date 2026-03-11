@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useTranslation } from "react-i18next";
 import { Send, MessageSquare, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,11 +13,11 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-const messageSchema = z.object({
-  content: z.string().min(1, "Message cannot be empty"),
+const messageSchema = (t: (key: string) => string) => z.object({
+  content: z.string().min(1, t('forum.messageRequired')),
 });
 
-type MessageFormData = z.infer<typeof messageSchema>;
+type MessageFormData = z.infer<ReturnType<typeof messageSchema>>;
 
 interface ForumMessage {
   id: string;
@@ -33,11 +34,12 @@ interface ForumTabProps {
 }
 
 export function ForumTab({ projectId }: ForumTabProps) {
+  const { t } = useTranslation('clientPortal');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const form = useForm<MessageFormData>({
-    resolver: zodResolver(messageSchema),
+    resolver: zodResolver(messageSchema(t)),
     defaultValues: {
       content: "",
     },

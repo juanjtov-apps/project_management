@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -75,6 +76,7 @@ export function InviteSubDialog({
   trigger,
   defaultProjectId,
 }: InviteSubDialogProps) {
+  const { t } = useTranslation('common');
   const [open, setOpen] = useState(false);
   const [companyMode, setCompanyMode] = useState<"existing" | "new">("new");
   const { toast } = useToast();
@@ -165,14 +167,14 @@ export function InviteSubDialog({
       });
       if (data?.emailSent === false) {
         toast({
-          title: "Subcontractor Created",
-          description: "The user was created but the invitation email failed to send. You may need to resend the invite.",
+          title: t('subs.subCreated'),
+          description: t('subs.subCreatedEmailFailed'),
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Invitation Sent",
-          description: `${form.getValues("firstName")} ${form.getValues("lastName")} has been invited as a subcontractor.`,
+          title: t('subs.invitationSent'),
+          description: t('subs.invitationSentDesc', { name: `${form.getValues("firstName")} ${form.getValues("lastName")}` }),
         });
       }
       setOpen(false);
@@ -181,7 +183,7 @@ export function InviteSubDialog({
     },
     onError: (error: Error) => {
       toast({
-        title: "Invitation Failed",
+        title: t('subs.invitationFailed'),
         description: error.message,
         variant: "destructive",
       });
@@ -207,7 +209,7 @@ export function InviteSubDialog({
         {trigger || (
           <Button size="sm" className="gap-2">
             <UserPlus className="h-4 w-4" />
-            Invite Sub
+            {t('subs.inviteSub')}
           </Button>
         )}
       </DialogTrigger>
@@ -216,14 +218,14 @@ export function InviteSubDialog({
         aria-describedby={undefined}
       >
         <DialogHeader>
-          <DialogTitle>Invite Subcontractor</DialogTitle>
+          <DialogTitle>{t('subs.inviteSubcontractor')}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           {/* Name */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="inv-first">First Name *</Label>
+              <Label htmlFor="inv-first">{t('subs.firstName')}</Label>
               <Input
                 id="inv-first"
                 placeholder="John"
@@ -239,7 +241,7 @@ export function InviteSubDialog({
               )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="inv-last">Last Name *</Label>
+              <Label htmlFor="inv-last">{t('subs.lastName')}</Label>
               <Input
                 id="inv-last"
                 placeholder="Smith"
@@ -260,7 +262,7 @@ export function InviteSubDialog({
           <div className="space-y-1.5">
             <Label htmlFor="inv-email" className="flex items-center gap-1.5">
               <Mail className="h-3.5 w-3.5" />
-              Email *
+              {t('subs.emailLabel')}
             </Label>
             <Input
               id="inv-email"
@@ -280,7 +282,7 @@ export function InviteSubDialog({
           <div className="space-y-1.5">
             <Label htmlFor="inv-phone" className="flex items-center gap-1.5">
               <Phone className="h-3.5 w-3.5" />
-              Phone (optional)
+              {t('subs.phoneOptional')}
             </Label>
             <Input
               id="inv-phone"
@@ -300,7 +302,7 @@ export function InviteSubDialog({
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
               <Building className="h-3.5 w-3.5" />
-              Company
+              {t('subs.company')}
             </Label>
 
             {subCompanies.length > 0 && (
@@ -312,7 +314,7 @@ export function InviteSubDialog({
                   onClick={() => setCompanyMode("existing")}
                   className="flex-1"
                 >
-                  Existing Company
+                  {t('subs.existingCompany')}
                 </Button>
                 <Button
                   type="button"
@@ -321,7 +323,7 @@ export function InviteSubDialog({
                   onClick={() => setCompanyMode("new")}
                   className="flex-1"
                 >
-                  New Company
+                  {t('subs.newCompany')}
                 </Button>
               </div>
             )}
@@ -333,7 +335,7 @@ export function InviteSubDialog({
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select existing company" />
+                      <SelectValue placeholder={t('subs.selectExistingCompany')} />
                     </SelectTrigger>
                     <SelectContent>
                       {subCompanies.map((company) => (
@@ -348,7 +350,7 @@ export function InviteSubDialog({
               />
             ) : (
               <Input
-                placeholder="Company name"
+                placeholder={t('subs.companyName')}
                 {...form.register("companyName")}
               />
             )}
@@ -357,7 +359,7 @@ export function InviteSubDialog({
           {/* Trade & Specialization */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="inv-trade">Trade</Label>
+              <Label htmlFor="inv-trade">{t('subs.trade')}</Label>
               <Input
                 id="inv-trade"
                 placeholder="e.g. Electrical"
@@ -365,7 +367,7 @@ export function InviteSubDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="inv-spec">Specialization</Label>
+              <Label htmlFor="inv-spec">{t('subs.specialization')}</Label>
               <Input
                 id="inv-spec"
                 placeholder="e.g. Commercial wiring"
@@ -376,7 +378,7 @@ export function InviteSubDialog({
 
           {/* Project */}
           <div className="space-y-1.5">
-            <Label>Project *</Label>
+            <Label>{t('subs.projectLabel')}</Label>
             <Controller
               name="projectId"
               control={form.control}
@@ -387,7 +389,7 @@ export function InviteSubDialog({
                       form.formState.errors.projectId ? "border-red-500" : ""
                     }
                   >
-                    <SelectValue placeholder="Select a project" />
+                    <SelectValue placeholder={t('subs.selectProject')} />
                   </SelectTrigger>
                   <SelectContent>
                     {projects.map((project) => (
@@ -411,7 +413,7 @@ export function InviteSubDialog({
 
           {/* Contract Value */}
           <div className="space-y-1.5">
-            <Label htmlFor="inv-contract">Contract Value ($)</Label>
+            <Label htmlFor="inv-contract">{t('subs.contractValue')}</Label>
             <Input
               id="inv-contract"
               type="number"
@@ -424,7 +426,7 @@ export function InviteSubDialog({
 
           {/* Welcome Note */}
           <div className="space-y-1.5">
-            <Label htmlFor="inv-note">Welcome Note (optional)</Label>
+            <Label htmlFor="inv-note">{t('subs.welcomeNote')}</Label>
             <Textarea
               id="inv-note"
               placeholder="Welcome to the project! Please review the assigned tasks..."
@@ -432,7 +434,7 @@ export function InviteSubDialog({
               {...form.register("welcomeNote")}
             />
             <p className="text-xs text-[var(--pro-text-muted)]">
-              This note will appear in the invitation email.
+              {t('subs.welcomeNoteHint')}
             </p>
           </div>
 
@@ -443,18 +445,18 @@ export function InviteSubDialog({
               variant="outline"
               onClick={() => setOpen(false)}
             >
-              Cancel
+              {t('button.cancel')}
             </Button>
             <Button type="submit" disabled={inviteMutation.isPending}>
               {inviteMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
+                  {t('subs.sending')}
                 </>
               ) : (
                 <>
                   <UserPlus className="mr-2 h-4 w-4" />
-                  Invite Sub
+                  {t('subs.inviteSub')}
                 </>
               )}
             </Button>

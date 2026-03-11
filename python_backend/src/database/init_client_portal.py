@@ -38,14 +38,21 @@ async def init_client_portal_schema():
         visibility text NOT NULL DEFAULT 'client',
         created_at timestamptz NOT NULL DEFAULT now(),
         updated_at timestamptz NOT NULL DEFAULT now(),
-        CONSTRAINT fk_issue_project FOREIGN KEY(project_id) 
+        resolved_by varchar,
+        resolved_at timestamptz,
+        CONSTRAINT fk_issue_project FOREIGN KEY(project_id)
             REFERENCES public.projects(id) ON DELETE RESTRICT,
-        CONSTRAINT fk_issue_creator FOREIGN KEY(created_by) 
+        CONSTRAINT fk_issue_creator FOREIGN KEY(created_by)
             REFERENCES public.users(id) ON DELETE RESTRICT,
-        CONSTRAINT fk_issue_assignee FOREIGN KEY(assigned_to) 
+        CONSTRAINT fk_issue_assignee FOREIGN KEY(assigned_to)
+            REFERENCES public.users(id) ON DELETE SET NULL,
+        CONSTRAINT fk_issue_resolver FOREIGN KEY(resolved_by)
             REFERENCES public.users(id) ON DELETE SET NULL
     );
-    
+
+    CREATE INDEX IF NOT EXISTS idx_issues_resolved_by
+        ON client_portal.issues(resolved_by) WHERE resolved_by IS NOT NULL;
+
     -- ISSUE COMMENTS TABLE
     CREATE TABLE IF NOT EXISTS client_portal.issue_comments(
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -348,14 +355,14 @@ async def init_client_portal_schema():
                         ADD CONSTRAINT pm_notifications_type_check
                         CHECK (type IN (
                             'issue_created','message_posted','material_added',
-                            'receipt_uploaded','installment_paid','task_submitted'
+                            'receipt_uploaded','installment_paid','task_submitted','agent_error'
                         ));
                     ALTER TABLE client_portal.pm_notifications
                         DROP CONSTRAINT IF EXISTS pm_notifications_source_kind_check;
                     ALTER TABLE client_portal.pm_notifications
                         ADD CONSTRAINT pm_notifications_source_kind_check
                         CHECK (source_kind IN (
-                            'issue','message','material','receipt','payment','task'
+                            'issue','message','material','receipt','payment','task','agent_error'
                         ));
                 """)
             except Exception:
@@ -369,6 +376,14 @@ async def init_client_portal_schema():
                 """)
             except Exception:
                 pass  # Columns may already exist
+
+            # Add custom_fields JSONB column to projects (additive, idempotent)
+            try:
+                await conn.execute("""
+                    ALTER TABLE projects ADD COLUMN IF NOT EXISTS custom_fields jsonb DEFAULT '{}';
+                """)
+            except Exception:
+                pass  # Column may already exist
 
             return True
     except Exception as e:

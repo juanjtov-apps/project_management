@@ -1,10 +1,12 @@
 import { useRef } from 'react';
 import { useGSAP, usePrefersReducedMotion } from '@/hooks/useGSAP';
 import { CountUp } from './shared';
+import { useTranslation } from "react-i18next";
 
 export function ProblemReframeSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
+  const { t } = useTranslation('landing');
 
   useGSAP((gsap) => {
     if (prefersReducedMotion) {
@@ -45,13 +47,13 @@ export function ProblemReframeSection() {
             className="text-xl md:text-2xl lg:text-[1.75rem] leading-relaxed"
             style={{ color: '#9CA3AF' }}
           >
-            You didn't become a project manager to chase down spreadsheets, cross-reference schedules, and manually compile reports.
+            {t('problemReframe.text')}
           </p>
           <p
             className="text-xl md:text-2xl lg:text-[1.75rem] leading-relaxed mt-8"
             style={{ color: '#9CA3AF' }}
           >
-            Yet that's where{' '}
+            {t('problemReframe.yet')}{' '}
             <span
               className="relative inline-block font-bold text-xl md:text-2xl lg:text-[1.75rem]"
               style={{ color: '#4ADE80' }}
@@ -66,7 +68,7 @@ export function ProblemReframeSection() {
                 <CountUp end={60} suffix="%" duration={2} className="text-xl md:text-2xl lg:text-[1.75rem]" />
               </span>
             </span>
-            {' '}of your time goes.
+            {' '}{t('problemReframe.tail')}
           </p>
         </div>
       </div>

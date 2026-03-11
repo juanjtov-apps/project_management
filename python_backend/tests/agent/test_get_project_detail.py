@@ -53,6 +53,7 @@ class TestGetProjectDetailExecution:
             mock_project.actualCost = None
             mock_project.clientName = sample_project["client_name"]
             mock_project.clientEmail = None
+            mock_project.company_id = sample_project["company_id"]
             mock_project.companyId = sample_project["company_id"]
             mock_repo.get_by_id = AsyncMock(return_value=mock_project)
             MockRepo.return_value = mock_repo
@@ -141,6 +142,7 @@ class TestGetProjectDetailExecution:
             mock_project.actualCost = None
             mock_project.clientName = None
             mock_project.clientEmail = None
+            mock_project.company_id = "company-123"
             mock_project.companyId = "company-123"
             mock_repo.get_by_id = AsyncMock(return_value=mock_project)
             MockRepo.return_value = mock_repo
@@ -182,6 +184,7 @@ class TestGetProjectDetailExecution:
             mock_project.actualCost = None
             mock_project.clientName = None
             mock_project.clientEmail = None
+            mock_project.company_id = "company-123"
             mock_project.companyId = "company-123"
             mock_repo.get_by_id = AsyncMock(return_value=mock_project)
             MockRepo.return_value = mock_repo

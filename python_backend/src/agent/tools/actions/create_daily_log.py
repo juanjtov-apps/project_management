@@ -6,6 +6,7 @@ Safety: AUDIT_LOGGED (executes immediately, logged for audit trail).
 from typing import Dict, Any, List
 
 from ..base_tool import BaseTool
+from ..security import resolve_project_or_error
 from ...models.agent_models import SafetyLevel
 from src.database.connection import db_manager
 
@@ -30,7 +31,7 @@ class CreateDailyLogTool(BaseTool):
             "properties": {
                 "project_id": {
                     "type": "string",
-                    "description": "The project ID to create the log for",
+                    "description": "The project ID (UUID) or project name",
                 },
                 "title": {
                     "type": "string",
@@ -64,15 +65,12 @@ class CreateDailyLogTool(BaseTool):
     ) -> Dict[str, Any]:
         company_id = context.get("company_id")
         user_id = context.get("user_id")
-        project_id = params["project_id"]
 
-        # Verify project belongs to company
-        project = await db_manager.execute_one(
-            "SELECT id, name FROM projects WHERE id = $1 AND company_id = $2",
-            project_id, company_id,
-        )
-        if not project:
-            return {"error": "Project not found or access denied"}
+        # Resolve project by UUID or name
+        project, err = await resolve_project_or_error(params["project_id"], company_id)
+        if err:
+            return err
+        project_id = str(project["id"])
 
         query = """
             INSERT INTO project_logs (project_id, user_id, title, content, type)
@@ -98,4 +96,8 @@ class CreateDailyLogTool(BaseTool):
                 "projectName": project["name"],
             },
             "message": f"Log '{row['title']}' created for {project['name']}",
+            "suggested_actions": [
+                {"label": "View Logs", "navigateTo": "/logs"},
+                {"label": "Create Another", "prompt": "Create another log entry for this project"},
+            ],
         }

@@ -34,9 +34,10 @@ def get_llm_provider(provider_name: Optional[str] = None) -> LLMProviderBase:
                 "Set OPENROUTER_API_KEY environment variable."
             )
         logger.info(
-            f"Initializing OpenRouter provider with models: "
-            f"standard={settings.openrouter_model_standard}, "
-            f"complex={settings.openrouter_model_complex}"
+            f"Initializing OpenRouter provider with 3-tier models: "
+            f"gatekeeper={settings.openrouter_model_gatekeeper}, "
+            f"specialist={settings.openrouter_model_specialist}, "
+            f"planner={settings.openrouter_model_planner}"
         )
         return OpenRouterProvider()
 

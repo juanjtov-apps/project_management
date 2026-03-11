@@ -18,6 +18,7 @@ import { insertProjectLogSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useTranslation } from 'react-i18next';
 import { ObjectUploader, type ObjectUploaderRef } from "@/components/ObjectUploader";
 import { getStatusColor } from "@/lib/statusColors";
 import type { ProjectLog, InsertProjectLog, Project } from "@shared/schema";
@@ -53,6 +54,7 @@ const getTypeIcon = (type: string) => {
 };
 
 export default function Logs() {
+  const { t } = useTranslation('work');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<ProjectLog | null>(null);
@@ -130,14 +132,14 @@ export default function Logs() {
 
       form.reset();
       toast({
-        title: "Success",
-        description: "Project log created successfully",
+        title: t('toast.success'),
+        description: t('toast.logCreated'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to create project log",
+        title: t('toast.error'),
+        description: t('toast.logCreateFailed'),
         variant: "destructive",
       });
     },
@@ -166,14 +168,14 @@ export default function Logs() {
       setShowTagDropdown(false);
       editForm.reset();
       toast({
-        title: "Success",
-        description: "Log updated successfully",
+        title: t('toast.success'),
+        description: t('toast.logUpdated'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to update log",
+        title: t('toast.error'),
+        description: t('toast.logUpdateFailed'),
         variant: "destructive",
       });
     },
@@ -185,16 +187,16 @@ export default function Logs() {
       queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] }); // Refresh photos too since log photos are deleted
       toast({
-        title: "Success",
-        description: "Log deleted successfully",
+        title: t('toast.success'),
+        description: t('toast.logDeleted'),
 
       });
     },
     onError: () => {
       toast({
-        title: "Error",
+        title: t('toast.error'),
 
-        description: "Failed to delete log",
+        description: t('toast.logDeleteFailed'),
 
         variant: "destructive",
       });
@@ -239,8 +241,8 @@ export default function Logs() {
     } catch (error) {
       console.error('Photo upload failed:', error);
       toast({
-        title: "Upload Error",
-        description: "Failed to upload photos. Please try again.",
+        title: t('toast.uploadError'),
+        description: t('toast.uploadFailed'),
         variant: "destructive",
       });
     }
@@ -269,8 +271,8 @@ export default function Logs() {
     } catch (error) {
       console.error('Photo upload failed during edit:', error);
       toast({
-        title: "Upload Error",
-        description: "Failed to upload new photos. Please try again.",
+        title: t('toast.uploadError'),
+        description: t('toast.uploadFailed'),
         variant: "destructive",
       });
     }
@@ -325,8 +327,8 @@ export default function Logs() {
     } catch (error) {
       console.error('Failed to get upload parameters:', error);
       toast({
-        title: "Upload Error", 
-        description: `Failed to get upload URL: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        title: t('toast.uploadError'),
+        description: t('toast.uploadUrlFailed', { error: error instanceof Error ? error.message : 'Unknown error' }),
         variant: "destructive",
       });
       throw error;
@@ -390,16 +392,16 @@ export default function Logs() {
         setUploadedImages(prev => [...prev, ...uploadedUrls]);
         
         toast({
-          title: "Success",
-          description: currentProjectId 
-            ? `${uploadedUrls.length} image(s) uploaded and saved successfully`
-            : `${uploadedUrls.length} image(s) uploaded. Select a project to save metadata.`,
+          title: t('toast.success'),
+          description: currentProjectId
+            ? t('toast.imageUploadSuccess', { count: uploadedUrls.length })
+            : t('toast.imageUploadNoProject', { count: uploadedUrls.length }),
         });
       } catch (error) {
         console.error('Error processing uploaded images:', error);
         toast({
-          title: "Error",
-          description: "Failed to process uploaded images",
+          title: t('toast.error'),
+          description: t('toast.imageProcessFailed'),
           variant: "destructive",
         });
       }
@@ -412,7 +414,7 @@ export default function Logs() {
 
   const getProjectName = (projectId: string) => {
     const project = projects.find(p => p.id === projectId);
-    return project?.name || "Unknown Project";
+    return project?.name || t('logs.unknownProject');
   };
 
   const filteredLogs = logs.filter(log => {
@@ -461,7 +463,7 @@ export default function Logs() {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Project Logs</h1>
+          <h1 className="text-2xl font-bold">{t('logs.title')}</h1>
         </div>
         <div className="space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -486,19 +488,19 @@ export default function Logs() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold construction-secondary">Project Logs</h1>
+        <h1 className="text-2xl font-bold construction-secondary">{t('logs.title')}</h1>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button className="construction-primary text-white">
               <Plus size={16} className="mr-2" />
-              Create Log
+              {t('logs.createLog')}
             </Button>
           </DialogTrigger>
 
           <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
 
             <DialogHeader>
-              <DialogTitle>Create Project Log</DialogTitle>
+              <DialogTitle>{t('logs.createProjectLog')}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -507,11 +509,11 @@ export default function Logs() {
                   name="projectId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project</FormLabel>
+                      <FormLabel>{t('logs.formProject')}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select project" />
+                            <SelectValue placeholder={t('form.selectProject')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -532,75 +534,75 @@ export default function Logs() {
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Title</FormLabel>
+                      <FormLabel>{t('logs.formTitle')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter log title" {...field} />
+                        <Input placeholder={t('logs.formTitlePlaceholder')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="content"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Content</FormLabel>
+                      <FormLabel>{t('logs.formContent')}</FormLabel>
                       <FormControl>
-                        <Textarea 
-                          placeholder="Enter detailed log content..." 
+                        <Textarea
+                          placeholder={t('logs.formContentPlaceholder')}
                           className="min-h-[120px]"
-                          {...field} 
+                          {...field}
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="type"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Type</FormLabel>
+                        <FormLabel>{t('logs.formType')}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select type" />
+                              <SelectValue placeholder={t('logs.selectType')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="general">General</SelectItem>
-                            <SelectItem value="issue">Issue</SelectItem>
-                            <SelectItem value="milestone">Milestone</SelectItem>
-                            <SelectItem value="safety">Safety</SelectItem>
+                            <SelectItem value="general">{t('logs.typeGeneral')}</SelectItem>
+                            <SelectItem value="issue">{t('logs.typeIssue')}</SelectItem>
+                            <SelectItem value="milestone">{t('logs.typeMilestone')}</SelectItem>
+                            <SelectItem value="safety">{t('logs.typeSafety')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="status"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Status</FormLabel>
+                        <FormLabel>{t('logs.formStatus')}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
+                              <SelectValue placeholder={t('logs.selectStatus')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="open">Open</SelectItem>
-                            <SelectItem value="in-progress">In Progress</SelectItem>
-                            <SelectItem value="resolved">Resolved</SelectItem>
-                            <SelectItem value="closed">Closed</SelectItem>
+                            <SelectItem value="open">{t('logs.statusOpen')}</SelectItem>
+                            <SelectItem value="in-progress">{t('logs.statusInProgress')}</SelectItem>
+                            <SelectItem value="resolved">{t('logs.statusResolved')}</SelectItem>
+                            <SelectItem value="closed">{t('logs.statusClosed')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -611,14 +613,14 @@ export default function Logs() {
 
                 {/* Improved Image Upload Section */}
                 <div className="space-y-4">
-                  <FormLabel>Photos (Optional)</FormLabel>
-                  
+                  <FormLabel>{t('logs.photosOptional')}</FormLabel>
+
 
                   {/* Enhanced Photo Tags Input with Dropdown */}
                   <div className="space-y-2">
                     <FormLabel className="text-sm text-gray-700 flex items-center gap-1">
                       <Tag size={14} />
-                      Photo Tags
+                      {t('logs.photoTags')}
                     </FormLabel>
                     
                     {/* Selected Tags Display */}
@@ -652,7 +654,7 @@ export default function Logs() {
                       <div className="flex gap-2">
                         <Input
                           type="text"
-                          placeholder="Type to search existing tags or create new ones"
+                          placeholder={t('logs.tagSearchPlaceholder')}
                           value={tagInput}
                           onChange={(e) => setTagInput(e.target.value)}
                           onFocus={() => setShowTagDropdown(true)}
@@ -683,7 +685,7 @@ export default function Logs() {
                           size="sm"
                           className="px-3"
                         >
-                          Add
+                          {t('logs.tagAdd')}
                         </Button>
                       </div>
 
@@ -691,7 +693,7 @@ export default function Logs() {
                       {showTagDropdown && (
                         <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto">
                           <div className="p-2 border-b bg-gray-50">
-                            <p className="text-xs text-gray-600 font-medium">Existing Tags</p>
+                            <p className="text-xs text-gray-600 font-medium">{t('logs.existingTags')}</p>
                           </div>
                           {existingTags.length > 0 ? (
                             <div className="p-1">
@@ -732,7 +734,7 @@ export default function Logs() {
                                   className="w-full text-left px-3 py-2 text-sm hover:bg-teal-50 rounded flex items-center gap-2 border-t"
                                 >
                                   <Plus size={12} className="text-teal-600" />
-                                  <span>Create "<strong>{tagInput.trim()}</strong>"</span>
+                                  <span>{t('logs.createTag', { tag: tagInput.trim() })}</span>
                                 </button>
                               )}
                             </div>
@@ -751,10 +753,10 @@ export default function Logs() {
                                   className="w-full px-3 py-2 text-sm hover:bg-teal-50 rounded flex items-center justify-center gap-2"
                                 >
                                   <Plus size={12} className="text-teal-600" />
-                                  <span>Create "<strong>{tagInput.trim()}</strong>"</span>
+                                  <span>{t('logs.createTag', { tag: tagInput.trim() })}</span>
                                 </button>
                               ) : (
-                                "No existing tags found"
+                                t('logs.noExistingTags')
                               )}
                             </div>
                           )}
@@ -763,7 +765,7 @@ export default function Logs() {
                     </div>
                     
                     <p className="text-xs text-gray-500">
-                      Select from existing tags or create new ones to organize photos
+                      {t('logs.tagOrganizeHint')}
                     </p>
                   </div>
 
@@ -787,9 +789,9 @@ export default function Logs() {
                       buttonClassName="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md font-medium inline-flex items-center gap-2 shadow-md"
                     >
                       <Camera size={16} />
-                      Select Photos
+                      {t('logs.selectPhotos')}
                     </ObjectUploader>
-                    <span className="text-sm text-gray-500">Up to 5 files, max 10MB each</span>
+                    <span className="text-sm text-gray-500">{t('logs.photosLimit')}</span>
                   </div>
                   
                   {/* Display uploaded images in a nice grid */}
@@ -798,7 +800,7 @@ export default function Logs() {
                       <div className="flex items-center gap-2">
                         <Camera size={16} className="text-gray-500" />
                         <p className="text-sm font-medium text-gray-700">
-                          {uploadedImages.length} photo{uploadedImages.length > 1 ? 's' : ''} ready to attach
+                          {t('logs.photosReady', { count: uploadedImages.length })}
                         </p>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -819,14 +821,14 @@ export default function Logs() {
                                 }}
                               />
                               <div className="hidden w-full h-full bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs">
-                                Preview {index + 1}
+                                {t('logs.preview', { number: index + 1 })}
                               </div>
                             </div>
                             <button
                               type="button"
                               onClick={() => removeImage(index)}
                               className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all shadow-md"
-                              title="Remove photo"
+                              title={t('logs.removePhoto')}
                             >
                               <X size={12} />
                             </button>
@@ -843,14 +845,14 @@ export default function Logs() {
                     variant="outline"
                     onClick={() => setIsCreateDialogOpen(false)}
                   >
-                    Cancel
+                    {t('form.cancel')}
                   </Button>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={createLogMutation.isPending}
                     className="construction-primary text-white"
                   >
-                    {createLogMutation.isPending ? "Creating..." : "Create Log"}
+                    {createLogMutation.isPending ? t('logs.creating') : t('logs.createLog')}
                   </Button>
                 </div>
               </form>
@@ -864,7 +866,7 @@ export default function Logs() {
           <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
 
             <DialogHeader>
-              <DialogTitle>Edit Project Log</DialogTitle>
+              <DialogTitle>{t('logs.editProjectLog')}</DialogTitle>
             </DialogHeader>
             <Form {...editForm}>
               <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
@@ -873,11 +875,11 @@ export default function Logs() {
                   name="projectId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project</FormLabel>
+                      <FormLabel>{t('logs.formProject')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select project" />
+                            <SelectValue placeholder={t('form.selectProject')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -898,75 +900,75 @@ export default function Logs() {
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Title</FormLabel>
+                      <FormLabel>{t('logs.formTitle')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter log title" {...field} />
+                        <Input placeholder={t('logs.formTitlePlaceholder')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={editForm.control}
                   name="content"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Content</FormLabel>
+                      <FormLabel>{t('logs.formContent')}</FormLabel>
                       <FormControl>
-                        <Textarea 
-                          placeholder="Enter detailed log content..." 
+                        <Textarea
+                          placeholder={t('logs.formContentPlaceholder')}
                           className="min-h-[120px]"
-                          {...field} 
+                          {...field}
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={editForm.control}
                     name="type"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Type</FormLabel>
+                        <FormLabel>{t('logs.formType')}</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select type" />
+                              <SelectValue placeholder={t('logs.selectType')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="general">General</SelectItem>
-                            <SelectItem value="issue">Issue</SelectItem>
-                            <SelectItem value="milestone">Milestone</SelectItem>
-                            <SelectItem value="safety">Safety</SelectItem>
+                            <SelectItem value="general">{t('logs.typeGeneral')}</SelectItem>
+                            <SelectItem value="issue">{t('logs.typeIssue')}</SelectItem>
+                            <SelectItem value="milestone">{t('logs.typeMilestone')}</SelectItem>
+                            <SelectItem value="safety">{t('logs.typeSafety')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={editForm.control}
                     name="status"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Status</FormLabel>
+                        <FormLabel>{t('logs.formStatus')}</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
+                              <SelectValue placeholder={t('logs.selectStatus')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="open">Open</SelectItem>
-                            <SelectItem value="in-progress">In Progress</SelectItem>
-                            <SelectItem value="resolved">Resolved</SelectItem>
-                            <SelectItem value="closed">Closed</SelectItem>
+                            <SelectItem value="open">{t('logs.statusOpen')}</SelectItem>
+                            <SelectItem value="in-progress">{t('logs.statusInProgress')}</SelectItem>
+                            <SelectItem value="resolved">{t('logs.statusResolved')}</SelectItem>
+                            <SelectItem value="closed">{t('logs.statusClosed')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -977,15 +979,15 @@ export default function Logs() {
 
                 {/* Photo Upload Section for Edit Dialog */}
                 <div className="space-y-4">
-                  <FormLabel>Photos</FormLabel>
-                  
+                  <FormLabel>{t('logs.photos')}</FormLabel>
+
                   {/* Display existing images from the log being edited */}
                   {editingLog && editingLog.images && editingLog.images.length > 0 && (
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <Camera size={16} className="text-gray-500" />
                         <p className="text-sm font-medium text-gray-700">
-                          {editingLog.images.length} existing photo{editingLog.images.length > 1 ? 's' : ''}
+                          {t('logs.existingPhotos', { count: editingLog.images.length })}
                         </p>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
@@ -1011,7 +1013,7 @@ export default function Logs() {
                               }}
                             />
                             <div className="hidden w-full h-full bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs">
-                              Photo {index + 1}
+                              {t('logs.photo', { number: index + 1 })}
                             </div>
                           </div>
                         ))}
@@ -1019,14 +1021,14 @@ export default function Logs() {
                     </div>
                   )}
                   
-                  <FormLabel className="text-sm">Add More Photos (Optional)</FormLabel>
+                  <FormLabel className="text-sm">{t('logs.addMorePhotos')}</FormLabel>
                   
 
                   {/* Enhanced Photo Tags Input with Dropdown */}
                   <div className="space-y-2">
                     <FormLabel className="text-sm text-gray-700 flex items-center gap-1">
                       <Tag size={14} />
-                      Photo Tags
+                      {t('logs.photoTags')}
                     </FormLabel>
                     
                     {/* Selected Tags Display */}
@@ -1060,7 +1062,7 @@ export default function Logs() {
                       <div className="flex gap-2">
                         <Input
                           type="text"
-                          placeholder="Type to search existing tags or create new ones"
+                          placeholder={t('logs.tagSearchPlaceholder')}
                           value={tagInput}
                           onChange={(e) => setTagInput(e.target.value)}
                           onFocus={() => setShowTagDropdown(true)}
@@ -1091,7 +1093,7 @@ export default function Logs() {
                           size="sm"
                           className="px-3"
                         >
-                          Add
+                          {t('logs.tagAdd')}
                         </Button>
                       </div>
 
@@ -1099,7 +1101,7 @@ export default function Logs() {
                       {showTagDropdown && (
                         <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto">
                           <div className="p-2 border-b bg-gray-50">
-                            <p className="text-xs text-gray-600 font-medium">Existing Tags</p>
+                            <p className="text-xs text-gray-600 font-medium">{t('logs.existingTags')}</p>
                           </div>
                           {existingTags.length > 0 ? (
                             <div className="p-1">
@@ -1140,7 +1142,7 @@ export default function Logs() {
                                   className="w-full text-left px-3 py-2 text-sm hover:bg-teal-50 rounded flex items-center gap-2 border-t"
                                 >
                                   <Plus size={12} className="text-teal-600" />
-                                  <span>Create "<strong>{tagInput.trim()}</strong>"</span>
+                                  <span>{t('logs.createTag', { tag: tagInput.trim() })}</span>
                                 </button>
                               )}
                             </div>
@@ -1159,10 +1161,10 @@ export default function Logs() {
                                   className="w-full px-3 py-2 text-sm hover:bg-teal-50 rounded flex items-center justify-center gap-2"
                                 >
                                   <Plus size={12} className="text-teal-600" />
-                                  <span>Create "<strong>{tagInput.trim()}</strong>"</span>
+                                  <span>{t('logs.createTag', { tag: tagInput.trim() })}</span>
                                 </button>
                               ) : (
-                                "No existing tags found"
+                                t('logs.noExistingTags')
                               )}
                             </div>
                           )}
@@ -1171,7 +1173,7 @@ export default function Logs() {
                     </div>
                     
                     <p className="text-xs text-gray-500">
-                      Select from existing tags or create new ones to organize photos
+                      {t('logs.tagOrganizeHint')}
                     </p>
                   </div>
 
@@ -1195,9 +1197,9 @@ export default function Logs() {
                       buttonClassName="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md font-medium inline-flex items-center gap-2 shadow-md"
                     >
                       <Camera size={16} />
-                      Select More Photos
+                      {t('logs.selectMorePhotos')}
                     </ObjectUploader>
-                    <span className="text-sm text-gray-500">Up to 5 files, max 10MB each</span>
+                    <span className="text-sm text-gray-500">{t('logs.photosLimit')}</span>
                   </div>
                   
                   {/* Display newly uploaded images */}
@@ -1206,7 +1208,7 @@ export default function Logs() {
                       <div className="flex items-center gap-2">
                         <Camera size={16} className="text-gray-500" />
                         <p className="text-sm font-medium text-gray-700">
-                          {uploadedImages.length} new photo{uploadedImages.length > 1 ? 's' : ''} ready to attach
+                          {t('logs.photosReady', { count: uploadedImages.length })}
                         </p>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
@@ -1227,14 +1229,14 @@ export default function Logs() {
                                 }}
                               />
                               <div className="hidden w-full h-full bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs">
-                                Preview {index + 1}
+                                {t('logs.preview', { number: index + 1 })}
                               </div>
                             </div>
                             <button
                               type="button"
                               onClick={() => removeImage(index)}
                               className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all shadow-md"
-                              title="Remove photo"
+                              title={t('logs.removePhoto')}
                             >
                               <X size={10} />
                             </button>
@@ -1251,14 +1253,14 @@ export default function Logs() {
                     variant="outline"
                     onClick={() => setIsEditDialogOpen(false)}
                   >
-                    Cancel
+                    {t('form.cancel')}
                   </Button>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={updateLogMutation.isPending}
                     className="construction-primary text-white"
                   >
-                    {updateLogMutation.isPending ? "Updating..." : "Update Log"}
+                    {updateLogMutation.isPending ? t('logs.updating') : t('logs.updateLog')}
                   </Button>
                 </div>
               </form>
@@ -1269,17 +1271,17 @@ export default function Logs() {
 
       <div className="flex gap-4 flex-wrap">
         <Input
-          placeholder="Search logs..."
+          placeholder={t('logs.searchPlaceholder')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-sm"
         />
         <Select value={projectFilter} onValueChange={setProjectFilter}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by project" />
+            <SelectValue placeholder={t('logs.filterByProject')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Projects</SelectItem>
+            <SelectItem value="all">{t('logs.allProjects')}</SelectItem>
             {projects.map(project => (
               <SelectItem key={project.id} value={project.id}>
                 {project.name}
@@ -1289,38 +1291,38 @@ export default function Logs() {
         </Select>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Filter by type" />
+            <SelectValue placeholder={t('logs.filterByType')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="general">General</SelectItem>
-            <SelectItem value="issue">Issue</SelectItem>
-            <SelectItem value="milestone">Milestone</SelectItem>
-            <SelectItem value="safety">Safety</SelectItem>
+            <SelectItem value="all">{t('logs.allTypes')}</SelectItem>
+            <SelectItem value="general">{t('logs.typeGeneral')}</SelectItem>
+            <SelectItem value="issue">{t('logs.typeIssue')}</SelectItem>
+            <SelectItem value="milestone">{t('logs.typeMilestone')}</SelectItem>
+            <SelectItem value="safety">{t('logs.typeSafety')}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Filter by status" />
+            <SelectValue placeholder={t('logs.filterByStatus')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="open">Open</SelectItem>
-            <SelectItem value="in-progress">In Progress</SelectItem>
-            <SelectItem value="resolved">Resolved</SelectItem>
-            <SelectItem value="closed">Closed</SelectItem>
+            <SelectItem value="all">{t('logs.allStatus')}</SelectItem>
+            <SelectItem value="open">{t('logs.statusOpen')}</SelectItem>
+            <SelectItem value="in-progress">{t('logs.statusInProgress')}</SelectItem>
+            <SelectItem value="resolved">{t('logs.statusResolved')}</SelectItem>
+            <SelectItem value="closed">{t('logs.statusClosed')}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={dateFilter} onValueChange={setDateFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Filter by date" />
+            <SelectValue placeholder={t('logs.filterByDate')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Dates</SelectItem>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="week">This Week</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
-            <SelectItem value="custom">Custom Range</SelectItem>
+            <SelectItem value="all">{t('logs.allDates')}</SelectItem>
+            <SelectItem value="today">{t('logs.today')}</SelectItem>
+            <SelectItem value="week">{t('logs.thisWeek')}</SelectItem>
+            <SelectItem value="month">{t('logs.thisMonth')}</SelectItem>
+            <SelectItem value="custom">{t('logs.customRange')}</SelectItem>
           </SelectContent>
         </Select>
         
@@ -1341,7 +1343,7 @@ export default function Logs() {
             className="text-gray-600 hover:text-gray-800"
           >
             <Filter size={16} className="mr-1" />
-            Clear All Filters
+            {t('logs.clearAllFilters')}
           </Button>
         )}
       </div>
@@ -1350,21 +1352,21 @@ export default function Logs() {
       {dateFilter === "custom" && (
         <div className="flex gap-4 items-center bg-gray-50 p-4 rounded-lg">
           <Calendar className="text-gray-500" size={16} />
-          <span className="text-sm font-medium text-gray-700">Custom Date Range:</span>
+          <span className="text-sm font-medium text-gray-700">{t('logs.customDateRange')}</span>
           <Input
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             className="w-40"
-            placeholder="Start date"
+            placeholder={t('logs.startDate')}
           />
-          <span className="text-gray-400">to</span>
+          <span className="text-gray-400">{t('logs.to')}</span>
           <Input
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
             className="w-40"
-            placeholder="End date"
+            placeholder={t('logs.endDate')}
           />
           <Button
             variant="outline"
@@ -1375,7 +1377,7 @@ export default function Logs() {
               setEndDate("");
             }}
           >
-            Clear
+            {t('logs.clear')}
           </Button>
         </div>
       )}
@@ -1384,8 +1386,8 @@ export default function Logs() {
         {filteredLogs.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-            <p className="text-gray-500 text-lg">No logs found</p>
-            <p className="text-gray-400">Create your first project log to get started</p>
+            <p className="text-gray-500 text-lg">{t('logs.noLogs')}</p>
+            <p className="text-gray-400">{t('logs.createFirst')}</p>
           </div>
         ) : (
           filteredLogs.map((log) => (
@@ -1418,7 +1420,7 @@ export default function Logs() {
                     <div className="flex items-center gap-2 mb-2">
                       <Camera size={16} className="text-gray-500" />
                       <span className="text-sm text-gray-500 font-medium">
-                        {log.images.length} photo{log.images.length > 1 ? 's' : ''} attached
+                        {t('logs.photosAttached', { count: log.images.length })}
                       </span>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -1455,7 +1457,7 @@ export default function Logs() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center text-sm text-gray-500">
                     <User size={14} className="mr-1" />
-                    <span>Created {new Date(log.createdAt).toLocaleDateString()}</span>
+                    <span>{t('logs.created', { date: new Date(log.createdAt).toLocaleDateString() })}</span>
                   </div>
                   
                   <div className="flex space-x-2">
@@ -1466,7 +1468,7 @@ export default function Logs() {
                       onClick={() => startEditingLog(log)}
                       className="text-construction-teal border-construction-teal hover:bg-construction-teal/10"
                     >
-                      Edit
+                      {t('logs.edit')}
                     </Button>
                     
 
@@ -1484,19 +1486,19 @@ export default function Logs() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Project Log</AlertDialogTitle>
+                          <AlertDialogTitle>{t('logs.deleteProjectLog')}</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Are you sure you want to delete "{log.title}"? This action cannot be undone and will also remove all associated photos.
+                            {t('logs.deleteConfirm', { title: log.title })}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogCancel>{t('form.cancel')}</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => deleteLogMutation.mutate(log.id)}
                             className="bg-red-600 hover:bg-red-700 text-white"
                             disabled={deleteLogMutation.isPending}
                           >
-                            {deleteLogMutation.isPending ? "Deleting..." : "Delete"}
+                            {deleteLogMutation.isPending ? t('logs.deleting') : t('form.delete')}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -1515,7 +1517,7 @@ export default function Logs() {
                               updates: { status: "in-progress" }
                             })}
                           >
-                            Start Progress
+                            {t('logs.startProgress')}
                           </Button>
                         )}
                         {log.status === "in-progress" && (
@@ -1527,7 +1529,7 @@ export default function Logs() {
                               updates: { status: "resolved" }
                             })}
                           >
-                            Mark Resolved
+                            {t('logs.markResolved')}
                           </Button>
                         )}
                         {log.status === "resolved" && (
@@ -1539,7 +1541,7 @@ export default function Logs() {
                               updates: { status: "closed" }
                             })}
                           >
-                            Close
+                            {t('logs.close')}
                           </Button>
                         )}
                       </>

@@ -1,9 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from 'react-i18next';
+import i18n from "@/i18n";
 import { Loader2 } from "lucide-react";
 import ActiveJobCard from "./ActiveJobCard";
 import { useProeChat } from "@/contexts/ProeChatContext";
 
+interface BriefingData {
+  translatedInsights?: Record<string, string>;
+}
+
 export default function RightPanel() {
+  const { t } = useTranslation('dashboard');
   const { sendMessage } = useProeChat();
 
   const { data: projects, isLoading } = useQuery<any[]>({
@@ -16,12 +23,26 @@ export default function RightPanel() {
     },
   });
 
+  // Fetch translated insights from briefing endpoint when language is not English
+  const { data: briefing } = useQuery<BriefingData>({
+    queryKey: ["/api/v1/briefing/morning", i18n.language],
+    queryFn: async () => {
+      const res = await fetch(`/api/v1/briefing/morning?language=${i18n.language}`, { credentials: "include" });
+      if (!res.ok) return {};
+      return res.json();
+    },
+    enabled: i18n.language !== "en",
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const translatedInsights = briefing?.translatedInsights || {};
+
   const activeProjects = (projects || []).filter(
     (p: any) => p.status !== "completed"
   );
 
   const handleProjectClick = (name: string, id: string) => {
-    sendMessage(`Tell me about the ${name} project`);
+    sendMessage(t('rightPanel.projectInfoPrompt', { projectName: name }));
   };
 
   return (
@@ -45,7 +66,7 @@ export default function RightPanel() {
             color: "#9CA3AF",
           }}
         >
-          Active Jobs
+          {t('rightPanel.activeJobs')}
         </span>
         <a
           href="/work"
@@ -55,7 +76,7 @@ export default function RightPanel() {
             color: "#4ADE80",
           }}
         >
-          View all →
+          {t('rightPanel.viewAll')} →
         </a>
       </div>
 
@@ -67,7 +88,7 @@ export default function RightPanel() {
           </div>
         ) : activeProjects.length === 0 ? (
           <p className="text-center py-8" style={{ fontSize: 12, color: "#9CA3AF" }}>
-            No active projects
+            {t('rightPanel.noActiveProjects')}
           </p>
         ) : (
           activeProjects.map((project: any) => (
@@ -81,7 +102,7 @@ export default function RightPanel() {
                 location: project.location,
                 dueDate: project.dueDate || project.due_date,
                 coverPhotoId: project.coverPhotoId || project.cover_photo_id,
-                aiInsightText: project.aiInsightText || project.ai_insight_text,
+                aiInsightText: translatedInsights[project.id] || project.aiInsightText || project.ai_insight_text,
               }}
               onProjectClick={handleProjectClick}
             />

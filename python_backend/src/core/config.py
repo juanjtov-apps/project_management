@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
     openrouter_model_standard: str = os.getenv("OPENROUTER_MODEL_STANDARD", "")
     openrouter_model_complex: str = os.getenv("OPENROUTER_MODEL_COMPLEX", "")
+    # 3-Tier Router-Worker model configuration
+    openrouter_model_gatekeeper: str = os.getenv("OPENROUTER_MODEL_GATEKEEPER", "google/gemini-2.0-flash-001")
+    openrouter_model_specialist: str = os.getenv("OPENROUTER_MODEL_SPECIALIST", "openai/gpt-4o-mini")
+    openrouter_model_planner: str = os.getenv("OPENROUTER_MODEL_PLANNER", "anthropic/claude-sonnet-4")
+    agent_gatekeeper_timeout: float = float(os.getenv("AGENT_GATEKEEPER_TIMEOUT", "3.0"))
+    agent_gatekeeper_enabled: bool = os.getenv("AGENT_GATEKEEPER_ENABLED", "true").lower() == "true"
     # Optional: Direct Anthropic API support
     anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
     anthropic_model_standard: str = os.getenv("ANTHROPIC_MODEL_STANDARD", "claude-3-haiku-20240307")

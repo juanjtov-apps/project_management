@@ -3,30 +3,42 @@
  */
 
 import { Loader2, CheckCircle2, XCircle, Wrench } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { ToolCall } from "@/hooks/useAgentChat";
 
 interface ToolStatusProps {
   toolCall: ToolCall;
 }
 
-const TOOL_LABELS: Record<string, string> = {
-  get_projects: "Fetching projects",
-  get_project_detail: "Getting project details",
-  get_stages: "Loading stages",
-  get_tasks: "Fetching tasks",
-  get_materials: "Loading materials",
-  get_issues: "Fetching issues",
-  get_installments: "Fetching payment installments",
-  query_database: "Querying database",
-  create_task: "Creating task",
-  complete_task: "Completing task",
-  create_stage: "Creating stage",
-  create_daily_log: "Creating daily log",
-  update_material_status: "Updating material",
+// Static fallback labels (used when t() is not available in non-component functions)
+const TOOL_LABEL_KEYS: Record<string, string> = {
+  get_projects: "tools.fetchingProjects",
+  get_project_detail: "tools.gettingDetails",
+  get_stages: "tools.loadingStages",
+  get_tasks: "tools.fetchingTasks",
+  get_materials: "tools.loadingMaterials",
+  get_issues: "tools.fetchingIssues",
+  get_installments: "tools.fetchingPayments",
+  query_database: "tools.queryingDatabase",
+  create_task: "tools.creatingTask",
+  complete_task: "tools.completingTask",
+  create_stage: "tools.creatingStage",
+  create_daily_log: "tools.creatingLog",
+  update_material_status: "tools.updatingMaterial",
 };
 
 export function ToolStatus({ toolCall }: ToolStatusProps) {
-  const label = TOOL_LABELS[toolCall.tool] || `Running ${toolCall.tool}`;
+  const { t } = useTranslation('agent');
+  const labelKey = TOOL_LABEL_KEYS[toolCall.tool];
+  const label = labelKey ? t(labelKey) : `Running ${toolCall.tool}`;
+
+  const getLabel = (tc: ToolCall): string => {
+    const baseLabelKey = TOOL_LABEL_KEYS[tc.tool];
+    const baseName = baseLabelKey ? t(baseLabelKey) : tc.tool;
+    if (tc.status === "success") return `${baseName} ${t('tools.completed')}`;
+    if (tc.status === "error") return tc.error || `${baseName} ${t('tools.failed')}`;
+    return baseName;
+  };
 
   return (
     <div
@@ -35,7 +47,7 @@ export function ToolStatus({ toolCall }: ToolStatusProps) {
     >
       <ToolIcon status={toolCall.status} />
       <span style={{ color: getStatusColor(toolCall.status) }}>
-        {toolCall.status === "running" ? label : getStatusLabel(toolCall)}
+        {toolCall.status === "running" ? label : getLabel(toolCall)}
       </span>
     </div>
   );
@@ -74,7 +86,7 @@ function getStatusColor(status: ToolCall["status"]): string {
 }
 
 function getStatusLabel(toolCall: ToolCall): string {
-  const baseName = TOOL_LABELS[toolCall.tool] || toolCall.tool;
+  const baseName = TOOL_LABEL_KEYS[toolCall.tool] || toolCall.tool;
 
   if (toolCall.status === "success") {
     return `${baseName} completed`;
@@ -92,7 +104,11 @@ interface ActiveToolIndicatorProps {
 }
 
 export function ActiveToolIndicator({ toolCall }: ActiveToolIndicatorProps) {
+  const { t } = useTranslation('agent');
   if (!toolCall) return null;
+
+  const labelKey = TOOL_LABEL_KEYS[toolCall.tool];
+  const label = labelKey ? t(labelKey) : toolCall.tool;
 
   return (
     <div
@@ -101,7 +117,7 @@ export function ActiveToolIndicator({ toolCall }: ActiveToolIndicatorProps) {
     >
       <Loader2 className="w-3 h-3 animate-spin" style={{ color: '#60A5FA' }} />
       <span style={{ color: '#9CA3AF' }}>
-        {TOOL_LABELS[toolCall.tool] || toolCall.tool}...
+        {label}...
       </span>
     </div>
   );

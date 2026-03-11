@@ -1,4 +1,8 @@
+import { useTranslation } from "react-i18next";
+
 export function LandingFooter() {
+  const { t } = useTranslation('landing');
+
   return (
     <footer className="landing-footer">
       <div className="footer-grid">
@@ -11,44 +15,44 @@ export function LandingFooter() {
             Proesphere
           </div>
           <p className="footer-brand-desc">
-            The central operations hub for general contractors. Every project, team, client, and dollar — unified and intelligently managed.
+            {t('footer.tagline')}
           </p>
         </div>
         <div>
-          <div className="footer-col-title">Platform</div>
+          <div className="footer-col-title">{t('footer.platform')}</div>
           <ul className="footer-links">
-            <li><a href="#">Project Management</a></li>
-            <li><a href="#">Client Portal</a></li>
-            <li><a href="#">AI Features</a></li>
-            <li><a href="#">Financial Tools</a></li>
-            <li><a href="#">Subcontractors</a></li>
+            <li><a href="#">{t('footer.projectManagement')}</a></li>
+            <li><a href="#">{t('footer.clientPortal')}</a></li>
+            <li><a href="#">{t('footer.aiFeatures')}</a></li>
+            <li><a href="#">{t('footer.financialTools')}</a></li>
+            <li><a href="#">{t('footer.subcontractors')}</a></li>
           </ul>
         </div>
         <div>
-          <div className="footer-col-title">Company</div>
+          <div className="footer-col-title">{t('footer.company')}</div>
           <ul className="footer-links">
-            <li><a href="#">About</a></li>
-            <li><a href="#">Blog</a></li>
-            <li><a href="#">Careers</a></li>
-            <li><a href="#">Contact</a></li>
+            <li><a href="#">{t('footer.about')}</a></li>
+            <li><a href="#">{t('footer.blog')}</a></li>
+            <li><a href="#">{t('footer.careers')}</a></li>
+            <li><a href="#">{t('footer.contact')}</a></li>
           </ul>
         </div>
         <div>
-          <div className="footer-col-title">Resources</div>
+          <div className="footer-col-title">{t('footer.resources')}</div>
           <ul className="footer-links">
-            <li><a href="#">Documentation</a></li>
-            <li><a href="#">Support</a></li>
-            <li><a href="#">API</a></li>
-            <li><a href="#">Status</a></li>
+            <li><a href="#">{t('footer.documentation')}</a></li>
+            <li><a href="#">{t('footer.support')}</a></li>
+            <li><a href="#">{t('footer.api')}</a></li>
+            <li><a href="#">{t('footer.status')}</a></li>
           </ul>
         </div>
       </div>
       <div className="footer-bottom">
-        <span className="footer-copy">&copy; 2025 Proesphere, Inc.</span>
+        <span className="footer-copy">{t('footer.copyright')}</span>
         <div className="footer-legal">
-          <a href="#">Privacy</a>
-          <a href="#">Terms</a>
-          <a href="#">Security</a>
+          <a href="#">{t('footer.privacy')}</a>
+          <a href="#">{t('footer.terms')}</a>
+          <a href="#">{t('footer.security')}</a>
         </div>
       </div>
     </footer>

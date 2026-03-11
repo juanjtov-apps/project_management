@@ -1,4 +1,9 @@
 import { formatDistanceToNow } from "date-fns";
+import { es, enUS } from "date-fns/locale";
+import i18n from "@/i18n";
+
+// ─── Helper to get date-fns locale ─────────────────────────────────────────────
+const getDateLocale = () => i18n.language === 'es' ? es : enUS;
 
 // ─── Status color classes (Tailwind) ───────────────────────────────────────────
 // Used by: schedule.tsx (approved/rejected/pending), logs.tsx (open/in-progress/resolved/closed),
@@ -66,17 +71,18 @@ export interface PriorityConfig {
   label: string;
 }
 
-/** Returns an object with bg (rgba), color (hex), and label for a priority level */
+/** Returns an object with bg (rgba), color (hex), and translated label for a priority level */
 export const getPriorityConfig = (priority: string): PriorityConfig => {
+  const t = i18n.t.bind(i18n);
   switch (priority) {
     case "critical":
-      return { bg: "rgba(239, 68, 68, 0.15)", color: "#EF4444", label: "Critical" };
+      return { bg: "rgba(239, 68, 68, 0.15)", color: "#EF4444", label: t('priority.critical') };
     case "high":
-      return { bg: "rgba(249, 115, 22, 0.15)", color: "#F97316", label: "High" };
+      return { bg: "rgba(249, 115, 22, 0.15)", color: "#F97316", label: t('priority.high') };
     case "medium":
-      return { bg: "rgba(96, 165, 250, 0.15)", color: "#60A5FA", label: "Medium" };
+      return { bg: "rgba(96, 165, 250, 0.15)", color: "#60A5FA", label: t('priority.medium') };
     case "low":
-      return { bg: "rgba(74, 222, 128, 0.15)", color: "#4ADE80", label: "Low" };
+      return { bg: "rgba(74, 222, 128, 0.15)", color: "#4ADE80", label: t('priority.low') };
     default:
       return { bg: "rgba(156, 163, 175, 0.15)", color: "#9CA3AF", label: priority };
   }
@@ -91,17 +97,18 @@ export interface StatusConfig {
   label: string;
 }
 
-/** Returns an object with bg (rgba), color (hex), and label for a project status */
+/** Returns an object with bg (rgba), color (hex), and translated label for a project status */
 export const getStatusConfig = (status: string): StatusConfig => {
+  const t = i18n.t.bind(i18n);
   switch (status) {
     case "active":
-      return { bg: "rgba(74, 222, 128, 0.15)", color: "#4ADE80", label: "Active" };
+      return { bg: "rgba(74, 222, 128, 0.15)", color: "#4ADE80", label: t('status.active') };
     case "completed":
-      return { bg: "rgba(16, 185, 129, 0.15)", color: "#10B981", label: "Completed" };
+      return { bg: "rgba(16, 185, 129, 0.15)", color: "#10B981", label: t('status.completed') };
     case "delayed":
-      return { bg: "rgba(239, 68, 68, 0.15)", color: "#EF4444", label: "Delayed" };
+      return { bg: "rgba(239, 68, 68, 0.15)", color: "#EF4444", label: t('status.delayed') };
     case "on-hold":
-      return { bg: "rgba(249, 115, 22, 0.15)", color: "#F97316", label: "On Hold" };
+      return { bg: "rgba(249, 115, 22, 0.15)", color: "#F97316", label: t('status.onHold') };
     default:
       return { bg: "rgba(156, 163, 175, 0.15)", color: "#9CA3AF", label: status };
   }
@@ -109,29 +116,31 @@ export const getStatusConfig = (status: string): StatusConfig => {
 
 // ─── Date formatting utilities ─────────────────────────────────────────────────
 
-/** Returns a human-readable string describing how a due date relates to now */
+/** Returns a human-readable translated string describing how a due date relates to now */
 export const formatDueDate = (dateString: string | Date): string => {
+  const t = i18n.t.bind(i18n);
   const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
   const now = new Date();
   const diffMs = date.getTime() - now.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
   if (diffDays < 0) {
-    return `${Math.abs(diffDays)} day(s) overdue`;
+    return t('date.daysOverdue', { count: Math.abs(diffDays) });
   } else if (diffDays === 0) {
-    return "Due today";
+    return t('date.dueToday');
   } else if (diffDays === 1) {
-    return "Due tomorrow";
+    return t('date.dueTomorrow');
   } else {
-    return `Due in ${diffDays} days`;
+    return t('date.dueInDays', { count: diffDays });
   }
 };
 
-/** Returns a relative time string like "3 hours ago" using date-fns */
+/** Returns a relative time string like "3 hours ago" using date-fns with locale */
 export const formatRelativeTime = (dateString: string): string => {
+  const t = i18n.t.bind(i18n);
   try {
-    return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    return formatDistanceToNow(new Date(dateString), { addSuffix: true, locale: getDateLocale() });
   } catch {
-    return 'Recently';
+    return t('date.recently');
   }
 };

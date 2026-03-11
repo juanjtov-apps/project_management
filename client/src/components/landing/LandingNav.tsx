@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 interface LandingNavProps {
   onSignIn: () => void;
@@ -7,12 +8,18 @@ interface LandingNavProps {
 
 export function LandingNav({ onSignIn, onGetStarted }: LandingNavProps) {
   const [scrolled, setScrolled] = useState(false);
+  const { t, i18n } = useTranslation('landing');
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 60);
     window.addEventListener("scroll", handler, { passive: true });
     return () => window.removeEventListener("scroll", handler);
   }, []);
+
+  const toggleLanguage = () => {
+    const nextLang = i18n.language === 'es' ? 'en' : 'es';
+    i18n.changeLanguage(nextLang);
+  };
 
   return (
     <nav className={`landing-nav${scrolled ? " scrolled" : ""}`}>
@@ -24,14 +31,21 @@ export function LandingNav({ onSignIn, onGetStarted }: LandingNavProps) {
         <span className="ln-logo-name">Proesphere</span>
       </a>
       <ul className="ln-links">
-        <li><a href="#platform">Platform</a></li>
-        <li><a href="#ai">AI</a></li>
-        <li><a href="#pricing">Pricing</a></li>
+        <li><a href="#platform">{t('nav.platform')}</a></li>
+        <li><a href="#ai">{t('nav.ai')}</a></li>
+        <li><a href="#pricing">{t('nav.pricing')}</a></li>
       </ul>
       <div className="ln-right">
-        <button className="ln-signin" onClick={onSignIn}>Sign in</button>
+        <button
+          className="ln-signin"
+          onClick={toggleLanguage}
+          style={{ opacity: 0.7, fontSize: '0.85rem', letterSpacing: '0.05em' }}
+        >
+          {i18n.language === 'es' ? 'EN' : 'ES'}
+        </button>
+        <button className="ln-signin" onClick={onSignIn}>{t('nav.signIn')}</button>
         <button className="ln-cta" onClick={onGetStarted}>
-          Get started
+          {t('nav.getStarted')}
           <svg width="12" height="9" viewBox="0 0 12 9" fill="none"><path d="M1 4.5H11M7.5 1L11 4.5L7.5 8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
       </div>

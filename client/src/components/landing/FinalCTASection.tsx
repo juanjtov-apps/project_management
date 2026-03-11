@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/ui/logo';
 import { useGSAP, usePrefersReducedMotion } from '@/hooks/useGSAP';
 import { ArrowRight } from 'lucide-react';
+import { useTranslation } from "react-i18next";
 
 interface FinalCTASectionProps {
   onRequestDemo: () => void;
@@ -11,6 +12,7 @@ interface FinalCTASectionProps {
 export function FinalCTASection({ onRequestDemo }: FinalCTASectionProps) {
   const sectionRef = useRef<HTMLElement>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
+  const { t } = useTranslation('landing');
 
   useGSAP((gsap) => {
     if (prefersReducedMotion) {
@@ -66,15 +68,14 @@ export function FinalCTASection({ onRequestDemo }: FinalCTASectionProps) {
               className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight mb-6"
               style={{ color: '#FFFFFF' }}
             >
-              Ready to stop managing{' '}
-              <span style={{ color: '#4ADE80' }}>your software</span>?
+              {t('finalCta.headline1')}{' '}
+              <span style={{ color: '#4ADE80' }}>{t('finalCta.headline2')}</span>?
             </h2>
             <p
               className="text-lg mb-10"
               style={{ color: '#9CA3AF' }}
             >
-              Join the waitlist. Be first to experience AI that actually
-              understands construction.
+              {t('finalCta.subtext')}
             </p>
 
             {/* CTA Button */}
@@ -97,13 +98,13 @@ export function FinalCTASection({ onRequestDemo }: FinalCTASectionProps) {
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
-                Get Early Access
+                {t('finalCta.cta')}
                 <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
               </Button>
             </div>
 
             <p className="text-sm" style={{ color: '#6B7280' }}>
-              No credit card required. No commitment. Just early access.
+              {t('finalCta.disclaimer')}
             </p>
           </div>
         </div>
@@ -128,7 +129,7 @@ export function FinalCTASection({ onRequestDemo }: FinalCTASectionProps) {
                 onMouseEnter={(e) => e.currentTarget.style.color = '#FFFFFF'}
                 onMouseLeave={(e) => e.currentTarget.style.color = '#9CA3AF'}
               >
-                Privacy
+                {t('footer.privacy')}
               </a>
               <a
                 href="#"
@@ -137,7 +138,7 @@ export function FinalCTASection({ onRequestDemo }: FinalCTASectionProps) {
                 onMouseEnter={(e) => e.currentTarget.style.color = '#FFFFFF'}
                 onMouseLeave={(e) => e.currentTarget.style.color = '#9CA3AF'}
               >
-                Terms
+                {t('footer.terms')}
               </a>
               <a
                 href="#"
@@ -146,13 +147,13 @@ export function FinalCTASection({ onRequestDemo }: FinalCTASectionProps) {
                 onMouseEnter={(e) => e.currentTarget.style.color = '#FFFFFF'}
                 onMouseLeave={(e) => e.currentTarget.style.color = '#9CA3AF'}
               >
-                Contact
+                {t('footer.contact')}
               </a>
             </div>
 
             {/* Copyright */}
             <p className="text-sm" style={{ color: '#6B7280' }}>
-              © 2025 Proesphere. All rights reserved.
+              {t('footer.copyright')}
             </p>
           </div>
         </div>

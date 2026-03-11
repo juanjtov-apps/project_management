@@ -1,7 +1,9 @@
 import { Plus, Camera, ClipboardList, AlertTriangle, FileText, Paintbrush } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 
 function QuickActions() {
+  const { t } = useTranslation('dashboard');
   const [, setLocation] = useLocation();
 
   const navigateToWork = (segment: string) => {
@@ -12,37 +14,37 @@ function QuickActions() {
   const actions = [
     {
       icon: Plus,
-      label: "Add Project",
+      label: t('quickActions.addProject'),
       isPrimary: true,
       onClick: () => navigateToWork("projects")
     },
     {
       icon: ClipboardList,
-      label: "Add Tasks",
+      label: t('quickActions.addTasks'),
       isPrimary: false,
       onClick: () => navigateToWork("tasks")
     },
     {
       icon: Camera,
-      label: "Upload Photos",
+      label: t('quickActions.uploadPhotos'),
       isPrimary: false,
       onClick: () => setLocation("/photos")
     },
     {
       icon: AlertTriangle,
-      label: "Add Issue",
+      label: t('quickActions.addIssue'),
       isPrimary: false,
       onClick: () => setLocation("/client-portal?tab=issues")
     },
     {
       icon: FileText,
-      label: "Add Log",
+      label: t('quickActions.addLog'),
       isPrimary: false,
       onClick: () => setLocation("/logs")
     },
     {
       icon: Paintbrush,
-      label: "Finish Materials",
+      label: t('quickActions.finishMaterials'),
       isPrimary: false,
       onClick: () => setLocation("/client-portal?tab=materials")
     }
@@ -55,7 +57,7 @@ function QuickActions() {
       data-testid="quick-actions"
     >
       <div className="p-5 border-b" style={{ borderColor: '#2D333B' }}>
-        <h3 className="text-lg font-semibold text-white">Quick Actions</h3>
+        <h3 className="text-lg font-semibold text-white">{t('quickActions.title')}</h3>
       </div>
       <div className="p-5 grid grid-cols-3 gap-3">
         {actions.map((action, index) => {

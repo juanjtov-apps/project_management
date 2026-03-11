@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import type { ActionItem } from "./ResponseParser";
 
 interface ActionButtonsProps {
@@ -15,6 +16,7 @@ interface ActionButtonsProps {
 export function ActionButtons({ actions, onAction }: ActionButtonsProps) {
   const [confirmed, setConfirmed] = useState(false);
   const [, setLocation] = useLocation();
+  const { t } = useTranslation('agent');
 
   const handleClick = (action: ActionItem) => {
     if (confirmed) return;
@@ -31,7 +33,7 @@ export function ActionButtons({ actions, onAction }: ActionButtonsProps) {
       <div className="flex items-center gap-2 mt-2">
         <Check className="w-3.5 h-3.5" style={{ color: "#4ADE80" }} />
         <span style={{ fontSize: "11px", color: "#4ADE80", fontFamily: "monospace" }}>
-          Done
+          {t('actionButtons.done')}
         </span>
       </div>
     );

@@ -1,0 +1,88 @@
+{
+  "tabs.projectOverview": "Project Overview",
+  "tabs.taskManagement": "Task Management",
+
+  "stats.activeProjects": "Active Projects",
+  "stats.activeProjectsSub": "+{{count}} this week",
+  "stats.tasksDueToday": "Tasks Due Today",
+  "stats.tasksDueTodaySub": "{{count}} overdue",
+
+  "todaysTasks.title": "Today's Tasks",
+  "todaysTasks.empty": "No tasks due today",
+  "todaysTasks.enjoyDay": "Enjoy your day!",
+
+  "quickActions.title": "Quick Actions",
+  "quickActions.addProject": "Add Project",
+  "quickActions.addTasks": "Add Tasks",
+  "quickActions.uploadPhotos": "Upload Photos",
+  "quickActions.addIssue": "Add Issue",
+  "quickActions.addLog": "Add Log",
+  "quickActions.finishMaterials": "Finish Materials",
+
+  "multiProject.title": "Multi-Project Overview",
+  "multiProject.onTrack": "On Track",
+  "multiProject.atRisk": "At Risk",
+  "multiProject.delayed": "Delayed",
+  "multiProject.empty": "No projects yet",
+  "multiProject.createFirst": "Create your first project to get started",
+  "multiProject.createProject": "Create Project",
+
+  "briefing.liveBriefing": "LIVE BRIEFING",
+
+  "chat.confirmationRequired": "Confirmation Required",
+  "chat.cancel": "Cancel",
+  "chat.confirm": "Confirm",
+  "chat.howCanIHelp": "How can I help today?",
+  "chat.askAbout": "Ask about projects, tasks, schedules, or anything on-site.",
+  "chat.suggestion.projectStatus": "What's the status of my projects?",
+  "chat.suggestion.overdueTasks": "Show me overdue tasks",
+  "chat.suggestion.atRisk": "Which projects are at risk?",
+  "chat.suggestion.dueThisWeek": "What's due this week?",
+  "chat.messagePlaceholder": "Message Proe...",
+  "chat.working": "Working",
+  "chat.active": "Active",
+  "chat.newConversation": "New conversation",
+  "chat.enterToSend": "Enter to send",
+  "chat.shiftEnterNewLine": "Shift+Enter for new line",
+  "chat.conversation": "CONVERSATION",
+
+  "rightPanel.activeJobs": "Active Jobs",
+  "rightPanel.viewAll": "View all",
+  "rightPanel.noActiveProjects": "No active projects",
+
+  "jobCard.onTrack": "On Track",
+  "jobCard.atRisk": "At Risk",
+  "jobCard.onHold": "On Hold",
+  "jobCard.delayed": "Delayed",
+  "jobCard.done": "Done",
+  "jobCard.daysBehind": "{{count}}d behind",
+
+  "activeProjects.title": "Active Projects",
+  "activeProjects.viewAll": "View All",
+  "activeProjects.empty": "No active projects",
+  "activeProjects.createFirst": "Create your first project to get started",
+  "activeProjects.due": "Due",
+  "activeProjects.tbd": "TBD",
+
+  "expiredTasks.title": "Expired Tasks",
+  "expiredTasks.viewAll": "View All",
+  "expiredTasks.empty": "No expired tasks",
+  "expiredTasks.onTrack": "Great job staying on top of deadlines!",
+
+  "upcomingTasks.title": "Next 3 Priority Tasks",
+  "upcomingTasks.viewAll": "View All",
+  "upcomingTasks.empty": "No upcoming tasks",
+  "upcomingTasks.allCaughtUp": "You're all caught up!",
+
+  "recentActivity.title": "Recent Activity",
+  "recentActivity.viewAll": "View all",
+  "recentActivity.empty": "No recent activity in your company",
+  "recentActivity.today": "Today",
+  "recentActivity.yesterday": "Yesterday",
+  "recentActivity.recently": "Recently",
+
+  "rightPanel.activeJobs": "ACTIVE JOBS",
+  "rightPanel.viewAll": "View all",
+  "rightPanel.noActiveProjects": "No active projects",
+  "rightPanel.projectInfoPrompt": "Tell me about the {{projectName}} project"
+}

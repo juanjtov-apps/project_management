@@ -74,6 +74,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
+import { useTranslation } from 'react-i18next';
 import type { Project, InsertProject, Task, InsertTask, User, Photo } from "@shared/schema";
 
 // Helper functions
@@ -94,6 +95,7 @@ const isTaskDueThisWeek = (task: Task): boolean => {
 type WorkSegment = "projects" | "tasks";
 
 export default function WorkPage() {
+  const { t } = useTranslation('work');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -271,7 +273,7 @@ export default function WorkPage() {
 
       // Then invalidate and show toast
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      toast({ title: "Project created successfully" });
+      toast({ title: t('toast.projectCreated') });
     },
   });
 
@@ -288,13 +290,13 @@ export default function WorkPage() {
       projectEditForm.reset();
       isClosingFromMutation.current = false;
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      toast({ title: "Project updated successfully" });
+      toast({ title: t('toast.projectUpdated') });
     },
     onError: (error: any) => {
       console.error("[Project Update] Mutation failed with error:", error);
       toast({
-        title: "Failed to update project",
-        description: error.message || "An error occurred",
+        title: t('toast.projectUpdateFailed'),
+        description: error.message || t('toast.errorOccurred'),
         variant: "destructive"
       });
     },
@@ -318,7 +320,7 @@ export default function WorkPage() {
       // Finally invalidate queries and show toast
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
-      toast({ title: "Project deleted successfully" });
+      toast({ title: t('toast.projectDeleted') });
     },
   });
 
@@ -337,11 +339,11 @@ export default function WorkPage() {
       // Then invalidate and show toast
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      toast({ title: "Task created successfully" });
+      toast({ title: t('toast.taskCreated') });
     },
     onError: (error: any) => {
       console.error("[Task Create] Error:", error);
-      toast({ title: "Failed to create task", description: error?.message, variant: "destructive" });
+      toast({ title: t('toast.taskCreateFailed'), description: error?.message, variant: "destructive" });
     },
   });
 
@@ -367,11 +369,11 @@ export default function WorkPage() {
       isClosingFromMutation.current = false;
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      toast({ title: "Task updated successfully" });
+      toast({ title: t('toast.taskUpdated') });
     },
     onError: (error) => {
       console.error("[Task Edit] Update mutation failed", error);
-      toast({ title: "Failed to update task", variant: "destructive" });
+      toast({ title: t('toast.taskUpdateFailed'), variant: "destructive" });
     },
   });
 
@@ -382,7 +384,7 @@ export default function WorkPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       setIsTaskDeleteDialogOpen(false);
       setTaskToDelete(null);
-      toast({ title: "Task deleted successfully" });
+      toast({ title: t('toast.taskDeleted') });
     },
   });
 
@@ -598,8 +600,8 @@ export default function WorkPage() {
       });
 
       toast({
-        title: "Issue Created",
-        description: "Your issue has been submitted successfully.",
+        title: t('toast.issueCreated'),
+        description: t('toast.issueCreatedDesc'),
       });
 
       // Reset and close
@@ -611,8 +613,8 @@ export default function WorkPage() {
       setIssuesProject(null);
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to create issue. Please try again.",
+        title: t('toast.error'),
+        description: t('toast.issueCreateFailed'),
         variant: "destructive",
       });
     } finally {
@@ -711,7 +713,7 @@ export default function WorkPage() {
   if (projectStatusFilter !== "all") {
     projectActiveFilters.push({
       id: "status",
-      label: `Status: ${projectStatusFilter}`,
+      label: `${t('form.status')}: ${projectStatusFilter}`,
       onClick: () => setProjectStatusFilter("all"),
     });
   }
@@ -720,21 +722,21 @@ export default function WorkPage() {
   if (taskStatusFilter !== "all") {
     taskActiveFilters.push({
       id: "status",
-      label: `Status: ${taskStatusFilter}`,
+      label: `${t('form.status')}: ${taskStatusFilter}`,
       onClick: () => setTaskStatusFilter("all"),
     });
   }
   if (taskPriorityFilter !== "all") {
     taskActiveFilters.push({
       id: "priority",
-      label: `Priority: ${taskPriorityFilter}`,
+      label: `${t('form.priority')}: ${taskPriorityFilter}`,
       onClick: () => setTaskPriorityFilter("all"),
     });
   }
   if (taskAssigneeFilter !== "all") {
     taskActiveFilters.push({
       id: "assignee",
-      label: `Assignee: ${taskAssigneeFilter === "unassigned" ? "Unassigned" : taskAssigneeFilter === "me" ? "Me" : getUserName(taskAssigneeFilter)}`,
+      label: `${t('form.assignee')}: ${taskAssigneeFilter === "unassigned" ? t('form.unassigned') : taskAssigneeFilter === "me" ? t('filter.me') : getUserName(taskAssigneeFilter)}`,
       onClick: () => setTaskAssigneeFilter("all"),
     });
   }
@@ -769,9 +771,9 @@ export default function WorkPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-0">
             {/* Left: Breadcrumb */}
             <div className="w-full md:w-auto text-center md:text-left">
-              <h1 className="text-2xl font-bold text-[var(--pro-text-primary)]">Work</h1>
+              <h1 className="text-2xl font-bold text-[var(--pro-text-primary)]">{t('work.title')}</h1>
               <p className="text-sm text-[var(--pro-text-secondary)] mt-1">
-                Manage your projects and tasks
+                {t('work.subtitle')}
               </p>
             </div>
 
@@ -779,8 +781,8 @@ export default function WorkPage() {
             <div className="w-full md:w-auto md:absolute md:left-1/2 md:-translate-x-1/2 flex justify-center">
               <SegmentedControl
                 options={[
-                  { value: "projects", label: "Projects", icon: <Briefcase className="w-4 h-4" /> },
-                  { value: "tasks", label: "Tasks", icon: <ListTodo className="w-4 h-4" /> },
+                  { value: "projects", label: t('work.projects'), icon: <Briefcase className="w-4 h-4" /> },
+                  { value: "tasks", label: t('work.tasks'), icon: <ListTodo className="w-4 h-4" /> },
                 ]}
                 value={activeSegment}
                 onChange={(value) => setActiveSegment(value as WorkSegment)}
@@ -798,7 +800,7 @@ export default function WorkPage() {
                   className="tap-target"
                 >
                   <Plus className="w-5 h-5 mr-2" />
-                  New Project
+                  {t('work.newProject')}
                 </Button>
               ) : (
                 <Button
@@ -807,7 +809,7 @@ export default function WorkPage() {
                   className="tap-target"
                 >
                   <Plus className="w-5 h-5 mr-2" />
-                  New Task
+                  {t('work.newTask')}
                 </Button>
               )}
             </div>
@@ -822,7 +824,7 @@ export default function WorkPage() {
           <FilterBar
             searchValue={projectSearchTerm}
             onSearchChange={setProjectSearchTerm}
-            searchPlaceholder="Search projects..."
+            searchPlaceholder={t('projects.searchPlaceholder')}
             filters={projectActiveFilters}
             onClearAll={projectActiveFilters.length > 0 ? handleClearProjectFilters : undefined}
             sticky={false}
@@ -831,13 +833,13 @@ export default function WorkPage() {
               <>
                 <Select value={projectStatusFilter} onValueChange={setProjectStatusFilter}>
                   <SelectTrigger className="flex-1 sm:flex-none sm:w-[140px] tap-target" data-testid="filter-status">
-                    <SelectValue placeholder="Status" />
+                    <SelectValue placeholder={t('form.status')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="on-hold">On Hold</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="all">{t('filter.allStatus')}</SelectItem>
+                    <SelectItem value="active">{t('filter.active')}</SelectItem>
+                    <SelectItem value="on-hold">{t('filter.onHold')}</SelectItem>
+                    <SelectItem value="completed">{t('filter.completed')}</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -853,20 +855,20 @@ export default function WorkPage() {
                   }}
                 >
                   <SelectTrigger className="flex-1 sm:flex-none sm:w-[140px] tap-target" data-testid="sort-select">
-                    <SelectValue placeholder="Sort" />
+                    <SelectValue placeholder={t('form.status')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="recent-desc">Recent First</SelectItem>
-                    <SelectItem value="recent-asc">Oldest First</SelectItem>
-                    <SelectItem value="name-asc">Name A-Z</SelectItem>
-                    <SelectItem value="name-desc">Name Z-A</SelectItem>
+                    <SelectItem value="recent-desc">{t('filter.sortRecentFirst')}</SelectItem>
+                    <SelectItem value="recent-asc">{t('filter.sortOldestFirst')}</SelectItem>
+                    <SelectItem value="name-asc">{t('filter.sortNameAZ')}</SelectItem>
+                    <SelectItem value="name-desc">{t('filter.sortNameZA')}</SelectItem>
                   </SelectContent>
                 </Select>
 
                 <SegmentedControl
                   options={[
-                    { value: "grid", label: "Grid" },
-                    { value: "list", label: "List" },
+                    { value: "grid", label: t('view.grid') },
+                    { value: "list", label: t('view.list') },
                   ]}
                   value={projectViewMode}
                   onChange={(value) => setProjectViewMode(value as "list" | "grid")}
@@ -882,17 +884,17 @@ export default function WorkPage() {
             {filteredProjects.length === 0 ? (
               <EmptyState
                 icon={FolderOpen}
-                title="No projects found"
+                title={t('projects.noProjects')}
                 description={
                   projectSearchTerm || projectActiveFilters.length > 0
-                    ? "Try adjusting your filters"
-                    : "Create your first project to get started"
+                    ? t('projects.adjustFilters')
+                    : t('projects.createFirst')
                 }
                 action={
                   projectSearchTerm || projectActiveFilters.length > 0
                     ? undefined
                     : {
-                      label: "Create Project",
+                      label: t('projects.createProject'),
                       onClick: () => setIsProjectCreateDialogOpen(true),
                     }
                 }
@@ -954,7 +956,7 @@ export default function WorkPage() {
                 data-testid="stat-total-tasks"
               >
                 <span className="text-sm font-bold text-[var(--pro-text-primary)]">{taskStats.total}</span>
-                <span className="text-[10px] text-[var(--pro-text-secondary)]">Total</span>
+                <span className="text-[10px] text-[var(--pro-text-secondary)]">{t('stat.total')}</span>
               </button>
               <button
                 onClick={() => setTaskStatusFilter("overdue")}
@@ -970,7 +972,7 @@ export default function WorkPage() {
                   "text-sm font-bold",
                   taskStats.overdue > 0 ? "text-[var(--pro-red)]" : "text-[var(--pro-text-primary)]"
                 )}>{taskStats.overdue}</span>
-                <span className="text-[10px] text-[var(--pro-text-secondary)]">Overdue</span>
+                <span className="text-[10px] text-[var(--pro-text-secondary)]">{t('stat.overdue')}</span>
               </button>
               <button
                 onClick={() => setTaskStatusFilter("dueThisWeek")}
@@ -978,7 +980,7 @@ export default function WorkPage() {
                 data-testid="stat-due-this-week"
               >
                 <span className="text-sm font-bold text-[var(--pro-blue)]">{taskStats.dueThisWeek}</span>
-                <span className="text-[10px] text-[var(--pro-text-secondary)]">Week</span>
+                <span className="text-[10px] text-[var(--pro-text-secondary)]">{t('stat.week')}</span>
               </button>
               <button
                 onClick={() => setTaskStatusFilter("completed")}
@@ -986,7 +988,7 @@ export default function WorkPage() {
                 data-testid="stat-completed-tasks"
               >
                 <span className="text-sm font-bold text-[var(--pro-mint)]">{taskStats.completed}</span>
-                <span className="text-[10px] text-[var(--pro-text-secondary)]">Done</span>
+                <span className="text-[10px] text-[var(--pro-text-secondary)]">{t('stat.done')}</span>
               </button>
             </div>
 
@@ -994,35 +996,35 @@ export default function WorkPage() {
             <div className="hidden md:grid grid-cols-4 gap-4">
               <StatCard
                 icon={ListTodo}
-                label="Total Tasks"
+                label={t('projects.totalTasks')}
                 value={taskStats.total}
-                sublabel="All tasks"
+                sublabel={t('stat.allTasks')}
                 onClick={() => handleClearTaskFilters()}
                 data-testid="stat-total-tasks-desktop"
               />
               <StatCard
                 icon={AlertCircle}
-                label="Overdue"
+                label={t('projects.overdue')}
                 value={taskStats.overdue}
-                sublabel="Behind schedule"
+                sublabel={t('stat.behindSchedule')}
                 tone="coral"
                 onClick={() => setTaskStatusFilter("overdue")}
                 data-testid="stat-overdue-tasks-desktop"
               />
               <StatCard
                 icon={CalendarIcon}
-                label="Due This Week"
+                label={t('projects.dueThisWeek')}
                 value={taskStats.dueThisWeek}
-                sublabel="Due within 7 days"
+                sublabel={t('stat.dueWithin7Days')}
                 tone="blue"
                 onClick={() => setTaskStatusFilter("dueThisWeek")}
                 data-testid="stat-due-this-week-desktop"
               />
               <StatCard
                 icon={CheckCircle}
-                label="Completed"
+                label={t('projects.completed')}
                 value={taskStats.completed}
-                sublabel="Finished tasks"
+                sublabel={t('stat.finishedTasks')}
                 tone="teal"
                 onClick={() => setTaskStatusFilter("completed")}
                 data-testid="stat-completed-tasks-desktop"
@@ -1039,10 +1041,10 @@ export default function WorkPage() {
                   type="text"
                   value={taskSearchTerm}
                   onChange={(e) => setTaskSearchTerm(e.target.value)}
-                  placeholder="Search tasks..."
+                  placeholder={t('tasks.searchPlaceholder')}
                   data-testid="filter-search-input"
                   className="pl-9 h-10 bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] text-sm"
-                  aria-label="Search"
+                  aria-label={t('tasks.searchPlaceholder')}
                 />
                 <ListTodo className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--pro-text-secondary)]" />
               </div>
@@ -1056,14 +1058,14 @@ export default function WorkPage() {
                   className="flex-shrink-0 h-8 w-auto min-w-[80px] px-2.5 text-xs bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] rounded-full"
                   data-testid="filter-status"
                 >
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder={t('form.status')} />
                 </SelectTrigger>
                 <SelectContent position="popper" side="bottom" align="start" sideOffset={4} className="z-50">
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="blocked">Blocked</SelectItem>
+                  <SelectItem value="all">{t('filter.allStatus')}</SelectItem>
+                  <SelectItem value="pending">{t('filter.pending')}</SelectItem>
+                  <SelectItem value="in-progress">{t('filter.inProgress')}</SelectItem>
+                  <SelectItem value="completed">{t('filter.completed')}</SelectItem>
+                  <SelectItem value="blocked">{t('filter.blocked')}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -1072,14 +1074,14 @@ export default function WorkPage() {
                   className="flex-shrink-0 h-8 w-auto min-w-[80px] px-2.5 text-xs bg-[var(--pro-surface-highlight)] border-[var(--pro-border)] rounded-full"
                   data-testid="filter-priority"
                 >
-                  <SelectValue placeholder="Priority" />
+                  <SelectValue placeholder={t('form.priority')} />
                 </SelectTrigger>
                 <SelectContent position="popper" side="bottom" align="start" sideOffset={4} className="z-50">
-                  <SelectItem value="all">All Priority</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="critical">Critical</SelectItem>
+                  <SelectItem value="all">{t('filter.allPriority')}</SelectItem>
+                  <SelectItem value="low">{t('filter.low')}</SelectItem>
+                  <SelectItem value="medium">{t('filter.medium')}</SelectItem>
+                  <SelectItem value="high">{t('filter.high')}</SelectItem>
+                  <SelectItem value="critical">{t('filter.critical')}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -1095,7 +1097,7 @@ export default function WorkPage() {
                   )}
                   data-testid="view-mode-list"
                 >
-                  List
+                  {t('view.list')}
                 </button>
                 <button
                   onClick={() => setTaskViewMode("canvas")}
@@ -1107,7 +1109,7 @@ export default function WorkPage() {
                   )}
                   data-testid="view-mode-canvas"
                 >
-                  Canvas
+                  {t('view.canvas')}
                 </button>
               </div>
 
@@ -1119,7 +1121,7 @@ export default function WorkPage() {
                   onClick={handleClearTaskFilters}
                   className="flex-shrink-0 h-8 px-2.5 text-xs text-[var(--pro-red)] hover:text-[var(--pro-red)] hover:bg-[var(--pro-red)]/10 rounded-full"
                 >
-                  Clear
+                  {t('filter.clear')}
                 </Button>
               )}
             </div>
@@ -1130,16 +1132,16 @@ export default function WorkPage() {
             {filteredTasks.length === 0 ? (
               <EmptyState
                 icon={FolderOpen}
-                title="No tasks found"
+                title={t('tasks.noTasks')}
                 description={
                   taskSearchTerm || taskActiveFilters.length > 0
-                    ? "Try adjusting your filters"
-                    : "Create your first task to get started"
+                    ? t('tasks.adjustFilters')
+                    : t('tasks.createFirst')
                 }
                 action={
                   taskSearchTerm || taskActiveFilters.length > 0
                     ? undefined
-                    : { label: "Create Task", onClick: () => setIsTaskCreateDialogOpen(true) }
+                    : { label: t('tasks.createTask'), onClick: () => setIsTaskCreateDialogOpen(true) }
                 }
                 data-testid="empty-state-tasks"
               />
@@ -1149,7 +1151,7 @@ export default function WorkPage() {
                 {filteredTasks.map((task) => {
                   const project = task.projectId ? projectMap.get(task.projectId) : undefined;
                   const assignees = task.assigneeId
-                    ? [{ id: task.assigneeId, name: getUserName(task.assigneeId) || "Unknown" }]
+                    ? [{ id: task.assigneeId, name: getUserName(task.assigneeId) || t('form.unknown') }]
                     : [];
 
                   return (
@@ -1172,9 +1174,9 @@ export default function WorkPage() {
                         })
                       }
                       menuItems={[
-                        { label: "Edit", icon: Edit, onClick: () => handleEditTask(task) },
+                        { label: t('actions.edit'), icon: Edit, onClick: () => handleEditTask(task) },
                         {
-                          label: "Delete",
+                          label: t('actions.delete'),
                           icon: Trash2,
                           onClick: () => handleDeleteTask(task),
                           variant: "danger",
@@ -1215,7 +1217,7 @@ export default function WorkPage() {
                       <div className="space-y-2 pl-4">
                         {projectTasks.map((task) => {
                           const assignees = task.assigneeId
-                            ? [{ id: task.assigneeId, name: getUserName(task.assigneeId) || "Unknown" }]
+                            ? [{ id: task.assigneeId, name: getUserName(task.assigneeId) || t('form.unknown') }]
                             : [];
 
                           return (
@@ -1237,9 +1239,9 @@ export default function WorkPage() {
                                 })
                               }
                               menuItems={[
-                                { label: "Edit", icon: Edit, onClick: () => handleEditTask(task) },
+                                { label: t('actions.edit'), icon: Edit, onClick: () => handleEditTask(task) },
                                 {
-                                  label: "Delete",
+                                  label: t('actions.delete'),
                                   icon: Trash2,
                                   onClick: () => handleDeleteTask(task),
                                   variant: "danger",
@@ -1266,7 +1268,7 @@ export default function WorkPage() {
                       <div className="flex items-center gap-3">
                         <ListTodo className="w-5 h-5 text-[var(--text-secondary)]" />
                         <span className="font-semibold text-[var(--text-primary)]">
-                          Unassigned Tasks
+                          {t('tasks.unassignedTasks')}
                         </span>
                         <span className="text-sm text-[var(--text-secondary)]">
                           ({unassignedTasks.length})
@@ -1281,7 +1283,7 @@ export default function WorkPage() {
                       <div className="space-y-2 pl-4">
                         {unassignedTasks.map((task) => {
                           const assignees = task.assigneeId
-                            ? [{ id: task.assigneeId, name: getUserName(task.assigneeId) || "Unknown" }]
+                            ? [{ id: task.assigneeId, name: getUserName(task.assigneeId) || t('form.unknown') }]
                             : [];
 
                           return (
@@ -1301,9 +1303,9 @@ export default function WorkPage() {
                                 })
                               }
                               menuItems={[
-                                { label: "Edit", icon: Edit, onClick: () => handleEditTask(task) },
+                                { label: t('actions.edit'), icon: Edit, onClick: () => handleEditTask(task) },
                                 {
-                                  label: "Delete",
+                                  label: t('actions.delete'),
                                   icon: Trash2,
                                   onClick: () => handleDeleteTask(task),
                                   variant: "danger",
@@ -1336,7 +1338,7 @@ export default function WorkPage() {
       >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>Create New Project</DialogTitle>
+            <DialogTitle>{t('projects.createNew')}</DialogTitle>
           </DialogHeader>
           <Form {...projectForm}>
             <form onSubmit={projectForm.handleSubmit(handleCreateProject)} className="space-y-4">
@@ -1345,9 +1347,9 @@ export default function WorkPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Project Name</FormLabel>
+                    <FormLabel>{t('form.projectName')}</FormLabel>
                     <FormControl>
-                      <Input {...field} data-testid="input-name" placeholder="Enter project name" />
+                      <Input {...field} data-testid="input-name" placeholder={t('form.projectNamePlaceholder')} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1359,13 +1361,13 @@ export default function WorkPage() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>{t('form.description')}</FormLabel>
                     <FormControl>
                       <Textarea
                         {...field}
                         value={field.value || ""}
                         data-testid="input-description"
-                        placeholder="Enter project description"
+                        placeholder={t('form.descriptionPlaceholder')}
                       />
                     </FormControl>
                     <FormMessage />
@@ -1379,13 +1381,13 @@ export default function WorkPage() {
                   name="location"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Location</FormLabel>
+                      <FormLabel>{t('form.location')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           value={field.value || ""}
                           data-testid="input-location"
-                          placeholder="Enter location"
+                          placeholder={t('form.locationPlaceholder')}
                         />
                       </FormControl>
                       <FormMessage />
@@ -1398,7 +1400,7 @@ export default function WorkPage() {
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
+                      <FormLabel>{t('form.status')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-status">
@@ -1406,9 +1408,9 @@ export default function WorkPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="on-hold">On Hold</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="active">{t('filter.active')}</SelectItem>
+                          <SelectItem value="on-hold">{t('filter.onHold')}</SelectItem>
+                          <SelectItem value="completed">{t('filter.completed')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -1421,7 +1423,7 @@ export default function WorkPage() {
                   name="progress"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Progress (%)</FormLabel>
+                      <FormLabel>{t('form.progress')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -1443,7 +1445,7 @@ export default function WorkPage() {
                   name="dueDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Due Date</FormLabel>
+                      <FormLabel>{t('form.dueDate')}</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -1455,7 +1457,7 @@ export default function WorkPage() {
                               )}
                               data-testid="select-due-date"
                             >
-                              {field.value ? format(new Date(field.value), "PPP") : "Pick a date"}
+                              {field.value ? format(new Date(field.value), "PPP") : t('form.pickDate')}
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -1481,14 +1483,14 @@ export default function WorkPage() {
                   onClick={() => setIsProjectCreateDialogOpen(false)}
                   data-testid="button-cancel"
                 >
-                  Cancel
+                  {t('form.cancel')}
                 </Button>
                 <Button
                   type="submit"
                   data-testid="button-submit"
                   disabled={createProjectMutation.isPending}
                 >
-                  {createProjectMutation.isPending ? "Creating..." : "Create Project"}
+                  {createProjectMutation.isPending ? t('projects.creating') : t('projects.createProject')}
                 </Button>
               </div>
             </form>
@@ -1520,7 +1522,7 @@ export default function WorkPage() {
       >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>Edit Project</DialogTitle>
+            <DialogTitle>{t('projects.editProject')}</DialogTitle>
           </DialogHeader>
           <Form {...projectEditForm}>
             <form onSubmit={projectEditForm.handleSubmit(handleUpdateProject)} className="space-y-4">
@@ -1529,13 +1531,13 @@ export default function WorkPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Project Name</FormLabel>
+                    <FormLabel>{t('form.projectName')}</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         value={field.value || ""}
                         data-testid="input-edit-name"
-                        placeholder="Enter project name"
+                        placeholder={t('form.projectNamePlaceholder')}
                       />
                     </FormControl>
                     <FormMessage />
@@ -1548,13 +1550,13 @@ export default function WorkPage() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>{t('form.description')}</FormLabel>
                     <FormControl>
                       <Textarea
                         {...field}
                         value={field.value || ""}
                         data-testid="input-edit-description"
-                        placeholder="Enter project description"
+                        placeholder={t('form.descriptionPlaceholder')}
                       />
                     </FormControl>
                     <FormMessage />
@@ -1571,17 +1573,17 @@ export default function WorkPage() {
                     const projectPhotos = allPhotos.filter(p => p.projectId === editingProject.id);
                     return (
                       <FormItem>
-                        <FormLabel>Cover Photo</FormLabel>
+                        <FormLabel>{t('projects.coverPhoto')}</FormLabel>
                         <FormControl>
                           <div className="space-y-2">
                             {projectPhotos.length === 0 ? (
                               <p className="text-sm text-muted-foreground">
-                                No photos uploaded yet. Upload photos to the project first to set a cover image.
+                                {t('projects.noCoverPhotos')}
                               </p>
                             ) : (
                               <>
                                 <p className="text-sm text-muted-foreground mb-2">
-                                  Select a photo to use as the project cover image
+                                  {t('projects.selectCoverPhoto')}
                                 </p>
                                 <div className="grid grid-cols-4 gap-2">
                                   {projectPhotos.slice(0, 8).map((photo) => (
@@ -1619,7 +1621,7 @@ export default function WorkPage() {
                                     onClick={() => field.onChange(undefined)}
                                     className="text-sm text-muted-foreground"
                                   >
-                                    Clear cover photo
+                                    {t('projects.clearCoverPhoto')}
                                   </Button>
                                 )}
                               </>
@@ -1639,13 +1641,13 @@ export default function WorkPage() {
                   name="location"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Location</FormLabel>
+                      <FormLabel>{t('form.location')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           value={field.value || ""}
                           data-testid="input-edit-location"
-                          placeholder="Enter location"
+                          placeholder={t('form.locationPlaceholder')}
                         />
                       </FormControl>
                       <FormMessage />
@@ -1658,7 +1660,7 @@ export default function WorkPage() {
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
+                      <FormLabel>{t('form.status')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-status">
@@ -1666,9 +1668,9 @@ export default function WorkPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="on-hold">On Hold</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="active">{t('filter.active')}</SelectItem>
+                          <SelectItem value="on-hold">{t('filter.onHold')}</SelectItem>
+                          <SelectItem value="completed">{t('filter.completed')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -1681,7 +1683,7 @@ export default function WorkPage() {
                   name="progress"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Progress (%)</FormLabel>
+                      <FormLabel>{t('form.progress')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -1703,7 +1705,7 @@ export default function WorkPage() {
                   name="dueDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Due Date</FormLabel>
+                      <FormLabel>{t('form.dueDate')}</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -1715,7 +1717,7 @@ export default function WorkPage() {
                               )}
                               data-testid="select-edit-due-date"
                             >
-                              {field.value ? format(new Date(field.value), "PPP") : "Pick a date"}
+                              {field.value ? format(new Date(field.value), "PPP") : t('form.pickDate')}
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -1748,7 +1750,7 @@ export default function WorkPage() {
                   }}
                   data-testid="button-cancel-edit"
                 >
-                  Cancel
+                  {t('form.cancel')}
                 </Button>
                 <Button
                   type="submit"
@@ -1759,7 +1761,7 @@ export default function WorkPage() {
                     e.stopPropagation();
                   }}
                 >
-                  {updateProjectMutation.isPending ? "Updating..." : "Update Project"}
+                  {updateProjectMutation.isPending ? t('projects.updating') : t('projects.updateProject')}
                 </Button>
               </div>
             </form>
@@ -1782,13 +1784,13 @@ export default function WorkPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Project</AlertDialogTitle>
+            <AlertDialogTitle>{t('projects.deleteProject')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{projectToDelete?.name}"? This action cannot be undone.
+              {t('projects.deleteConfirm', { name: projectToDelete?.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete">{t('form.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -1798,7 +1800,7 @@ export default function WorkPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={deleteProjectMutation.isPending}
             >
-              {deleteProjectMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteProjectMutation.isPending ? t('projects.deleting') : t('form.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1816,7 +1818,7 @@ export default function WorkPage() {
       >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>Create New Task</DialogTitle>
+            <DialogTitle>{t('tasks.createNew')}</DialogTitle>
           </DialogHeader>
           <Form {...taskForm}>
             <form onSubmit={taskForm.handleSubmit(handleCreateTask)} className="space-y-4">
@@ -1825,9 +1827,9 @@ export default function WorkPage() {
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Title</FormLabel>
+                    <FormLabel>{t('form.title')}</FormLabel>
                     <FormControl>
-                      <Input {...field} data-testid="input-task-title" placeholder="Enter task title" />
+                      <Input {...field} data-testid="input-task-title" placeholder={t('form.titlePlaceholder')} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1839,9 +1841,9 @@ export default function WorkPage() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>{t('form.description')}</FormLabel>
                     <FormControl>
-                      <Textarea {...field} value={field.value || ""} data-testid="input-task-description" placeholder="Enter task description" />
+                      <Textarea {...field} value={field.value || ""} data-testid="input-task-description" placeholder={t('form.taskDescPlaceholder')} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1854,15 +1856,15 @@ export default function WorkPage() {
                   name="projectId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project</FormLabel>
+                      <FormLabel>{t('form.project')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value || "none"}>
                         <FormControl>
                           <SelectTrigger data-testid="select-project">
-                            <SelectValue placeholder="Select project" />
+                            <SelectValue placeholder={t('form.selectProject')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="none">No Project</SelectItem>
+                          <SelectItem value="none">{t('form.noProject')}</SelectItem>
                           {projects.map((project) => (
                             <SelectItem key={project.id} value={project.id}>
                               {project.name}
@@ -1880,15 +1882,15 @@ export default function WorkPage() {
                   name="assigneeId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Assignee</FormLabel>
+                      <FormLabel>{t('form.assignee')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value || "none"}>
                         <FormControl>
                           <SelectTrigger data-testid="select-assignee">
-                            <SelectValue placeholder="Select assignee" />
+                            <SelectValue placeholder={t('form.selectAssignee')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="none">Unassigned</SelectItem>
+                          <SelectItem value="none">{t('form.unassigned')}</SelectItem>
                           {users.map((u) => (
                             <SelectItem key={u.id} value={u.id}>
                               {getUserName(u.id) || u.email}
@@ -1906,7 +1908,7 @@ export default function WorkPage() {
                   name="priority"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Priority</FormLabel>
+                      <FormLabel>{t('form.priority')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-priority">
@@ -1914,10 +1916,10 @@ export default function WorkPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="critical">Critical</SelectItem>
+                          <SelectItem value="low">{t('filter.low')}</SelectItem>
+                          <SelectItem value="medium">{t('filter.medium')}</SelectItem>
+                          <SelectItem value="high">{t('filter.high')}</SelectItem>
+                          <SelectItem value="critical">{t('filter.critical')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -1930,7 +1932,7 @@ export default function WorkPage() {
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
+                      <FormLabel>{t('form.status')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-task-status">
@@ -1938,10 +1940,10 @@ export default function WorkPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="in-progress">In Progress</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="blocked">Blocked</SelectItem>
+                          <SelectItem value="pending">{t('filter.pending')}</SelectItem>
+                          <SelectItem value="in-progress">{t('filter.inProgress')}</SelectItem>
+                          <SelectItem value="completed">{t('filter.completed')}</SelectItem>
+                          <SelectItem value="blocked">{t('filter.blocked')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -1954,7 +1956,7 @@ export default function WorkPage() {
                   name="dueDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Due Date</FormLabel>
+                      <FormLabel>{t('form.dueDate')}</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -1966,7 +1968,7 @@ export default function WorkPage() {
                               )}
                               data-testid="select-task-due-date"
                             >
-                              {field.value ? format(new Date(field.value), "PPP") : "Pick a date"}
+                              {field.value ? format(new Date(field.value), "PPP") : t('form.pickDate')}
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -1992,14 +1994,14 @@ export default function WorkPage() {
                   onClick={() => setIsTaskCreateDialogOpen(false)}
                   data-testid="button-cancel-task"
                 >
-                  Cancel
+                  {t('form.cancel')}
                 </Button>
                 <Button
                   type="submit"
                   data-testid="button-submit-task"
                   disabled={createTaskMutation.isPending}
                 >
-                  {createTaskMutation.isPending ? "Creating..." : "Create Task"}
+                  {createTaskMutation.isPending ? t('tasks.creating') : t('tasks.createTask')}
                 </Button>
               </div>
             </form>
@@ -2031,7 +2033,7 @@ export default function WorkPage() {
       >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>Edit Task</DialogTitle>
+            <DialogTitle>{t('tasks.editTask')}</DialogTitle>
           </DialogHeader>
           <Form {...taskEditForm}>
             <form
@@ -2045,9 +2047,9 @@ export default function WorkPage() {
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Title</FormLabel>
+                    <FormLabel>{t('form.title')}</FormLabel>
                     <FormControl>
-                      <Input {...field} data-testid="input-edit-task-title" placeholder="Enter task title" />
+                      <Input {...field} data-testid="input-edit-task-title" placeholder={t('form.titlePlaceholder')} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -2059,9 +2061,9 @@ export default function WorkPage() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>{t('form.description')}</FormLabel>
                     <FormControl>
-                      <Textarea {...field} value={field.value || ""} data-testid="input-edit-task-description" placeholder="Enter task description" />
+                      <Textarea {...field} value={field.value || ""} data-testid="input-edit-task-description" placeholder={t('form.taskDescPlaceholder')} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -2074,15 +2076,15 @@ export default function WorkPage() {
                   name="projectId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project</FormLabel>
+                      <FormLabel>{t('form.project')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value || "none"}>
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-task-project">
-                            <SelectValue placeholder="Select project" />
+                            <SelectValue placeholder={t('form.selectProject')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="none">No Project</SelectItem>
+                          <SelectItem value="none">{t('form.noProject')}</SelectItem>
                           {projects.map((project) => (
                             <SelectItem key={project.id} value={project.id}>
                               {project.name}
@@ -2100,15 +2102,15 @@ export default function WorkPage() {
                   name="assigneeId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Assignee</FormLabel>
+                      <FormLabel>{t('form.assignee')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value || "none"}>
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-task-assignee">
-                            <SelectValue placeholder="Select assignee" />
+                            <SelectValue placeholder={t('form.selectAssignee')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="none">Unassigned</SelectItem>
+                          <SelectItem value="none">{t('form.unassigned')}</SelectItem>
                           {users.map((u) => (
                             <SelectItem key={u.id} value={u.id}>
                               {getUserName(u.id) || u.email}
@@ -2126,7 +2128,7 @@ export default function WorkPage() {
                   name="priority"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Priority</FormLabel>
+                      <FormLabel>{t('form.priority')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-task-priority">
@@ -2134,10 +2136,10 @@ export default function WorkPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="critical">Critical</SelectItem>
+                          <SelectItem value="low">{t('filter.low')}</SelectItem>
+                          <SelectItem value="medium">{t('filter.medium')}</SelectItem>
+                          <SelectItem value="high">{t('filter.high')}</SelectItem>
+                          <SelectItem value="critical">{t('filter.critical')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -2150,7 +2152,7 @@ export default function WorkPage() {
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
+                      <FormLabel>{t('form.status')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-task-status">
@@ -2158,10 +2160,10 @@ export default function WorkPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="in-progress">In Progress</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="blocked">Blocked</SelectItem>
+                          <SelectItem value="pending">{t('filter.pending')}</SelectItem>
+                          <SelectItem value="in-progress">{t('filter.inProgress')}</SelectItem>
+                          <SelectItem value="completed">{t('filter.completed')}</SelectItem>
+                          <SelectItem value="blocked">{t('filter.blocked')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -2174,7 +2176,7 @@ export default function WorkPage() {
                   name="dueDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Due Date</FormLabel>
+                      <FormLabel>{t('form.dueDate')}</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -2186,7 +2188,7 @@ export default function WorkPage() {
                               )}
                               data-testid="select-edit-task-due-date"
                             >
-                              {field.value ? format(new Date(field.value), "PPP") : "Pick a date"}
+                              {field.value ? format(new Date(field.value), "PPP") : t('form.pickDate')}
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -2220,7 +2222,7 @@ export default function WorkPage() {
                   }}
                   data-testid="button-cancel-edit-task"
                 >
-                  Cancel
+                  {t('form.cancel')}
                 </Button>
                 <Button
                   type="submit"
@@ -2231,7 +2233,7 @@ export default function WorkPage() {
                     e.stopPropagation();
                   }}
                 >
-                  {updateTaskMutation.isPending ? "Updating..." : "Update Task"}
+                  {updateTaskMutation.isPending ? t('tasks.updating') : t('tasks.updateTask')}
                 </Button>
               </div>
             </form>
@@ -2251,13 +2253,13 @@ export default function WorkPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Task</AlertDialogTitle>
+            <AlertDialogTitle>{t('tasks.deleteTask')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{taskToDelete?.title}"? This action cannot be undone.
+              {t('tasks.deleteConfirm', { title: taskToDelete?.title })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete-task">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete-task">{t('form.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -2267,7 +2269,7 @@ export default function WorkPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={deleteTaskMutation.isPending}
             >
-              {deleteTaskMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteTaskMutation.isPending ? t('tasks.deleting') : t('form.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2287,7 +2289,7 @@ export default function WorkPage() {
         <DialogContent hideCloseButton className="max-w-4xl max-h-[85vh] overflow-y-auto bg-zinc-900 border-zinc-700 p-0">
           {/* sr-only header for accessibility - close button is inside StagesTab */}
           <DialogHeader className="sr-only">
-            <DialogTitle>Project Stages</DialogTitle>
+            <DialogTitle>{t('projects.stages')}</DialogTitle>
           </DialogHeader>
           <div className="p-6">
             {stagesProject && (
@@ -2311,7 +2313,7 @@ export default function WorkPage() {
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-red-400" />
-              {showReportIssueForm ? "Report New Issue" : "Project Issues"}
+              {showReportIssueForm ? t('issues.reportNew') : t('issues.projectIssues')}
             </DialogTitle>
           </DialogHeader>
 
@@ -2328,8 +2330,8 @@ export default function WorkPage() {
               >
                 <Eye className="h-5 w-5 text-blue-400 flex-shrink-0" />
                 <div className="text-left">
-                  <div className="font-medium">See Project Issues</div>
-                  <div className="text-xs text-zinc-400">View all issues in client portal</div>
+                  <div className="font-medium">{t('issues.seeProjectIssues')}</div>
+                  <div className="text-xs text-zinc-400">{t('issues.viewAllInPortal')}</div>
                 </div>
               </Button>
 
@@ -2340,8 +2342,8 @@ export default function WorkPage() {
               >
                 <Plus className="h-5 w-5 text-green-400 flex-shrink-0" />
                 <div className="text-left">
-                  <div className="font-medium">Report New Issue</div>
-                  <div className="text-xs text-zinc-400">Create a new issue for this project</div>
+                  <div className="font-medium">{t('issues.reportNew')}</div>
+                  <div className="text-xs text-zinc-400">{t('issues.createNewForProject')}</div>
                 </div>
               </Button>
             </div>
@@ -2349,9 +2351,9 @@ export default function WorkPage() {
             /* Issue Creation Form */
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">Issue Title</label>
+                <label className="text-sm font-medium text-zinc-300">{t('issues.issueTitle')}</label>
                 <Input
-                  placeholder="Brief description of the issue"
+                  placeholder={t('issues.issueTitlePlaceholder')}
                   value={issueTitle}
                   onChange={(e) => setIssueTitle(e.target.value)}
                   className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
@@ -2359,9 +2361,9 @@ export default function WorkPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">Description</label>
+                <label className="text-sm font-medium text-zinc-300">{t('issues.description')}</label>
                 <Textarea
-                  placeholder="Detailed description of the issue..."
+                  placeholder={t('issues.descriptionPlaceholder')}
                   value={issueDescription}
                   onChange={(e) => setIssueDescription(e.target.value)}
                   className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 min-h-[100px]"
@@ -2369,7 +2371,7 @@ export default function WorkPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">Photos (Optional, max 3)</label>
+                <label className="text-sm font-medium text-zinc-300">{t('issues.photosOptional')}</label>
                 {issuePhotos.length < 3 && (
                   <ObjectUploader
                     maxNumberOfFiles={3 - issuePhotos.length}
@@ -2384,7 +2386,7 @@ export default function WorkPage() {
                   >
                     <div className="flex items-center gap-2 text-[#0F1115]">
                       <Camera className="h-4 w-4" />
-                      <span className="text-[#0F1115]">Upload Photos ({issuePhotos.length}/3)</span>
+                      <span className="text-[#0F1115]">{t('issues.uploadPhotos', { count: issuePhotos.length })}</span>
                     </div>
                   </ObjectUploader>
                 )}
@@ -2416,14 +2418,14 @@ export default function WorkPage() {
                   onClick={resetIssueForm}
                   className="flex-1 bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700"
                 >
-                  Cancel
+                  {t('form.cancel')}
                 </Button>
                 <Button
                   onClick={handleCreateIssue}
                   disabled={!issueTitle || !issueDescription || isCreatingIssue}
                   className="flex-1"
                 >
-                  {isCreatingIssue ? "Creating..." : "Create Issue"}
+                  {isCreatingIssue ? t('issues.creating') : t('issues.createIssue')}
                 </Button>
               </div>
             </div>
@@ -2435,8 +2437,8 @@ export default function WorkPage() {
       <div className="md:hidden">
         <BottomNavigation
           items={[
-            { value: "projects", label: "Projects", icon: <FolderKanban size={20} /> },
-            { value: "tasks", label: "Tasks", icon: <ClipboardList size={20} />, badge: taskStats.overdue > 0 ? taskStats.overdue : undefined },
+            { value: "projects", label: t('work.projects'), icon: <FolderKanban size={20} /> },
+            { value: "tasks", label: t('work.tasks'), icon: <ClipboardList size={20} />, badge: taskStats.overdue > 0 ? taskStats.overdue : undefined },
           ]}
           value={activeSegment}
           onChange={(value) => setActiveSegment(value as WorkSegment)}

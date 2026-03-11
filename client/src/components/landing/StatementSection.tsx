@@ -1,36 +1,48 @@
+import { useTranslation } from "react-i18next";
+
 export function StatementSection() {
+  const { t } = useTranslation('landing');
+
   return (
     <section className="landing-statement landing-section">
       <div className="stmt-bg-word" aria-hidden="true">CONTROL</div>
       <div className="stmt-grid">
         <div>
-          <div className="landing-tag rv">The honest truth</div>
+          <div className="landing-tag rv">{t('statement.tag')}</div>
           <h2 className="landing-h2 rv">
-            Most contractors run<br />exceptional sites.<br /><em>Chaotic offices.</em>
+            {t('statement.headline1')}<br />{t('statement.headline2')}<br /><em>{t('statement.headline3')}</em>
           </h2>
         </div>
-        <div>
-          <p className="landing-p rv">
-            The gap between the quality of your work in the field and the quality of how you manage it is costing you money, clients, and sleep. Proesphere closes that gap — permanently.
-          </p>
-          <ul className="pain-list rv">
-            <li className="pain-item">
-              <span className="pain-n">01</span>
-              Project status lives in fifteen places. Every update requires a phone call nobody has time for.
-            </li>
-            <li className="pain-item">
-              <span className="pain-n">02</span>
-              Clients feel left in the dark. The trust erodes before the job even ends.
-            </li>
-            <li className="pain-item">
-              <span className="pain-n">03</span>
-              Budget overruns are discovered at invoice time — not at the point of prevention.
-            </li>
-            <li className="pain-item">
-              <span className="pain-n">04</span>
-              You work 60 hours a week and still feel like nothing is fully under control.
-            </li>
-          </ul>
+        <div className="stmt-briefing rv">
+          <div className="stmt-briefing-glow" />
+          <div className="stmt-briefing-card">
+            <div className="sbr-head">
+              <div className="sbr-badge">
+                <span className="sbr-live-dot" />
+                {t('statement.briefingTitle')}
+              </div>
+              <div className="sbr-date">{t('statement.briefingDate')}</div>
+            </div>
+            <div className="sbr-body">
+              <div className="sbr-text">
+                <strong>{t('statement.activeJobs')}</strong> {t('statement.today')}{' '}
+                <span className="sbr-hi-risk">{t('statement.harborView')}</span> &mdash; {t('statement.framingCrew')}
+                {' '}{t('statement.oakAve')}{' '}
+                <span className="sbr-hi-risk">{t('statement.overdue')}</span> &middot; {t('statement.martinez')}{' '}
+                <span className="sbr-hi-mint">{t('statement.pineCt')}</span>
+              </div>
+              <div className="sbr-chips">
+                <div className="sbr-chip risk"><span className="sbr-chip-spark">{"\u2726"}</span>{t('statement.harborViewShort')}</div>
+                <div className="sbr-chip"><span className="sbr-chip-spark">{"\u2726"}</span>{t('statement.oakAveDelivery')}</div>
+                <div className="sbr-chip risk"><span className="sbr-chip-spark">{"\u2726"}</span>{t('statement.overdueShort')}</div>
+                <div className="sbr-chip"><span className="sbr-chip-spark">{"\u2726"}</span>{t('statement.scheduleInspection')}</div>
+              </div>
+            </div>
+            <div className="sbr-foot">
+              <span><span className="sbr-foot-mint">3</span> {t('statement.risksDetected')}</span>
+              <span><span className="sbr-foot-mint">2</span> {t('statement.actionsSuggested')}</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>

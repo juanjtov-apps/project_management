@@ -4,6 +4,7 @@
  */
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
+import { useTranslation } from 'react-i18next';
 import { Send, Loader2, RotateCcw, AlertCircle, Check, X, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProeChat } from "@/contexts/ProeChatContext";
@@ -21,6 +22,7 @@ interface ConfirmationCardProps {
 }
 
 function ConfirmationCard({ confirmation, onConfirm, onReject }: ConfirmationCardProps) {
+  const { t } = useTranslation('dashboard');
   return (
     <div
       className="p-3 rounded-lg"
@@ -29,7 +31,7 @@ function ConfirmationCard({ confirmation, onConfirm, onReject }: ConfirmationCar
       <div className="flex items-start gap-2 mb-2">
         <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: "#FBBF24" }} />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white">Confirmation Required</p>
+          <p className="text-sm font-medium text-white">{t('chat.confirmationRequired')}</p>
           <p className="text-sm" style={{ color: "#9CA3AF" }}>
             {confirmation.operationSummary}
           </p>
@@ -48,7 +50,7 @@ function ConfirmationCard({ confirmation, onConfirm, onReject }: ConfirmationCar
           className="text-[#9CA3AF] hover:text-white hover:bg-[#2D333B]"
         >
           <X className="w-3 h-3 mr-1" />
-          Cancel
+          {t('chat.cancel')}
         </Button>
         <Button
           size="sm"
@@ -56,7 +58,7 @@ function ConfirmationCard({ confirmation, onConfirm, onReject }: ConfirmationCar
           style={{ backgroundColor: "#4ADE80", color: "#0F1115" }}
         >
           <Check className="w-3 h-3 mr-1" />
-          Confirm
+          {t('chat.confirm')}
         </Button>
       </div>
     </div>
@@ -65,14 +67,8 @@ function ConfirmationCard({ confirmation, onConfirm, onReject }: ConfirmationCar
 
 // --- Main EmbeddedChat Component ---
 
-const suggestions = [
-  "What's the status of my projects?",
-  "Show me overdue tasks",
-  "Which projects are at risk?",
-  "What's due this week?",
-];
-
 export default function EmbeddedChat() {
+  const { t } = useTranslation('dashboard');
   const {
     messages,
     isLoading,
@@ -83,6 +79,13 @@ export default function EmbeddedChat() {
     confirmOperation,
     clearMessages,
   } = useProeChat();
+
+  const suggestions = [
+    t('chat.suggestion.projectStatus'),
+    t('chat.suggestion.overdueTasks'),
+    t('chat.suggestion.atRisk'),
+    t('chat.suggestion.dueThisWeek'),
+  ];
 
   const [input, setInput] = useState("");
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
@@ -193,7 +196,7 @@ export default function EmbeddedChat() {
                 letterSpacing: "0.05em",
               }}
             >
-              {isLoading ? "Working" : "Active"}
+              {isLoading ? t('chat.working') : t('chat.active')}
             </span>
           </div>
         </div>
@@ -205,7 +208,7 @@ export default function EmbeddedChat() {
             size="icon"
             onClick={clearMessages}
             className="h-7 w-7 text-[#9CA3AF] hover:text-white hover:bg-[#1F242C]"
-            title="New conversation"
+            title={t('chat.newConversation')}
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </Button>
@@ -249,10 +252,10 @@ export default function EmbeddedChat() {
               </span>
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">
-              How can I help today?
+              {t('chat.howCanIHelp')}
             </h3>
             <p className="text-sm mb-4" style={{ color: "#9CA3AF" }}>
-              Ask about projects, tasks, schedules, or anything on-site.
+              {t('chat.askAbout')}
             </p>
             <div className="flex flex-wrap gap-2 justify-center">
               {suggestions.map((suggestion) => (
@@ -297,6 +300,7 @@ export default function EmbeddedChat() {
 
       {/* Input zone */}
       <div
+        data-tour="chat-input"
         style={{
           padding: "12px 16px",
           backgroundColor: "#0F1115",
@@ -333,7 +337,7 @@ export default function EmbeddedChat() {
                   container.style.boxShadow = "none";
                 }
               }}
-              placeholder="Message Proe..."
+              placeholder={t('chat.messagePlaceholder')}
               className="flex-1 bg-transparent text-white placeholder-[#6B7280] resize-none outline-none text-sm py-3 px-4"
               style={{ minHeight: "44px", maxHeight: "120px" }}
               rows={1}
@@ -405,7 +409,7 @@ export default function EmbeddedChat() {
           className="text-center mt-2"
           style={{ color: "#6B7280", fontSize: "10px" }}
         >
-          Enter to send &middot; Shift+Enter for new line
+          {t('chat.enterToSend')} &middot; {t('chat.shiftEnterNewLine')}
         </p>
       </div>
 

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Building, Clock } from "lucide-react";
 
 interface DashboardStats {
@@ -39,6 +40,7 @@ function KPICard({ icon: Icon, value, label, sublabel, accentColor = "#4ADE80" }
 }
 
 export default function StatsCards() {
+  const { t } = useTranslation('dashboard');
   const { data: stats, isLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
   });
@@ -73,16 +75,16 @@ export default function StatsCards() {
       <KPICard
         icon={Building}
         value={stats.activeProjects}
-        label="Active Projects"
-        sublabel="+2 this week"
+        label={t('stats.activeProjects')}
+        sublabel={t('stats.activeProjectsSub', { count: 2 })}
         accentColor="#4ADE80"
       />
 
       <KPICard
         icon={Clock}
         value={stats.pendingTasks}
-        label="Tasks Due Today"
-        sublabel="8 overdue"
+        label={t('stats.tasksDueToday')}
+        sublabel={t('stats.tasksDueTodaySub', { count: 8 })}
         accentColor="#F97316"
       />
     </div>

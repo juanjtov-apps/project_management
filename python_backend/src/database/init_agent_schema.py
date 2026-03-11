@@ -186,6 +186,18 @@ async def init_agent_schema():
             REFERENCES public.companies(id) ON DELETE RESTRICT
     );
 
+    -- METRIC EVENTS TABLE
+    -- Detailed JSONB event store for observability dashboard
+    CREATE TABLE IF NOT EXISTS agent.metric_events(
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_type text NOT NULL,
+        user_id varchar,
+        company_id varchar,
+        conversation_id uuid,
+        event_data jsonb NOT NULL DEFAULT '{}',
+        created_at timestamptz NOT NULL DEFAULT now()
+    );
+
     -- Create indexes for better performance
     CREATE INDEX IF NOT EXISTS idx_conversations_user ON agent.conversations(user_id);
     CREATE INDEX IF NOT EXISTS idx_conversations_company ON agent.conversations(company_id);
@@ -208,6 +220,15 @@ async def init_agent_schema():
     CREATE INDEX IF NOT EXISTS idx_feedback_message ON agent.feedback(message_id);
     CREATE INDEX IF NOT EXISTS idx_feedback_positive ON agent.feedback(company_id, is_positive);
     CREATE INDEX IF NOT EXISTS idx_feedback_user ON agent.feedback(user_id);
+
+    CREATE INDEX IF NOT EXISTS idx_metric_events_type ON agent.metric_events(event_type, created_at);
+    CREATE INDEX IF NOT EXISTS idx_metric_events_created ON agent.metric_events(created_at);
+    CREATE INDEX IF NOT EXISTS idx_metric_events_company ON agent.metric_events(company_id);
+    CREATE INDEX IF NOT EXISTS idx_metric_events_conversation ON agent.metric_events(conversation_id);
+
+    -- Partial index for efficient failed tool call queries (troubleshooting page)
+    CREATE INDEX IF NOT EXISTS idx_tool_calls_failed
+        ON agent.tool_calls(created_at DESC) WHERE execution_status = 'failed';
 
     -- Commit transaction
     COMMIT;

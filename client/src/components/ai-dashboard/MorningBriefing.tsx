@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from 'react-i18next';
+import i18n from "@/i18n";
 import { useProeChat } from "@/contexts/ProeChatContext";
 
 interface BriefingData {
@@ -21,12 +23,13 @@ interface BriefingData {
 }
 
 export default function MorningBriefing() {
+  const { t } = useTranslation('dashboard');
   const { sendMessage } = useProeChat();
 
   const { data: briefing, isLoading } = useQuery<BriefingData>({
-    queryKey: ["/api/v1/briefing/morning"],
+    queryKey: ["/api/v1/briefing/morning", i18n.language],
     queryFn: async () => {
-      const res = await fetch("/api/v1/briefing/morning", { credentials: "include" });
+      const res = await fetch(`/api/v1/briefing/morning?language=${i18n.language}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch briefing");
       return res.json();
     },
@@ -118,10 +121,10 @@ export default function MorningBriefing() {
                 animation: "pulse-glow 2s infinite",
               }}
             />
-            LIVE BRIEFING
+            {t('briefing.liveBriefing')}
           </span>
           <span style={{ fontFamily: "monospace", fontSize: "8.5px", color: "#9CA3AF" }}>
-            {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+            {new Date().toLocaleDateString(i18n.language === "es" ? "es" : "en-US", { weekday: "short", month: "short", day: "numeric" })}
           </span>
         </div>
 

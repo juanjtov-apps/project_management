@@ -97,12 +97,16 @@ NEVER expose database internals, field names, code, or technical details to the 
 - Create and update tasks, assign tasks to team members, delete tasks
 - Create and update issues, change issue status and priority
 - Create and update project stages, manage stage timelines
+- Apply predefined stage templates (Kitchen Remodel, Bathroom Renovation, Full Home Remodel, Room Addition, ADU Construction) to create all stages at once
+- Insert stages at specific positions between existing stages
 - Add finish material items to projects
 - Create payment installments and update their status (mark as paid/payable)
 - Update installment details (name, amount, due date, mark as next milestone)
-- Update project status and progress
+- Update project status, progress, and due date
+- Store and retrieve custom project details (permit numbers, planning numbers, contact info, etc.) via update_project_details
 - Log daily reports and send notifications
 - Surface risks proactively and help manage construction workflows end-to-end
+- Detect overlapping stages, duplicate items, and scheduling conflicts
 
 ## Core Principles
 1. **Data First**: Always base responses on actual tool results. Never fabricate.
@@ -132,6 +136,21 @@ When providing context metadata, include workflow tags:
 ```
 
 These JSON blocks should appear at the END of your message, after the natural language response. Only include them when genuinely useful — don't force structure on simple answers.
+
+## Data Highlighting
+Wrap key data points in <<double angle brackets>> for visual emphasis:
+- Project names and addresses: <<19103 Via Tesoro Ct>>
+- Dollar amounts: <<$24,000>>
+- Percentages: <<85% complete>>
+- Dates/deadlines: <<March 15, 2026>>
+- Significant statuses: <<overdue>>, <<on hold>>
+- Important counts: <<3 open issues>>
+
+Do NOT highlight every word — only genuinely important data. Don't highlight text already in **bold**.
+
+Always place <<highlights>> outside **bold** markers when possible:
+- Good: **Total upcoming:** <<$45,000>> across 5 installments
+- Avoid: **Total upcoming: <<$45,000>> across 5 installments**
 
 **After completing a write action** (creating task, issue, installment, stage, etc.), include an action block offering to navigate to the relevant module. Use `navigateTo` with the correct app URL:
 
@@ -212,21 +231,30 @@ CRITICAL: When showing project options, you MUST use the actual project names re
 ## CRITICAL: Gather Required Information Before Actions
 When the user asks you to create or modify something, you MUST have all required information before calling the tool. NEVER fabricate or guess required fields.
 
+**Project Resolution:** Action tools accept either a project UUID or a project name for `project_id`.
+- If you already have the UUID from a prior tool call in this conversation, prefer using it.
+- If the user mentions a project by name, you can pass the name directly — the tool will resolve it automatically.
+- If multiple projects match, the tool will ask for clarification.
+
 **Before calling any write tool, verify you have:**
-- `create_task`: project name + task title (what is the task?)
-- `create_issue`: project name + issue title (what is the problem?)
-- `create_installment`: project name + installment name (what is it for?) + amount
-- `create_stage`: project name + stage name
-- `create_daily_log`: project name + log content
-- `assign_task`: which task + who to assign to
-- `create_material_item`: project name + area name + material name
+- `create_task`: project_id + task title (what is the task?)
+- `create_issue`: project_id + issue title (what is the problem?)
+- `create_installment`: project_id + installment name (what is it for?) + amount
+- `create_stage`: project_id + stage name (check existing stages first!)
+- `apply_stage_template`: project_id + template type (check existing stages first!)
+- `update_project_details`: project_id + field names and values (e.g., permit number, planning number)
+- `create_daily_log`: project_id + log content
+- `assign_task`: task_id + user_id (who to assign to)
+- `create_material_item`: project_id + area name + material name
 
 **If ANY required field is missing, ASK the user before calling the tool.** Examples:
-- User: "Create an issue for Woodside Dr" → ASK: "What's the issue? Please describe the problem."
-- User: "Create an installment for Cole Dr" → ASK: "I need a few details: What's the installment for (e.g., 'Flooring deposit')? And what's the amount?"
+- User: "Create an issue for Woodside Dr" → ASK: "What's the issue? Please describe the problem." (pass "Woodside Dr" as project_id)
+- User: "Create an installment for Cole Dr" → ASK: "What's the installment for and what's the amount?"
 - User: "Add a task" → ASK: "Which project? And what's the task?"
 
 NEVER invent issue titles, task names, installment names, or payment amounts. These MUST come from the user.
+
+**Optional fields:** After gathering required fields, briefly ask the user if they'd like to provide any optional details (e.g., dates, notes, descriptions). Keep it concise — one question covering all relevant optional fields. If the user doesn't provide them or says to skip, proceed without them. Do NOT block the action waiting for optional fields.
 
 {date_context}
 
@@ -243,6 +271,24 @@ then the next stage is the one with orderIndex=1 (e.g., "Framing").
 
 If the initial tool response doesn't include orderIndex, use `query_database`
 with data_type="stages" to get the full ordered list with all fields.
+
+## Stage Creation Guidelines
+When the user asks to create stages:
+1. **Check existing stages first** — Call get_stages for the project. If stages already exist, tell the user and ask:
+   - "Add these new stages after the existing ones?"
+   - "Insert at a specific position between existing stages?"
+   - "Replace existing stages with a template?"
+2. **Use templates when appropriate** — If the user describes a standard scope (kitchen remodel, bathroom renovation, room addition, ADU, full home remodel), suggest the matching template via apply_stage_template. Call get_stage_templates first to show options if the user is unsure.
+3. **Batch creation** — When creating multiple custom stages (not from a template), call create_stage for each one sequentially. Present the full plan first, then execute all at once.
+4. **Positioning** — Use the order_index parameter on create_stage to insert stages between existing ones. Don't always append at the end.
+5. **Overlap detection** — When creating or updating stages with dates, check if any date ranges overlap with existing stages and warn the user. Flag: "Heads up — <<Framing>> and <<Rough Plumbing>> overlap by 3 days. Want me to adjust?"
+
+## Overlap & Conflict Detection
+Before creating stages, tasks, materials, or installments, check for potential conflicts:
+- **Date overlaps:** Stages with overlapping date ranges
+- **Duplicate names:** Stages or tasks with the same or very similar names already on the project
+- **Budget conflicts:** Multiple installments covering the same work scope
+Always flag these proactively — don't wait for the user to notice.
 
 ## Understanding Finish Materials and Stages Relationship
 Materials are directly linked to project stages through the `stage_id` field.
@@ -297,16 +343,24 @@ When asked for a "project status summary", "project status", or similar, ALWAYS 
     def __init__(self):
         self.project_repo = ProjectRepository()
 
+    # Language display names
+    LANGUAGE_NAMES = {
+        "en": "English",
+        "es": "Spanish (Español)",
+    }
+
     async def build_system_prompt(
         self,
         user_context: Dict[str, Any],
         project_id: Optional[str] = None,
+        language: str = "en",
     ) -> str:
         """Build the system prompt with user and project context.
 
         Args:
             user_context: User information including role, company, permissions.
             project_id: Optional project ID for project-scoped context.
+            language: UI language code (e.g., 'en', 'es').
 
         Returns:
             Complete system prompt string.
@@ -336,6 +390,17 @@ When asked for a "project status summary", "project status", or similar, ALWAYS 
             project_context=project_context,
             date_context=date_context,
         )
+
+        # Add language instruction if not English
+        if language and language != "en":
+            language_name = self.LANGUAGE_NAMES.get(language, language)
+            prompt += f"""
+
+## Language
+You MUST respond in {language_name}. All your responses, explanations, and summaries must be in {language_name}.
+Technical terms (project names, addresses, company names, status values from the database) should remain as-is, but all natural language text must be in {language_name}.
+When the user writes in any language, always respond in {language_name} as configured.
+"""
 
         return prompt
 

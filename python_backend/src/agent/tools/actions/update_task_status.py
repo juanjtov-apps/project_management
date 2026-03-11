@@ -115,4 +115,7 @@ class UpdateTaskStatusTool(BaseTool):
                 "priority": row["priority"],
             },
             "message": f"Task '{row['title']}' updated: {old_status} → {new_status}",
+            "suggested_actions": [
+                {"label": "Go to Tasks", "navigateTo": "/work"},
+            ],
         }

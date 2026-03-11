@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { 
   DollarSign, Calendar, FileText, Upload, Check, AlertTriangle,
@@ -103,6 +104,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
   const hasInitializedSchedule = useRef(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t } = useTranslation('clientPortal');
 
   // Fetch comprehensive payment data
   const { data: paymentData, isLoading } = useQuery({
@@ -173,13 +175,13 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/payments`] });
-      toast({ title: "Schedule Created", description: "Payment schedule has been created successfully." });
+      toast({ title: t('payments.scheduleCreated'), description: t('payments.scheduleCreatedDesc') });
       scheduleForm.reset();
       setIsScheduleDialogOpen(false);
       setSelectedScheduleId(data.id);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to create schedule.", variant: "destructive" });
+      toast({ title: t('payments.error'), description: t('payments.scheduleCreateError'), variant: "destructive" });
     },
   });
 
@@ -200,12 +202,12 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/payments`] });
       queryClient.invalidateQueries({ queryKey: [`/api/payment-totals?project_id=${projectId}`] });
-      toast({ title: "Installment Created", description: "Payment installment has been added." });
+      toast({ title: t('payments.installmentCreated'), description: t('payments.installmentCreatedDesc') });
       installmentForm.reset();
       setIsInstallmentDialogOpen(false);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to create installment.", variant: "destructive" });
+      toast({ title: t('payments.error'), description: t('payments.installmentCreateError'), variant: "destructive" });
     },
   });
 
@@ -224,12 +226,12 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/payments`] });
-      toast({ title: "Document Uploaded", description: "Payment document has been uploaded successfully." });
+      toast({ title: t('payments.documentUploaded'), description: t('payments.documentUploadedDesc') });
       documentForm.reset();
       setIsDocumentDialogOpen(false);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to upload document.", variant: "destructive" });
+      toast({ title: t('payments.error'), description: t('payments.documentUploadError'), variant: "destructive" });
     },
   });
 
@@ -249,12 +251,12 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/payments`] });
-      toast({ title: "Invoice Uploaded", description: "Invoice document has been uploaded successfully." });
+      toast({ title: t('payments.invoiceUploaded'), description: t('payments.invoiceUploadedDesc') });
       invoiceForm.reset();
       setIsInvoiceDialogOpen(false);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to upload invoice.", variant: "destructive" });
+      toast({ title: t('payments.error'), description: t('payments.invoiceUploadError'), variant: "destructive" });
     },
   });
 
@@ -268,10 +270,10 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/payments`] });
-      toast({ title: "Document Deleted", description: "Payment document has been deleted." });
+      toast({ title: t('payments.documentDeleted'), description: t('payments.documentDeletedDesc') });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to delete document.", variant: "destructive" });
+      toast({ title: t('payments.error'), description: t('payments.documentDeleteError'), variant: "destructive" });
     },
   });
 
@@ -296,15 +298,15 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
       // Open the signed URL in a new tab to trigger download
       window.open(downloadURL, '_blank');
       
-      toast({ title: "Download Started", description: `Downloading ${fileName}` });
+      toast({ title: t('payments.downloadStarted'), description: t('payments.downloadingFile', { name: fileName }) });
     } catch (error) {
-      toast({ title: "Download Error", description: "Failed to download file.", variant: "destructive" });
+      toast({ title: t('payments.downloadError'), description: t('payments.downloadErrorDesc'), variant: "destructive" });
     }
   };
 
   const onSubmitDocument = async (data: DocumentFormData) => {
     if (!selectedFile) {
-      toast({ title: "Error", description: "Please select a file to upload.", variant: "destructive" });
+      toast({ title: t('payments.error'), description: t('payments.selectFileError'), variant: "destructive" });
       return;
     }
 
@@ -338,7 +340,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
       
       setSelectedFile(null);
     } catch (error) {
-      toast({ title: "Upload Error", description: "Failed to upload file.", variant: "destructive" });
+      toast({ title: t('payments.uploadError'), description: t('payments.uploadErrorDesc'), variant: "destructive" });
     } finally {
       setIsUploading(false);
     }
@@ -346,7 +348,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
 
   const onSubmitInvoice = async (data: InvoiceFormData) => {
     if (!selectedInvoiceFile) {
-      toast({ title: "Error", description: "Please select a file to upload.", variant: "destructive" });
+      toast({ title: t('payments.error'), description: t('payments.selectFileError'), variant: "destructive" });
       return;
     }
 
@@ -380,7 +382,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
       
       setSelectedInvoiceFile(null);
     } catch (error) {
-      toast({ title: "Upload Error", description: "Failed to upload file.", variant: "destructive" });
+      toast({ title: t('payments.uploadError'), description: t('payments.uploadErrorDesc'), variant: "destructive" });
     } finally {
       setIsUploadingInvoice(false);
     }
@@ -411,7 +413,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">Loading payment data...</p>
+        <p className="text-muted-foreground">{t('payments.loadingPayments')}</p>
       </div>
     );
   }
@@ -423,25 +425,25 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
-            Payment Overview
+            {t('payments.header')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Total Contract</p>
+              <p className="text-sm text-muted-foreground">{t('payments.totalContract')}</p>
               <p className="text-2xl font-bold">${(totals as any)?.total_amount?.toLocaleString() || "0"}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Total Paid</p>
+              <p className="text-sm text-muted-foreground">{t('payments.totalPaid')}</p>
               <p className="text-2xl font-bold text-green-600">${(totals as any)?.total_paid?.toLocaleString() || "0"}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Pending</p>
+              <p className="text-sm text-muted-foreground">{t('payments.pendingPayment')}</p>
               <p className="text-2xl font-bold text-orange-600">${(totals as any)?.total_pending?.toLocaleString() || "0"}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Progress</p>
+              <p className="text-sm text-muted-foreground">{t('payments.progress')}</p>
               <div className="flex items-center gap-2">
                 <p className="text-2xl font-bold">{(totals as any)?.percent_complete || 0}%</p>
                 <TrendingUp className="h-5 w-5 text-green-600" />
@@ -457,7 +459,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-primary">
               <Calendar className="h-5 w-5" />
-              Next Milestone
+              {t('payments.nextMilestone')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -466,12 +468,12 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
               <p className="text-muted-foreground">{(totals as any).next_milestone.description}</p>
               <div className="flex items-center gap-4 mt-3">
                 <div>
-                  <p className="text-sm text-muted-foreground">Amount</p>
+                  <p className="text-sm text-muted-foreground">{t('payments.amount')}</p>
                   <p className="text-xl font-bold">${(totals as any).next_milestone.amount?.toLocaleString()}</p>
                 </div>
                 {(totals as any).next_milestone.due_date && (
                   <div>
-                    <p className="text-sm text-muted-foreground">Due Date</p>
+                    <p className="text-sm text-muted-foreground">{t('payments.dueDate')}</p>
                     <p className="text-xl font-bold">{format(new Date((totals as any).next_milestone.due_date), "MMM dd, yyyy")}</p>
                   </div>
                 )}
@@ -488,12 +490,12 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
             <DialogTrigger asChild>
               <Button variant="outline" data-testid="button-add-installment">
                 <Plus className="h-4 w-4 mr-2" />
-                Add Installment
+                {t('payments.addInstallment')}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Add Payment Installment</DialogTitle>
+                <DialogTitle>{t('payments.addPaymentInstallment')}</DialogTitle>
               </DialogHeader>
               <Form {...installmentForm}>
                 <form onSubmit={installmentForm.handleSubmit(onSubmitInstallment)} className="space-y-4">
@@ -503,9 +505,9 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Installment Name</FormLabel>
+                          <FormLabel>{t('payments.installmentName')}</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g., First Payment" {...field} data-testid="input-installment-name" />
+                            <Input placeholder={t('payments.installmentNamePlaceholder')} {...field} data-testid="input-installment-name" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -516,12 +518,12 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                       name="amount"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Amount</FormLabel>
+                          <FormLabel>{t('payments.amount')}</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="number" 
+                            <Input
+                              type="number"
                               step="0.01"
-                              placeholder="0.00" 
+                              placeholder="0.00"
                               {...field}
                               data-testid="input-installment-amount"
                             />
@@ -537,9 +539,9 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Description (Optional)</FormLabel>
+                        <FormLabel>{t('payments.descriptionOptional')}</FormLabel>
                         <FormControl>
-                          <Textarea placeholder="Payment milestone details..." {...field} data-testid="textarea-installment-description" />
+                          <Textarea placeholder={t('payments.descriptionPlaceholder')} {...field} data-testid="textarea-installment-description" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -552,7 +554,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                       name="due_date"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Due Date (Optional)</FormLabel>
+                          <FormLabel>{t('payments.dueDateOptional')}</FormLabel>
                           <FormControl>
                             <Input type="date" {...field} data-testid="input-installment-due-date" />
                           </FormControl>
@@ -565,7 +567,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                       name="status"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Status</FormLabel>
+                          <FormLabel>{t('payments.status')}</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger data-testid="select-installment-status">
@@ -573,8 +575,8 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="planned">Planned</SelectItem>
-                              <SelectItem value="payable">Payable</SelectItem>
+                              <SelectItem value="planned">{t('payments.planned')}</SelectItem>
+                              <SelectItem value="payable">{t('payments.payable')}</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -586,7 +588,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                       name="display_order"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Display Order</FormLabel>
+                          <FormLabel>{t('payments.displayOrder')}</FormLabel>
                           <FormControl>
                             <Input 
                               type="number" 
@@ -614,7 +616,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                             data-testid="checkbox-next-milestone"
                           />
                         </FormControl>
-                        <FormLabel className="!mt-0">Set as Next Milestone</FormLabel>
+                        <FormLabel className="!mt-0">{t('payments.setAsNextMilestone')}</FormLabel>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -622,10 +624,10 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
 
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="outline" onClick={() => setIsInstallmentDialogOpen(false)} data-testid="button-cancel-add-installment">
-                      Cancel
+                      {t('payments.cancel')}
                     </Button>
                     <Button type="submit" disabled={createInstallmentMutation.isPending} data-testid="button-submit-installment">
-                      {createInstallmentMutation.isPending ? "Adding..." : "Add Installment"}
+                      {createInstallmentMutation.isPending ? t('payments.addingInstallment') : t('payments.addInstallment')}
                     </Button>
                   </div>
                 </form>
@@ -645,12 +647,12 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
             <DialogTrigger asChild>
               <Button variant="outline" data-testid="button-upload-document">
                 <Upload className="h-4 w-4 mr-2" />
-                Upload Document
+                {t('payments.uploadDocument')}
               </Button>
             </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Upload Payment Document</DialogTitle>
+              <DialogTitle>{t('payments.uploadPaymentDocument')}</DialogTitle>
             </DialogHeader>
             <Form {...documentForm}>
               <form onSubmit={documentForm.handleSubmit(onSubmitDocument)} className="space-y-4">
@@ -659,16 +661,16 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Document Title</FormLabel>
+                      <FormLabel>{t('payments.documentTitle')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Project Proposal" {...field} data-testid="input-document-title" />
+                        <Input placeholder={t('payments.documentTitlePlaceholder')} {...field} data-testid="input-document-title" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <div>
-                  <FormLabel>Select File</FormLabel>
+                  <FormLabel>{t('payments.selectFile')}</FormLabel>
                   <div className="mt-2">
                     <Input
                       type="file"
@@ -684,7 +686,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                     />
                     {selectedFile && (
                       <p className="text-sm text-muted-foreground mt-2">
-                        Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                        {t('payments.selected', { name: selectedFile.name, size: (selectedFile.size / 1024 / 1024).toFixed(2) })}
                       </p>
                     )}
                   </div>
@@ -694,10 +696,10 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                     setIsDocumentDialogOpen(false);
                     setSelectedFile(null);
                   }} data-testid="button-cancel-upload-document">
-                    Cancel
+                    {t('payments.cancel')}
                   </Button>
                   <Button type="submit" disabled={isUploading || createDocumentMutation.isPending} data-testid="button-submit-document">
-                    {isUploading ? "Uploading..." : "Upload Document"}
+                    {isUploading ? t('payments.uploading') : t('payments.uploadDocument')}
                   </Button>
                 </div>
               </form>
@@ -717,12 +719,12 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
             <DialogTrigger asChild>
               <Button variant="outline" data-testid="button-upload-invoice">
                 <Upload className="h-4 w-4 mr-2" />
-                Upload Invoice
+                {t('payments.uploadInvoice')}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Upload Invoice Document</DialogTitle>
+                <DialogTitle>{t('payments.uploadInvoiceDocument')}</DialogTitle>
               </DialogHeader>
               <Form {...invoiceForm}>
                 <form onSubmit={invoiceForm.handleSubmit(onSubmitInvoice)} className="space-y-4">
@@ -731,16 +733,16 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                     name="title"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Invoice Title</FormLabel>
+                        <FormLabel>{t('payments.invoiceTitle')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., Final Invoice" {...field} data-testid="input-invoice-title" />
+                          <Input placeholder={t('payments.invoiceTitlePlaceholder')} {...field} data-testid="input-invoice-title" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   <div>
-                    <FormLabel>Select Invoice File</FormLabel>
+                    <FormLabel>{t('payments.selectInvoiceFile')}</FormLabel>
                     <div className="mt-2">
                       <Input
                         type="file"
@@ -756,7 +758,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                       />
                       {selectedInvoiceFile && (
                         <p className="text-sm text-muted-foreground mt-2">
-                          Selected: {selectedInvoiceFile.name} ({(selectedInvoiceFile.size / 1024 / 1024).toFixed(2)} MB)
+                          {t('payments.selected', { name: selectedInvoiceFile.name, size: (selectedInvoiceFile.size / 1024 / 1024).toFixed(2) })}
                         </p>
                       )}
                     </div>
@@ -766,10 +768,10 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                       setIsInvoiceDialogOpen(false);
                       setSelectedInvoiceFile(null);
                     }} data-testid="button-cancel-upload-invoice">
-                      Cancel
+                      {t('payments.cancel')}
                     </Button>
                     <Button type="submit" disabled={isUploadingInvoice || createInvoiceMutation.isPending} data-testid="button-submit-invoice">
-                      {isUploadingInvoice ? "Uploading..." : "Upload Invoice"}
+                      {isUploadingInvoice ? t('payments.uploading') : t('payments.uploadInvoice')}
                     </Button>
                   </div>
                 </form>
@@ -782,12 +784,12 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
       {/* Installments Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Installments</CardTitle>
+          <CardTitle>{t('payments.installments')}</CardTitle>
         </CardHeader>
         <CardContent>
           {installments.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              No installments yet. Add installments to track payments.
+              {t('payments.noInstallments')}
             </p>
           ) : (
             <div className="space-y-3">
@@ -810,12 +812,12 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Documents
+            {t('payments.documents')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {documents.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No documents uploaded yet.</p>
+            <p className="text-center text-muted-foreground py-8">{t('payments.noDocuments')}</p>
           ) : (
             <div className="space-y-2">
               {documents.map((doc: any) => (
@@ -825,7 +827,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                     <div>
                       <p className="font-medium">{doc.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        Uploaded {format(new Date(doc.created_at), "MMM dd, yyyy")}
+                        {t('payments.uploaded', { date: format(new Date(doc.created_at), "MMM dd, yyyy") })}
                       </p>
                     </div>
                   </div>
@@ -864,12 +866,12 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5" />
-            Invoices
+            {t('payments.invoices')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {invoices.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No invoices generated yet.</p>
+            <p className="text-center text-muted-foreground py-8">{t('payments.noInvoices')}</p>
           ) : (
             <div className="space-y-2">
               {invoices.map((invoice: any) => (
@@ -878,7 +880,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                     <p className="font-medium">{invoice.invoice_no}</p>
                     <p className="text-sm text-muted-foreground">{invoice.installment_name}</p>
                     <p className="text-sm text-muted-foreground">
-                      Issued {format(new Date(invoice.issue_date), "MMM dd, yyyy")}
+                      {t('payments.issued', { date: format(new Date(invoice.issue_date), "MMM dd, yyyy") })}
                     </p>
                   </div>
                   <div className="text-right">
@@ -888,16 +890,16 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
                       size="sm" 
                       className="mt-2" 
                       onClick={() => {
-                        toast({ 
-                          title: "PDF Not Available", 
-                          description: "PDF generation for invoices will be available soon.",
+                        toast({
+                          title: t('payments.pdfNotAvailable'),
+                          description: t('payments.pdfNotAvailableDesc'),
                           variant: "default"
                         });
                       }}
                       data-testid={`button-download-invoice-${invoice.id}`}
                     >
                       <Download className="h-4 w-4 mr-1" />
-                      Download PDF
+                      {t('payments.downloadPDF')}
                     </Button>
                   </div>
                 </div>
@@ -911,13 +913,13 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Document</AlertDialogTitle>
+            <AlertDialogTitle>{t('payments.deleteDocument')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{documentToDelete?.title}"? This action cannot be undone.
+              {t('payments.deleteDocumentConfirm', { title: documentToDelete?.title })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete">{t('payments.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (documentToDelete) {
@@ -929,7 +931,7 @@ export default function PaymentsTab({ projectId, isClient = false }: PaymentsTab
               className="bg-destructive hover:bg-destructive/90"
               data-testid="button-confirm-delete"
             >
-              Delete
+              {t('payments.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -954,6 +956,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
   const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t } = useTranslation('clientPortal');
 
   const receiptForm = useForm<ReceiptFormData>({
     resolver: zodResolver(receiptSchema),
@@ -995,12 +998,12 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/payments`] });
-      toast({ title: "Receipt Uploaded", description: "Payment receipt has been uploaded successfully." });
+      toast({ title: t('payments.receiptUploaded'), description: t('payments.receiptUploadedDesc') });
       receiptForm.reset();
       setIsReceiptDialogOpen(false);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to upload receipt.", variant: "destructive" });
+      toast({ title: t('payments.error'), description: t('payments.receiptUploadError'), variant: "destructive" });
     },
   });
 
@@ -1016,11 +1019,11 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/payments`] });
       queryClient.invalidateQueries({ queryKey: [`/api/payment-totals?project_id=${projectId}`] });
-      toast({ title: "Installment Updated", description: "Payment installment has been updated successfully." });
+      toast({ title: t('payments.installmentUpdated'), description: t('payments.installmentUpdatedDesc') });
       setIsEditDialogOpen(false);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to update installment.", variant: "destructive" });
+      toast({ title: t('payments.error'), description: t('payments.installmentUpdateError'), variant: "destructive" });
     },
   });
 
@@ -1037,16 +1040,16 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/payments`] });
       queryClient.invalidateQueries({ queryKey: [`/api/payment-totals?project_id=${projectId}`] });
       toast({
-        title: "Installment Marked as Paid",
-        description: "Office managers have been notified to upload the invoice."
+        title: t('payments.markedPaid'),
+        description: t('payments.markedPaidDesc')
       });
       setIsMarkPaidDialogOpen(false);
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Error", 
-        description: error.message || "Failed to mark installment as paid.", 
-        variant: "destructive" 
+      toast({
+        title: t('payments.error'),
+        description: error.message || t('payments.markPaidError'),
+        variant: "destructive"
       });
     },
   });
@@ -1064,15 +1067,15 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
       // Open the signed URL in a new tab to trigger download
       window.open(downloadURL, '_blank');
       
-      toast({ title: "Download Started", description: `Downloading ${fileName}` });
+      toast({ title: t('payments.downloadStarted'), description: t('payments.downloadingFile', { name: fileName }) });
     } catch (error) {
-      toast({ title: "Download Error", description: "Failed to download file.", variant: "destructive" });
+      toast({ title: t('payments.downloadError'), description: t('payments.downloadErrorDesc'), variant: "destructive" });
     }
   };
 
   const onSubmitReceipt = async (data: ReceiptFormData) => {
     if (!selectedReceiptFile) {
-      toast({ title: "Error", description: "Please select a file to upload.", variant: "destructive" });
+      toast({ title: t('payments.error'), description: t('payments.selectFileError'), variant: "destructive" });
       return;
     }
 
@@ -1106,7 +1109,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
       
       setSelectedReceiptFile(null);
     } catch (error) {
-      toast({ title: "Upload Error", description: "Failed to upload file.", variant: "destructive" });
+      toast({ title: t('payments.uploadError'), description: t('payments.uploadErrorDesc'), variant: "destructive" });
     } finally {
       setIsUploadingReceipt(false);
     }
@@ -1128,7 +1131,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
           </Badge>
           {installment.next_milestone && (
             <Badge variant="outline" className="border-primary text-primary">
-              Next Milestone
+              {t('payments.nextMilestone')}
             </Badge>
           )}
         </div>
@@ -1142,7 +1145,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
           {installment.due_date && (
             <span className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              Due {format(new Date(installment.due_date), "MMM dd, yyyy")}
+              {t('payments.dueOn', { date: format(new Date(installment.due_date), "MMM dd, yyyy") })}
             </span>
           )}
         </div>
@@ -1150,7 +1153,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
         {receipts.length > 0 && (
           <div className="mt-3 pt-3 border-t">
             <p className="text-xs font-medium text-muted-foreground mb-2" data-testid="text-receipts-count">
-              Payment Receipts ({receipts.length})
+              {t('payments.paymentReceipts', { count: receipts.length })}
             </p>
             <div className="space-y-1">
               {receipts.map((receipt) => (
@@ -1198,12 +1201,12 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" data-testid={`button-edit-installment-${installment.id}`}>
                     <FileText className="h-4 w-4 mr-1" />
-                    Edit
+                    {t('payments.edit')}
                   </Button>
                 </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>Edit Payment Installment</DialogTitle>
+                  <DialogTitle>{t('payments.editInstallment')}</DialogTitle>
                 </DialogHeader>
                 <Form {...editForm}>
                   <form onSubmit={editForm.handleSubmit((data) => editInstallmentMutation.mutate(data))} className="space-y-4">
@@ -1213,7 +1216,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                         name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Name</FormLabel>
+                            <FormLabel>{t('payments.name')}</FormLabel>
                             <FormControl>
                               <Input {...field} data-testid="input-edit-installment-name" />
                             </FormControl>
@@ -1226,7 +1229,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                         name="amount"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Amount</FormLabel>
+                            <FormLabel>{t('payments.amount')}</FormLabel>
                             <FormControl>
                               <Input type="number" {...field} data-testid="input-edit-installment-amount" />
                             </FormControl>
@@ -1240,7 +1243,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                       name="description"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Description</FormLabel>
+                          <FormLabel>{t('payments.description')}</FormLabel>
                           <FormControl>
                             <Input {...field} data-testid="input-edit-installment-description" />
                           </FormControl>
@@ -1254,7 +1257,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                         name="due_date"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Due Date</FormLabel>
+                            <FormLabel>{t('payments.dueDate')}</FormLabel>
                             <FormControl>
                               <Input type="date" {...field} data-testid="input-edit-installment-due-date" />
                             </FormControl>
@@ -1267,16 +1270,16 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                         name="status"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Status</FormLabel>
+                            <FormLabel>{t('payments.status')}</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger data-testid="select-edit-installment-status">
-                                  <SelectValue placeholder="Select status" />
+                                  <SelectValue placeholder={t('payments.selectStatus')} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="planned">Planned</SelectItem>
-                                <SelectItem value="payable">Payable</SelectItem>
+                                <SelectItem value="planned">{t('payments.planned')}</SelectItem>
+                                <SelectItem value="payable">{t('payments.payable')}</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -1298,17 +1301,17 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                               className="h-4 w-4"
                             />
                           </FormControl>
-                          <FormLabel className="!mt-0">Mark as Next Milestone</FormLabel>
+                          <FormLabel className="!mt-0">{t('payments.markAsNextMilestone')}</FormLabel>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                     <div className="flex justify-end gap-2">
                       <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)} data-testid="button-cancel-edit-installment">
-                        Cancel
+                        {t('payments.cancel')}
                       </Button>
                       <Button type="submit" disabled={editInstallmentMutation.isPending} data-testid="button-submit-edit-installment">
-                        {editInstallmentMutation.isPending ? "Updating..." : "Update Installment"}
+                        {editInstallmentMutation.isPending ? t('payments.updatingInstallment') : t('payments.updateInstallment')}
                       </Button>
                     </div>
                   </form>
@@ -1327,12 +1330,12 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" data-testid={`button-upload-receipt-${installment.id}`}>
                   <Upload className="h-4 w-4 mr-1" />
-                  Upload Receipt
+                  {t('payments.uploadReceipt')}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Upload Payment Receipt</DialogTitle>
+                  <DialogTitle>{t('payments.uploadPaymentReceipt')}</DialogTitle>
                 </DialogHeader>
                 <Form {...receiptForm}>
                   <form onSubmit={receiptForm.handleSubmit(onSubmitReceipt)} className="space-y-4">
@@ -1341,19 +1344,19 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                       name="receipt_type"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Receipt Type</FormLabel>
+                          <FormLabel>{t('payments.receiptType')}</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger data-testid="select-receipt-type">
-                                <SelectValue placeholder="Select type..." />
+                                <SelectValue placeholder={t('payments.receiptTypePlaceholder')} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="check">Check</SelectItem>
-                              <SelectItem value="wire">Wire Transfer</SelectItem>
-                              <SelectItem value="ach">ACH</SelectItem>
-                              <SelectItem value="credit_card">Credit Card</SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
+                              <SelectItem value="check">{t('payments.receiptCheck')}</SelectItem>
+                              <SelectItem value="wire">{t('payments.receiptWire')}</SelectItem>
+                              <SelectItem value="ach">{t('payments.receiptACH')}</SelectItem>
+                              <SelectItem value="credit_card">{t('payments.receiptCreditCard')}</SelectItem>
+                              <SelectItem value="other">{t('payments.receiptOther')}</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -1365,9 +1368,9 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                       name="reference_no"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Reference Number (Optional)</FormLabel>
+                          <FormLabel>{t('payments.referenceNumber')}</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g., Check #1234" {...field} data-testid="input-receipt-reference" />
+                            <Input placeholder={t('payments.referenceNumberPlaceholder')} {...field} data-testid="input-receipt-reference" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1378,7 +1381,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                       name="payment_date"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Payment Date (Optional)</FormLabel>
+                          <FormLabel>{t('payments.paymentDate')}</FormLabel>
                           <FormControl>
                             <Input type="date" {...field} data-testid="input-receipt-date" />
                           </FormControl>
@@ -1387,7 +1390,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                       )}
                     />
                     <div>
-                      <FormLabel>Select Receipt File</FormLabel>
+                      <FormLabel>{t('payments.selectReceiptFile')}</FormLabel>
                       <div className="mt-2">
                         <Input
                           type="file"
@@ -1403,7 +1406,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                         />
                         {selectedReceiptFile && (
                           <p className="text-sm text-muted-foreground mt-2">
-                            Selected: {selectedReceiptFile.name} ({(selectedReceiptFile.size / 1024 / 1024).toFixed(2)} MB)
+                            {t('payments.selected', { name: selectedReceiptFile.name, size: (selectedReceiptFile.size / 1024 / 1024).toFixed(2) })}
                           </p>
                         )}
                       </div>
@@ -1413,10 +1416,10 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                         setIsReceiptDialogOpen(false);
                         setSelectedReceiptFile(null);
                       }} data-testid="button-cancel-upload-receipt">
-                        Cancel
+                        {t('payments.cancel')}
                       </Button>
                       <Button type="submit" disabled={isUploadingReceipt || uploadReceiptMutation.isPending} data-testid="button-submit-receipt">
-                        {isUploadingReceipt ? "Uploading..." : "Upload Receipt"}
+                        {isUploadingReceipt ? t('payments.uploading') : t('payments.uploadReceipt')}
                       </Button>
                     </div>
                   </form>
@@ -1438,7 +1441,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                   }}
                 >
                   <CreditCard className="h-4 w-4 mr-1" />
-                  Mark Paid
+                  {t('payments.markPaid')}
                 </Button>
 
                 <AlertDialog open={isMarkPaidDialogOpen} onOpenChange={setIsMarkPaidDialogOpen}>
@@ -1446,22 +1449,22 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                     <AlertDialogHeader>
                       <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
                         <AlertTriangle className="h-5 w-5" />
-                        Confirm Payment Completion
+                        {t('payments.confirmPayment')}
                       </AlertDialogTitle>
                       <AlertDialogDescription className="space-y-2">
-                        <p>You are about to mark <strong>"{installment.name}"</strong> as paid.</p>
-                        <p className="font-medium">Amount: ${parseFloat(installment.amount).toLocaleString()}</p>
-                        <p className="text-amber-600">This action cannot be undone. Office managers will be notified to upload the invoice.</p>
+                        <p>{t('payments.confirmPaymentDesc', { name: installment.name })}</p>
+                        <p className="font-medium">{t('payments.confirmPaymentAmount', { amount: parseFloat(installment.amount).toLocaleString() })}</p>
+                        <p className="text-amber-600">{t('payments.confirmPaymentWarning')}</p>
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel data-testid="button-cancel-mark-paid">Cancel</AlertDialogCancel>
+                      <AlertDialogCancel data-testid="button-cancel-mark-paid">{t('payments.cancel')}</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={() => markPaidMutation.mutate()}
                         className="bg-amber-600 hover:bg-amber-700"
                         data-testid="confirm-mark-paid"
                       >
-                        {markPaidMutation.isPending ? "Processing..." : "Yes, Mark as Paid"}
+                        {markPaidMutation.isPending ? t('payments.processing') : t('payments.yesMarkPaid')}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -1472,13 +1475,12 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2 text-amber-600">
                         <AlertTriangle className="h-5 w-5" />
-                        Receipt Required
+                        {t('payments.receiptRequired')}
                       </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
                       <p className="text-sm text-muted-foreground">
-                        At least one receipt must be uploaded before marking this installment as paid.
-                        This helps maintain accurate payment records.
+                        {t('payments.receiptRequiredDesc')}
                       </p>
                       <div className="flex justify-end gap-2">
                         <Button
@@ -1486,7 +1488,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                           onClick={() => setIsReceiptWarningOpen(false)}
                           data-testid="button-close-receipt-warning"
                         >
-                          Close
+                          {t('payments.close')}
                         </Button>
                         <Button
                           onClick={() => {
@@ -1496,7 +1498,7 @@ function InstallmentRow({ installment, projectId, receipts, isClient = false }: 
                           data-testid="button-upload-receipt-from-warning"
                         >
                           <Upload className="h-4 w-4 mr-2" />
-                          Upload Receipt
+                          {t('payments.uploadReceipt')}
                         </Button>
                       </div>
                     </div>

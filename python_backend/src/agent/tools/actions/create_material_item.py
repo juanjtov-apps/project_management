@@ -6,6 +6,7 @@ Safety: AUDIT_LOGGED (executes immediately, logged for audit trail).
 from typing import Dict, Any, List
 
 from ..base_tool import BaseTool
+from ..security import resolve_project_or_error
 from ...models.agent_models import SafetyLevel
 from src.database.connection import db_manager
 
@@ -31,7 +32,7 @@ class CreateMaterialItemTool(BaseTool):
             "properties": {
                 "project_id": {
                     "type": "string",
-                    "description": "The project ID",
+                    "description": "The project ID (UUID) or project name",
                 },
                 "area_id": {
                     "type": "string",
@@ -84,17 +85,14 @@ class CreateMaterialItemTool(BaseTool):
     ) -> Dict[str, Any]:
         company_id = context.get("company_id")
         user_id = context.get("user_id")
-        project_id = params["project_id"]
         area_id = params["area_id"]
         name = params["name"]
 
-        # Verify project belongs to company
-        verify = await db_manager.execute_one(
-            "SELECT id, name FROM projects WHERE id = $1 AND company_id = $2",
-            project_id, company_id,
-        )
-        if not verify:
-            return {"error": "Project not found or access denied"}
+        # Resolve project by UUID or name
+        verify, err = await resolve_project_or_error(params["project_id"], company_id)
+        if err:
+            return err
+        project_id = str(verify["id"])
 
         # Verify area belongs to this project
         area = await db_manager.execute_one(
@@ -144,4 +142,8 @@ class CreateMaterialItemTool(BaseTool):
                 "projectName": verify["name"],
             },
             "message": f"Material '{name}' added to {area['name']} in {verify['name']}",
+            "suggested_actions": [
+                {"label": "View Materials", "navigateTo": f"/client-portal?projectId={project_id}"},
+                {"label": "Add Another", "prompt": "Add another material item to this project"},
+            ],
         }

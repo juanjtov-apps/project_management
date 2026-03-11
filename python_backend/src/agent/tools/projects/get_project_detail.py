@@ -121,7 +121,7 @@ class GetProjectDetailTool(BaseTool):
         """Convert project object or dict to a normalized dict."""
         if isinstance(project, dict):
             return project
-        # Convert Project object to dict
+        # Convert Project Pydantic model to dict (use Python field names, not aliases)
         return {
             "id": getattr(project, "id", None),
             "name": getattr(project, "name", None),
@@ -129,12 +129,13 @@ class GetProjectDetailTool(BaseTool):
             "location": getattr(project, "location", None),
             "status": getattr(project, "status", None),
             "progress": getattr(project, "progress", None),
-            "dueDate": getattr(project, "dueDate", None),
+            "dueDate": getattr(project, "due_date", None),
             "budget": getattr(project, "budget", None),
-            "actualCost": getattr(project, "actualCost", None),
-            "clientName": getattr(project, "clientName", None),
-            "clientEmail": getattr(project, "clientEmail", None),
-            "companyId": getattr(project, "companyId", None),
+            "actualCost": getattr(project, "actual_cost", None),
+            "clientName": getattr(project, "client_name", None) or getattr(project, "clientName", None),
+            "clientEmail": getattr(project, "client_email", None) or getattr(project, "clientEmail", None),
+            "companyId": getattr(project, "company_id", None) or getattr(project, "companyId", None),
+            "customFields": getattr(project, "custom_fields", None) or {},
         }
 
     async def _get_tasks_by_project(self, project_id: str) -> List[Dict[str, Any]]:
@@ -542,6 +543,7 @@ class GetProjectDetailTool(BaseTool):
             "dueDate": str(project_data.get("dueDate")) if project_data.get("dueDate") else None,
             "clientName": project_data.get("clientName"),
             "clientEmail": project_data.get("clientEmail"),
+            "customFields": project_data.get("customFields") or project_data.get("custom_fields") or {},
         }
         # Only include financial fields for roles with payment access
         if user_role in PAYMENT_ROLES:

@@ -2,26 +2,15 @@ import { useRef } from 'react';
 import { X, Check } from 'lucide-react';
 import { useGSAP, usePrefersReducedMotion } from '@/hooks/useGSAP';
 import { SectionHeader } from './shared';
+import { useTranslation } from "react-i18next";
 
-const withoutItems = [
-  'Switching between 5+ apps',
-  'Manual status tracking',
-  'Compiling reports by hand',
-  'Chasing down updates',
-  'Reactive firefighting'
-];
-
-const withItems = [
-  'One interface for everything',
-  'Automatic progress awareness',
-  'Reports generated on demand',
-  'Updates surfaced proactively',
-  'Preventive problem-solving'
-];
+const WITHOUT_KEYS = ['without1', 'without2', 'without3', 'without4', 'without5'] as const;
+const WITH_KEYS = ['with1', 'with2', 'with3', 'with4', 'with5'] as const;
 
 export function ValueShiftSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
+  const { t } = useTranslation('landing');
 
   useGSAP((gsap) => {
     if (prefersReducedMotion) {
@@ -105,8 +94,8 @@ export function ValueShiftSection() {
 
       <div className="container mx-auto px-6">
         <SectionHeader
-          eyebrow="The Shift"
-          title="Your time, reclaimed"
+          eyebrow={t('valueShift.tag')}
+          title={t('valueShift.headline')}
           className="mb-16 md:mb-20"
         />
 
@@ -132,16 +121,16 @@ export function ValueShiftSection() {
               className="relative text-lg font-semibold mb-6"
               style={{ color: '#6B7280' }}
             >
-              Without Proesphere
+              {t('valueShift.without')}
             </h3>
             <ul className="relative space-y-4">
-              {withoutItems.map((item) => (
-                <li key={item} className="flex items-start gap-3">
+              {WITHOUT_KEYS.map((key) => (
+                <li key={key} className="flex items-start gap-3">
                   <X
                     className="w-5 h-5 mt-0.5 flex-shrink-0"
                     style={{ color: '#EF4444' }}
                   />
-                  <span style={{ color: '#9CA3AF' }}>{item}</span>
+                  <span style={{ color: '#9CA3AF' }}>{t(`valueShift.${key}`)}</span>
                 </li>
               ))}
             </ul>
@@ -167,16 +156,16 @@ export function ValueShiftSection() {
               className="relative text-lg font-semibold mb-6"
               style={{ color: '#4ADE80' }}
             >
-              With Proesphere
+              {t('valueShift.with')}
             </h3>
             <ul className="relative space-y-4">
-              {withItems.map((item) => (
-                <li key={item} className="check-item flex items-start gap-3">
+              {WITH_KEYS.map((key) => (
+                <li key={key} className="check-item flex items-start gap-3">
                   <Check
                     className="w-5 h-5 mt-0.5 flex-shrink-0"
                     style={{ color: '#4ADE80' }}
                   />
-                  <span style={{ color: '#FFFFFF' }}>{item}</span>
+                  <span style={{ color: '#FFFFFF' }}>{t(`valueShift.${key}`)}</span>
                 </li>
               ))}
             </ul>
@@ -188,9 +177,7 @@ export function ValueShiftSection() {
           className="value-statement text-center text-lg max-w-2xl mx-auto mt-12 leading-relaxed"
           style={{ color: '#9CA3AF' }}
         >
-          When you're not hunting for information, you're free to do what
-          actually moves projects forward: client communication, quality
-          oversight, team leadership.
+          {t('valueShift.subtext')}
         </p>
       </div>
     </section>

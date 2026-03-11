@@ -106,7 +106,7 @@ class GetStagesTool(BaseTool):
             )
 
             stages.append({
-                "id": row_dict.get("id"),
+                "id": str(row_dict.get("id")) if row_dict.get("id") else None,
                 "name": row_dict.get("name"),
                 "orderIndex": row_dict.get("order_index"),
                 "status": row_dict.get("status"),

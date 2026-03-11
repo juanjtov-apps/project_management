@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useSearch } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { setCsrfToken } from "@/lib/queryClient";
 type VerifyState = "verifying" | "success" | "error";
 
 export default function MagicLink() {
+  const { t } = useTranslation('auth');
   const [, setLocation] = useLocation();
   const search = useSearch();
   const params = new URLSearchParams(search);
@@ -86,9 +88,9 @@ export default function MagicLink() {
             <Link2 className="h-10 w-10 text-blue-600" />
           </div>
           <CardTitle className="text-xl">
-            {verifyState === "verifying" && "Signing you in..."}
-            {verifyState === "success" && "You're in!"}
-            {verifyState === "error" && "Link expired or invalid"}
+            {verifyState === "verifying" && t('magicLink.signingIn')}
+            {verifyState === "success" && t('magicLink.success')}
+            {verifyState === "error" && t('magicLink.expired')}
           </CardTitle>
         </CardHeader>
         <CardContent className="text-center space-y-4">
@@ -96,7 +98,7 @@ export default function MagicLink() {
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
               <p className="text-sm text-muted-foreground">
-                Verifying your magic link...
+                {t('magicLink.verifying')}
               </p>
             </div>
           )}
@@ -105,7 +107,7 @@ export default function MagicLink() {
             <div className="flex flex-col items-center gap-3">
               <CheckCircle2 className="h-8 w-8 text-green-600" />
               <p className="text-sm text-muted-foreground">
-                Redirecting to your project dashboard...
+                {t('magicLink.redirecting')}
               </p>
             </div>
           )}
@@ -120,14 +122,14 @@ export default function MagicLink() {
                 onClick={() => setLocation("/auth/request-link")}
                 className="w-full"
               >
-                Request a New Link
+                {t('magicLink.requestNew')}
               </Button>
               <Button
                 variant="ghost"
                 onClick={() => setLocation("/login")}
                 className="text-sm"
               >
-                Back to Login
+                {t('magicLink.backToLogin')}
               </Button>
             </div>
           )}

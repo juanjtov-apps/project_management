@@ -1,6 +1,8 @@
 import { createRoot } from "react-dom/client";
+import { Suspense } from "react";
 import App from "./App";
 import "./index.css";
+import "./i18n";
 
 // Filter out browser extension errors from console (harmless noise)
 if (typeof window !== 'undefined') {
@@ -23,4 +25,8 @@ if (typeof window !== 'undefined') {
   };
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <Suspense fallback={<div className="min-h-screen bg-[#0F1115]" />}>
+    <App />
+  </Suspense>
+);

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -86,57 +87,58 @@ interface SubTaskEntry {
 
 const statusConfig: Record<
   SubTaskEntry["status"],
-  { label: string; className: string }
+  { labelKey: string; className: string }
 > = {
   not_started: {
-    label: "Not Started",
+    labelKey: "status.notStarted",
     className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
   },
   in_progress: {
-    label: "In Progress",
+    labelKey: "status.inProgress",
     className: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   },
   pending_review: {
-    label: "Pending Review",
+    labelKey: "status.pendingReview",
     className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   },
   revision_requested: {
-    label: "Revision Requested",
+    labelKey: "subs.revisionRequested",
     className: "bg-orange-500/20 text-orange-400 border-orange-500/30",
   },
   approved: {
-    label: "Approved",
+    labelKey: "status.approved",
     className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   },
   rejected: {
-    label: "Rejected",
+    labelKey: "status.rejected",
     className: "bg-red-500/20 text-red-400 border-red-500/30",
   },
 };
 
 const priorityConfig: Record<
   SubTaskEntry["priority"],
-  { label: string; className: string }
+  { labelKey: string; className: string }
 > = {
   low: {
-    label: "Low",
+    labelKey: "priority.low",
     className: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
   },
   medium: {
-    label: "Medium",
+    labelKey: "priority.medium",
     className: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   },
   high: {
-    label: "High",
+    labelKey: "priority.high",
     className: "bg-orange-500/20 text-orange-400 border-orange-500/30",
   },
   urgent: {
-    label: "Urgent",
+    labelKey: "subs.urgent",
     className: "bg-red-500/20 text-red-400 border-red-500/30",
   },
 };
 
 export default function SubsManagement() {
+  const { t } = useTranslation('common');
   const [activeTab, setActiveTab] = useState<string>("directory");
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<SubTaskEntry | null>(null);
@@ -269,7 +271,7 @@ export default function SubsManagement() {
           "projects",
         ],
       });
-      toast({ title: "Project assigned to subcontractor" });
+      toast({ title: t('subs.projectAssigned') });
       // Auto-select the newly assigned project so task creation is immediately available
       setSelectedSubProject(variables.projectId);
       setShowAssignProject(false);
@@ -277,7 +279,7 @@ export default function SubsManagement() {
     },
     onError: (error: Error) => {
       toast({
-        title: "Assignment failed",
+        title: t('subs.assignmentFailed'),
         description: error.message,
         variant: "destructive",
       });
@@ -311,12 +313,12 @@ export default function SubsManagement() {
       queryClient.invalidateQueries({
         queryKey: ["/api/v1/sub/companies", selectedSubCompany, "projects"],
       });
-      toast({ title: "Contract value updated" });
+      toast({ title: t('subs.contractValueUpdated') });
       setEditingContractValue(false);
     },
     onError: (error: Error) => {
       toast({
-        title: "Update failed",
+        title: t('subs.updateFailed'),
         description: error.message,
         variant: "destructive",
       });
@@ -346,31 +348,31 @@ export default function SubsManagement() {
   const tabItems = [
     {
       value: "directory",
-      label: "Directory",
+      label: t('subs.directory'),
       icon: FolderOpen,
       color: "text-[var(--pro-mint)]",
     },
     {
       value: "tasks",
-      label: "Tasks",
+      label: t('subs.taskBoard'),
       icon: ClipboardList,
       color: "text-blue-400",
     },
     {
       value: "approvals",
-      label: "Approvals",
+      label: t('subs.approvals'),
       icon: CheckCircle,
       color: "text-amber-400",
     },
     {
       value: "contracts",
-      label: "Contracts",
+      label: t('subs.contracts'),
       icon: DollarSign,
       color: "text-emerald-400",
     },
     {
       value: "templates",
-      label: "Templates",
+      label: t('subs.templates'),
       icon: LayoutTemplate,
       color: "text-purple-400",
     },
@@ -397,11 +399,11 @@ export default function SubsManagement() {
         <div className="flex items-center gap-2">
           <HardHat className="h-6 w-6 sm:h-7 sm:w-7 text-[var(--pro-mint)]" />
           <h1 className="text-2xl sm:text-3xl font-bold text-[var(--pro-text-primary)]">
-            Subs Management
+            {t('subs.subsManagement')}
           </h1>
         </div>
         <p className="text-[var(--pro-text-secondary)] mt-1">
-          Manage subcontractors, tasks, and approvals
+          {t('subs.manageSubcontractors')}
         </p>
       </div>
 
@@ -492,14 +494,14 @@ export default function SubsManagement() {
                         1
                       </div>
                       <span className="font-medium text-[var(--pro-text-primary)]">
-                        Select Subcontractor
+                        {t('subs.selectSubcontractor')}
                       </span>
                     </div>
 
                     {subsLoading ? (
                       <div className="flex items-center gap-2 text-[var(--pro-text-secondary)]">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Loading...
+                        {t('subs.loading')}
                       </div>
                     ) : (
                       <Select
@@ -509,7 +511,7 @@ export default function SubsManagement() {
                         <SelectTrigger className="w-full">
                           <div className="flex items-center gap-2">
                             <HardHat className="h-4 w-4 shrink-0 text-[var(--pro-text-muted)]" />
-                            <SelectValue placeholder="Choose a subcontractor..." />
+                            <SelectValue placeholder={t('subs.chooseSubcontractor')} />
                           </div>
                         </SelectTrigger>
                         <SelectContent>
@@ -542,14 +544,14 @@ export default function SubsManagement() {
                             2
                           </div>
                           <span className="font-medium text-[var(--pro-text-primary)]">
-                            Select Project
+                            {t('subs.selectProject')}
                           </span>
                         </div>
 
                         {subProjectsLoading ? (
                           <div className="flex items-center gap-2 text-[var(--pro-text-secondary)]">
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            Loading projects...
+                            {t('subs.loadingProjects')}
                           </div>
                         ) : subProjects.length > 0 ? (
                           <div className="space-y-2">
@@ -560,7 +562,7 @@ export default function SubsManagement() {
                               <SelectTrigger className="w-full">
                                 <div className="flex items-center gap-2">
                                   <Building className="h-4 w-4 shrink-0 text-[var(--pro-text-muted)]" />
-                                  <SelectValue placeholder="Choose a project..." />
+                                  <SelectValue placeholder={t('subs.chooseProject')} />
                                 </div>
                               </SelectTrigger>
                               <SelectContent>
@@ -590,14 +592,14 @@ export default function SubsManagement() {
                                 className="text-[var(--pro-text-secondary)] hover:text-[var(--pro-mint)] gap-1.5"
                               >
                                 <LinkIcon className="h-3.5 w-3.5" />
-                                Assign to another project
+                                {t('subs.assignToAnotherProject')}
                               </Button>
                             )}
                           </div>
                         ) : (
                           <div className="space-y-2">
                             <p className="text-sm text-[var(--pro-text-secondary)]">
-                              {selectedSubName} is not assigned to any projects yet.
+                              {t('subs.notAssignedToProjects', { name: selectedSubName })}
                             </p>
                             <Button
                               variant="outline"
@@ -606,7 +608,7 @@ export default function SubsManagement() {
                               className="gap-1.5"
                             >
                               <LinkIcon className="h-3.5 w-3.5" />
-                              Assign to a project
+                              {t('subs.assignToProject')}
                             </Button>
                           </div>
                         )}
@@ -619,7 +621,7 @@ export default function SubsManagement() {
                               onValueChange={setAssignProjectId}
                             >
                               <SelectTrigger className="flex-1">
-                                <SelectValue placeholder="Select project to assign..." />
+                                <SelectValue placeholder={t('subs.selectProjectToAssign')} />
                               </SelectTrigger>
                               <SelectContent>
                                 {unassignedProjects.map((p) => (
@@ -648,7 +650,7 @@ export default function SubsManagement() {
                               {assignProjectMutation.isPending ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
-                                "Assign"
+                                t('subs.assign')
                               )}
                             </Button>
                             <Button
@@ -659,7 +661,7 @@ export default function SubsManagement() {
                                 setAssignProjectId("");
                               }}
                             >
-                              Cancel
+                              {t('button.cancel')}
                             </Button>
                           </div>
                         )}
@@ -680,7 +682,7 @@ export default function SubsManagement() {
                           className="gap-1.5"
                         >
                           <Plus className="h-4 w-4" />
-                          Create Task
+                          {t('subs.createTask')}
                         </Button>
                       </div>
                     )}
@@ -698,10 +700,10 @@ export default function SubsManagement() {
                       <CardContent className="text-center py-12">
                         <ClipboardList className="h-12 w-12 mx-auto text-[var(--pro-text-muted)] mb-3" />
                         <h3 className="text-lg font-semibold mb-1 text-[var(--pro-text-primary)]">
-                          No tasks yet
+                          {t('subs.noTasksYet')}
                         </h3>
                         <p className="text-sm text-[var(--pro-text-secondary)] mb-4">
-                          Create a task for {selectedSubName} on this project.
+                          {t('subs.createTaskForSub', { name: selectedSubName })}
                         </p>
                         <Button
                           onClick={() => {
@@ -711,14 +713,14 @@ export default function SubsManagement() {
                           className="gap-1.5"
                         >
                           <Plus className="h-4 w-4" />
-                          Create First Task
+                          {t('subs.createFirstTask')}
                         </Button>
                       </CardContent>
                     </Card>
                   ) : (
                     <div className="space-y-2">
                       <p className="text-sm text-[var(--pro-text-secondary)]">
-                        {tasks.length} task{tasks.length !== 1 ? "s" : ""} for{" "}
+                        {t('subs.taskCountForSub', { count: tasks.length })}{" "}
                         <span className="text-[var(--pro-text-primary)] font-medium">
                           {selectedSubName}
                         </span>
@@ -756,13 +758,13 @@ export default function SubsManagement() {
                                         variant="outline"
                                         className={priority.className}
                                       >
-                                        {priority.label}
+                                        {t(priority.labelKey)}
                                       </Badge>
                                       <Badge
                                         variant="outline"
                                         className={status.className}
                                       >
-                                        {status.label}
+                                        {t(status.labelKey)}
                                       </Badge>
                                     </div>
 
@@ -786,7 +788,7 @@ export default function SubsManagement() {
                                             <Calendar className="h-3.5 w-3.5" />
                                           )}
                                           <span>
-                                            {isOverdue ? "Overdue: " : "Due: "}
+                                            {isOverdue ? t('subs.overdue') + " " : t('subs.due') + " "}
                                             {formatDate(task.endDate)}
                                           </span>
                                         </div>
@@ -822,11 +824,10 @@ export default function SubsManagement() {
                       <CardContent className="text-center py-12">
                         <HardHat className="h-12 w-12 mx-auto text-[var(--pro-text-muted)] mb-3" />
                         <h3 className="text-lg font-semibold mb-1 text-[var(--pro-text-primary)]">
-                          Select a subcontractor to get started
+                          {t('subs.selectSubToStart')}
                         </h3>
                         <p className="text-sm text-[var(--pro-text-secondary)]">
-                          Choose a sub company above, then select a project to view
-                          and create tasks.
+                          {t('subs.chooseSubAbove')}
                         </p>
                       </CardContent>
                     </Card>
@@ -857,10 +858,10 @@ export default function SubsManagement() {
                 onValueChange={setApprovalProjectFilter}
               >
                 <SelectTrigger className="w-full sm:w-80">
-                  <SelectValue placeholder="Filter by project" />
+                  <SelectValue placeholder={t('subs.filterByProject')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
+                  <SelectItem value="all">{t('subs.allProjects')}</SelectItem>
                   {allProjects.map((project) => (
                     <SelectItem
                       key={project.id}
@@ -900,14 +901,14 @@ export default function SubsManagement() {
                     1
                   </div>
                   <span className="font-medium text-[var(--pro-text-primary)]">
-                    Select Subcontractor
+                    {t('subs.selectSubcontractor')}
                   </span>
                 </div>
 
                 {subsLoading ? (
                   <div className="flex items-center gap-2 text-[var(--pro-text-secondary)]">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading...
+                    {t('subs.loading')}
                   </div>
                 ) : (
                   <Select
@@ -917,7 +918,7 @@ export default function SubsManagement() {
                     <SelectTrigger className="w-full">
                       <div className="flex items-center gap-2">
                         <HardHat className="h-4 w-4 shrink-0 text-[var(--pro-text-muted)]" />
-                        <SelectValue placeholder="Choose a subcontractor..." />
+                        <SelectValue placeholder={t('subs.chooseSubcontractor')} />
                       </div>
                     </SelectTrigger>
                     <SelectContent>
@@ -949,14 +950,14 @@ export default function SubsManagement() {
                         2
                       </div>
                       <span className="font-medium text-[var(--pro-text-primary)]">
-                        Select Project
+                        {t('subs.selectProject')}
                       </span>
                     </div>
 
                     {subProjectsLoading ? (
                       <div className="flex items-center gap-2 text-[var(--pro-text-secondary)]">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Loading projects...
+                        {t('subs.loadingProjects')}
                       </div>
                     ) : subProjects.length > 0 ? (
                       <Select
@@ -966,7 +967,7 @@ export default function SubsManagement() {
                         <SelectTrigger className="w-full">
                           <div className="flex items-center gap-2">
                             <Building className="h-4 w-4 shrink-0 text-[var(--pro-text-muted)]" />
-                            <SelectValue placeholder="Choose a project..." />
+                            <SelectValue placeholder={t('subs.chooseProject')} />
                           </div>
                         </SelectTrigger>
                         <SelectContent>
@@ -979,7 +980,7 @@ export default function SubsManagement() {
                       </Select>
                     ) : (
                       <p className="text-sm text-[var(--pro-text-secondary)]">
-                        {selectedSubName} is not assigned to any projects yet.
+                        {t('subs.notAssignedToProjects', { name: selectedSubName })}
                       </p>
                     )}
                   </>
@@ -996,7 +997,7 @@ export default function SubsManagement() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-sm font-medium text-[var(--pro-text-secondary)] mb-1">
-                          Contract Value
+                          {t('subs.contractValue')}
                         </h3>
                         {editingContractValue ? (
                           <div className="flex items-center gap-2">
@@ -1035,7 +1036,7 @@ export default function SubsManagement() {
                               {updateContractValueMutation.isPending ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
-                                "Save"
+                                t('button.save')
                               )}
                             </Button>
                             <Button
@@ -1043,7 +1044,7 @@ export default function SubsManagement() {
                               variant="ghost"
                               onClick={() => setEditingContractValue(false)}
                             >
-                              Cancel
+                              {t('button.cancel')}
                             </Button>
                           </div>
                         ) : (
@@ -1056,7 +1057,7 @@ export default function SubsManagement() {
                                     minimumFractionDigits: 0,
                                     maximumFractionDigits: 0,
                                   }).format(currentContractValue)
-                                : "Not set"}
+                                : t('subs.notSet')}
                             </p>
                             <Button
                               size="sm"
@@ -1092,11 +1093,10 @@ export default function SubsManagement() {
                 <CardContent className="text-center py-12">
                   <DollarSign className="h-12 w-12 mx-auto text-[var(--pro-text-muted)] mb-3" />
                   <h3 className="text-lg font-semibold mb-1 text-[var(--pro-text-primary)]">
-                    Select a subcontractor to manage contracts
+                    {t('subs.selectSubForContracts')}
                   </h3>
                   <p className="text-sm text-[var(--pro-text-secondary)]">
-                    Choose a sub company and project above to set contract
-                    values and manage payment milestones.
+                    {t('subs.chooseSubForContracts')}
                   </p>
                 </CardContent>
               </Card>

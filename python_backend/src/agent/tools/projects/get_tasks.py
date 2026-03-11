@@ -214,12 +214,12 @@ class GetTasksTool(BaseTool):
         simplified_tasks = []
         for t in tasks[:50]:  # Limit to 50
             simplified_tasks.append({
-                "id": t.get("id"),
+                "id": str(t.get("id")) if t.get("id") else None,
                 "title": t.get("title"),
                 "description": t.get("description"),
                 "status": t.get("status"),
                 "priority": t.get("priority"),
-                "assigneeId": t.get("assignee_id"),
+                "assigneeId": str(t.get("assignee_id")) if t.get("assignee_id") else None,
                 "dueDate": str(t.get("due_date")) if t.get("due_date") else None,
                 "isMilestone": t.get("is_milestone", False),
                 "category": t.get("category"),

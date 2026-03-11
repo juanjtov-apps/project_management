@@ -1,25 +1,8 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { MessageSquare, Sparkles, FileText, Package, HelpCircle, BarChart3, Check, Clock, AlertCircle } from 'lucide-react';
 import { useGSAP, usePrefersReducedMotion } from '@/hooks/useGSAP';
 import { SectionHeader } from './shared';
-
-const cards = [
-  {
-    icon: MessageSquare,
-    title: 'Ask',
-    body: 'Type your question in plain language. No menus, no navigation, no learning curve.'
-  },
-  {
-    icon: Sparkles,
-    title: 'Proesphere Works',
-    body: 'The AI queries all your connected project data—tasks, schedules, documents, communications.'
-  },
-  {
-    icon: FileText,
-    title: 'You Receive',
-    body: 'A clear answer in your preferred format. Report, summary, action list—your call.'
-  }
-];
+import { useTranslation } from "react-i18next";
 
 interface MaterialItem {
   name: string;
@@ -47,53 +30,72 @@ interface PromptOutcome {
   };
 }
 
-const promptOutcomes: PromptOutcome[] = [
-  {
-    prompt: '"What materials need to be ordered for the electrical phase starting Monday?"',
-    shortPrompt: 'Materials for electrical phase',
-    outcome: {
-      type: 'materials',
-      title: 'Materials Required',
-      icon: Package,
-      items: [
-        { name: '200A Service Panel', qty: '1 unit', status: 'order' },
-        { name: '14/2 Romex Wire', qty: '500 ft', status: 'stock' },
-        { name: 'Outlet Boxes', qty: '24 units', status: 'order' },
-        { name: 'LED Fixtures', qty: '12 units', status: 'stock' }
-      ]
-    }
-  },
-  {
-    prompt: '"Are there any unanswered client questions from the last 7 days?"',
-    shortPrompt: 'Unanswered client questions',
-    outcome: {
-      type: 'questions',
-      title: '3 Pending Questions',
-      icon: HelpCircle,
-      questions: [
-        { client: 'Martinez', question: 'Cabinet finish options?', days: '5 days ago' },
-        { client: 'Chen', question: 'Timeline for inspection?', days: '3 days ago' },
-        { client: 'Williams', question: 'Permit status update?', days: '2 days ago' }
-      ]
-    }
-  },
-  {
-    prompt: '"Generate a progress report for the Martinez renovation."',
-    shortPrompt: 'Martinez progress report',
-    outcome: {
-      type: 'report',
-      title: 'Progress Report',
-      icon: BarChart3,
-      stats: { complete: '67%', onTrack: true, daysRemaining: 23 },
-      highlights: ['Framing complete', 'Electrical 80%', 'Plumbing inspection passed']
-    }
-  }
-];
-
 export function HowItWorksSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
   const [selectedPrompt, setSelectedPrompt] = useState(0);
+  const { t } = useTranslation('landing');
+
+  const promptOutcomes: PromptOutcome[] = useMemo(() => [
+    {
+      prompt: t('howItWorks.demo.prompt1'),
+      shortPrompt: t('howItWorks.demo.shortPrompt1'),
+      outcome: {
+        type: 'materials',
+        title: t('howItWorks.demo.materialsTitle'),
+        icon: Package,
+        items: [
+          { name: t('howItWorks.demo.mat1'), qty: t('howItWorks.demo.mat1Qty'), status: 'order' },
+          { name: t('howItWorks.demo.mat2'), qty: t('howItWorks.demo.mat2Qty'), status: 'stock' },
+          { name: t('howItWorks.demo.mat3'), qty: t('howItWorks.demo.mat3Qty'), status: 'order' },
+          { name: t('howItWorks.demo.mat4'), qty: t('howItWorks.demo.mat4Qty'), status: 'stock' }
+        ]
+      }
+    },
+    {
+      prompt: t('howItWorks.demo.prompt2'),
+      shortPrompt: t('howItWorks.demo.shortPrompt2'),
+      outcome: {
+        type: 'questions',
+        title: t('howItWorks.demo.pendingTitle'),
+        icon: HelpCircle,
+        questions: [
+          { client: 'Martinez', question: t('howItWorks.demo.q1'), days: t('howItWorks.demo.q1Days') },
+          { client: 'Chen', question: t('howItWorks.demo.q2'), days: t('howItWorks.demo.q2Days') },
+          { client: 'Williams', question: t('howItWorks.demo.q3'), days: t('howItWorks.demo.q3Days') }
+        ]
+      }
+    },
+    {
+      prompt: t('howItWorks.demo.prompt3'),
+      shortPrompt: t('howItWorks.demo.shortPrompt3'),
+      outcome: {
+        type: 'report',
+        title: t('howItWorks.demo.reportTitle'),
+        icon: BarChart3,
+        stats: { complete: '67%', onTrack: true, daysRemaining: 23 },
+        highlights: [t('howItWorks.demo.highlight1'), t('howItWorks.demo.highlight2'), t('howItWorks.demo.highlight3')]
+      }
+    }
+  ], [t]);
+
+  const cards = [
+    {
+      icon: MessageSquare,
+      title: t('howItWorks.step1.title'),
+      body: t('howItWorks.step1.desc')
+    },
+    {
+      icon: Sparkles,
+      title: t('howItWorks.step2.title'),
+      body: t('howItWorks.step2.desc')
+    },
+    {
+      icon: FileText,
+      title: t('howItWorks.step3.title'),
+      body: t('howItWorks.step3.desc')
+    }
+  ];
 
   useGSAP((gsap) => {
     if (prefersReducedMotion) {
@@ -149,8 +151,8 @@ export function HowItWorksSection() {
 
       <div className="container mx-auto px-6">
         <SectionHeader
-          eyebrow="How It Works"
-          title="Three steps to clarity"
+          eyebrow={t('howItWorks.tag')}
+          title={t('howItWorks.headline')}
           className="mb-6"
         />
 
@@ -247,7 +249,7 @@ export function HowItWorksSection() {
                   className="text-xs uppercase tracking-[0.15em] mb-4 font-medium"
                   style={{ color: '#6B7280' }}
                 >
-                  Try a prompt
+                  {t('howItWorks.tryPrompt')}
                 </p>
                 <div className="space-y-3">
                   {promptOutcomes.map((item, index) => (
@@ -304,7 +306,7 @@ export function HowItWorksSection() {
                         {currentOutcome.title}
                       </h4>
                       <p className="text-xs" style={{ color: '#6B7280' }}>
-                        Generated instantly
+                        {t('howItWorks.demo.generatedInstantly')}
                       </p>
                     </div>
                   </div>
@@ -335,7 +337,7 @@ export function HowItWorksSection() {
                               color: item.status === 'order' ? '#F97316' : '#4ADE80'
                             }}
                           >
-                            {item.status === 'order' ? 'Order needed' : 'In stock'}
+                            {item.status === 'order' ? t('howItWorks.demo.orderNeeded') : t('howItWorks.demo.inStock')}
                           </span>
                         </div>
                       ))}
@@ -384,7 +386,7 @@ export function HowItWorksSection() {
                           <p className="text-2xl font-bold" style={{ color: '#4ADE80' }}>
                             {currentOutcome.stats.complete}
                           </p>
-                          <p className="text-xs" style={{ color: '#6B7280' }}>Complete</p>
+                          <p className="text-xs" style={{ color: '#6B7280' }}>{t('howItWorks.demo.complete')}</p>
                         </div>
                         <div
                           className="p-3 rounded-lg text-center"
@@ -393,7 +395,7 @@ export function HowItWorksSection() {
                           <div className="flex items-center justify-center gap-1">
                             <Check className="w-5 h-5" style={{ color: '#4ADE80' }} />
                           </div>
-                          <p className="text-xs" style={{ color: '#6B7280' }}>On Track</p>
+                          <p className="text-xs" style={{ color: '#6B7280' }}>{t('howItWorks.demo.onTrack')}</p>
                         </div>
                         <div
                           className="p-3 rounded-lg text-center"
@@ -402,7 +404,7 @@ export function HowItWorksSection() {
                           <p className="text-2xl font-bold" style={{ color: '#FFFFFF' }}>
                             {currentOutcome.stats.daysRemaining}
                           </p>
-                          <p className="text-xs" style={{ color: '#6B7280' }}>Days left</p>
+                          <p className="text-xs" style={{ color: '#6B7280' }}>{t('howItWorks.demo.daysLeft')}</p>
                         </div>
                       </div>
 
@@ -410,7 +412,7 @@ export function HowItWorksSection() {
                       {currentOutcome.highlights && (
                         <div className="space-y-2">
                           <p className="text-xs uppercase tracking-wider" style={{ color: '#6B7280' }}>
-                            Highlights
+                            {t('howItWorks.demo.highlights')}
                           </p>
                           {currentOutcome.highlights.map((highlight, index) => (
                             <div

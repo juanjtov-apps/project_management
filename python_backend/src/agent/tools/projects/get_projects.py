@@ -92,7 +92,7 @@ class GetProjectsTool(BaseTool):
         simplified_projects = []
         for p in projects:
             simplified_projects.append({
-                "id": p.get("id"),
+                "id": str(p.get("id")) if p.get("id") else None,
                 "name": p.get("name"),
                 "status": p.get("status"),
                 "progress": p.get("progress", 0),

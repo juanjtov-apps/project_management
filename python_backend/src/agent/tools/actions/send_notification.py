@@ -6,6 +6,7 @@ Safety: AUDIT_LOGGED (executes immediately, logged for audit trail).
 from typing import Dict, Any, List
 
 from ..base_tool import BaseTool
+from ..security import resolve_project_or_error
 from ...models.agent_models import SafetyLevel
 from src.database.connection import db_manager
 
@@ -48,7 +49,7 @@ class SendNotificationTool(BaseTool):
                 },
                 "project_id": {
                     "type": "string",
-                    "description": "Project ID — notify all assigned users on this project",
+                    "description": "Project ID (UUID) or project name — notify all assigned users on this project",
                 },
             },
             "required": ["title", "message"],
@@ -87,13 +88,11 @@ class SendNotificationTool(BaseTool):
             user_ids = [target_user_id]
 
         elif project_id:
-            # Verify project and get assigned users
-            project = await db_manager.execute_one(
-                "SELECT id, name FROM projects WHERE id = $1 AND company_id = $2",
-                project_id, company_id,
-            )
-            if not project:
-                return {"error": "Project not found or access denied"}
+            # Resolve project by UUID or name
+            project, err = await resolve_project_or_error(project_id, company_id)
+            if err:
+                return err
+            project_id = str(project["id"])
 
             # Get users who have tasks on this project
             rows = await db_manager.execute_query(

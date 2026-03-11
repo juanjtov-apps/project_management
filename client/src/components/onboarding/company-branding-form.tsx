@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,7 @@ interface BrandingData {
 }
 
 export default function CompanyBrandingForm() {
+  const { t } = useTranslation('auth');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -76,11 +78,11 @@ export default function CompanyBrandingForm() {
       return response.json();
     },
     onSuccess: (data: BrandingData) => {
-      toast({ title: "Branding Updated", description: "Your company branding has been saved." });
+      toast({ title: t('branding.updated'), description: t('branding.updatedDesc') });
       queryClient.invalidateQueries({ queryKey: ["/api/v1/companies"] });
     },
     onError: (error: Error) => {
-      toast({ title: "Update Failed", description: error.message, variant: "destructive" });
+      toast({ title: t('branding.updateFailed'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -113,24 +115,23 @@ export default function CompanyBrandingForm() {
   return (
     <Card className="bg-[var(--pro-surface)] border-[var(--pro-border)]">
       <CardHeader>
-        <CardTitle className="text-[var(--pro-text-primary)]">Company Branding</CardTitle>
+        <CardTitle className="text-[var(--pro-text-primary)]">{t('branding.title')}</CardTitle>
         <CardDescription>
-          Customize how your company appears in client invitation emails. Emails are sent on
-          behalf of your company — clients never see "Proesphere".
+          {t('branding.description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5">
             <Image className="h-3.5 w-3.5" />
-            Company Logo
+            {t('branding.companyLogo')}
           </Label>
           <div className="flex items-center gap-4">
             {(logoPreview || logoUrl) && (
               <div className="w-16 h-16 border border-[var(--pro-border)] rounded-lg flex items-center justify-center overflow-hidden bg-white">
                 <img
                   src={logoPreview || logoUrl || ""}
-                  alt="Company logo"
+                  alt={t('branding.companyLogo')}
                   className="max-w-full max-h-full object-contain"
                 />
               </div>
@@ -141,19 +142,19 @@ export default function CompanyBrandingForm() {
               onComplete={handleLogoUploaded}
             >
               <Button variant="outline" size="sm">
-                {logoUrl ? "Change Logo" : "Upload Logo"}
+                {logoUrl ? t('branding.changeLogo') : t('branding.uploadLogo')}
               </Button>
             </ObjectUploader>
           </div>
           <p className="text-xs text-muted-foreground">
-            Recommended: PNG or SVG, max 200px wide.
+            {t('branding.logoHint')}
           </p>
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="brandColor" className="flex items-center gap-1.5">
             <Palette className="h-3.5 w-3.5" />
-            Brand Color
+            {t('branding.brandColor')}
           </Label>
           <div className="flex items-center gap-3">
             <input
@@ -175,27 +176,27 @@ export default function CompanyBrandingForm() {
               className="px-4 py-2 rounded-lg text-white text-sm font-medium"
               style={{ backgroundColor: brandColor }}
             >
-              Preview
+              {t('branding.preview')}
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Used for buttons and accents in client emails.
+            {t('branding.brandColorHint')}
           </p>
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="senderName" className="flex items-center gap-1.5">
             <Type className="h-3.5 w-3.5" />
-            Email Sender Name
+            {t('branding.senderName')}
           </Label>
           <Input
             id="senderName"
             value={senderName}
             onChange={(e) => setSenderName(e.target.value)}
-            placeholder="e.g., ABC Construction"
+            placeholder={t('branding.senderNamePlaceholder')}
           />
           <p className="text-xs text-muted-foreground">
-            Emails will be sent as "{senderName || 'Your Company'}" &lt;noreply@mail.proesphere.com&gt;
+            {t('branding.senderNameHint', { name: senderName || t('branding.yourCompany') })}
           </p>
         </div>
 
@@ -206,10 +207,10 @@ export default function CompanyBrandingForm() {
           {brandingMutation.isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
+              {t('branding.saving')}
             </>
           ) : (
-            "Save Branding"
+            t('branding.saveBranding')
           )}
         </Button>
       </CardContent>

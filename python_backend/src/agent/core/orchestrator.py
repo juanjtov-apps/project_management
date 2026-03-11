@@ -15,6 +15,7 @@ from ..tools.executor import tool_executor, PermissionDenied
 from ..repositories.agent_repository import agent_repo
 from .context_builder import context_builder
 from src.core.config import settings
+from .error_notifier import notify_root_admins_on_error
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ class AgentOrchestrator:
         project_id: Optional[str],
         user_context: Dict[str, Any],
         attachments: Optional[List[str]] = None,
+        language: str = "en",
     ) -> AsyncIterator[Dict[str, Any]]:
         """Process a user message through the agentic loop.
 
@@ -60,7 +62,26 @@ class AgentOrchestrator:
         start_time = time.time()
         llm_provider = get_cached_llm_provider()
 
-        # 1. Get or create conversation
+        # 1. Classify intent with gatekeeper (before DB ops to avoid connection contention)
+        classification = None
+        router_latency_ms = 0
+        if settings.agent_gatekeeper_enabled:
+            try:
+                router_start = time.time()
+                selected_model, classification = await model_router.classify_and_select_model(
+                    message=message,
+                    llm_provider=llm_provider,
+                )
+                router_latency_ms = int((time.time() - router_start) * 1000)
+                logger.info(
+                    f"Gatekeeper → {classification.tier.value} "
+                    f"(intent={classification.intent}, confidence={classification.confidence})"
+                )
+            except Exception as e:
+                logger.warning(f"Gatekeeper failed, using specialist: {e}")
+                selected_model = model_router.specialist_model
+
+        # 2. Get or create conversation
         if conversation_id:
             conversation = await agent_repo.get_conversation(
                 conversation_id,
@@ -85,6 +106,7 @@ class AgentOrchestrator:
         system_prompt = await context_builder.build_system_prompt(
             user_context=user_context,
             project_id=project_id or conversation.get("projectId"),
+            language=language,
         )
 
         # 3. Get conversation history
@@ -102,12 +124,13 @@ class AgentOrchestrator:
         user_role = user_context.get("role", "user")
         tools = tool_registry.get_tool_definitions(user_role)
 
-        # 6. Select model based on message complexity
-        selected_model = model_router.select_model(
-            intent=None,  # Could add intent classification here
-            tool_calls=[],
-            message_length=sum(len(m.get("content", "")) for m in messages),
-        )
+        # 6. Select model (legacy fallback if gatekeeper is disabled)
+        if not settings.agent_gatekeeper_enabled:
+            selected_model = model_router.select_model(
+                intent=None,
+                tool_calls=[],
+                message_length=sum(len(m.get("content", "")) for m in messages),
+            )
 
         # 7. Save user message
         user_message = await agent_repo.save_message(
@@ -131,8 +154,8 @@ class AgentOrchestrator:
                     messages=messages,
                     tools=tools if tools else None,
                     model=selected_model,
-                    temperature=model_router.get_temperature(),
-                    max_tokens=model_router.get_max_tokens(),
+                    temperature=model_router.get_temperature(tier=classification.tier if classification else None),
+                    max_tokens=model_router.get_max_tokens(tier=classification.tier if classification else None),
                     stream=True,
                 ):
                     chunk_type = chunk.get("type")
@@ -239,6 +262,9 @@ class AgentOrchestrator:
                                 conversation_id=conversation_id,
                             )
 
+                            # Detect tool-level errors (returned as dicts, not exceptions)
+                            is_error = isinstance(result, dict) and "error" in result
+
                             tool_calls_made.append({
                                 "name": tool_name,
                                 "input": tool_input,
@@ -249,7 +275,7 @@ class AgentOrchestrator:
                                 "type": "tool_result",
                                 "data": {
                                     "tool": tool_name,
-                                    "success": True,
+                                    "success": not is_error,
                                     "result": result,
                                 }
                             }
@@ -303,16 +329,38 @@ class AgentOrchestrator:
                                 "tool_call_id": tool_call_id,
                                 "content": f"The {tool_name} operation could not be completed. Please inform the user that you encountered an issue and offer to try again or take an alternative approach. Do not show technical details.",
                             })
+                            # Notify root admins of tool failure
+                            import asyncio
+                            asyncio.create_task(notify_root_admins_on_error(
+                                error_type="tool_execution_error",
+                                error_message=str(e),
+                                tool_name=tool_name,
+                                user_id=user_context.get("user_id"),
+                                conversation_id=conversation_id,
+                                project_id=user_context.get("project_id"),
+                                company_id=user_context.get("company_id"),
+                            ))
 
                     elif chunk_type == "stop":
                         # LLM finished
                         break
 
                     elif chunk_type == "error":
+                        error_msg = chunk.get("message", "Unknown error")
                         yield {
                             "type": "error",
-                            "data": {"message": chunk.get("message", "Unknown error")}
+                            "data": {"message": error_msg}
                         }
+                        # Notify root admins of LLM error
+                        import asyncio
+                        asyncio.create_task(notify_root_admins_on_error(
+                            error_type="llm_provider_error",
+                            error_message=error_msg,
+                            user_id=user_context.get("user_id"),
+                            conversation_id=conversation_id,
+                            project_id=user_context.get("project_id"),
+                            company_id=user_context.get("company_id"),
+                        ))
                         break
 
                 # Check if we should continue the loop
@@ -327,16 +375,30 @@ class AgentOrchestrator:
                 "type": "error",
                 "data": {"message": f"An error occurred: {str(e)}"}
             }
+            # Notify root admins of orchestrator crash
+            import asyncio
+            asyncio.create_task(notify_root_admins_on_error(
+                error_type="orchestrator_error",
+                error_message=str(e),
+                user_id=user_context.get("user_id"),
+                conversation_id=conversation_id,
+                project_id=user_context.get("project_id"),
+                company_id=user_context.get("company_id"),
+            ))
 
         # 9. Save assistant message
         latency_ms = int((time.time() - start_time) * 1000)
         assistant_message_id = None
 
-        if accumulated_content:
+        # Save assistant message (even if no text content, to ensure feedback can reference it)
+        save_content = accumulated_content or (
+            "[Tool execution completed]" if tool_calls_made else None
+        )
+        if save_content:
             assistant_message = await agent_repo.save_message(
                 conversation_id=conversation_id,
                 role="assistant",
-                content=accumulated_content,
+                content=save_content,
                 tool_calls=tool_calls_made if tool_calls_made else None,
                 model_used=selected_model,
                 latency_ms=latency_ms,
@@ -360,8 +422,49 @@ class AgentOrchestrator:
                     metric_value=len(tool_calls_made),
                     user_id=user_context.get("user_id"),
                 )
+
+            if classification:
+                await agent_repo.record_metric(
+                    company_id=user_context.get("company_id", "unknown"),
+                    metric_type="routing_tier",
+                    metric_value=1,
+                    user_id=user_context.get("user_id"),
+                    dimension_1=classification.tier.value,
+                    dimension_2=classification.intent,
+                )
         except Exception as e:
             logger.warning(f"Failed to record metrics: {e}")
+
+        # 10b. Save detailed metric event for observability dashboard
+        try:
+            interaction_event = {
+                "user_id": user_context.get("user_id"),
+                "company_id": user_context.get("company_id"),
+                "conversation_id": str(conversation_id) if conversation_id else None,
+                "user_prompt": message[:200] if message else "",
+                "prompt_length": len(message) if message else 0,
+                "router_model_selected": selected_model,
+                "router_complexity_class": classification.tier.value if classification else "specialist",
+                "router_confidence": classification.confidence if classification else 0.0,
+                "router_latency_ms": router_latency_ms,
+                "tools_selected": [tc.get("name", tc.get("toolName", "")) for tc in tool_calls_made] if tool_calls_made else [],
+                "tool_execution_success": all(
+                    not (isinstance(tc.get("result"), dict) and "error" in tc.get("result", {}))
+                    for tc in tool_calls_made
+                ) if tool_calls_made else True,
+                "total_latency_ms": latency_ms,
+                "asked_followup": bool(accumulated_content and "?" in accumulated_content[-100:]),
+                "error": None,
+            }
+            await agent_repo.save_metric_event(
+                event_type="agent_interaction",
+                event_data=interaction_event,
+                user_id=user_context.get("user_id"),
+                company_id=user_context.get("company_id"),
+                conversation_id=str(conversation_id) if conversation_id else None,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save interaction event: {e}")
 
         # 11. Done
         yield {

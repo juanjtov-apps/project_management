@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, Camera, Trash2, Download, Search, Filter, Tag, FileText, FolderOpen, Grid3X3, List } from "lucide-react";
+import { useTranslation } from 'react-i18next';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPhotoSchema } from "@shared/schema";
@@ -37,6 +38,7 @@ interface PhotoUploadData {
 }
 
 export default function Photos() {
+  const { t } = useTranslation('work');
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "project" | "tag" | "log">("all");
@@ -226,14 +228,14 @@ export default function Photos() {
       setIsUploadDialogOpen(false);
       form.reset();
       toast({
-        title: "Success",
-        description: "Photos uploaded successfully",
+        title: t('photos.success'),
+        description: t('photos.successUpload'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to save photos",
+        title: t('photos.error'),
+        description: t('photos.errorSave'),
         variant: "destructive",
       });
     },
@@ -244,14 +246,14 @@ export default function Photos() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
       toast({
-        title: "Success",
-        description: "Photo deleted successfully",
+        title: t('photos.success'),
+        description: t('photos.successDelete'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to delete photo",
+        title: t('photos.error'),
+        description: t('photos.errorDelete'),
         variant: "destructive",
       });
     },
@@ -269,8 +271,8 @@ export default function Photos() {
   const onSubmit = async (data: PhotoUploadData) => {
     if (!data.projectId) {
       toast({
-        title: "Error",
-        description: "Please select a project before uploading photos",
+        title: t('photos.error'),
+        description: t('photos.errorSelectProject'),
         variant: "destructive",
       });
       return;
@@ -282,8 +284,8 @@ export default function Photos() {
       
       if (uploadedUrls.length === 0) {
         toast({
-          title: "Error",
-          description: "Please select at least one photo to upload",
+          title: t('photos.error'),
+          description: t('photos.errorSelectPhotos'),
           variant: "destructive",
         });
         return;
@@ -294,8 +296,8 @@ export default function Photos() {
     } catch (error) {
       console.error('Photo upload error:', error);
       toast({
-        title: "Error",
-        description: "Failed to upload photos",
+        title: t('photos.error'),
+        description: t('photos.errorUpload'),
         variant: "destructive",
       });
     }
@@ -324,7 +326,7 @@ export default function Photos() {
       <div className="min-h-screen flex items-center justify-center bg-[var(--pro-bg)]">
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-[var(--pro-mint)] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-[var(--pro-text-primary)]">Loading photos...</p>
+          <p className="text-[var(--pro-text-primary)]">{t('photos.loading')}</p>
         </div>
       </div>
     );
@@ -335,10 +337,10 @@ export default function Photos() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--pro-text-primary)]">Photo Gallery</h1>
+          <h1 className="text-2xl font-bold text-[var(--pro-text-primary)]">{t('photos.title')}</h1>
           <p className="text-[var(--pro-text-secondary)]">
-            {filteredPhotosData.length} of {photos.length} photos
-            {filterType !== "all" && ` (filtered by ${filterType})`}
+            {t('photos.photoCount', { filtered: filteredPhotosData.length, total: photos.length })}
+            {filterType !== "all" && ` ${t('photos.filteredBy', { type: filterType })}`}
           </p>
         </div>
         
@@ -351,20 +353,20 @@ export default function Photos() {
             className="flex items-center gap-2"
           >
             {viewMode === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}
-            <span className="hidden sm:inline">{viewMode === "grid" ? "List" : "Grid"}</span>
-            <span className="sm:hidden">{viewMode === "grid" ? "List" : "Grid"}</span>
+            <span className="hidden sm:inline">{viewMode === "grid" ? t('photos.list') : t('photos.grid')}</span>
+            <span className="sm:hidden">{viewMode === "grid" ? t('photos.list') : t('photos.grid')}</span>
           </Button>
           
           <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-[var(--pro-mint)] hover:bg-[var(--pro-mint)]/90 text-[var(--pro-bg-deep)]" data-testid="button-upload-photos">
                 <Camera size={16} className="mr-2" />
-                Upload Photos
+                {t('photos.upload')}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md" aria-describedby={undefined}>
               <DialogHeader>
-                <DialogTitle>Upload Photos</DialogTitle>
+                <DialogTitle>{t('photos.upload')}</DialogTitle>
               </DialogHeader>
               
               <Form {...form}>
@@ -374,11 +376,11 @@ export default function Photos() {
                     name="projectId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Project *</FormLabel>
+                        <FormLabel>{t('photos.project')}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select project" />
+                              <SelectValue placeholder={t('photos.selectProject')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -399,10 +401,10 @@ export default function Photos() {
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Description</FormLabel>
+                        <FormLabel>{t('photos.description')}</FormLabel>
                         <FormControl>
-                          <Textarea 
-                            placeholder="Describe the photos..." 
+                          <Textarea
+                            placeholder={t('photos.descPlaceholder')} 
                             {...field} 
                           />
                         </FormControl>
@@ -416,10 +418,10 @@ export default function Photos() {
                     name="tags"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tags (comma-separated)</FormLabel>
+                        <FormLabel>{t('photos.tags')}</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="e.g., foundation, concrete, progress"
+                          <Input
+                            placeholder={t('photos.tagsPlaceholder')}
                             value={field.value?.join(", ") || ""}
                             onChange={(e) => {
                               const tags = e.target.value.split(",").map(tag => tag.trim()).filter(Boolean);
@@ -433,7 +435,7 @@ export default function Photos() {
                   />
                   
                   <div className="space-y-3">
-                    <FormLabel>Select Photos</FormLabel>
+                    <FormLabel>{t('photos.selectPhotos')}</FormLabel>
                     <ObjectUploader
                       ref={uploaderRef}
                       deferUpload={true}
@@ -444,8 +446,8 @@ export default function Photos() {
                     >
                       <div className="flex flex-col items-center gap-2">
                         <Upload size={24} className="text-[#4ADE80]" />
-                        <span className="font-medium text-[#C9D1D9]">Select Photos</span>
-                        <span className="text-xs text-[#6B7280]">Up to 10 photos, max 10MB each</span>
+                        <span className="font-medium text-[#C9D1D9]">{t('photos.selectPhotos')}</span>
+                        <span className="text-xs text-[#6B7280]">{t('photos.selectPhotosHint')}</span>
                       </div>
                     </ObjectUploader>
                   </div>
@@ -457,15 +459,15 @@ export default function Photos() {
                       onClick={() => setIsUploadDialogOpen(false)}
                       className="flex-1"
                     >
-                      Cancel
+                      {t('photos.cancel')}
                     </Button>
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       className="flex-1 bg-teal-600 hover:bg-teal-700"
                       disabled={uploadPhotoMutation.isPending}
                       data-testid="button-submit-upload"
                     >
-                      {uploadPhotoMutation.isPending ? "Uploading..." : "Upload Photos"}
+                      {uploadPhotoMutation.isPending ? t('photos.uploading') : t('photos.upload')}
                     </Button>
                   </div>
                 </form>
@@ -479,7 +481,7 @@ export default function Photos() {
       <Card>
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Filters</CardTitle>
+            <CardTitle className="text-lg">{t('photos.filters')}</CardTitle>
             {(filterType !== "all" || searchTerm) && (
               <Button 
                 variant="outline" 
@@ -487,7 +489,7 @@ export default function Photos() {
                 onClick={resetFilters}
                 data-testid="button-reset-filters"
               >
-                Clear All
+                {t('photos.clearAll')}
               </Button>
             )}
           </div>
@@ -497,7 +499,7 @@ export default function Photos() {
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <Input
-              placeholder="Search photos by description, filename, or tags..."
+              placeholder={t('photos.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -510,29 +512,29 @@ export default function Photos() {
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="all" className="flex items-center gap-2">
                 <FolderOpen size={14} />
-                All
+                {t('photos.all')}
               </TabsTrigger>
               <TabsTrigger value="project" className="flex items-center gap-2">
                 <FolderOpen size={14} />
-                Project
+                {t('form.project')}
               </TabsTrigger>
               <TabsTrigger value="tag" className="flex items-center gap-2">
                 <Tag size={14} />
-                Tag
+                {t('photos.tag')}
               </TabsTrigger>
               <TabsTrigger value="log" className="flex items-center gap-2">
                 <FileText size={14} />
-                Log
+                {t('photos.log')}
               </TabsTrigger>
             </TabsList>
             
             <TabsContent value="project" className="mt-4">
               <Select value={selectedProject} onValueChange={setSelectedProject}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a project" />
+                  <SelectValue placeholder={t('photos.selectAProject')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
+                  <SelectItem value="all">{t('photos.allProjects')}</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
@@ -545,16 +547,16 @@ export default function Photos() {
             <TabsContent value="tag" className="mt-4">
               <Select value={selectedTag} onValueChange={setSelectedTag}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a tag" />
+                  <SelectValue placeholder={t('photos.selectATag')} />
                 </SelectTrigger>
                 <SelectContent>
 
-                  <SelectItem value="all">All Tags ({photos.length} photos)</SelectItem>
+                  <SelectItem value="all">{t('photos.allTagsCount', { count: photos.length })}</SelectItem>
                   {uniqueTags.map((tag) => {
                     const photoCount = photos.filter(photo => photo.tags?.includes(tag)).length;
                     return (
                       <SelectItem key={tag} value={tag}>
-                        {tag} ({photoCount} photo{photoCount !== 1 ? 's' : ''})
+                        {photoCount !== 1 ? t('photos.photosWithCount', { tag, count: photoCount }) : t('photos.photoWithCount', { tag, count: photoCount })}
                       </SelectItem>
                     );
                   })}
@@ -563,13 +565,13 @@ export default function Photos() {
               
               {uniqueTags.length === 0 && (
                 <div className="text-sm text-gray-500 text-center py-4">
-                  No tags found. Upload photos with tags to enable tag filtering.
+                  {t('photos.noTagsFound')}
                 </div>
               )}
               
               {uniqueTags.length > 0 && (
                 <div className="mt-3">
-                  <p className="text-xs text-gray-600 mb-2">Popular tags:</p>
+                  <p className="text-xs text-gray-600 mb-2">{t('photos.popularTags')}</p>
                   <div className="flex flex-wrap gap-1">
                     {uniqueTags.slice(0, 6).map((tag) => (
                       <Badge 
@@ -590,19 +592,19 @@ export default function Photos() {
             <TabsContent value="log" className="mt-4 space-y-3">
               <Select value={selectedLogDate} onValueChange={setSelectedLogDate}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a date range" />
+                  <SelectValue placeholder={t('photos.selectDateRange')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Log Photos</SelectItem>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="week">This Week</SelectItem>
-                  <SelectItem value="30days">Last 30 Days</SelectItem>
-                  <SelectItem value="90days">Last 90 Days</SelectItem>
+                  <SelectItem value="all">{t('photos.allLogPhotos')}</SelectItem>
+                  <SelectItem value="today">{t('photos.today')}</SelectItem>
+                  <SelectItem value="week">{t('photos.thisWeek')}</SelectItem>
+                  <SelectItem value="30days">{t('photos.last30Days')}</SelectItem>
+                  <SelectItem value="90days">{t('photos.last90Days')}</SelectItem>
                 </SelectContent>
               </Select>
               {logsWithImages.length === 0 && (
                 <div className="text-sm text-gray-500 text-center py-4">
-                  No logs with photos found.
+                  {t('photos.noLogsWithPhotos')}
                 </div>
               )}
             </TabsContent>
@@ -616,17 +618,17 @@ export default function Photos() {
         <Card>
           <CardContent className="py-12 text-center">
             <Camera size={48} className="mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No photos found</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('photos.noPhotos')}</h3>
             <p className="text-gray-500 mb-4">
-              {photos.length === 0 
-                ? "Upload your first photos to get started" 
-                : "Try adjusting your filters or search terms"
+              {photos.length === 0
+                ? t('photos.uploadFirst')
+                : t('photos.adjustFilters')
               }
             </p>
             {photos.length === 0 && (
               <Button onClick={() => setIsUploadDialogOpen(true)} className="bg-teal-600 hover:bg-teal-700">
                 <Camera size={16} className="mr-2" />
-                Upload Photos
+                {t('photos.upload')}
               </Button>
             )}
           </CardContent>
@@ -659,8 +661,8 @@ export default function Photos() {
               <CardContent className={viewMode === "list" ? "flex-1 p-4" : "p-3"}>
                 <div className="space-y-2">
 
-                  <h3 className="font-medium text-sm truncate" title={photo.description || 'Project Photo'}>
-                    {photo.description || 'Project Photo'}
+                  <h3 className="font-medium text-sm truncate" title={photo.description || t('photos.projectPhoto')}>
+                    {photo.description || t('photos.projectPhoto')}
                   </h3>
                   
 
@@ -681,7 +683,7 @@ export default function Photos() {
                             setFilterType("tag");
                             setSelectedTag(tag);
                           }}
-                          title={`Filter by tag: ${tag}`}
+                          title={t('photos.filterByTag', { tag })}
                         >
 
                           {tag}
@@ -694,11 +696,11 @@ export default function Photos() {
                           className="text-xs cursor-pointer hover:bg-gray-200"
                           onClick={() => {
                             toast({
-                              title: "All Tags",
-                              description: `Full tags: ${photo.tags?.join(', ')}`,
+                              title: t('photos.allTagsLabel'),
+                              description: photo.tags?.join(', '),
                             });
                           }}
-                          title={`All tags: ${photo.tags.join(', ')}`}
+                          title={photo.tags.join(', ')}
                         >
 
                           +{photo.tags.length - 3}
@@ -715,7 +717,7 @@ export default function Photos() {
                       data-testid={`button-view-photo-${photo.id}`}
                     >
                       <Download size={12} className="mr-1" />
-                      View
+                      {t('photos.view')}
                     </Button>
                     
                     <AlertDialog>
@@ -731,9 +733,9 @@ export default function Photos() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Photo</AlertDialogTitle>
+                          <AlertDialogTitle>{t('photos.deletePhoto')}</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Are you sure you want to permanently delete this photo? This action cannot be undone.
+                            {t('photos.deleteConfirm')}
                             {photo.description && (
                               <span className="block mt-2 text-sm font-medium">
                                 "{photo.description}"
@@ -742,12 +744,12 @@ export default function Photos() {
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogCancel>{t('photos.cancel')}</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => deletePhotoMutation.mutate(photo.id)}
                             className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
                           >
-                            Delete Photo
+                            {t('photos.deletePhoto')}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>

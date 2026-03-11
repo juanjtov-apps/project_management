@@ -172,4 +172,7 @@ class UpdateInstallmentTool(BaseTool):
                 "projectName": installment["project_name"],
             },
             "message": f"Installment '{row['name']}' on {installment['project_name']} updated: {', '.join(summary_parts)}",
+            "suggested_actions": [
+                {"label": "View Payments", "navigateTo": f"/client-portal?projectId={installment['project_id']}"},
+            ],
         }

@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -99,11 +100,11 @@ type SortKey = "name" | "totalTimeSeconds" | "agentTimeSeconds" | "appTimeSecond
 
 // --- Date range presets ---
 
-const DATE_PRESETS = [
-  { label: "Today", days: 0 },
-  { label: "7 Days", days: 7 },
-  { label: "30 Days", days: 30 },
-  { label: "90 Days", days: 90 },
+const DATE_PRESET_KEYS = [
+  { key: "analytics.today", days: 0 },
+  { key: "analytics.7days", days: 7 },
+  { key: "analytics.30days", days: 30 },
+  { key: "analytics.90days", days: 90 },
 ] as const;
 
 function toISODate(d: Date): string {
@@ -113,6 +114,8 @@ function toISODate(d: Date): string {
 // --- Component ---
 
 export default function PlatformAnalytics() {
+  const { t } = useTranslation('admin');
+  const { t: tc } = useTranslation('common');
   const [rangeDays, setRangeDays] = useState(7);
   const [sortKey, setSortKey] = useState<SortKey>("totalTimeSeconds");
   const [sortAsc, setSortAsc] = useState(false);
@@ -188,9 +191,9 @@ export default function PlatformAnalytics() {
       <div className="mx-auto max-w-4xl p-6">
         <Card style={{ backgroundColor: "#161B22", borderColor: "#2D333B" }}>
           <CardHeader>
-            <CardTitle style={{ color: "#EF4444" }}>Access Denied</CardTitle>
+            <CardTitle style={{ color: "#EF4444" }}>{tc('error.accessDenied')}</CardTitle>
             <p style={{ color: "#9CA3AF" }}>
-              This page is restricted to root administrators only.
+              {tc('error.rootOnly')}
             </p>
           </CardHeader>
         </Card>
@@ -202,12 +205,12 @@ export default function PlatformAnalytics() {
   const trends = dashboard?.dailyTrends || [];
 
   // Chart data with short date labels
-  const chartData = trends.map((t) => ({
-    ...t,
-    label: formatDate(t.date),
-    agentMin: Math.round(t.agentTimeSeconds / 60),
-    appMin: Math.round(t.appTimeSeconds / 60),
-    avgMin: Math.round(t.avgTimeSeconds / 60),
+  const chartData = trends.map((trend) => ({
+    ...trend,
+    label: formatDate(trend.date),
+    agentMin: Math.round(trend.agentTimeSeconds / 60),
+    appMin: Math.round(trend.appTimeSeconds / 60),
+    avgMin: Math.round(trend.avgTimeSeconds / 60),
   }));
 
   const totalAgentToday = overview?.totalAgentTimeToday ?? 0;
@@ -220,14 +223,14 @@ export default function PlatformAnalytics() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: "#FFFFFF" }}>
-            Platform Analytics
+            {t('analytics.title')}
           </h1>
           <p style={{ color: "#9CA3AF" }} className="text-sm">
-            Usage metrics across all users and companies
+            {t('analytics.subtitle')}
           </p>
         </div>
         <div className="flex gap-2">
-          {DATE_PRESETS.map((p) => (
+          {DATE_PRESET_KEYS.map((p) => (
             <button
               key={p.days}
               onClick={() => setRangeDays(p.days)}
@@ -241,7 +244,7 @@ export default function PlatformAnalytics() {
                   rangeDays === p.days ? "#4ADE80" : "#2D333B",
               }}
             >
-              {p.label}
+              {t(p.key)}
             </button>
           ))}
         </div>
@@ -250,31 +253,31 @@ export default function PlatformAnalytics() {
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <KpiCard
-          label="Active Users Today"
+          label={t('analytics.activeUsersToday')}
           value={String(overview?.activeUsersToday ?? 0)}
           icon={<Users className="h-4 w-4" />}
           accent="#4ADE80"
         />
         <KpiCard
-          label="Avg Time / User"
+          label={t('analytics.avgTimePerUser')}
           value={formatDuration(overview?.avgTimePerUserSeconds ?? 0)}
           icon={<Clock className="h-4 w-4" />}
           accent="#60A5FA"
         />
         <KpiCard
-          label="Actions Today"
+          label={t('analytics.actionsToday')}
           value={String(overview?.totalActionsToday ?? 0)}
           icon={<Activity className="h-4 w-4" />}
           accent="#FBBF24"
         />
         <KpiCard
-          label="Logins Today"
+          label={t('analytics.loginsToday')}
           value={String(overview?.totalLoginsToday ?? 0)}
           icon={<LogIn className="h-4 w-4" />}
           accent="#F97316"
         />
         <KpiCard
-          label="Agent vs App"
+          label={t('analytics.agentVsApp')}
           value={
             totalTimeToday > 0
               ? `${pct(totalAgentToday, totalTimeToday)} / ${pct(totalAppToday, totalTimeToday)}`
@@ -282,7 +285,7 @@ export default function PlatformAnalytics() {
           }
           subtitle={
             totalTimeToday > 0
-              ? `Agent ${formatDuration(totalAgentToday)} · App ${formatDuration(totalAppToday)}`
+              ? `${t('analytics.agentTime')} ${formatDuration(totalAgentToday)} · ${t('analytics.appTime')} ${formatDuration(totalAppToday)}`
               : undefined
           }
           icon={<Bot className="h-4 w-4" />}
@@ -301,7 +304,7 @@ export default function PlatformAnalytics() {
         <Card style={{ backgroundColor: "#161B22", borderColor: "#2D333B" }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium" style={{ color: "#9CA3AF" }}>
-              Activity Trends
+              {t('analytics.activityTrends')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -341,7 +344,7 @@ export default function PlatformAnalytics() {
                   <Bar
                     yAxisId="left"
                     dataKey="activeUsers"
-                    name="Active Users"
+                    name={t('analytics.activeUsers')}
                     fill="#4ADE80"
                     radius={[4, 4, 0, 0]}
                     barSize={20}
@@ -350,7 +353,7 @@ export default function PlatformAnalytics() {
                     yAxisId="left"
                     type="monotone"
                     dataKey="avgMin"
-                    name="Avg Time (min)"
+                    name={t('analytics.avgTime')}
                     stroke="#60A5FA"
                     strokeWidth={2}
                     dot={false}
@@ -359,7 +362,7 @@ export default function PlatformAnalytics() {
                     yAxisId="right"
                     type="monotone"
                     dataKey="totalActions"
-                    name="Actions"
+                    name={t('analytics.actions')}
                     stroke="#FBBF24"
                     strokeWidth={2}
                     dot={false}
@@ -374,7 +377,7 @@ export default function PlatformAnalytics() {
         <Card style={{ backgroundColor: "#161B22", borderColor: "#2D333B" }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium" style={{ color: "#9CA3AF" }}>
-              Agent vs App Time (minutes)
+              {t('analytics.agentVsAppTime')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -406,14 +409,14 @@ export default function PlatformAnalytics() {
                   />
                   <Bar
                     dataKey="agentMin"
-                    name="Agent Time"
+                    name={t('analytics.agentTime')}
                     stackId="time"
                     fill="#A78BFA"
                     radius={[0, 0, 0, 0]}
                   />
                   <Bar
                     dataKey="appMin"
-                    name="App Time"
+                    name={t('analytics.appTime')}
                     stackId="time"
                     fill="#4ADE80"
                     radius={[4, 4, 0, 0]}
@@ -429,7 +432,7 @@ export default function PlatformAnalytics() {
       <Card style={{ backgroundColor: "#161B22", borderColor: "#2D333B" }}>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium" style={{ color: "#9CA3AF" }}>
-            User Usage ({sortedUsers.length} users)
+            {t('analytics.userUsage', { count: sortedUsers.length })}
           </CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -440,8 +443,7 @@ export default function PlatformAnalytics() {
                 style={{ color: "#2D333B" }}
               />
               <p style={{ color: "#9CA3AF" }}>
-                No usage data yet. Data will appear as users interact with the
-                platform.
+                {t('analytics.noUsageData')}
               </p>
             </div>
           ) : (
@@ -449,51 +451,51 @@ export default function PlatformAnalytics() {
               <TableHeader>
                 <TableRow style={{ borderColor: "#2D333B" }}>
                   <SortableHead
-                    label="Name"
+                    label={tc('table.name')}
                     sortKey="name"
                     currentKey={sortKey}
                     asc={sortAsc}
                     onSort={handleSort}
                   />
-                  <TableHead style={{ color: "#9CA3AF" }}>Email</TableHead>
-                  <TableHead style={{ color: "#9CA3AF" }}>Company</TableHead>
+                  <TableHead style={{ color: "#9CA3AF" }}>{tc('table.email')}</TableHead>
+                  <TableHead style={{ color: "#9CA3AF" }}>{tc('table.company')}</TableHead>
                   <SortableHead
-                    label="Total Time"
+                    label={t('analytics.totalTime')}
                     sortKey="totalTimeSeconds"
                     currentKey={sortKey}
                     asc={sortAsc}
                     onSort={handleSort}
                   />
                   <SortableHead
-                    label="Agent"
+                    label={t('analytics.agent')}
                     sortKey="agentTimeSeconds"
                     currentKey={sortKey}
                     asc={sortAsc}
                     onSort={handleSort}
                   />
                   <SortableHead
-                    label="App"
+                    label={t('analytics.app')}
                     sortKey="appTimeSeconds"
                     currentKey={sortKey}
                     asc={sortAsc}
                     onSort={handleSort}
                   />
                   <SortableHead
-                    label="Actions"
+                    label={t('analytics.actions')}
                     sortKey="totalActions"
                     currentKey={sortKey}
                     asc={sortAsc}
                     onSort={handleSort}
                   />
                   <SortableHead
-                    label="Logins"
+                    label={t('analytics.logins')}
                     sortKey="totalLogins"
                     currentKey={sortKey}
                     asc={sortAsc}
                     onSort={handleSort}
                   />
                   <SortableHead
-                    label="Last Active"
+                    label={t('analytics.lastActive')}
                     sortKey="lastActiveDate"
                     currentKey={sortKey}
                     asc={sortAsc}

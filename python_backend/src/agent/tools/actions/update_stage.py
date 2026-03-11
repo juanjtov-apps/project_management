@@ -74,7 +74,7 @@ class UpdateStageTool(BaseTool):
         # Verify stage belongs to a project in this company
         stage = await db_manager.execute_one(
             """SELECT s.id, s.name, s.status, s.planned_start_date, s.planned_end_date,
-                      p.name as project_name
+                      s.project_id, p.name as project_name
                FROM client_portal.project_stages s
                JOIN projects p ON p.id = s.project_id
                WHERE s.id = $1::uuid AND p.company_id = $2""",
@@ -138,4 +138,7 @@ class UpdateStageTool(BaseTool):
             },
             "changes": changes,
             "message": f"Stage '{row['name']}' updated: {', '.join(changes) if changes else 'updated'}",
+            "suggested_actions": [
+                {"label": "View Stages", "navigateTo": f"/client-portal?projectId={stage['project_id']}"},
+            ],
         }

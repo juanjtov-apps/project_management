@@ -146,7 +146,7 @@ class GetMaterialsTool(BaseTool):
 
             due_date = row_dict.get("finish_materials_due_date")
             material = {
-                "id": row_dict.get("id"),
+                "id": str(row_dict.get("id")) if row_dict.get("id") else None,
                 "name": row_dict.get("name"),
                 "spec": row_dict.get("spec"),
                 "productLink": row_dict.get("product_link"),

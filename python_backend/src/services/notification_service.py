@@ -168,6 +168,9 @@ class NotificationService:
         elif source_kind == 'task':
             # Route to subs management approvals tab
             return "/subs?tab=approvals"
+        elif source_kind == 'agent_error':
+            # Route to agent troubleshooting page
+            return "/agent-troubleshooting"
 
         # Fallback to project client portal
         return f"/client-portal?project={project_id}"

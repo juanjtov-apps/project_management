@@ -186,6 +186,9 @@ def register_default_tools():
     from .actions.update_payment_status import UpdatePaymentStatusTool
     from .actions.create_stage import CreateStageTool
     from .actions.update_stage import UpdateStageTool
+    from .actions.apply_stage_template import ApplyStageTemplateTool
+    from .projects.get_stage_templates import GetStageTemplatesTool
+    from .actions.update_project_details import UpdateProjectDetailsTool
     from .actions.create_material_item import CreateMaterialItemTool
     from .actions.delete_task import DeleteTaskTool
     from .actions.create_installment import CreateInstallmentTool
@@ -213,6 +216,9 @@ def register_default_tools():
     tool_registry.register(UpdatePaymentStatusTool())
     tool_registry.register(CreateStageTool())
     tool_registry.register(UpdateStageTool())
+    tool_registry.register(ApplyStageTemplateTool())
+    tool_registry.register(GetStageTemplatesTool())
+    tool_registry.register(UpdateProjectDetailsTool())
     tool_registry.register(CreateMaterialItemTool())
     tool_registry.register(DeleteTaskTool())
     tool_registry.register(CreateInstallmentTool())

@@ -7,6 +7,7 @@ from typing import Dict, Any, List
 from datetime import datetime
 
 from ..base_tool import BaseTool
+from ..security import resolve_project_or_error
 from ...models.agent_models import SafetyLevel
 from src.database.connection import db_manager
 
@@ -32,7 +33,7 @@ class CreateTaskTool(BaseTool):
             "properties": {
                 "project_id": {
                     "type": "string",
-                    "description": "The project ID to create the task in",
+                    "description": "The project ID (UUID) or project name",
                 },
                 "title": {
                     "type": "string",
@@ -87,16 +88,13 @@ class CreateTaskTool(BaseTool):
         context: Dict[str, Any],
     ) -> Dict[str, Any]:
         company_id = context.get("company_id")
-        project_id = params["project_id"]
         title = params["title"]
 
-        # Verify project belongs to company
-        verify = await db_manager.execute_one(
-            "SELECT id, name FROM projects WHERE id = $1 AND company_id = $2",
-            project_id, company_id,
-        )
-        if not verify:
-            return {"error": "Project not found or access denied"}
+        # Resolve project by UUID or name
+        verify, err = await resolve_project_or_error(params["project_id"], company_id)
+        if err:
+            return err
+        project_id = str(verify["id"])
 
         # Build INSERT
         query = """
@@ -129,7 +127,7 @@ class CreateTaskTool(BaseTool):
         return {
             "success": True,
             "task": {
-                "id": row["id"],
+                "id": str(row["id"]),
                 "title": row["title"],
                 "status": row["status"],
                 "priority": row["priority"],
@@ -137,4 +135,8 @@ class CreateTaskTool(BaseTool):
                 "projectName": verify["name"],
             },
             "message": f"Task '{title}' created in {verify['name']}",
+            "suggested_actions": [
+                {"label": "Go to Tasks", "navigateTo": "/work"},
+                {"label": "Create Another", "prompt": "Create another task for this project"},
+            ],
         }

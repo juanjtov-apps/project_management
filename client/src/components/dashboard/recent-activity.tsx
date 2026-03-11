@@ -1,6 +1,7 @@
 import { Camera, CheckCircle, AlertTriangle, Users, Building, Plus, Upload, Edit } from "lucide-react";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { formatRelativeTime } from "@/lib/statusColors";
 
@@ -19,6 +20,7 @@ interface ActivityItem {
 }
 
 export default function RecentActivity() {
+  const { t } = useTranslation('dashboard');
   const { data: activities = [], isLoading } = useQuery<ActivityItem[]>({
     queryKey: ['/api/activities'],
     retry: false
@@ -45,9 +47,9 @@ export default function RecentActivity() {
         let dayLabel;
         
         if (isToday(date)) {
-          dayLabel = 'Today';
+          dayLabel = t('recentActivity.today');
         } else if (isYesterday(date)) {
-          dayLabel = 'Yesterday';
+          dayLabel = t('recentActivity.yesterday');
         } else {
           dayLabel = format(date, 'MMMM d, yyyy');
         }
@@ -57,10 +59,11 @@ export default function RecentActivity() {
         }
         groups[dayLabel].push(activity);
       } catch {
-        if (!groups['Recently']) {
-          groups['Recently'] = [];
+        const recentlyLabel = t('recentActivity.recently');
+        if (!groups[recentlyLabel]) {
+          groups[recentlyLabel] = [];
         }
-        groups['Recently'].push(activity);
+        groups[recentlyLabel].push(activity);
       }
     });
     
@@ -80,7 +83,7 @@ export default function RecentActivity() {
         style={{ backgroundColor: '#161B22', border: '1px solid #2D333B' }}
       >
         <div className="p-5 border-b" style={{ borderColor: '#2D333B' }}>
-          <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
+          <h3 className="text-lg font-semibold text-white">{t('recentActivity.title')}</h3>
         </div>
         <div className="p-5">
           <div className="space-y-4">
@@ -106,19 +109,19 @@ export default function RecentActivity() {
       data-testid="recent-activity"
     >
       <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#2D333B' }}>
-        <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
+        <h3 className="text-lg font-semibold text-white">{t('recentActivity.title')}</h3>
         <button 
           className="text-sm font-medium transition-colors hover:opacity-80"
           style={{ color: '#4ADE80' }}
           data-testid="view-all-activity"
         >
-          View all
+          {t('recentActivity.viewAll')}
         </button>
       </div>
       <div className="p-5">
         {activities.length === 0 ? (
           <div className="text-center py-8">
-            <p style={{ color: '#9CA3AF' }}>No recent activity in your company</p>
+            <p style={{ color: '#9CA3AF' }}>{t('recentActivity.empty')}</p>
           </div>
         ) : (
           <div className="space-y-6">

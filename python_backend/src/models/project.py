@@ -22,6 +22,19 @@ class ProjectBase(BaseModel):
     due_date: Optional[datetime] = Field(default=None, alias="dueDate")
     company_id: Optional[str] = Field(default=None, alias="companyId")
     cover_photo_id: Optional[str] = Field(default=None, alias="coverPhotoId")
+    custom_fields: Optional[dict] = Field(default_factory=dict, alias="customFields")
+
+    @field_validator('custom_fields', mode='before')
+    @classmethod
+    def parse_custom_fields(cls, v):
+        """Parse custom_fields if it comes as a JSON string from the database."""
+        if isinstance(v, str):
+            import json
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                return {}
+        return v or {}
     ai_insight_text: Optional[str] = Field(default=None, alias="aiInsightText")
     ai_insight_updated_at: Optional[datetime] = Field(default=None, alias="aiInsightUpdatedAt")
     
