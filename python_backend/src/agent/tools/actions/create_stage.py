@@ -4,7 +4,7 @@ Safety: REQUIRES_CONFIRMATION (project structure change needs user approval).
 """
 
 from typing import Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from ..base_tool import BaseTool
 from ..security import resolve_project_or_error
@@ -52,6 +52,15 @@ class CreateStageTool(BaseTool):
                 "planned_end_date": {
                     "type": "string",
                     "description": "Planned end date (YYYY-MM-DD)",
+                },
+                "duration_value": {
+                    "type": "integer",
+                    "description": "Duration as a numeric value (used with duration_unit). If provided with planned_start_date but no planned_end_date, the end date is auto-calculated.",
+                },
+                "duration_unit": {
+                    "type": "string",
+                    "description": "Unit for duration: 'days' (default) or 'hours'",
+                    "enum": ["days", "hours"],
                 },
                 "finish_materials_due_date": {
                     "type": "string",
@@ -118,11 +127,23 @@ class CreateStageTool(BaseTool):
         planned_end = parse_date(params.get("planned_end_date"))
         materials_due = parse_date(params.get("finish_materials_due_date"))
 
+        # Duration handling
+        duration_value = params.get("duration_value")
+        duration_unit = params.get("duration_unit", "days")
+
+        # Auto-calculate end date from duration if not explicitly provided
+        if duration_value and planned_start and not planned_end:
+            if duration_unit == "hours":
+                planned_end = planned_start  # same day for hour-based durations
+            else:
+                planned_end = planned_start + timedelta(days=duration_value)
+
         query = """
             INSERT INTO client_portal.project_stages
                 (project_id, order_index, name, status, planned_start_date,
-                 planned_end_date, finish_materials_due_date, finish_materials_note, created_by)
-            VALUES ($1, $2, $3, 'NOT_STARTED', $4, $5, $6, $7, $8)
+                 planned_end_date, duration_value, duration_unit,
+                 finish_materials_due_date, finish_materials_note, created_by)
+            VALUES ($1, $2, $3, 'NOT_STARTED', $4, $5, $6, $7, $8, $9, $10)
             RETURNING id, name, order_index, status
         """
         row = await db_manager.execute_one(
@@ -132,6 +153,8 @@ class CreateStageTool(BaseTool):
             name,
             planned_start,
             planned_end,
+            duration_value,
+            duration_unit,
             materials_due,
             params.get("finish_materials_note"),
             user_id,

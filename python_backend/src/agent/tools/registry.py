@@ -175,6 +175,7 @@ def register_default_tools():
     from .dynamic.dynamic_query_tool import DynamicQueryTool
 
     # Import write/action tools
+    from .actions.create_project import CreateProjectTool
     from .actions.create_task import CreateTaskTool
     from .actions.update_task_status import UpdateTaskStatusTool
     from .actions.update_project_status import UpdateProjectStatusTool
@@ -205,6 +206,7 @@ def register_default_tools():
     tool_registry.register(GetInstallmentsTool())
 
     # Write/action tools
+    tool_registry.register(CreateProjectTool())
     tool_registry.register(CreateTaskTool())
     tool_registry.register(UpdateTaskStatusTool())
     tool_registry.register(UpdateProjectStatusTool())

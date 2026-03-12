@@ -343,6 +343,48 @@ async def process_confirmation(
                     content=result_message,
                 )
 
+                # Post-confirmation continuation: re-invoke the LLM so it can
+                # chain additional tools (e.g., update_project_details for permit numbers)
+                if not is_error:
+                    try:
+                        continuation_msg = (
+                            f"[System: The {tool_name} action was confirmed and executed successfully. "
+                            f"Result: {result_message}. "
+                            f"Check the conversation history — if the user requested any additional "
+                            f"actions (like adding custom fields, permit numbers, planning numbers, "
+                            f"etc.), proceed with those now. Respond with a formatted summary of "
+                            f"everything that was done, using <<double angle brackets>> for key details.]"
+                        )
+
+                        continuation_messages = []
+                        async for event in agent_orchestrator.process_message(
+                            message=continuation_msg,
+                            conversation_id=confirmation["conversationId"],
+                            project_id=None,
+                            user_context=user_context,
+                            language="en",
+                        ):
+                            event_type = event.get("type")
+                            if event_type == "content":
+                                continuation_messages.append(event["data"])
+                            elif event_type == "error":
+                                logger.warning(f"Continuation error event: {event.get('data')}")
+                            elif event_type == "done":
+                                break
+
+                        if continuation_messages:
+                            # The orchestrator already saved messages to DB;
+                            # include the continuation text in the result
+                            continuation_text = "".join(
+                                chunk.get("content", "") if isinstance(chunk, dict) else str(chunk)
+                                for chunk in continuation_messages
+                            )
+                            if continuation_text.strip():
+                                result["continuation"] = continuation_text.strip()
+
+                    except Exception as cont_err:
+                        logger.warning(f"Post-confirmation continuation failed: {cont_err}")
+
             except Exception as e:
                 logger.error(f"Tool execution after confirmation failed: {e}")
                 result = {"success": False, "error": str(e)}

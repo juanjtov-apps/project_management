@@ -98,6 +98,7 @@ class ProjectStageRepository:
         query = f"""
             SELECT ps.id, ps.project_id, ps.order_index, ps.name, ps.status,
                    ps.planned_start_date, ps.planned_end_date,
+                   ps.duration_value, ps.duration_unit,
                    ps.finish_materials_due_date, ps.finish_materials_note,
                    ps.material_area_id, ps.client_visible, ps.created_by,
                    ps.created_at, ps.updated_at,
@@ -109,6 +110,7 @@ class ProjectStageRepository:
             WHERE ps.project_id = $1 {visibility_filter}
             GROUP BY ps.id, ps.project_id, ps.order_index, ps.name, ps.status,
                      ps.planned_start_date, ps.planned_end_date,
+                     ps.duration_value, ps.duration_unit,
                      ps.finish_materials_due_date, ps.finish_materials_note,
                      ps.material_area_id, ps.client_visible, ps.created_by,
                      ps.created_at, ps.updated_at, ma.name
@@ -122,6 +124,7 @@ class ProjectStageRepository:
         query = """
             SELECT ps.id, ps.project_id, ps.order_index, ps.name, ps.status,
                    ps.planned_start_date, ps.planned_end_date,
+                   ps.duration_value, ps.duration_unit,
                    ps.finish_materials_due_date, ps.finish_materials_note,
                    ps.material_area_id, ps.client_visible, ps.created_by,
                    ps.created_at, ps.updated_at,
@@ -133,6 +136,7 @@ class ProjectStageRepository:
             WHERE ps.id = $1
             GROUP BY ps.id, ps.project_id, ps.order_index, ps.name, ps.status,
                      ps.planned_start_date, ps.planned_end_date,
+                     ps.duration_value, ps.duration_unit,
                      ps.finish_materials_due_date, ps.finish_materials_note,
                      ps.material_area_id, ps.client_visible, ps.created_by,
                      ps.created_at, ps.updated_at, ma.name
@@ -247,9 +251,10 @@ class ProjectStageRepository:
                 row = await conn.fetchrow(
                     """INSERT INTO client_portal.project_stages
                        (id, project_id, order_index, name, status, planned_start_date,
-                        planned_end_date, finish_materials_due_date, finish_materials_note,
+                        planned_end_date, duration_value, duration_unit,
+                        finish_materials_due_date, finish_materials_note,
                         material_area_id, client_visible, created_by, created_at, updated_at)
-                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
                        RETURNING *""",
                     stage_id,
                     project_id,
@@ -258,6 +263,8 @@ class ProjectStageRepository:
                     data.get('status', 'NOT_STARTED'),
                     data.get('planned_start_date'),
                     data.get('planned_end_date'),
+                    data.get('duration_value'),
+                    data.get('duration_unit', 'days'),
                     data.get('finish_materials_due_date'),
                     data.get('finish_materials_note'),
                     data.get('material_area_id'),
@@ -420,17 +427,22 @@ class ProjectStageRepository:
             stage_id = str(uuid.uuid4())
             planned_start = current_date
             duration = item['default_duration_days'] or 7
-            planned_end = current_date + timedelta(days=duration)
+            duration_unit = item.get('default_duration_unit') or 'days'
+
+            if duration_unit == 'hours':
+                planned_end = current_date  # same day for hour-based durations
+            else:
+                planned_end = current_date + timedelta(days=duration)
             materials_due = max(planned_start - timedelta(days=7), date.today())
 
-            placeholders = ", ".join(f"${param_idx + i}" for i in range(12))
+            placeholders = ", ".join(f"${param_idx + i}" for i in range(14))
             values_list.append(f"({placeholders})")
             params.extend([
                 stage_id, project_id, item['order_index'], item['name'],
-                'NOT_STARTED', planned_start, planned_end, materials_due,
-                item['default_materials_note'], user_id, now, now
+                'NOT_STARTED', planned_start, planned_end, duration, duration_unit,
+                materials_due, item['default_materials_note'], user_id, now, now
             ])
-            param_idx += 12
+            param_idx += 14
 
             current_date = planned_end + timedelta(days=1)
 
@@ -440,8 +452,9 @@ class ProjectStageRepository:
         query = f"""
             INSERT INTO client_portal.project_stages
             (id, project_id, order_index, name, status, planned_start_date,
-             planned_end_date, finish_materials_due_date, finish_materials_note,
-             client_visible, created_by, created_at, updated_at)
+             planned_end_date, duration_value, duration_unit,
+             finish_materials_due_date, finish_materials_note,
+             created_by, created_at, updated_at)
             VALUES {", ".join(values_list)}
             RETURNING *
         """

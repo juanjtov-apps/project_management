@@ -118,6 +118,8 @@ interface ProjectStage {
   status: "NOT_STARTED" | "ACTIVE" | "COMPLETE";
   plannedStartDate?: string;
   plannedEndDate?: string;
+  durationValue?: number;
+  durationUnit?: string;
   finishMaterialsDueDate?: string;
   finishMaterialsNote?: string;
   materialAreaId?: string;
@@ -264,6 +266,15 @@ function SortableStageCard({
                       <span className="leading-relaxed">
                         {formatDate(stage.plannedStartDate)}
                         {stage.plannedEndDate && ` → ${formatDate(stage.plannedEndDate)}`}
+                      </span>
+                    </div>
+                  )}
+
+                  {stage.durationValue && (
+                    <div className="flex items-center gap-1.5 text-zinc-400">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span className="text-xs">
+                        {stage.durationValue} {stage.durationUnit === "hours" ? "hrs" : "days"}
                       </span>
                     </div>
                   )}
@@ -433,6 +444,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
   const [customAreaNames, setCustomAreaNames] = useState<string[]>([]);
   const [insertAfterStage, setInsertAfterStage] = useState<ProjectStage | null>(null);
   const [durationDays, setDurationDays] = useState<string>("");
+  const [durationUnit, setDurationUnit] = useState<"days" | "hours">("days");
   const durationSourceRef = useRef<"duration" | "endDate" | null>(null);
   const [pendingCascade, setPendingCascade] = useState<{
     afterOrderIndex: number;
@@ -461,19 +473,24 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
   // Duration → End Date: auto-calculate end date when duration changes
   useEffect(() => {
     if (durationSourceRef.current === "duration" && watchedStartDate && durationDays && parseInt(durationDays) > 0) {
-      form.setValue("plannedEndDate", addDaysToDate(watchedStartDate, parseInt(durationDays)));
+      if (durationUnit === "hours") {
+        // Hours: end date = start date (sub-day duration, DATE type)
+        form.setValue("plannedEndDate", watchedStartDate);
+      } else {
+        form.setValue("plannedEndDate", addDaysToDate(watchedStartDate, parseInt(durationDays)));
+      }
     }
-  }, [watchedStartDate, durationDays, form]);
+  }, [watchedStartDate, durationDays, durationUnit, form]);
 
-  // End Date → Duration: auto-calculate duration when end date changes
+  // End Date → Duration: auto-calculate duration when end date changes (days only)
   useEffect(() => {
-    if (durationSourceRef.current === "endDate" && watchedStartDate && watchedEndDate) {
+    if (durationSourceRef.current === "endDate" && watchedStartDate && watchedEndDate && durationUnit === "days") {
       const diff = daysBetween(watchedStartDate, watchedEndDate);
       if (diff > 0) {
         setDurationDays(String(diff));
       }
     }
-  }, [watchedStartDate, watchedEndDate]);
+  }, [watchedStartDate, watchedEndDate, durationUnit]);
 
   // Fetch stages
   const { data: stages = [], isLoading } = useQuery<ProjectStage[]>({
@@ -524,6 +541,8 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
           // Don't send orderIndex - backend will auto-assign it
           plannedStartDate: data.plannedStartDate || null,
           plannedEndDate: data.plannedEndDate || null,
+          durationValue: durationDays ? parseInt(durationDays) : null,
+          durationUnit: durationUnit,
           finishMaterialsDueDate: data.finishMaterialsDueDate || null,
           finishMaterialsNote: data.finishMaterialsNote || null,
           clientVisible: data.clientVisible,
@@ -615,6 +634,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
       setIsCreateOpen(false);
       setInsertAfterStage(null);
       setDurationDays("");
+      setDurationUnit("days");
       durationSourceRef.current = null;
       setInlineMaterials([]);
       setNewMaterialName("");
@@ -663,6 +683,8 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
       }
       setEditingStage(null);
       setIsCreateOpen(false);
+      setDurationDays("");
+      setDurationUnit("days");
       setInlineMaterials([]);
       setNewMaterialName("");
       setSelectedAreaName("");
@@ -835,6 +857,8 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
           name: data.name,
           plannedStartDate: data.plannedStartDate || null,
           plannedEndDate: data.plannedEndDate || null,
+          durationValue: durationDays ? parseInt(durationDays) : null,
+          durationUnit: durationUnit,
           finishMaterialsDueDate: data.finishMaterialsDueDate || null,
           finishMaterialsNote: data.finishMaterialsNote || null,
           clientVisible: data.clientVisible,
@@ -850,7 +874,8 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
     setEditingStage(stage);
     setInsertAfterStage(null);
     setFinishMaterialsNA(!stage.finishMaterialsDueDate);
-    setDurationDays("");
+    setDurationDays(stage.durationValue?.toString() || "");
+    setDurationUnit((stage.durationUnit as "days" | "hours") || "days");
     durationSourceRef.current = null;
     setInlineMaterials([]);
     setNewMaterialName("");
@@ -874,6 +899,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
     setInsertAfterStage(stage);
     setFinishMaterialsNA(false);
     setDurationDays("");
+    setDurationUnit("days");
     durationSourceRef.current = null;
     setInlineMaterials([]);
     setNewMaterialName("");
@@ -994,6 +1020,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
                   setEditingStage(null);
                   setInsertAfterStage(null);
                   setDurationDays("");
+                  setDurationUnit("days");
                   durationSourceRef.current = null;
                   form.reset();
                   setFinishMaterialsNA(false);
@@ -1061,6 +1088,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
                   setEditingStage(null);
                   setInsertAfterStage(null);
                   setDurationDays("");
+                  setDurationUnit("days");
                   durationSourceRef.current = null;
                   form.reset();
                   setFinishMaterialsNA(false);
@@ -1124,6 +1152,7 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
             setEditingStage(null);
             setInsertAfterStage(null);
             setDurationDays("");
+            setDurationUnit("days");
             durationSourceRef.current = null;
             setInlineMaterials([]);
             setNewMaterialName("");
@@ -1233,18 +1262,37 @@ export function StagesTab({ projectId, onClose }: StagesTabProps) {
                 />
 
                 <FormItem>
-                  <FormLabel className="text-zinc-300">Duration (days)</FormLabel>
-                  <Input
-                    type="number"
-                    min="1"
-                    placeholder="e.g., 14"
-                    className="bg-zinc-800 border-zinc-700 text-white"
-                    value={durationDays}
-                    onChange={(e) => {
-                      durationSourceRef.current = "duration";
-                      setDurationDays(e.target.value);
-                    }}
-                  />
+                  <FormLabel className="text-zinc-300">Duration</FormLabel>
+                  <div className="flex gap-1.5">
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder={durationUnit === "hours" ? "4" : "14"}
+                      className="bg-zinc-800 border-zinc-700 text-white min-w-[60px] flex-1"
+                      value={durationDays}
+                      onChange={(e) => {
+                        durationSourceRef.current = "duration";
+                        setDurationDays(e.target.value);
+                      }}
+                    />
+                    <Select
+                      value={durationUnit}
+                      onValueChange={(val: "days" | "hours") => {
+                        setDurationUnit(val);
+                        if (durationDays) {
+                          durationSourceRef.current = "duration";
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-[72px] shrink-0 bg-zinc-800 border-zinc-700 text-white text-xs px-2">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="days">Days</SelectItem>
+                        <SelectItem value="hours">Hrs</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </FormItem>
 
                 <FormField

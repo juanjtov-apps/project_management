@@ -29,6 +29,7 @@ class StageTemplateItemBase(BaseModel):
     order_index: int = Field(default=0, alias="orderIndex")
     name: str
     default_duration_days: Optional[int] = Field(default=None, alias="defaultDurationDays")
+    default_duration_unit: Optional[str] = Field(default="days", alias="defaultDurationUnit")
     default_materials_note: Optional[str] = Field(default=None, alias="defaultMaterialsNote")
 
     model_config = {"populate_by_name": True, "from_attributes": True}
@@ -75,6 +76,8 @@ class ProjectStageBase(BaseModel):
     status: StageStatus = StageStatus.not_started
     planned_start_date: Optional[date] = Field(default=None, alias="plannedStartDate")
     planned_end_date: Optional[date] = Field(default=None, alias="plannedEndDate")
+    duration_value: Optional[int] = Field(default=None, alias="durationValue")
+    duration_unit: Optional[str] = Field(default="days", alias="durationUnit")
     finish_materials_due_date: Optional[date] = Field(default=None, alias="finishMaterialsDueDate")
     finish_materials_note: Optional[str] = Field(default=None, alias="finishMaterialsNote")
     material_area_id: Optional[str] = Field(default=None, alias="materialAreaId")
@@ -96,6 +99,8 @@ class ProjectStageUpdate(BaseModel):
     status: Optional[StageStatus] = None
     planned_start_date: Optional[date] = Field(default=None, alias="plannedStartDate")
     planned_end_date: Optional[date] = Field(default=None, alias="plannedEndDate")
+    duration_value: Optional[int] = Field(default=None, alias="durationValue")
+    duration_unit: Optional[str] = Field(default=None, alias="durationUnit")
     finish_materials_due_date: Optional[date] = Field(default=None, alias="finishMaterialsDueDate")
     finish_materials_note: Optional[str] = Field(default=None, alias="finishMaterialsNote")
     material_area_id: Optional[str] = Field(default=None, alias="materialAreaId")

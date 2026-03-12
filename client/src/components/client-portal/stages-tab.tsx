@@ -22,6 +22,8 @@ interface ProjectStage {
   status: "NOT_STARTED" | "ACTIVE" | "COMPLETE";
   plannedStartDate?: string;
   plannedEndDate?: string;
+  durationValue?: number;
+  durationUnit?: string;
   finishMaterialsDueDate?: string;
   finishMaterialsNote?: string;
   materialAreaId?: string;
@@ -347,6 +349,11 @@ export function StagesTab({ projectId, onNavigateToMaterials }: StagesTabProps) 
                                 " → "}
                               {stage.plannedEndDate &&
                                 formatDateShort(stage.plannedEndDate)}
+                              {stage.durationValue && (
+                                <span className="text-xs text-zinc-500 ml-1">
+                                  ({stage.durationValue} {stage.durationUnit === "hours" ? "hrs" : "days"})
+                                </span>
+                              )}
                             </div>
                           )}
 

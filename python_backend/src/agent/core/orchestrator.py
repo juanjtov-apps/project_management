@@ -496,6 +496,19 @@ class AgentOrchestrator:
                 summary += f" (${amount:,.2f})"
             if tool_input.get("due_date"):
                 summary += f", due {tool_input['due_date']}"
+        elif tool_name == "create_project":
+            summary = f"Create project '{name}'" if name else "Create project"
+            details = []
+            if tool_input.get("description"):
+                details.append(f"Description: {tool_input['description']}")
+            if tool_input.get("location"):
+                details.append(f"Location: {tool_input['location']}")
+            if tool_input.get("due_date"):
+                details.append(f"Due: {tool_input['due_date']}")
+            if tool_input.get("status") and tool_input["status"] != "active":
+                details.append(f"Status: {tool_input['status']}")
+            if details:
+                summary += " — " + ", ".join(details)
         elif tool_name == "create_stage":
             summary = f"Add stage '{name}'" if name else "Add stage"
             if tool_input.get("planned_start_date") and tool_input.get("planned_end_date"):

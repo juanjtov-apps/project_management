@@ -133,6 +133,20 @@ Custom construction-themed palette with `pro-*` color tokens, `mint`, `brand`, `
 - Use Wouter for routing (not React Router)
 - **Routing rule**: Both authenticated and unauthenticated Switch blocks in `App.tsx` must define routes for ALL navigable paths (e.g., `/login` must exist in authenticated routes as a redirect to `/dashboard`). After login, a race condition between `setLocation` and React Query state propagation can briefly leave the user on an auth-only URL while authenticated — any unhandled path hits the 404 catch-all.
 
+## Post-Implementation Testing
+
+After every implementation, you MUST manually test the changes before considering the task complete:
+
+1. **Emulate the user's workflow** — Think about how the user would interact with the feature or fix you just implemented
+2. **Start the servers** if not already running (`./start-servers.sh`)
+3. **Hit the relevant API endpoints** using `curl` or the appropriate tool to verify backend changes work correctly
+4. **Check the frontend** by verifying the build succeeds (`npm run build` or `npm run check`) and that API responses match what the UI expects
+5. **Test the happy path** — Confirm the primary use case works end-to-end
+6. **Test edge cases** — Verify error handling, empty states, and boundary conditions where applicable
+7. **Run existing tests** — Execute `cd python_backend && python -m pytest` to ensure no regressions
+
+Do not rely solely on reading the code to verify correctness. Always execute and observe actual behavior.
+
 ## RBAC System
 
 All RBAC operations are in FastAPI (`python_backend/src/api/v1/rbac.py` and `python_backend/src/api/user_management.py`):

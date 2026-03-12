@@ -385,6 +385,16 @@ async def init_client_portal_schema():
             except Exception:
                 pass  # Column may already exist
 
+            # Add duration columns to project_stages (additive, idempotent)
+            try:
+                await conn.execute("""
+                    ALTER TABLE client_portal.project_stages ADD COLUMN IF NOT EXISTS duration_value integer;
+                    ALTER TABLE client_portal.project_stages ADD COLUMN IF NOT EXISTS duration_unit text NOT NULL DEFAULT 'days';
+                    ALTER TABLE client_portal.stage_template_items ADD COLUMN IF NOT EXISTS default_duration_unit text NOT NULL DEFAULT 'days';
+                """)
+            except Exception:
+                pass  # Columns may already exist
+
             return True
     except Exception as e:
         print(f"❌ Error initializing client portal schema: {e}")

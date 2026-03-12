@@ -47,6 +47,15 @@ class UpdateStageTool(BaseTool):
                     "type": "string",
                     "description": "New planned end date (YYYY-MM-DD)",
                 },
+                "duration_value": {
+                    "type": "integer",
+                    "description": "Duration as a numeric value (used with duration_unit)",
+                },
+                "duration_unit": {
+                    "type": "string",
+                    "description": "Unit for duration: 'days' or 'hours'",
+                    "enum": ["days", "hours"],
+                },
                 "finish_materials_due_date": {
                     "type": "string",
                     "description": "New finish materials due date (YYYY-MM-DD)",
@@ -83,8 +92,10 @@ class UpdateStageTool(BaseTool):
         if not stage:
             return {"error": "Stage not found or access denied"}
 
-        if not any(params.get(k) for k in ["status", "planned_start_date", "planned_end_date", "finish_materials_due_date"]):
-            return {"error": "Must provide at least one field to update (status, dates)"}
+        updatable_fields = ["status", "planned_start_date", "planned_end_date",
+                           "finish_materials_due_date", "duration_value", "duration_unit"]
+        if not any(params.get(k) for k in updatable_fields):
+            return {"error": "Must provide at least one field to update (status, dates, duration)"}
 
         old_status = stage["status"]
         set_clauses = ["updated_at = NOW()"]
@@ -111,10 +122,21 @@ class UpdateStageTool(BaseTool):
         parse_and_add("planned_end_date", "planned_end_date")
         parse_and_add("finish_materials_due_date", "finish_materials_due_date")
 
+        if params.get("duration_value") is not None:
+            set_clauses.append(f"duration_value = ${idx}")
+            args.append(params["duration_value"])
+            idx += 1
+
+        if params.get("duration_unit"):
+            set_clauses.append(f"duration_unit = ${idx}")
+            args.append(params["duration_unit"])
+            idx += 1
+
         query = f"""
             UPDATE client_portal.project_stages SET {', '.join(set_clauses)}
             WHERE id = $1::uuid
-            RETURNING id, name, status, planned_start_date, planned_end_date
+            RETURNING id, name, status, planned_start_date, planned_end_date,
+                      duration_value, duration_unit
         """
         row = await db_manager.execute_one(query, *args)
 
@@ -125,6 +147,9 @@ class UpdateStageTool(BaseTool):
             changes.append(f"start: {row['planned_start_date']}")
         if params.get("planned_end_date"):
             changes.append(f"end: {row['planned_end_date']}")
+        if params.get("duration_value") is not None:
+            unit = params.get("duration_unit") or row["duration_unit"] or "days"
+            changes.append(f"duration: {row['duration_value']} {unit}")
 
         return {
             "success": True,
@@ -134,6 +159,8 @@ class UpdateStageTool(BaseTool):
                 "status": row["status"],
                 "plannedStartDate": str(row["planned_start_date"]) if row["planned_start_date"] else None,
                 "plannedEndDate": str(row["planned_end_date"]) if row["planned_end_date"] else None,
+                "durationValue": row["duration_value"],
+                "durationUnit": row["duration_unit"],
                 "projectName": stage["project_name"],
             },
             "changes": changes,

@@ -55,6 +55,7 @@ interface UseAgentChatReturn {
 // Maps tool names to React Query cache key prefixes to invalidate after execution.
 // Uses startsWith matching so "/api/client-issues" matches "/api/client-issues?project_id=xxx".
 const TOOL_CACHE_MAP: Record<string, string[]> = {
+  create_project: ["/api/projects"],
   create_task: ["/api/tasks"],
   update_task_status: ["/api/tasks"],
   assign_task: ["/api/tasks"],
@@ -427,12 +428,15 @@ export function useAgentChat(options: UseAgentChatOptions = {}): UseAgentChatRet
       // Add result as a new assistant message
       if (action === "confirm" && data.result) {
         const execResult = data.result.result;
-        let content = data.result.success
-          ? (execResult?.message || "Operation completed successfully.")
-          : `Operation failed: ${data.result.error}`;
+        // Use LLM continuation response (formatted with highlights) if available
+        let content = data.result.continuation
+          ? data.result.continuation
+          : data.result.success
+            ? (execResult?.message || "Operation completed successfully.")
+            : `Operation failed: ${data.result.error}`;
 
-        // Append action buttons from suggested_actions
-        if (data.result.success && execResult?.suggested_actions?.length) {
+        // Append action buttons from suggested_actions (only if no continuation, as continuation may have its own context)
+        if (!data.result.continuation && data.result.success && execResult?.suggested_actions?.length) {
           content += buildActionBlock(execResult.suggested_actions);
         }
 
